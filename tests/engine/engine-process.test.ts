@@ -1,25 +1,17 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { QueryClient } from "@tanstack/react-query"
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
-import { engineReadyMessage } from "../shared/engine-contract"
-import { observation } from "../shared/observability/observation"
-import { createEngineClient } from "../renderer/src/engine-client"
+import { createEngineClient } from "@src/renderer/src/engine-client"
+import { engineReadyMessage } from "@src/shared/engine-contract"
+import { observation } from "@src/shared/observability/observation"
+import { testDirectory } from "../support/test-directory"
 
-const directories: string[] = []
-
-afterEach(() => {
-  for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
+const directory = testDirectory("jots-engine-")
 
 describe("compiled Bun Engine", () => {
   test("requires its token, migrates its database, and exits on SIGTERM", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "bot-teams-engine-test-"))
     const databasePath = join(directory, "test.sqlite")
-    directories.push(directory)
     let resolveReady: (message: typeof engineReadyMessage.infer) => void = () => undefined
     const ready = new Promise<typeof engineReadyMessage.infer>((resolve) => {
       resolveReady = resolve

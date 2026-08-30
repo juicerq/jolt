@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { providerAvailability } from "./providers"
+import { providerAvailability } from "@src/shared/providers"
 
 describe("provider availability boundary", () => {
   test("rejects session data outside provider, status and version", () => {

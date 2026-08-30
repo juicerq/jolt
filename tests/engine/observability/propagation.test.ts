@@ -3,26 +3,19 @@ import { RPCLink } from "@orpc/client/fetch"
 import { oc } from "@orpc/contract"
 import { implement } from "@orpc/server"
 import { RPCHandler } from "@orpc/server/fetch"
-import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync, rmSync } from "node:fs"
+import { describe, expect, test } from "bun:test"
 import { join } from "node:path"
-import { openDatabase } from "../persistence/database"
-import { createObservationSystem } from "./observability"
-import { runObservedSubprocess } from "./observed-subprocess"
+import { createObservationSystem } from "@src/engine/observability/observability"
+import { runObservedSubprocess } from "@src/engine/observability/observed-subprocess"
+import { openDatabase } from "@src/engine/persistence/database"
+import { testDirectory } from "../../support/test-directory"
 
-const testDirectory = join(import.meta.dir, ".propagation-test")
-
-afterEach(() => {
-  if (existsSync(testDirectory)) {
-    rmSync(testDirectory, { recursive: true })
-  }
-})
+const directory = testDirectory("jots-propagation-")
 
 describe("observation context", () => {
   test("keeps one Renderer trace through HTTP, oRPC, Drizzle and a subprocess", async () => {
-    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: testDirectory, development: false })
-    mkdirSync(testDirectory, { recursive: true })
-    const database = openDatabase(join(testDirectory, "test.sqlite"), system.observability)
+    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: directory, development: false })
+    const database = openDatabase(join(directory, "test.sqlite"), system.observability)
     const contract = { run: oc.route({ method: "GET", path: "/run" }) }
     const operations = implement(contract).$context<{ traceId: string }>()
     const router = operations.router({

@@ -9,7 +9,8 @@
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
     "dev": "bun run build:engine && electron-vite dev",
-    "test": "bun run build:engine && bun test",
+    "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
+    "test:stress": "bun run build:engine && bun test tests --no-orphans --parallel=4 --randomize --rerun-each=3",
     "typecheck": "tsc --noEmit",
     "build:engine": "bun build --compile --outfile dist-engine/bot-teams-engine src/engine/index.ts",
     "build:electron": "electron-vite build",

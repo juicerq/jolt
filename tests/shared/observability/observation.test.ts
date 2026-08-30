@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { observation } from "./observation"
+import { observation } from "@src/shared/observability/observation"
 
 describe("Observation envelope", () => {
   test("rejects undeclared fields", () => {

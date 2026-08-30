@@ -2,10 +2,10 @@
 
 Todo agente que escrever ou alterar código deve usar o Skill tool com name `code-practices` e o Skill tool com name `codebase-design` antes de agir. As duas chamadas são obrigatórias mesmo em mudanças pequenas.
 
-# React
+# Testes
 
-`useEffect` is prohibited unless an external synchronization cannot be expressed through rendering, event handlers, TanStack Query, TanStack Store, or a dedicated subscription API. Its use requires proof during review that each alternative fails.
+Leia `tests/TESTS-PATERNS.md` antes de criar ou alterar testes. Ele registra a estrutura, os comandos e os recursos do Bun adotados pela suíte.
 
-TanStack Query owns server state. TanStack Store owns shared client state. Component state owns state that is local to one component subtree.
+# Renderer
 
-Use selectors when reading TanStack Store so unrelated changes do not rerender a component.
+Leia `src/renderer/RENDERER-PATERNS.md` antes de criar ou alterar código no Renderer. Ele registra as escolhas de React e estado da interface.

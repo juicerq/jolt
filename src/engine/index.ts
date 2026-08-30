@@ -10,6 +10,7 @@ import { createClaudeProvider } from "./claude/claude-provider"
 import { createCodexProvider } from "./codex/codex-provider"
 import { createProviderDiscovery } from "./providers/provider-discovery"
 import { openDatabase } from "./persistence/database"
+import { createTeams } from "./teams/teams"
 
 const environment = type({
   BOT_TEAMS_ENGINE_TOKEN: "string > 0",
@@ -89,6 +90,7 @@ const providers = createProviderDiscovery(observationSystem.observability, [
   createCodexProvider(observationSystem.observability),
   createClaudeProvider(observationSystem.observability),
 ])
+const teams = createTeams({ database, observability: observationSystem.observability, providers })
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
@@ -102,7 +104,7 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, teams),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",

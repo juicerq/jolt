@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { engineConnection, engineReadyMessage } from "./engine-contract"
+import { engineConnection, engineReadyMessage } from "@src/shared/engine-contract"
 
 describe("engine readiness boundary", () => {
   test("rejects a readiness message without a usable port", () => {

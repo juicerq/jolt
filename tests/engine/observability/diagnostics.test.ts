@@ -1,26 +1,20 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync, readFileSync, rmSync } from "node:fs"
-import { join } from "node:path"
-import { createDiagnostics } from "./diagnostics"
-import { createObservationSystem } from "./observability"
+import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
+import { createDiagnostics } from "@src/engine/observability/diagnostics"
+import { createObservationSystem } from "@src/engine/observability/observability"
+import { testDirectory } from "../../support/test-directory"
 
-const testDirectory = join(import.meta.dir, ".diagnostics-test")
-
-afterEach(() => {
-  if (existsSync(testDirectory)) {
-    rmSync(testDirectory, { recursive: true })
-  }
-})
+const directory = testDirectory("jots-diagnostics-")
 
 describe("Diagnostics", () => {
   test("derives failures, percentiles and slow operations from spans", async () => {
-    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: testDirectory, development: false })
+    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: directory, development: false })
     const diagnostics = createDiagnostics({
       source: system.diagnostics,
       versions: { app: "0.0.0", bun: "1.4.0", electron: "44.0.0" },
       processState: () => ({ engine: "ready", main: "ready" }),
       migrationState: () => [1],
-      exportDirectory: testDirectory,
+      exportDirectory: directory,
       providerState: () => [
         { provider: "codex", status: "available", version: "0.151.0" },
         { provider: "claude", status: "unauthenticated", version: "2.1.250" },
@@ -42,13 +36,13 @@ describe("Diagnostics", () => {
   })
 
   test("exports only sanitized observations and non-sensitive metadata", async () => {
-    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: testDirectory, development: false })
+    const system = createObservationSystem({ appSessionId: "session-1", logDirectory: directory, development: false })
     const diagnostics = createDiagnostics({
       source: system.diagnostics,
       versions: { app: "0.0.0", bun: "1.4.0", electron: "44.0.0" },
       processState: () => ({ engine: "ready", main: "ready" }),
       migrationState: () => [1],
-      exportDirectory: testDirectory,
+      exportDirectory: directory,
     })
     system.observability.event({ name: "engine.started", attributes: { status: "ready", token: "secret" } })
     await system.observability.flush()

@@ -1,21 +1,15 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { describe, expect, test } from "bun:test"
+import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import type { Observability } from "../observability/observability"
-import { createCodexProvider } from "./codex-provider"
+import { createCodexProvider } from "@src/engine/codex/codex-provider"
+import type { Observability } from "@src/engine/observability/observability"
+import { testDirectory } from "../../support/test-directory"
 
-const directories: string[] = []
+const directory = testDirectory("jots-codex-")
 const observability: Observability = { event() {}, span: (_input, operation) => operation(), async flush() {} }
 
-afterEach(async () => {
-  await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
-})
-
 async function executable(account: string) {
-  const directory = await mkdtemp(join(tmpdir(), "jots-codex-"))
   const path = join(directory, "codex")
-  directories.push(directory)
   await writeFile(path, `#!/usr/bin/env bun
 if (Bun.argv.includes("--version")) { process.stdout.write("codex-cli 0.151.0"); process.exit(0) }
 for await (const line of console) {

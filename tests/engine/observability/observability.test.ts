@@ -1,21 +1,16 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs"
+import { describe, expect, test } from "bun:test"
+import { mkdirSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
-import { createObservationSystem } from "./observability"
+import { createObservationSystem } from "@src/engine/observability/observability"
+import { testDirectory } from "../../support/test-directory"
 
-const testDirectory = join(import.meta.dir, ".observability-test")
-
-afterEach(() => {
-  if (existsSync(testDirectory)) {
-    rmSync(testDirectory, { recursive: true })
-  }
-})
+const directory = testDirectory("jots-observability-")
 
 describe("Observability", () => {
   test("exposes only event, span and flush", () => {
     const { observability } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -23,10 +18,10 @@ describe("Observability", () => {
   })
 
   test("records a closed event envelope and drops forbidden attributes", async () => {
-    mkdirSync(testDirectory, { recursive: true })
+    mkdirSync(directory, { recursive: true })
     const { observability } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -43,8 +38,8 @@ describe("Observability", () => {
     })
     await observability.flush()
 
-    const [file] = readdirSync(testDirectory).filter((entry) => entry.endsWith(".jsonl"))
-    const persisted = readFileSync(join(testDirectory, file), "utf8")
+    const [file] = readdirSync(directory).filter((entry) => entry.endsWith(".jsonl"))
+    const persisted = readFileSync(join(directory, file), "utf8")
     const observation = JSON.parse(persisted)
 
     expect(observation).toMatchObject({
@@ -69,7 +64,7 @@ describe("Observability", () => {
     }) as typeof process.stderr.write
     const { observability, diagnostics } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -87,7 +82,7 @@ describe("Observability", () => {
   test("propagates trace and parent spans across asynchronous work", async () => {
     const { observability, diagnostics } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -112,7 +107,7 @@ describe("Observability", () => {
   test("normalizes failures without interrupting the operation", async () => {
     const { observability, diagnostics } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -136,7 +131,7 @@ describe("Observability", () => {
   test("marks non-Error and undefined rejections as redacted failures", async () => {
     const { observability, diagnostics } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
     })
 
@@ -159,7 +154,7 @@ describe("Observability", () => {
   test("rotates JSONL files at the configured size", async () => {
     const { observability } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
       maxFileBytes: 250,
       maxFiles: 2,
@@ -170,7 +165,7 @@ describe("Observability", () => {
     }
     await observability.flush()
 
-    const files = readdirSync(testDirectory).filter((entry) => entry.endsWith(".jsonl"))
+    const files = readdirSync(directory).filter((entry) => entry.endsWith(".jsonl"))
 
     expect(files.length).toBe(2)
   })
@@ -185,14 +180,14 @@ describe("Observability", () => {
     }) as typeof process.stderr.write
     const { observability } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
       maxFileBytes: 1,
       maxFiles: 2,
     })
     observability.event({ name: "engine.initialized" })
     await observability.flush()
-    mkdirSync(join(testDirectory, "observations.1.jsonl"), { recursive: true })
+    mkdirSync(join(directory, "observations.1.jsonl"), { recursive: true })
 
     try {
       expect(() => observability.event({ name: "engine.started" })).not.toThrow()
@@ -215,7 +210,7 @@ describe("Observability", () => {
     }) as typeof process.stderr.write
     const { observability } = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: testDirectory,
+      logDirectory: directory,
       development: false,
       outputs: [
         { write() { throw new Error("disk unavailable") }, async flush() {} },
@@ -244,12 +239,12 @@ describe("Observability", () => {
     }) as typeof process.stdout.write
     const development = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: join(testDirectory, "development"),
+      logDirectory: join(directory, "development"),
       development: true,
     })
     const production = createObservationSystem({
       appSessionId: "session-1",
-      logDirectory: join(testDirectory, "production"),
+      logDirectory: join(directory, "production"),
       development: false,
     })
 

@@ -1,22 +1,14 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { describe, expect, test } from "bun:test"
+import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
-import { observation } from "../../shared/observability/observation"
-import { EngineProcess } from "./engine-process"
+import { EngineProcess } from "@src/main/engine-process/engine-process"
+import { observation } from "@src/shared/observability/observation"
+import { testDirectory } from "../../support/test-directory"
 
-const directories: string[] = []
-
-afterEach(() => {
-  for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
+const directory = testDirectory("jots-main-engine-")
 
 describe("EngineProcess", () => {
   test("starts and stops the compiled engine without leaving a child process", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "bot-teams-supervisor-test-"))
-    directories.push(directory)
     const engine = new EngineProcess({
       executable: join(process.cwd(), "dist-engine", "bot-teams-engine"),
       databasePath: join(directory, "test.sqlite"),
@@ -46,8 +38,6 @@ describe("EngineProcess", () => {
   })
 
   test("reports an unexpected exit after readiness", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "bot-teams-supervisor-exit-test-"))
-    directories.push(directory)
     let resolveExit: (error: Error) => void = () => undefined
     const unexpectedExit = new Promise<Error>((resolve) => {
       resolveExit = resolve
@@ -69,8 +59,6 @@ describe("EngineProcess", () => {
   })
 
   test("rejects startup when the executable cannot spawn", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "bot-teams-supervisor-spawn-test-"))
-    directories.push(directory)
     const engine = new EngineProcess({
       executable: join(directory, "missing-engine"),
       databasePath: join(directory, "test.sqlite"),

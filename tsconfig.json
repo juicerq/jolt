@@ -9,7 +9,10 @@
     "noEmit": true,
     "skipLibCheck": true,
     "types": ["bun", "node"],
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "paths": {
+      "@src/*": ["./src/*"]
+    }
   },
-  "include": ["src", "electron.vite.config.ts"]
+  "include": ["src", "tests", "electron.vite.config.ts"]
 }

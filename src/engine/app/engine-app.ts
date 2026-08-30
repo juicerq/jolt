@@ -3,6 +3,7 @@ import { engineContract } from "../../shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
 import type { createProviderDiscovery } from "../providers/provider-discovery"
+import type { createTeams } from "../teams/teams"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -19,6 +20,7 @@ export function createEngineRouter(
   diagnostics: ReturnType<typeof createDiagnostics>,
   receiver: ObservationReceiver,
   providers: ReturnType<typeof createProviderDiscovery>,
+  teams: ReturnType<typeof createTeams>,
 ) {
   const operations = implement(engineContract)
 
@@ -44,6 +46,34 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.providerlist", context: observationContext(context) },
           () => providers.list(),
+        ),
+      ),
+    },
+    teams: {
+      create: operations.teams.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.teamcreate", context: observationContext(context) },
+          () => teams.create(input),
+        ),
+      ),
+      list: operations.teams.list.handler(({ context }: { context: EngineContext }) =>
+        observability.span(
+          { name: "orpc.teamlist", context: observationContext(context) },
+          () => teams.list(),
+        ),
+      ),
+      get: operations.teams.get.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.teamget", context: observationContext(context) },
+          () => {
+            const team = teams.get(input)
+
+            if (!team) {
+              throw new Error("Team not found")
+            }
+
+            return team
+          },
         ),
       ),
     },

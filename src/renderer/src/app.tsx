@@ -3,13 +3,20 @@ import { useState } from "react"
 import type { DiagnosticsReport } from "../../shared/observability/diagnostics"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { EngineClient } from "./engine-client"
+import { TeamsWorkspace } from "./teams/teams-workspace"
 
 export function App({ client }: { client: EngineClient }) {
   return (
     <main>
       <header>
         <p className="eyebrow">Jots local</p>
-        <h1>Diagnóstico</h1>
+        <h1>Seus Times</h1>
+        <p className="subtitle">Crie um Time, escolha o fornecedor e defina o trabalho do Líder.</p>
+      </header>
+      <TeamsWorkspace client={client} />
+      <header className="technical-heading">
+        <p className="eyebrow">Estado local</p>
+        <h2>Diagnóstico técnico</h2>
         <p className="subtitle">Falhas e durações medidas pelo Bun Engine nesta sessão.</p>
       </header>
       <EngineHealth client={client} />

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import type { Observability } from "../observability/observability"
-import { createProviderDiscovery, type ProviderProbe } from "./provider-discovery"
+import type { Observability } from "@src/engine/observability/observability"
+import { createProviderDiscovery, type ProviderProbe } from "@src/engine/providers/provider-discovery"
 
 function createObservability() {
   const spans: { name: string; provider?: string }[] = []
