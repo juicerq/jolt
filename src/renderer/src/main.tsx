@@ -1,0 +1,23 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import React from "react"
+import ReactDOM from "react-dom/client"
+import { App } from "./app"
+import { createEngineClient } from "./engine-client"
+import "./styles.css"
+
+const queryClient = new QueryClient()
+const connection = await window.desktop.getEngineConnection()
+const engineClient = createEngineClient(connection)
+const root = document.getElementById("root")
+
+if (!root) {
+  throw new Error("Renderer root is missing")
+}
+
+ReactDOM.createRoot(root).render(
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <App client={engineClient} />
+    </QueryClientProvider>
+  </React.StrictMode>,
+)

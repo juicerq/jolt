@@ -1,0 +1,15 @@
+node_modules/
+out/
+dist-engine/
+prototype/node_modules/
+prototype/out/
+prototype/dist-engine/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+logs/
+*.log
+.DS_Store
