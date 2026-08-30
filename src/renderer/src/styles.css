@@ -339,6 +339,71 @@ button:disabled {
   background: #141210;
 }
 
+.members-section {
+  margin-top: 28px;
+}
+
+.members-heading, .member-card, .member-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.members-heading {
+  margin-bottom: 16px;
+}
+
+.members-heading h3, .member-card .eyebrow, .member-details p {
+  margin-bottom: 0;
+}
+
+.members-empty {
+  display: flex;
+  min-height: 120px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed #44403c;
+  border-radius: 12px;
+  color: #a8a29e;
+}
+
+.members-empty strong {
+  color: #e7e5e4;
+}
+
+.members-list {
+  display: grid;
+  gap: 10px;
+}
+
+.member-card {
+  border: 1px solid #292524;
+  border-radius: 12px;
+  padding: 16px;
+  background: #141210;
+}
+
+.member-details {
+  justify-content: flex-end;
+}
+
+.member-details p {
+  max-width: 360px;
+  color: #a8a29e;
+  text-align: right;
+}
+
+.member-form {
+  margin-bottom: 20px;
+  border: 1px solid #292524;
+  border-radius: 14px;
+  padding: 20px;
+  background: #141210;
+}
+
 .leader-function {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -478,8 +543,12 @@ legend {
     grid-template-columns: 1fr;
   }
 
-  .export-panel, .panel-heading, li {
+  .export-panel, .panel-heading, .member-card, .member-details, li {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .member-details p {
+    text-align: left;
   }
 }

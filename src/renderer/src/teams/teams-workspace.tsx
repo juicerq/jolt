@@ -1,8 +1,9 @@
 import { useSelector } from "@tanstack/react-store"
 import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type ChangeEvent, type FormEvent, useState } from "react"
-import type { ProviderAvailability } from "../../../shared/providers"
 import type { EngineClient } from "../engine-client"
+import { CreateMemberForm } from "./create-member-form"
+import { formatProvider } from "./provider-name"
 import { closeCreateTeam, openCreateTeam, selectTeam, teamsStore } from "./teams-store"
 
 export function TeamsWorkspace({ client }: { client: EngineClient }) {
@@ -13,7 +14,11 @@ export function TeamsWorkspace({ client }: { client: EngineClient }) {
     <section className="teams-workspace" aria-label="Times">
       <TeamsSidebar client={client} />
       <div className="team-content">
-        {isCreateOpen ? <CreateTeamForm client={client} /> : <TeamSummary client={client} teamId={selectedTeamId} />}
+        {isCreateOpen ? (
+          <CreateTeamForm client={client} />
+        ) : (
+          <TeamSummary key={selectedTeamId ?? "no-team"} client={client} teamId={selectedTeamId} />
+        )}
       </div>
     </section>
   )
@@ -51,6 +56,7 @@ function TeamsSidebar({ client }: { client: EngineClient }) {
 }
 
 function TeamSummary({ client, teamId }: { client: EngineClient; teamId: string | null }) {
+  const [isCreateMemberOpen, setIsCreateMemberOpen] = useState(false)
   const { data, error, isFetching } = useQuery(client.teams.get.queryOptions({
     input: teamId ? { id: teamId } : skipToken,
   }))
@@ -88,6 +94,36 @@ function TeamSummary({ client, teamId }: { client: EngineClient; teamId: string 
           <div><dt>Limites</dt><dd>{data.leader.function.limits}</dd></div>
           <div><dt>Entrega</dt><dd>{data.leader.function.delivery}</dd></div>
         </dl>
+      </section>
+      <section className="members-section">
+        <div className="members-heading">
+          <div><p className="eyebrow">Integrantes</p><h3>{data.members.length} {data.members.length === 1 ? "Integrante" : "Integrantes"}</h3></div>
+          {!isCreateMemberOpen && <button type="button" onClick={() => setIsCreateMemberOpen(true)}>Novo Integrante</button>}
+        </div>
+        {isCreateMemberOpen && (
+          <CreateMemberForm
+            client={client}
+            defaultProvider={data.defaultProvider}
+            teamId={data.id}
+            onCancel={() => setIsCreateMemberOpen(false)}
+          />
+        )}
+        {!isCreateMemberOpen && data.members.length === 0 && (
+          <div className="members-empty"><strong>Nenhum Integrante</strong><span>Adicione um Bot permanente a este Time.</span></div>
+        )}
+        {!isCreateMemberOpen && data.members.length > 0 && (
+          <ul className="members-list">
+            {data.members.map((member) => (
+              <li className="member-card" key={member.id}>
+                <div><p className="eyebrow">Integrante</p><h3>{member.name}</h3></div>
+                <div className="member-details">
+                  <span className="provider-chip">{formatProvider(member.provider)}</span>
+                  <p>{member.function.outcome}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </article>
   )
@@ -172,8 +208,4 @@ function CreateTeamForm({ client }: { client: EngineClient }) {
       </div>
     </form>
   )
-}
-
-function formatProvider(provider: ProviderAvailability["provider"]) {
-  return provider === "codex" ? "Codex" : "Claude Code"
 }

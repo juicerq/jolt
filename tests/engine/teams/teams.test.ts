@@ -59,12 +59,89 @@ describe("teams", () => {
         function: input.leader.function,
         createdAt: expect.any(String),
       },
+      members: [],
     })
     expect(teams.list()).toEqual([created])
     expect(teams.get({ id: created.id })).toEqual(created)
 
     database.close()
     await observationSystem.observability.flush()
+  })
+
+  test("adds permanent members with the default provider or an explicit override", async () => {
+    const { database, observationSystem, teams } = setup([
+      { provider: "codex", status: "available" },
+      { provider: "claude", status: "available" },
+    ])
+    const team = await teams.create(input)
+    const memberFunction = {
+      outcome: "Proposta pronta",
+      responsibilities: "Escrever a proposta",
+      limits: "Não altera preços",
+      delivery: "Documento para revisão",
+    }
+
+    const defaultProviderMember = await teams.createMember({
+      teamId: team.id,
+      name: "Especialista Codex",
+      function: memberFunction,
+    })
+    const overrideMember = await teams.createMember({
+      teamId: team.id,
+      name: "Especialista Claude",
+      provider: "claude",
+      function: memberFunction,
+    })
+
+    expect(defaultProviderMember).toMatchObject({ role: "member", provider: "codex", teamId: team.id })
+    expect(overrideMember).toMatchObject({ role: "member", provider: "claude", teamId: team.id })
+    expect(teams.get({ id: team.id })?.members).toEqual(
+      expect.arrayContaining([defaultProviderMember, overrideMember]),
+    )
+    expect(teams.get({ id: team.id })?.members).toHaveLength(2)
+
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("rejects a member for an unknown team or unavailable provider", async () => {
+    const { database, observationSystem, teams } = setup([
+      { provider: "codex", status: "available" },
+      { provider: "claude", status: "unauthenticated" },
+    ])
+    const team = await teams.create(input)
+    const member = {
+      teamId: team.id,
+      name: "Especialista",
+      provider: "claude" as const,
+      function: input.leader.function,
+    }
+
+    expect(() => teams.createMember(member)).toThrow("Provider claude is not available")
+    expect(() => teams.createMember({ ...member, teamId: "missing", provider: "codex" })).toThrow("Team not found")
+    expect(teams.get({ id: team.id })?.members).toEqual([])
+
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("keeps permanent members after reopening the database", async () => {
+    const first = setup()
+    const team = await first.teams.create(input)
+    const member = await first.teams.createMember({
+      teamId: team.id,
+      name: "Especialista",
+      function: input.leader.function,
+    })
+    first.database.close()
+    await first.observationSystem.observability.flush()
+
+    const second = setup()
+
+    expect(second.teams.get({ id: team.id })?.members).toEqual([member])
+
+    second.database.close()
+    await second.observationSystem.observability.flush()
   })
 
   test("rejects a provider whose authenticated session is unavailable", async () => {
@@ -97,6 +174,16 @@ describe("teams", () => {
     const { database, observationSystem, teams } = setup()
 
     const created = await teams.create(input)
+    const member = await teams.createMember({
+      teamId: created.id,
+      name: "Especialista",
+      function: {
+        outcome: "Proposta pronta",
+        responsibilities: "Escrever proposta",
+        limits: "Não altera preços",
+        delivery: "Documento para revisão",
+      },
+    })
     teams.list()
     teams.get({ id: created.id })
     await observationSystem.observability.flush()
@@ -108,6 +195,13 @@ describe("teams", () => {
     expect(serialized).not.toContain(input.leader.function.responsibilities)
     expect(serialized).not.toContain(input.leader.function.limits)
     expect(serialized).not.toContain(input.leader.function.delivery)
+    expect(serialized).toContain(member.id)
+    expect(serialized).not.toContain(member.function.outcome)
+    expect(serialized).not.toContain(member.function.responsibilities)
+    expect(serialized).not.toContain(member.function.limits)
+    expect(serialized).not.toContain(member.function.delivery)
+    expect(spanNames).toContain("teams.membercreate")
+    expect(spanNames).toContain("database.membercreate")
     expect(spanNames).toContain("database.teamlist")
     expect(spanNames).toContain("database.teamget")
 

@@ -4,12 +4,29 @@ import { asc, eq, sql } from "drizzle-orm"
 import { migrations } from "./migrations"
 import { bots, teams as teamRecords } from "./schema"
 import type { Observability } from "../observability/observability"
-import type { Team } from "../../shared/teams"
+import type { Member, Team } from "../../shared/teams"
+
+function mapMember(row: typeof bots.$inferSelect): Member {
+  return {
+    id: row.id,
+    teamId: row.teamId,
+    name: row.name,
+    role: "member",
+    provider: row.provider,
+    function: {
+      outcome: row.functionOutcome,
+      responsibilities: row.functionResponsibilities,
+      limits: row.functionLimits,
+      delivery: row.functionDelivery,
+    },
+    createdAt: row.createdAt,
+  }
+}
 
 function mapTeam(row: {
   team: typeof teamRecords.$inferSelect
   leader: typeof bots.$inferSelect
-}): Team {
+}, members: Member[]): Team {
   return {
     id: row.team.id,
     name: row.team.name,
@@ -29,6 +46,7 @@ function mapTeam(row: {
       },
       createdAt: row.leader.createdAt,
     },
+    members,
   }
 }
 
@@ -88,17 +106,54 @@ export function openDatabase(path: string, observability: Observability) {
           return team
         })())
       },
+      createMember(member: Member) {
+        return observability.span({
+          name: "database.membercreate",
+          context: { teamId: member.teamId, botId: member.id, provider: member.provider },
+        }, () => {
+          database.insert(bots).values({
+            id: member.id,
+            teamId: member.teamId,
+            name: member.name,
+            role: "member",
+            provider: member.provider,
+            functionOutcome: member.function.outcome,
+            functionResponsibilities: member.function.responsibilities,
+            functionLimits: member.function.limits,
+            functionDelivery: member.function.delivery,
+            createdAt: member.createdAt,
+          }).run()
+
+          return member
+        })
+      },
       list() {
-        return observability.span({ name: "database.teamlist" }, () =>
-          database
+        return observability.span({ name: "database.teamlist" }, () => {
+          const rows = database
             .select({ team: teamRecords, leader: bots })
             .from(teamRecords)
             .innerJoin(bots, eq(bots.teamId, teamRecords.id))
             .where(eq(bots.role, "leader"))
             .orderBy(asc(teamRecords.createdAt), asc(teamRecords.id))
             .all()
-            .map(mapTeam),
-        )
+          const members = database
+            .select()
+            .from(bots)
+            .where(eq(bots.role, "member"))
+            .orderBy(asc(bots.createdAt), asc(bots.id))
+            .all()
+            .map(mapMember)
+          const membersByTeam = new Map<string, Member[]>()
+
+          for (const member of members) {
+            const teamMembers = membersByTeam.get(member.teamId) ?? []
+
+            teamMembers.push(member)
+            membersByTeam.set(member.teamId, teamMembers)
+          }
+
+          return rows.map((row) => mapTeam(row, membersByTeam.get(row.team.id) ?? []))
+        })
       },
       get(id: string) {
         return observability.span({ name: "database.teamget", context: { teamId: id } }, () => {
@@ -109,7 +164,17 @@ export function openDatabase(path: string, observability: Observability) {
             .where(sql`${teamRecords.id} = ${id} AND ${bots.role} = 'leader'`)
             .get()
 
-          return row ? mapTeam(row) : undefined
+          if (!row) {
+            return undefined
+          }
+
+          const members = database.select().from(bots)
+            .where(sql`${bots.teamId} = ${id} AND ${bots.role} = 'member'`)
+            .orderBy(asc(bots.createdAt), asc(bots.id))
+            .all()
+            .map(mapMember)
+
+          return mapTeam(row, members)
         })
       },
     },

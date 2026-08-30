@@ -25,6 +25,17 @@ const leader = type({
   createdAt: "string > 0",
 })
 
+const member = type({
+  "+": "reject",
+  id: "string > 0",
+  teamId: "string > 0",
+  name: "string > 0",
+  role: type.enumerated("member"),
+  provider: providerName,
+  function: botFunction,
+  createdAt: "string > 0",
+})
+
 const team = type({
   "+": "reject",
   id: "string > 0",
@@ -33,6 +44,7 @@ const team = type({
   defaultProvider: providerName,
   createdAt: "string > 0",
   leader,
+  members: member.array(),
 })
 
 export const teamSchemas = {
@@ -47,9 +59,18 @@ export const teamSchemas = {
     "+": "reject",
     id: "string > 0",
   }),
+  createMemberInput: type({
+    "+": "reject",
+    teamId: "string > 0",
+    name: "string > 0",
+    "provider?": providerName,
+    function: botFunction,
+  }),
+  member,
   team,
   teamList: team.array(),
 }
 
 export type CreateTeamInput = typeof teamSchemas.createInput.infer
 export type Team = typeof teamSchemas.team.infer
+export type Member = typeof teamSchemas.member.infer

@@ -1,4 +1,4 @@
-import { teamSchemas, type Team } from "../../shared/teams"
+import { teamSchemas, type Member, type Team } from "../../shared/teams"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
@@ -39,12 +39,44 @@ export function createTeams({ database, observability, providers }: TeamsDepende
           function: input.leader.function,
           createdAt,
         },
+        members: [],
       }
 
       return observability.span({
         name: "teams.create",
         context: { teamId: team.id, botId: team.leader.id, provider: team.defaultProvider },
       }, () => database.teams.create(team))
+    },
+    async createMember(rawInput: unknown) {
+      const input = teamSchemas.createMemberInput.assert(rawInput)
+      const team = database.teams.get(input.teamId)
+
+      if (!team) {
+        throw new Error("Team not found")
+      }
+
+      const provider = input.provider ?? team.defaultProvider
+      const availableProviders = await providers.list()
+      const selectedProvider = availableProviders.find((entry) => entry.provider === provider)
+
+      if (selectedProvider?.status !== "available") {
+        throw new Error(`Provider ${provider} is not available`)
+      }
+
+      const member: Member = {
+        id: crypto.randomUUID(),
+        teamId: team.id,
+        name: input.name,
+        role: "member",
+        provider,
+        function: input.function,
+        createdAt: new Date().toISOString(),
+      }
+
+      return observability.span({
+        name: "teams.membercreate",
+        context: { teamId: team.id, botId: member.id, provider },
+      }, () => database.teams.createMember(member))
     },
     list() {
       return teamSchemas.teamList.assert(database.teams.list())

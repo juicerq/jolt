@@ -90,6 +90,7 @@ describe("database", () => {
         },
         createdAt: "2026-08-30T00:00:00.000Z",
       },
+      members: [],
     }
     database.teams.create({ id: "team-1", ...base })
 

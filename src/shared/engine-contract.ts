@@ -60,6 +60,7 @@ export const engineContract = {
     create: oc.input(teamSchemas.createInput).output(teamSchemas.team).route({ method: "POST", path: "/teams" }),
     list: oc.output(teamSchemas.teamList).route({ method: "GET", path: "/teams" }),
     get: oc.input(teamSchemas.idInput).output(teamSchemas.team).route({ method: "GET", path: "/teams/{id}" }),
+    createMember: oc.input(teamSchemas.createMemberInput).output(teamSchemas.member).route({ method: "POST", path: "/teams/{teamId}/members" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

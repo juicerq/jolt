@@ -38,4 +38,23 @@ describe("team boundary", () => {
       apiKey: "secret",
     })).toThrow()
   })
+
+  test("accepts a permanent member with an optional provider override", () => {
+    const input = {
+      teamId: "team-1",
+      name: "Especialista em propostas",
+      provider: "claude" as const,
+      function: {
+        outcome: "Proposta pronta",
+        responsibilities: "Escrever a proposta",
+        limits: "Não altera preços",
+        delivery: "Documento para revisão",
+      },
+    }
+
+    expect(teamSchemas.createMemberInput.assert(input)).toEqual(input)
+    const { provider: _provider, ...defaultProviderInput } = input
+
+    expect(teamSchemas.createMemberInput.assert(defaultProviderInput)).toEqual(defaultProviderInput)
+  })
 })

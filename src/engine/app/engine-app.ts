@@ -76,6 +76,12 @@ export function createEngineRouter(
           },
         ),
       ),
+      createMember: operations.teams.createMember.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.membercreate", context: observationContext(context) },
+          () => teams.createMember(input),
+        ),
+      ),
     },
     observations: {
       rendererSpan: operations.observations.rendererSpan.handler(({ input }) => receiver.span(input)),
