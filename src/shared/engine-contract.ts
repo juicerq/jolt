@@ -1,5 +1,7 @@
 import { oc } from "@orpc/contract"
 import { type } from "arktype"
+import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
+import { externalObservationSpan, observationAttributes, observationContext, observationName } from "./observability/observation"
 
 export const engineReadyMessage = type({
   type: type.enumerated("ready"),
@@ -21,6 +23,22 @@ export const engineConnection = type({
   token: "string > 0",
 })
 
+export const forwardedObservationEvent = type({
+  "+": "reject",
+  type: type.enumerated("observation"),
+  name: observationName,
+  "attributes?": observationAttributes,
+  "context?": observationContext,
+})
+
+export const forwardedObservationSpan = type({
+  "+": "reject",
+  type: type.enumerated("span"),
+  span: externalObservationSpan,
+})
+
+export const forwardedObservation = forwardedObservationEvent.or(forwardedObservationSpan)
+
 const healthOutput = type({
   status: type.enumerated("ready"),
   runtime: "string",
@@ -29,4 +47,11 @@ const healthOutput = type({
 
 export const engineContract = {
   health: oc.output(healthOutput).route({ method: "GET", path: "/health" }),
+  diagnostics: {
+    get: oc.output(diagnosticsReport).route({ method: "GET", path: "/diagnostics" }),
+    export: oc.output(diagnosticExportResult).route({ method: "POST", path: "/diagnostics/export" }),
+  },
+  observations: {
+    rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),
+  },
 }

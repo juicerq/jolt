@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { observation } from "../../shared/observability/observation"
 import { EngineProcess } from "./engine-process"
 
 const directories: string[] = []
@@ -30,9 +31,18 @@ describe("EngineProcess", () => {
     expect(response.status).toBe(200)
     expect(pid).toBeNumber()
 
+    await engine.event({ name: "main.stopped", attributes: { process: "main", status: "stopping" } })
     await engine.stop()
 
     expect(() => process.kill(pid!, 0)).toThrow()
+    const logFile = readdirSync(join(directory, "logs")).find((entry) => entry.endsWith(".jsonl"))
+    const observations = readFileSync(join(directory, "logs", logFile!), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => observation.assert(JSON.parse(line)))
+
+    expect(observations.some((item) => item.name === "main.startup" && item.kind === "span" && item.durationMs > 0)).toBe(true)
+    expect(observations.some((item) => item.name === "main.shutdown" && item.kind === "span" && item.durationMs >= 0)).toBe(true)
   })
 
   test("reports an unexpected exit after readiness", async () => {

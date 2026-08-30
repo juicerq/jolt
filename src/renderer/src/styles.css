@@ -2,6 +2,7 @@
   font-family: system-ui, sans-serif;
   color: #e7e5e4;
   background: #0c0a09;
+  color-scheme: dark;
 }
 
 body {
@@ -9,5 +10,172 @@ body {
 }
 
 main {
-  padding: 32px;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+h1, h2, p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+.eyebrow {
+  color: #a8a29e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.subtitle, .empty, .path {
+  color: #a8a29e;
+}
+
+.status-card, .panel {
+  border: 1px solid #292524;
+  border-radius: 14px;
+  background: #1c1917;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 16px;
+  padding: 14px 16px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #78716c;
+}
+
+.status-dot.ready {
+  background: #4ade80;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+dl {
+  margin: 0;
+}
+
+dl div {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #292524;
+}
+
+dd {
+  margin: 0;
+  color: #a8a29e;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #292524;
+  text-align: right;
+}
+
+th:first-child, td:first-child {
+  text-align: left;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid #292524;
+}
+
+.export-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.path {
+  margin-bottom: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+button {
+  flex: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #0c0a09;
+  background: #e7e5e4;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.error {
+  color: #fca5a5;
+}
+
+@media (max-width: 700px) {
+  main {
+    padding: 24px;
+  }
+
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .export-panel, li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

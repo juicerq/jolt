@@ -9,6 +9,9 @@ const executable = app.isPackaged
 const engine = new EngineProcess({
   executable,
   databasePath: join(app.getPath("userData"), "bot-teams.sqlite"),
+  appVersion: app.getVersion(),
+  electronVersion: process.versions.electron,
+  development: !app.isPackaged,
   onUnexpectedExit(error) {
     console.error(error)
     app.quit()
@@ -17,6 +20,7 @@ const engine = new EngineProcess({
 
 app.whenReady().then(async () => {
   const connection = await engine.start()
+  await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
 
   ipcMain.handle("engine:get-connection", () => connection)
 
@@ -47,7 +51,7 @@ app.on("before-quit", (event) => {
   }
 
   event.preventDefault()
-  engine.stop().then(() => {
+  engine.event({ name: "main.stopped", attributes: { process: "main", status: "stopping" } }).then(() => engine.stop()).then(() => {
     engineStopped = true
     app.quit()
   })

@@ -1,10 +1,13 @@
 import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcess } from "node:child_process"
-import { engineConnection, engineReadyMessage } from "../../shared/engine-contract"
+import { engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "../../shared/engine-contract"
 
 type EngineProcessOptions = {
   executable: string
   databasePath: string
+  appVersion?: string
+  electronVersion?: string
+  development?: boolean
   onUnexpectedExit?: (error: Error) => void
 }
 
@@ -33,11 +36,16 @@ export class EngineProcess {
       throw new Error("Bun Engine is already running")
     }
 
+    const startedAt = new Date().toISOString()
+    const started = performance.now()
     const token = randomBytes(32).toString("hex")
     const child = spawn(this.options.executable, [], {
       env: {
         BOT_TEAMS_ENGINE_TOKEN: token,
         BOT_TEAMS_DATABASE_PATH: this.options.databasePath,
+        BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
+        BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
+        BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",
       },
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     })
@@ -101,6 +109,18 @@ export class EngineProcess {
     })
 
     this.ready = true
+    await this.send(forwardedObservation.assert({
+      type: "span",
+      span: {
+        name: "main.startup",
+        timestamp: startedAt,
+        durationMs: performance.now() - started,
+        outcome: "ok",
+        traceId: crypto.randomUUID(),
+        spanId: crypto.randomUUID(),
+        attributes: { process: "main", status: "ready", version: this.options.appVersion ?? "0.0.0" },
+      },
+    }))
 
     return engineConnection.assert({ url: `http://127.0.0.1:${ready.port}/rpc`, token })
   }
@@ -116,6 +136,28 @@ export class EngineProcess {
     this.stopping = true
     await this.terminate(child, exit)
     this.ready = false
+  }
+
+  event(input: Omit<typeof forwardedObservationEvent.infer, "type">) {
+    return this.send(forwardedObservationEvent.assert({ type: "observation", ...input }))
+  }
+
+  private send(message: typeof forwardedObservation.infer) {
+    const child = this.child
+
+    if (!child?.connected) {
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve) => {
+      child.send(message, (error) => {
+        if (error) {
+          process.stderr.write(`Main observation forwarding failed: ${error.message}\n`)
+        }
+
+        resolve()
+      })
+    })
   }
 
   private async terminate(child: ChildProcess, exit: Promise<ChildExit>) {

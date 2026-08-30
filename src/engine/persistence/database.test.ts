@@ -3,18 +3,29 @@ import { existsSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { Database } from "bun:sqlite"
 import { openDatabase } from "./database"
+import { createObservationSystem } from "../observability/observability"
 
 const databasePath = join(import.meta.dir, "database.test.sqlite")
+const logDirectory = join(import.meta.dir, ".database-test-logs")
 
 afterEach(() => {
   if (existsSync(databasePath)) {
     rmSync(databasePath)
   }
+
+  if (existsSync(logDirectory)) {
+    rmSync(logDirectory, { recursive: true })
+  }
 })
 
 describe("database", () => {
   test("applies the initial migration when opening a new database", () => {
-    const database = openDatabase(databasePath)
+    const { observability } = createObservationSystem({
+      appSessionId: "database-test",
+      logDirectory,
+      development: false,
+    })
+    const database = openDatabase(databasePath, observability)
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
