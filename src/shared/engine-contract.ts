@@ -2,6 +2,7 @@ import { oc } from "@orpc/contract"
 import { type } from "arktype"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan, observationAttributes, observationContext, observationName } from "./observability/observation"
+import { providerAvailabilityList } from "./providers"
 
 export const engineReadyMessage = type({
   type: type.enumerated("ready"),
@@ -50,6 +51,9 @@ export const engineContract = {
   diagnostics: {
     get: oc.output(diagnosticsReport).route({ method: "GET", path: "/diagnostics" }),
     export: oc.output(diagnosticExportResult).route({ method: "POST", path: "/diagnostics/export" }),
+  },
+  providers: {
+    list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

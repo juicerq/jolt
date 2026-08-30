@@ -2,6 +2,7 @@ import { implement } from "@orpc/server"
 import { engineContract } from "../../shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
+import type { createProviderDiscovery } from "../providers/provider-discovery"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -17,6 +18,7 @@ export function createEngineRouter(
   observability: Observability,
   diagnostics: ReturnType<typeof createDiagnostics>,
   receiver: ObservationReceiver,
+  providers: ReturnType<typeof createProviderDiscovery>,
 ) {
   const operations = implement(engineContract)
 
@@ -34,6 +36,14 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.diagnosticexport", context: observationContext(context) },
           () => diagnostics.export(),
+        ),
+      ),
+    },
+    providers: {
+      list: operations.providers.list.handler(({ context }: { context: EngineContext }) =>
+        observability.span(
+          { name: "orpc.providerlist", context: observationContext(context) },
+          () => providers.list(),
         ),
       ),
     },

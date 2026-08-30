@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { diagnosticsReport, type processState } from "../../shared/observability/diagnostics"
 import type { Observation } from "../../shared/observability/observation"
+import type { ProviderAvailability } from "../../shared/providers"
 import type { ObservationDiagnostics } from "./observability"
 
 type DiagnosticsOptions = {
@@ -10,6 +11,7 @@ type DiagnosticsOptions = {
   processState(): { engine: typeof processState.infer; main: typeof processState.infer }
   migrationState(): number[]
   exportDirectory: string
+  providerState?(): ProviderAvailability[]
 }
 
 function percentile(sorted: number[], ratio: number) {
@@ -47,6 +49,23 @@ function operationMetrics(observations: Observation[]) {
 }
 
 export function createDiagnostics(options: DiagnosticsOptions) {
+  function authentication() {
+    const states = new Map(options.providerState?.().map((provider) => [provider.provider, provider.status]))
+    const state = (provider: ProviderAvailability["provider"]) => {
+      if (states.get(provider) === "available") {
+        return "authenticated" as const
+      }
+
+      if (states.get(provider) === "unauthenticated") {
+        return "unauthenticated" as const
+      }
+
+      return "unknown" as const
+    }
+
+    return { codex: state("codex"), claude: state("claude") }
+  }
+
   function get() {
     const observations = options.source.recent()
     const slowOperations = observations
@@ -65,7 +84,7 @@ export function createDiagnostics(options: DiagnosticsOptions) {
       logPath: options.source.logPath(),
       processes: options.processState(),
       versions: options.versions,
-      authentication: { codex: "unknown", claude: "unknown" },
+      authentication: authentication(),
       failures: observations.filter((item) => item.level === "error").slice(-10).toReversed(),
       operations: operationMetrics(observations),
       slowOperations,

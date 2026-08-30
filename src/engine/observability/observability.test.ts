@@ -118,7 +118,7 @@ describe("Observability", () => {
 
     expect(() =>
       observability.span({ name: "provider.start" }, () => {
-        const error = Object.assign(new Error("provider unavailable with Bearer abc123"), { code: "ENOENT", token: "secret" })
+        const error = Object.assign(new Error("provider unavailable for user@example.com with Bearer abc123"), { code: "ENOENT", token: "secret" })
 
         throw error
       }),
@@ -127,9 +127,10 @@ describe("Observability", () => {
 
     const failure = diagnostics.recent().find((item) => item.name === "provider.start")
 
-    expect(failure?.error).toMatchObject({ type: "Error", code: "ENOENT", message: "provider unavailable with Bearer [redacted]" })
+    expect(failure?.error).toMatchObject({ type: "Error", code: "ENOENT", message: "provider unavailable for [redacted-email] with Bearer [redacted]" })
     expect(JSON.stringify(failure)).not.toContain("secret")
     expect(JSON.stringify(failure)).not.toContain("abc123")
+    expect(JSON.stringify(failure)).not.toContain("user@example.com")
   })
 
   test("marks non-Error and undefined rejections as redacted failures", async () => {

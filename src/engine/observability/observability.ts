@@ -133,6 +133,7 @@ function normalizeError(error: unknown): NormalizedObservationError {
 
 function redactText(value: string) {
   return value
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
     .replace(/\bBearer\s+[^\s]+/gi, "Bearer [redacted]")
     .replace(/\b(api[_ -]?key|token|cookie|password)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
 }

@@ -73,6 +73,37 @@ h2 {
   gap: 16px;
 }
 
+.providers-panel {
+  margin-bottom: 16px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.panel-heading p {
+  margin-bottom: 0;
+}
+
+.provider-list {
+  margin-top: 14px;
+}
+
+.provider-status {
+  color: #a8a29e;
+}
+
+.provider-status.available {
+  color: #4ade80;
+}
+
+.provider-status.unauthenticated, .provider-status.incompatible {
+  color: #fbbf24;
+}
+
 .panel {
   padding: 20px;
 }
@@ -174,7 +205,7 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .export-panel, li {
+  .export-panel, .panel-heading, li {
     align-items: flex-start;
     flex-direction: column;
   }

@@ -81,10 +81,12 @@ describe("compiled Bun Engine", () => {
     const client = createEngineClient({ url: `http://127.0.0.1:${message.port}/rpc`, token: "test-token" })
     const queryClient = new QueryClient()
     await queryClient.fetchQuery(client.health.queryOptions())
+    const providers = await queryClient.fetchQuery(client.providers.list.queryOptions())
     const initialDiagnostics = await queryClient.fetchQuery(client.diagnostics.get.queryOptions())
     await queryClient.fetchQuery(client.diagnostics.get.queryOptions())
 
     expect(initialDiagnostics.processes).toEqual({ engine: "ready", main: "unknown" })
+    expect(providers.map((provider) => provider.provider)).toEqual(["codex", "claude"])
     child.send({ type: "observation", name: "main.started", attributes: { process: "main", status: "ready" } })
     await Bun.sleep(10)
     const updatedDiagnostics = await queryClient.fetchQuery(client.diagnostics.get.queryOptions())

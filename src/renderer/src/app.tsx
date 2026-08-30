@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { DiagnosticsReport } from "../../shared/observability/diagnostics"
+import type { ProviderAvailability } from "../../shared/providers"
 import type { EngineClient } from "./engine-client"
 
 export function App({ client }: { client: EngineClient }) {
@@ -12,22 +13,52 @@ export function App({ client }: { client: EngineClient }) {
         <p className="subtitle">Falhas e durações medidas pelo Bun Engine nesta sessão.</p>
       </header>
       <EngineHealth client={client} />
+      <ProvidersPanel client={client} />
       <DiagnosticsPanel client={client} />
     </main>
   )
 }
 
 function EngineHealth({ client }: { client: EngineClient }) {
-  const health = useQuery(client.health.queryOptions())
+  const { data, error } = useQuery(client.health.queryOptions())
 
-  if (health.error) {
-    return <section className="status-card error">Falha ao conectar ao Bun Engine: {health.error.message}</section>
+  if (error) {
+    return <section className="status-card error">Falha ao conectar ao Bun Engine: {error.message}</section>
   }
 
   return (
     <section className="status-card">
-      <span aria-hidden="true" className={health.data ? "status-dot ready" : "status-dot"} />
-      {health.data ? `Bun Engine conectado: ${health.data.runtime}` : "Verificando Bun Engine..."}
+      <span aria-hidden="true" className={data ? "status-dot ready" : "status-dot"} />
+      {data ? `Bun Engine conectado: ${data.runtime}` : "Verificando Bun Engine..."}
+    </section>
+  )
+}
+
+const providerStatusLabels: Record<ProviderAvailability["status"], string> = {
+  available: "Disponível",
+  unauthenticated: "Desautenticado",
+  missing: "Ausente",
+  incompatible: "Incompatível",
+}
+
+function ProvidersPanel({ client }: { client: EngineClient }) {
+  const { data, error, isPending, refetch, isFetching } = useQuery(client.providers.list.queryOptions())
+
+  return (
+    <section className="panel providers-panel">
+      <div className="panel-heading">
+        <div><h2>Fornecedores</h2><p className="empty">Sessões locais do Codex e Claude Code.</p></div>
+        <button type="button" disabled={isFetching} onClick={() => refetch()}>{isFetching ? "Verificando..." : "Verificar novamente"}</button>
+      </div>
+      {error && <p className="error">Falha ao verificar fornecedores: {error.message}</p>}
+      {isPending ? <p className="empty">Verificando instalações...</p> : (
+        <ul className="provider-list">{data?.map((provider) => (
+          <li key={provider.provider}>
+            <strong>{provider.provider === "codex" ? "Codex" : "Claude Code"}</strong>
+            <span className={`provider-status ${provider.status}`}>{providerStatusLabels[provider.status]}{provider.version ? ` · ${provider.version}` : ""}</span>
+          </li>
+        ))}</ul>
+      )}
     </section>
   )
 }

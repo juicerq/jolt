@@ -21,6 +21,10 @@ describe("Diagnostics", () => {
       processState: () => ({ engine: "ready", main: "ready" }),
       migrationState: () => [1],
       exportDirectory: testDirectory,
+      providerState: () => [
+        { provider: "codex", status: "available", version: "0.151.0" },
+        { provider: "claude", status: "unauthenticated", version: "2.1.250" },
+      ],
     })
 
     system.observability.event({ name: "provider.failed", error: new Error("not authenticated") })
@@ -34,6 +38,7 @@ describe("Diagnostics", () => {
     expect(report.operations[0]).toMatchObject({ name: "orpc.health", count: 2 })
     expect(report.operations[0]?.maximumMs).toBeGreaterThanOrEqual(report.operations[0]?.p95Ms ?? 0)
     expect(report.slowOperations[0]?.name).toBe("orpc.health")
+    expect(report.authentication).toEqual({ codex: "authenticated", claude: "unauthenticated" })
   })
 
   test("exports only sanitized observations and non-sensitive metadata", async () => {

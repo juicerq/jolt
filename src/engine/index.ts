@@ -6,6 +6,9 @@ import type { processState } from "../shared/observability/diagnostics"
 import { createEngineRouter } from "./app/engine-app"
 import { createDiagnostics } from "./observability/diagnostics"
 import { createObservationSystem } from "./observability/observability"
+import { createClaudeProvider } from "./claude/claude-provider"
+import { createCodexProvider } from "./codex/codex-provider"
+import { createProviderDiscovery } from "./providers/provider-discovery"
 import { openDatabase } from "./persistence/database"
 
 const environment = type({
@@ -82,6 +85,10 @@ function withCors(response: Response, origin: string | null | undefined) {
 const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
+const providers = createProviderDiscovery(observationSystem.observability, [
+  createCodexProvider(observationSystem.observability),
+  createClaudeProvider(observationSystem.observability),
+])
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
@@ -92,9 +99,10 @@ const diagnostics = createDiagnostics({
   processState: () => ({ engine: engineState, main: mainState }),
   migrationState: database.migrationState,
   exportDirectory: join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "diagnostics"),
+  providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
