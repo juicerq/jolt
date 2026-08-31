@@ -22,11 +22,11 @@ None.
 
 ### Context
 
-Recriar somente os comportamentos validados em `prototype/`; não copiar sua estrutura descartável. Usar o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `external-integration`, o Skill tool com name `arktype` e o Skill tool com name `testing-with-tdd`.
+Recriar somente os comportamentos validados no protótipo técnico; não copiar sua estrutura descartável. Usar o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `external-integration`, o Skill tool com name `arktype` e o Skill tool com name `testing-with-tdd`.
 
 ### Addresses
 
-`Stack`, `Arquitetura do Electron`, `Organização do código` e `Veredito do protótipo do Bun Engine` em `spec.md`.
+`Stack`, `Arquitetura do Electron`, `Organização do código` e `Veredito dos protótipos` em `spec.md`.
 
 ## local-observability
 
@@ -84,22 +84,24 @@ Reusar os protocolos confirmados pelo protótipo e pelo estudo do t3code. Usar o
 
 ### Addresses
 
-`Critério de conclusão` item 2, `Execução dos fornecedores` e `Decisões pendentes` em `spec.md`.
+`Critério de conclusão` item 2 e `Execução dos fornecedores` em `spec.md`.
 
-## create-team
+## bots-as-primary-unit
 
 ### Outcome
 
-A pessoa cria, lista e abre um Time persistente com objetivo, fornecedor padrão e exatamente um Líder.
+A pessoa cria, lista, abre e configura um Bot persistente sem precisar criar um Time.
 
 ### Acceptance criteria
 
-- [ ] A pessoa informa nome, objetivo, fornecedor padrão e Função do Líder.
-- [ ] Criar o Time e o Líder acontece numa única transação.
-- [ ] Um Time nunca fica sem Líder nem com mais de um Líder.
-- [ ] O fornecedor escolhido precisa estar disponível.
-- [ ] O Time aparece na lista e continua disponível depois de reiniciar.
-- [ ] O Renderer usa oRPC com TanStack Query e invalida a lista depois da criação.
+- [ ] A pessoa cria um Bot com nome, Função e executor.
+- [ ] Codex ou Claude Code só pode ser escolhido quando estiver disponível.
+- [ ] O Bot existe sem Líder, Integrante ou objeto Time associado.
+- [ ] O Bot aparece na lista principal com um único avatar.
+- [ ] A pessoa abre o Bot e consulta sua Função e seu executor.
+- [ ] O Bot continua disponível depois de reiniciar o aplicativo.
+- [ ] O schema inicial persiste Bots diretamente, sem tabela ou objeto Time.
+- [ ] O Renderer usa oRPC com TanStack Query e invalida a lista depois de alterações.
 - [ ] Inputs são validados com Arktype e Spans cobrem oRPC e banco.
 
 ### Blocked by
@@ -108,68 +110,102 @@ A pessoa cria, lista e abre um Time persistente com objetivo, fornecedor padrão
 
 ### Context
 
-Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
+Este é o prefactor que substitui `create-team` e adapta o código de `manage-members`. A relação opcional com Integrantes pertence ao Bot; não criar uma entidade Time paralela. Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
 
 ### Addresses
 
-`Modelo do produto: Time e Bots` e `Critério de conclusão` item 3 em `spec.md`.
+`Critério de conclusão` item 3, `Bots, Líderes e Integrantes` e `Função, memória e contexto` em `spec.md`.
 
-## manage-members
+## bot-working-directory
 
 ### Outcome
 
-A pessoa adiciona Integrantes permanentes a um Time e define suas Funções e fornecedores.
+Cada Bot executa em uma pasta escolhida pela pessoa ou em uma pasta privada administrada pelo aplicativo.
 
 ### Acceptance criteria
 
-- [ ] A pessoa cria Integrante permanente com nome, Função e fornecedor.
-- [ ] Cada Bot pertence a somente um Time.
-- [ ] O Bot usa o fornecedor padrão ou uma substituição explícita.
-- [ ] A Função separa resultado, responsabilidades, limites e forma de entrega.
-- [ ] A lista distingue Líder e Integrantes.
-- [ ] Dados persistem e operações usam oRPC com TanStack Query.
-- [ ] Observations medem operações sem registrar a Função textual.
+- [ ] Criar um Bot permite escolher uma pasta ou continuar sem escolher.
+- [ ] O seletor nativo retorna somente uma pasta validada pelo Main e Preload.
+- [ ] Sem escolha, o Bun Engine cria e usa uma pasta privada vazia para o Bot.
+- [ ] A pessoa consulta, troca ou remove a pasta escolhida nas configurações do Bot.
+- [ ] Remover uma pasta escolhida volta a usar a pasta privada do Bot.
+- [ ] A execução recebe a pasta efetiva sem usar o diretório pessoal como padrão.
+- [ ] Uma pasta inexistente ou inacessível produz um erro visível antes da execução.
+- [ ] O caminho completo não entra em Observations.
+- [ ] Testes cobrem pasta escolhida, pasta privada e caminho inválido.
 
 ### Blocked by
 
-`create-team`.
+`bots-as-primary-unit`.
 
 ### Context
 
-Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
+A pasta escolhida é configuração persistida; a pasta privada é um recurso administrado pelo aplicativo. Não criar worktrees nem controle de concorrência. Usar o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
 
 ### Addresses
 
-`Bots permanentes e temporários`, `Função, memória e contexto` e `Critério de conclusão` item 4 em `spec.md`, somente para Integrantes permanentes.
+`Pasta de trabalho`, `Arquitetura do Electron: Main` e `Fora da V1` em `spec.md`.
 
 ## chat-with-bot
 
 ### Outcome
 
-A pessoa conversa com um Líder ou Integrante pelo fornecedor escolhido, acompanha o stream e reabre a conversa persistida.
+A pessoa conversa com um Bot pelo executor escolhido, acompanha a resposta e reabre a conversa persistida na interface validada pelo protótipo.
 
 ### Acceptance criteria
 
-- [ ] A pessoa abre o chat de qualquer Bot do Time.
-- [ ] Enviar uma mensagem inicia Codex ou Claude Code conforme o fornecedor.
+- [ ] A lista principal mostra Bots independentes e Líderes, sem exigir uma lista de Times.
+- [ ] A pessoa abre o chat de qualquer Bot.
+- [ ] Enviar uma mensagem inicia Codex ou Claude Code na pasta efetiva do Bot.
 - [ ] Eventos parciais chegam ao Renderer por stream do oRPC.
 - [ ] Mensagens persistidas identificam autor e ordem cronológica.
 - [ ] Reabrir o chat carrega o histórico pelo TanStack Query.
 - [ ] Interromper encerra o turno e preserva o histórico confirmado.
+- [ ] A interface mostra estado disponível, trabalhando, aguardando, concluído ou com erro.
 - [ ] Payloads dos fornecedores são normalizados na entrada.
 - [ ] Observations medem início, primeiro evento, contagens, bytes, duração, interrupção e erro sem conteúdo.
 
 ### Blocked by
 
-`manage-members`.
+`bot-working-directory`.
 
 ### Context
 
-Codex e Claude usam Adapters separados que satisfazem a mesma interface. Usar o Skill tool com name `external-integration`, o Skill tool com name `openai-docs`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
+Codex e Claude usam Adapters separados que satisfazem a mesma interface. Implementar o comportamento do protótipo sem copiar sua estrutura descartável. Usar o Skill tool com name `external-integration`, o Skill tool com name `openai-docs`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
 
 ### Addresses
 
-`Conversas`, `Execução dos fornecedores` e `Critério de conclusão` itens 5, 7 e 8 em `spec.md`.
+`Critério de conclusão` item 4, `Conversas`, `Execução dos fornecedores` e `Veredito dos protótipos` em `spec.md`.
+
+## add-bot-members
+
+### Outcome
+
+A pessoa adiciona um Integrante a um Bot, que passa a atuar como Líder, e abre o chat do Integrante diretamente.
+
+### Acceptance criteria
+
+- [ ] A pessoa cria um Integrante permanente com nome, Função e executor.
+- [ ] O Integrante pertence a um único Líder.
+- [ ] O primeiro Integrante faz o Bot atuar como Líder sem criar um objeto Time.
+- [ ] O Integrante herda a pasta do Líder e permite que a pessoa a troque ou remova.
+- [ ] A lista mostra um avatar para Bots independentes e até três avatares empilhados para Líderes.
+- [ ] A pessoa abre o chat e as configurações de qualquer Integrante.
+- [ ] Remover o último Integrante faz o Líder voltar a aparecer como Bot independente.
+- [ ] Dados persistem e operações usam oRPC com TanStack Query.
+- [ ] Observations medem operações sem registrar Função ou pasta.
+
+### Blocked by
+
+`bot-working-directory`.
+
+### Context
+
+Adaptar o comportamento persistente já criado em `manage-members`; remover a dependência de Time. Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
+
+### Addresses
+
+`Critério de conclusão` itens 5 e 8, `Bots, Líderes e Integrantes`, `Pasta de trabalho` e `Integrantes permanentes e temporários` em `spec.md`.
 
 ## leader-delegation
 
@@ -182,15 +218,16 @@ O Líder cria uma Tarefa, delega a um Integrante e recebe o resultado numa conve
 - [ ] Uma Tarefa possui resultado esperado e um único Bot responsável.
 - [ ] O Líder escolhe um Integrante e envia a delegação.
 - [ ] O Integrante responde diretamente ao Líder.
-- [ ] A conversa mostra pessoa, Líder e outros Bots em ordem cronológica.
-- [ ] Uma Ordem direta da pessoa prevalece sobre a instrução do Líder.
+- [ ] O chat do Líder mostra a delegação, seu estado e um atalho para abrir o Integrante.
+- [ ] A conversa relacionada mostra pessoa, Líder e Integrantes em ordem cronológica.
+- [ ] Uma ordem direta da pessoa prevalece sobre a instrução do Líder.
 - [ ] Transferir responsabilidade cria uma mensagem visível.
-- [ ] O Líder recebe o resultado e continua responsável pelo Time.
+- [ ] O Líder recebe o resultado e continua responsável pelo trabalho geral.
 - [ ] Observations correlacionam Líder e Integrante pelo mesmo `traceId` e pela Tarefa.
 
 ### Blocked by
 
-`chat-with-bot`.
+`chat-with-bot` e `add-bot-members`.
 
 ### Context
 
@@ -198,24 +235,25 @@ Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practi
 
 ### Addresses
 
-`Autoridade`, `Tarefas`, `Conversas` e `Critério de conclusão` item 6 em `spec.md`.
+`Critério de conclusão` itens 6 e 7, `Autoridade`, `Tarefas` e `Conversas` em `spec.md`.
 
-## temporary-bot-delegation
+## temporary-members
 
 ### Outcome
 
-A pessoa ou o Líder cria um Bot temporário para uma Tarefa, recebe sua entrega e encerra o Bot preservando o histórico.
+A pessoa ou o Líder cria um Integrante temporário para uma Tarefa, recebe sua entrega e encerra o Integrante preservando o histórico.
 
 ### Acceptance criteria
 
-- [ ] A pessoa cria Bot temporário com Função, fornecedor e Tarefa.
-- [ ] O Líder cria Bot temporário com Função, fornecedor e Tarefa.
-- [ ] O Bot temporário não cria outros Bots.
-- [ ] O Bot temporário conversa com Líder e colaboradores do mesmo Time.
-- [ ] Encerrar a Tarefa encerra o Bot e seus acessos.
-- [ ] A memória descartável não entra automaticamente na Memória do Time.
+- [ ] A pessoa cria um Integrante temporário com Função, executor e Tarefa.
+- [ ] O Líder cria um Integrante temporário com Função, executor e Tarefa.
+- [ ] O Integrante temporário herda a pasta de quem o criou e permite substituição explícita.
+- [ ] O Integrante temporário não cria outros Bots.
+- [ ] O Integrante temporário conversa com o Líder e os Integrantes do mesmo grupo.
+- [ ] Encerrar a Tarefa encerra o Integrante e seus acessos.
+- [ ] A memória descartável não entra automaticamente na memória de outro Bot.
 - [ ] O histórico permanece ligado à Tarefa.
-- [ ] A pessoa distingue Bots ativos e encerrados.
+- [ ] A interface distingue Integrantes permanentes, temporários ativos e temporários encerrados.
 - [ ] Observations correlacionam criação, execução e encerramento sem registrar conteúdo.
 
 ### Blocked by
@@ -228,17 +266,18 @@ Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practi
 
 ### Addresses
 
-`Bots permanentes e temporários` e `Escopo da V1` em `spec.md`.
+`Integrantes permanentes e temporários`, `Pasta de trabalho` e `Escopo da V1` em `spec.md`.
 
 ## local-continuity
 
 ### Outcome
 
-Fechar e abrir o aplicativo preserva Times, Bots e conversas, enquanto execuções interrompidas aguardam uma decisão da pessoa.
+Fechar e abrir o aplicativo preserva Bots, relações, configurações e conversas, enquanto execuções interrompidas aguardam uma decisão da pessoa.
 
 ### Acceptance criteria
 
-- [ ] Reiniciar preserva Times, Bots, Funções e conversas.
+- [ ] Reiniciar preserva Bots, Integrantes, Funções, executores, pastas escolhidas e conversas.
+- [ ] Pastas privadas continuam associadas aos Bots corretos.
 - [ ] Uma execução ativa no encerramento reaparece como interrompida.
 - [ ] Nenhuma execução interrompida retoma automaticamente.
 - [ ] A pessoa pode revisar, cancelar ou iniciar uma continuação.
@@ -249,7 +288,7 @@ Fechar e abrir o aplicativo preserva Times, Bots e conversas, enquanto execuçõ
 
 ### Blocked by
 
-`chat-with-bot`.
+`chat-with-bot` e `add-bot-members`.
 
 ### Context
 

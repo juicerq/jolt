@@ -1,7 +1,6 @@
-import initial from "../../../drizzle/0000-initial.sql" with { type: "text" }
-import createTeams from "../../../drizzle/0001-create-teams.sql" with { type: "text" }
+import type { MigrationsJournal } from "drizzle-orm/migrator"
+import createBots from "../../../drizzle/20260831101537_create-bots/migration.sql" with { type: "text" }
 
 export const migrations = [
-  { id: 1, statements: [initial] },
-  { id: 2, statements: createTeams.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean) },
-]
+  { name: "20260831101537_create-bots", timestamp: 1788171337000, sql: createBots },
+] satisfies MigrationsJournal

@@ -3,7 +3,7 @@ import { engineContract } from "../../shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
 import type { createProviderDiscovery } from "../providers/provider-discovery"
-import type { createTeams } from "../teams/teams"
+import type { createBots } from "../bots/bots"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -20,7 +20,7 @@ export function createEngineRouter(
   diagnostics: ReturnType<typeof createDiagnostics>,
   receiver: ObservationReceiver,
   providers: ReturnType<typeof createProviderDiscovery>,
-  teams: ReturnType<typeof createTeams>,
+  bots: ReturnType<typeof createBots>,
 ) {
   const operations = implement(engineContract)
 
@@ -49,37 +49,31 @@ export function createEngineRouter(
         ),
       ),
     },
-    teams: {
-      create: operations.teams.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+    bots: {
+      create: operations.bots.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
-          { name: "orpc.teamcreate", context: observationContext(context) },
-          () => teams.create(input),
+          { name: "orpc.botcreate", context: observationContext(context) },
+          () => bots.create(input),
         ),
       ),
-      list: operations.teams.list.handler(({ context }: { context: EngineContext }) =>
+      list: operations.bots.list.handler(({ context }: { context: EngineContext }) =>
         observability.span(
-          { name: "orpc.teamlist", context: observationContext(context) },
-          () => teams.list(),
+          { name: "orpc.botlist", context: observationContext(context) },
+          () => bots.list(),
         ),
       ),
-      get: operations.teams.get.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+      get: operations.bots.get.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
-          { name: "orpc.teamget", context: observationContext(context) },
+          { name: "orpc.botget", context: observationContext(context) },
           () => {
-            const team = teams.get(input)
+            const bot = bots.get(input)
 
-            if (!team) {
-              throw new Error("Team not found")
+            if (!bot) {
+              throw new Error("Bot not found")
             }
 
-            return team
+            return bot
           },
-        ),
-      ),
-      createMember: operations.teams.createMember.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.membercreate", context: observationContext(context) },
-          () => teams.createMember(input),
         ),
       ),
     },

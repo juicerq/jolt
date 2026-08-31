@@ -3,7 +3,7 @@ import { type } from "arktype"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan, observationAttributes, observationContext, observationName } from "./observability/observation"
 import { providerAvailabilityList } from "./providers"
-import { teamSchemas } from "./teams"
+import { botSchemas } from "./bots"
 
 export const engineReadyMessage = type({
   type: type.enumerated("ready"),
@@ -56,11 +56,10 @@ export const engineContract = {
   providers: {
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
   },
-  teams: {
-    create: oc.input(teamSchemas.createInput).output(teamSchemas.team).route({ method: "POST", path: "/teams" }),
-    list: oc.output(teamSchemas.teamList).route({ method: "GET", path: "/teams" }),
-    get: oc.input(teamSchemas.idInput).output(teamSchemas.team).route({ method: "GET", path: "/teams/{id}" }),
-    createMember: oc.input(teamSchemas.createMemberInput).output(teamSchemas.member).route({ method: "POST", path: "/teams/{teamId}/members" }),
+  bots: {
+    create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
+    list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
+    get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

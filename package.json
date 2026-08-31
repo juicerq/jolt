@@ -9,6 +9,9 @@
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
     "dev": "bun run build:engine && electron-vite dev",
+    "prototype:chat": "VITE_CHAT_PROTOTYPE=1 vite src/renderer --host 127.0.0.1",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
     "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
     "test:stress": "bun run build:engine && bun test tests --no-orphans --parallel=4 --randomize --rerun-each=3",
     "typecheck": "tsc --noEmit",
@@ -17,6 +20,7 @@
     "build": "bun run build:engine && bun run build:electron"
   },
   "dependencies": {
+    "@blobatar/react": "^2.7.0",
     "@orpc/client": "1.15.0",
     "@orpc/contract": "1.15.0",
     "@orpc/server": "1.15.0",
@@ -24,7 +28,8 @@
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-store": "0.11.1",
     "arktype": "2.2.3",
-    "drizzle-orm": "0.45.2",
+    "blobatar": "^2.7.0",
+    "drizzle-orm": "1.0.0-rc.4",
     "react": "19.2.5",
     "react-dom": "19.2.5"
   },
@@ -34,7 +39,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.1",
-    "drizzle-kit": "0.31.10",
+    "drizzle-kit": "1.0.0-rc.4",
     "electron": "44.0.0",
     "electron-vite": "5.0.0",
     "typescript": "7.0.2",

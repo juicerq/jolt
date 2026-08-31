@@ -1,8 +1,8 @@
-# V1 do aplicativo de times de Bots
+# V1 do Jots
 
 ## Objetivo
 
-Criar um aplicativo desktop local no qual uma pessoa organiza Bots em Times, conversa com o Líder de cada Time e acompanha o trabalho delegado aos Integrantes. Os Bots usam as assinaturas já autenticadas da pessoa no Codex ou no Claude Code.
+Criar um aplicativo desktop local no qual uma pessoa cria Bots, conversa com cada um e, quando precisa dividir um trabalho, adiciona Integrantes a um Bot. Esse Bot passa a atuar como Líder. Os Bots usam as sessões já autenticadas da pessoa no Codex ou no Claude Code.
 
 ## Critério de conclusão
 
@@ -10,43 +10,55 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 
 1. A pessoa abre o aplicativo local.
 2. O aplicativo encontra Codex e Claude Code já autenticados.
-3. A pessoa cria um Time e configura seu Líder.
-4. A pessoa cria um Integrante.
-5. A pessoa conversa com o Líder.
+3. A pessoa cria um Bot com uma pasta de trabalho opcional.
+4. A pessoa conversa com o Bot e reabre seu histórico.
+5. A pessoa adiciona um Integrante ao Bot, que passa a atuar como Líder.
 6. O Líder delega uma Tarefa ao Integrante.
 7. O Integrante responde ao Líder.
-8. A pessoa abre o Integrante e vê toda a conversa relacionada.
-9. Fechar e abrir o aplicativo preserva Times e conversas.
+8. A pessoa abre o Integrante e vê a conversa relacionada.
+9. Fechar e abrir o aplicativo preserva Bots, Integrantes e conversas.
 
 ## Escopo da V1
 
 - Execução somente na máquina da pessoa.
-- Suporte a Codex e Claude Code.
-- Uso das sessões oficiais já autenticadas nesses agentes.
-- Vários Times.
-- Exatamente um Líder por Time.
-- Integrantes permanentes.
-- Bots temporários criados manualmente pela pessoa.
-- Bots temporários criados pelo Líder.
-- Chat direto com o Líder ou qualquer Integrante.
+- Suporte a Codex e Claude Code pelas sessões oficiais já autenticadas.
+- Bots independentes.
+- Pasta de trabalho opcional por Bot.
+- Integrantes permanentes adicionados a um Bot.
+- Bots com Integrantes atuam como Líderes.
+- Integrantes temporários criados pela pessoa ou pelo Líder.
+- Chat direto com qualquer Bot ou Integrante.
 - Delegação de Tarefas entre Líder e Integrantes.
-- Conversas entre Bots do mesmo Time.
+- Conversas entre Bots do mesmo grupo.
 - Histórico persistente e visível.
-- Persistência local.
-- Memória inicial formada pelo histórico persistente e por instruções editáveis do Bot.
+- Memória inicial formada pelo histórico persistente e pelas instruções editáveis do Bot.
 
 ## Modelo do produto
 
-### Time e Bots
+### Bots, Líderes e Integrantes
 
-- Um Time possui exatamente um Líder e pode possuir vários Integrantes.
-- Líder e Integrante são Bots com responsabilidades diferentes.
-- Cada Bot pertence a somente um Time.
-- O Líder é o contato padrão da pessoa com o Time.
-- A pessoa pode abrir o chat de qualquer Integrante a qualquer momento.
-- Um Time possui um fornecedor padrão.
-- Cada Bot pode substituir o fornecedor padrão por Codex ou Claude Code.
-- O fornecedor nunca muda silenciosamente durante uma Tarefa.
+- Bot é a unidade principal do produto.
+- Um Bot pode existir sozinho.
+- A pessoa pode adicionar Integrantes a qualquer Bot.
+- Um Bot com pelo menos um Integrante atua como Líder.
+- Líder e Integrante continuam sendo Bots.
+- Um Integrante pertence a um único Líder.
+- Remover o último Integrante faz o Líder voltar a ser um Bot independente.
+- A pessoa abre o chat de qualquer Bot ou Integrante a qualquer momento.
+- Cada Bot escolhe Codex ou Claude Code como executor.
+- O executor não muda silenciosamente durante uma Tarefa.
+- A interface mostra um avatar para um Bot independente e até três avatares empilhados para um Líder com Integrantes.
+
+### Pasta de trabalho
+
+- A pasta de trabalho é opcional na criação do Bot.
+- Quando a pessoa não escolhe uma pasta, o aplicativo usa uma pasta privada vazia sob seu próprio diretório de dados.
+- A pessoa pode trocar ou remover a pasta escolhida.
+- Um Integrante herda a pasta do Líder ao ser criado.
+- A pessoa pode trocar ou remover a pasta herdada de um Integrante.
+- Um Integrante temporário herda a pasta de quem o criou.
+- O aplicativo mostra a pasta efetiva nas configurações do Bot.
+- A V1 não cria worktrees nem protege uma pasta contra edições concorrentes.
 
 ### Autoridade
 
@@ -59,37 +71,38 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 ### Tarefas
 
 - Cada Tarefa possui um único Bot responsável.
-- Outros Bots podem colaborar sem assumir a responsabilidade.
-- O Líder continua responsável pelo resultado geral do Time.
+- Outros Bots do mesmo grupo podem colaborar sem assumir a responsabilidade.
+- O Líder continua responsável pelo resultado geral.
 - Uma transferência de responsabilidade aparece na conversa.
 
 ### Conversas
 
-- A conversa de um Integrante forma uma linha cronológica única.
+- Cada Bot ou Integrante possui uma linha cronológica de conversa.
 - Cada mensagem identifica seu autor.
-- Mensagens entre a pessoa, o Líder e outros Integrantes aparecem no histórico relacionado.
+- Mensagens entre a pessoa, o Líder e os Integrantes aparecem no histórico relacionado.
 - Nenhuma conversa entre Bots fica oculta da pessoa ou do Líder.
 - Integrantes podem conversar diretamente sem usar o Líder como retransmissor.
+- A interface mostra delegações no chat do Líder e permite abrir o chat do Integrante responsável.
 - A atividade de execução pode aparecer separada das mensagens.
 
-### Bots permanentes e temporários
+### Integrantes permanentes e temporários
 
 - A pessoa pode criar um Integrante permanente.
 - O Líder pode propor um Integrante permanente, mas a pessoa confirma sua criação.
-- A pessoa ou o Líder pode criar um Bot temporário para uma Tarefa.
-- Um Bot temporário pertence a um Time e não pode criar outros Bots.
-- O Bot temporário encerra com sua Tarefa.
-- Os acessos e a memória do Bot temporário terminam com ele.
-- O histórico do Bot temporário permanece ligado à Tarefa.
+- A pessoa ou o Líder pode criar um Integrante temporário para uma Tarefa.
+- Um Integrante temporário não pode criar outros Bots.
+- O Integrante temporário encerra com sua Tarefa.
+- Os acessos e a memória descartável do Integrante temporário terminam com ele.
+- Seu histórico permanece ligado à Tarefa.
 
 ### Função, memória e contexto
 
 - A Função do Bot define resultado esperado, responsabilidades, limites e forma de entrega.
-- Nome, fornecedor, memória e acessos não fazem parte da Função do Bot.
+- Nome, executor, memória, pasta e acessos não fazem parte da Função.
 - A V1 não precisa de busca semântica nem memória automática avançada.
-- O Bot recebe conhecimento da existência de histórico, memória, arquivos, ferramentas e outros Bots.
+- O Bot recebe conhecimento da existência de histórico, memória, arquivos, ferramentas e outros Bots do grupo.
 - O Bot decide quando consultar esses recursos.
-- Identidade, Função do Bot, Tarefa, ordens diretas, acessos e limites aplicáveis nunca dependem dessa consulta opcional.
+- Identidade, Função, Tarefa, ordens diretas, acessos e limites aplicáveis nunca dependem dessa consulta opcional.
 
 ## Execução dos fornecedores
 
@@ -98,7 +111,7 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 - O aplicativo não recebe nem administra tokens das assinaturas.
 - A pessoa autentica os agentes pelos fluxos oficiais do Codex e do Claude Code.
 - A execução acontece na mesma máquina que contém essas sessões.
-- Times, Bots, conversas e Tarefas pertencem ao aplicativo.
+- Bots, conversas e Tarefas pertencem ao aplicativo.
 - Codex e Claude Code implementam uma interface comum de execução por meio de adaptadores separados.
 
 ### Codex
@@ -133,11 +146,11 @@ O Bun Engine usa `bun:sqlite` como driver SQLite do Drizzle.
 
 ### Main
 
-O processo Main cria a janela, inicia e supervisiona o Bun Engine, encerra o processo filho com o aplicativo e executa funções nativas do Electron. Ele não possui regras de Times, Bots, conversas ou fornecedores.
+O processo Main cria a janela, inicia e supervisiona o Bun Engine, encerra o processo filho com o aplicativo e executa funções nativas do Electron, como escolher uma pasta. Ele não possui regras de Bots, conversas ou fornecedores.
 
 ### Bun Engine
 
-O Bun Engine possui Times, Bots, conversas, persistência e execução dos fornecedores. Ele acessa o banco por Drizzle com `bun:sqlite` e inicia Codex ou Claude Code.
+O Bun Engine possui Bots, relações entre Líderes e Integrantes, conversas, persistência e execução dos fornecedores. Ele acessa o banco por Drizzle com `bun:sqlite` e inicia Codex ou Claude Code.
 
 ### Preload
 
@@ -145,7 +158,7 @@ O Preload expõe uma interface pequena e tipada para funções nativas do Electr
 
 ### Renderer
 
-O Renderer apresenta a interface e envia intenções. Ele não acessa arquivos, banco, Codex ou Claude Code diretamente. Recarregar o Renderer não deve encerrar uma execução que pertence ao Bun Engine.
+O Renderer apresenta a interface validada pelo protótipo e envia intenções. Ele não acessa arquivos, banco, Codex ou Claude Code diretamente. Recarregar o Renderer não encerra uma execução que pertence ao Bun Engine.
 
 ### Comunicação
 
@@ -168,7 +181,6 @@ Os módulos iniciais representam conceitos do produto:
 src/
 ├── engine/
 │   ├── app/
-│   ├── teams/
 │   ├── bots/
 │   ├── conversations/
 │   ├── execution/
@@ -184,14 +196,12 @@ src/
 │   └── index.ts
 ├── renderer/
 │   ├── app/
-│   ├── teams/
 │   ├── bots/
 │   ├── chat/
 │   ├── routes/
 │   ├── styles.css
 │   └── main.tsx
 └── shared/
-    ├── teams.ts
     ├── bots.ts
     ├── conversations.ts
     └── execution.ts
@@ -212,7 +222,7 @@ src/
 
 ### Objetivo
 
-A V1 produz evidências suficientes para depurar falhas e analisar performance entre Renderer, Electron Main, Bun Engine, banco, Codex e Claude Code. A observabilidade não depende de um serviço remoto.
+A V1 produz dados suficientes para depurar falhas e analisar performance entre Renderer, Electron Main, Bun Engine, banco, Codex e Claude Code. A observabilidade não depende de um serviço remoto.
 
 ### Modelo
 
@@ -227,7 +237,7 @@ A V1 produz evidências suficientes para depurar falhas e analisar performance e
 
 ### Campos de correlação
 
-Uma Observation pode incluir `appSessionId`, `traceId`, `spanId`, `parentSpanId`, `teamId`, `botId`, `taskId` e `provider`. Campos ausentes não são preenchidos com valores vazios.
+Uma Observation pode incluir `appSessionId`, `traceId`, `spanId`, `parentSpanId`, `botId`, `leaderBotId`, `taskId` e `provider`. Campos ausentes não são preenchidos com valores vazios.
 
 ### Medições da V1
 
@@ -279,22 +289,14 @@ A tela local de diagnóstico mostra versões, estado dos processos, estado de au
 - Integrações com serviços externos.
 - Permissões detalhadas por ferramenta.
 - Memória semântica e recuperação automática avançada.
-- Áreas isoladas de arquivos por Bot.
-- Edição concorrente de projetos.
+- Worktrees e edição concorrente de projetos.
 - Múltiplas contas por fornecedor.
 - Retomada automática após fechar o aplicativo ou reiniciar a máquina.
 - Aplicativo administrando ou copiando tokens de assinatura.
 
-## Decisões pendentes
+## Veredito dos protótipos
 
-- Forma mínima de detectar instalação e autenticação do Codex e do Claude Code.
-- Contrato exato do oRPC entre Bun Engine e Renderer.
-- Schema inicial do banco.
-- Fluxo visual da primeira abertura.
-
-## Veredito do protótipo do Bun Engine
-
-O protótipo descartável em `prototype/` aprovou a arquitetura para desenvolvimento local no Linux:
+O protótipo do Bun Engine aprovou a arquitetura para desenvolvimento local no Linux:
 
 - Electron iniciou e encerrou um Bun Engine sem deixar processo órfão.
 - O Main recebeu do Bun Engine uma mensagem de prontidão validada com Arktype.
@@ -310,7 +312,18 @@ O protótipo descartável em `prototype/` aprovou a arquitetura para desenvolvim
 - TypeScript e os builds do Bun Engine e do Electron passaram.
 - Uma instalação limpa com lockfile fixo instalou as dependências e o binário do Electron pelo `postinstall` explícito.
 
-O protótipo ainda não provou:
+O protótipo da interface aprovou estes comportamentos:
+
+- A lista principal contém Bots, não Times.
+- Um Bot independente usa um avatar.
+- Um Líder com Integrantes usa até três avatares empilhados.
+- Criar Bot pede nome, Função, executor e pasta opcional.
+- Adicionar o primeiro Integrante transforma o Bot em Líder.
+- O chat permite abrir conversas relacionadas a uma delegação.
+- As configurações permitem consultar e alterar a pasta de trabalho.
+- Integrantes temporários aparecem separados dos permanentes.
+
+Os protótipos ainda não provaram:
 
 - uma resposta real do Claude por assinatura, pois o Claude Code local não está autenticado;
 - empacotamento e execução em Windows ou macOS;

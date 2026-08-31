@@ -13,7 +13,7 @@ describe("Diagnostics", () => {
       source: system.diagnostics,
       versions: { app: "0.0.0", bun: "1.4.0", electron: "44.0.0" },
       processState: () => ({ engine: "ready", main: "ready" }),
-      migrationState: () => [1],
+      migrationState: () => ["20260831101537_create-bots"],
       exportDirectory: directory,
       providerState: () => [
         { provider: "codex", status: "available", version: "0.151.0" },
@@ -41,7 +41,7 @@ describe("Diagnostics", () => {
       source: system.diagnostics,
       versions: { app: "0.0.0", bun: "1.4.0", electron: "44.0.0" },
       processState: () => ({ engine: "ready", main: "ready" }),
-      migrationState: () => [1],
+      migrationState: () => ["20260831101537_create-bots"],
       exportDirectory: directory,
     })
     system.observability.event({ name: "engine.started", attributes: { status: "ready", token: "secret" } })
@@ -50,7 +50,7 @@ describe("Diagnostics", () => {
     const result = await diagnostics.export()
     const content = readFileSync(result.path, "utf8")
 
-    expect(JSON.parse(content)).toMatchObject({ versions: { app: "0.0.0" }, migrations: [1] })
+    expect(JSON.parse(content)).toMatchObject({ versions: { app: "0.0.0" }, migrations: ["20260831101537_create-bots"] })
     expect(content).not.toContain("secret")
     expect(content).not.toContain("token")
   })

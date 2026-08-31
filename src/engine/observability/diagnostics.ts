@@ -9,7 +9,7 @@ type DiagnosticsOptions = {
   source: ObservationDiagnostics
   versions: { app: string; bun: string; electron: string }
   processState(): { engine: typeof processState.infer; main: typeof processState.infer }
-  migrationState(): number[]
+  migrationState(): string[]
   exportDirectory: string
   providerState?(): ProviderAvailability[]
 }
