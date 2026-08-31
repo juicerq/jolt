@@ -4,6 +4,17 @@ import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 
+const eyebrowClassName = "mb-[1em] text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
+const cardClassName = "rounded-xl border border-outline bg-surface p-5"
+const fieldControlClassName =
+  "w-full rounded-lg border border-outline-strong bg-canvas px-3 py-2.5 text-control font-medium text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+const textButtonClassName =
+  "cursor-pointer rounded-lg bg-transparent text-control font-medium text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active"
+const directoryPickerClassName =
+  "flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-outline-strong bg-canvas px-3 py-[11px] text-left text-control font-medium text-secondary hover:border-focus hover:bg-surface-hover hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px] [&_svg]:shrink-0"
+const functionTermClassName = "mb-1.5 text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
+const functionDescriptionClassName = "m-0 whitespace-pre-wrap text-control font-medium leading-[1.55] text-focus"
+
 export function BotSettings({ bot, client, onClose }: { bot: Bot; client: EngineClient; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState(bot.projectId ?? "")
@@ -32,31 +43,31 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   }
 
   return (
-    <div className="prototype-overlay panel-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <aside className="function-drawer bot-settings-drawer">
-        <button className="settings-close" type="button" aria-label="Fechar configurações" onClick={onClose}><XMarkIcon aria-hidden="true" /></button>
-        <header className="bot-summary-heading"><div><p className="eyebrow">Bot</p><h2>{bot.name}</h2></div><span className="provider-chip">Pi · Codex</span></header>
-        <section className="leader-card">
-          <p className="eyebrow">Função</p>
-          <dl className="leader-function">
-            <div><dt>Resultado</dt><dd>{bot.function.outcome}</dd></div>
-            <div><dt>Responsabilidades</dt><dd>{bot.function.responsibilities}</dd></div>
-            <div><dt>Limites</dt><dd>{bot.function.limits}</dd></div>
-            <div><dt>Entrega</dt><dd>{bot.function.delivery}</dd></div>
+    <div className="fixed inset-0 z-40 grid place-items-center justify-items-end bg-overlay p-3 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <aside className="relative flex h-full w-[min(390px,100%)] flex-col gap-4 overflow-y-auto rounded-shell border border-outline-strong bg-surface-raised p-6 text-primary shadow-[0_24px_80px_rgb(0_0_0/55%)]">
+        <button className="absolute top-6 right-6 z-1 grid size-[30px] cursor-pointer place-items-center rounded-lg bg-transparent p-0 text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px]" type="button" aria-label="Fechar configurações" onClick={onClose}><XMarkIcon aria-hidden="true" /></button>
+        <header className="flex items-start justify-between gap-4 pr-9"><div><p className={eyebrowClassName}>Bot</p><h2 className="text-title font-semibold text-primary">{bot.name}</h2></div><span className="rounded-full border border-outline-strong px-2.5 py-1.5 text-support font-semibold text-focus">Pi · Codex</span></header>
+        <section className={cardClassName}>
+          <p className={eyebrowClassName}>Função</p>
+          <dl className="mt-5 grid grid-cols-1 gap-[18px]">
+            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Resultado</dt><dd className={functionDescriptionClassName}>{bot.function.outcome}</dd></div>
+            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Responsabilidades</dt><dd className={functionDescriptionClassName}>{bot.function.responsibilities}</dd></div>
+            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Limites</dt><dd className={functionDescriptionClassName}>{bot.function.limits}</dd></div>
+            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Entrega</dt><dd className={functionDescriptionClassName}>{bot.function.delivery}</dd></div>
           </dl>
         </section>
-        <section className="leader-card bot-workspace-settings">
-          <p className="eyebrow">Projeto e pasta</p>
-          <label>Projeto<select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>
-          <div className="project-directory-field bot-directory-field">
-            <span>Pasta própria <small>Opcional</small></span>
-            <button className="directory-picker" type="button" onClick={handleChooseDirectory}><FolderIcon aria-hidden="true" /><span>{workingDirectoryOverride || "Usar outra pasta"}</span></button>
-            {workingDirectoryOverride && <button className="text-button directory-reset" type="button" onClick={() => setWorkingDirectoryOverride("")}>Remover pasta própria</button>}
+        <section className={`${cardClassName} flex flex-col gap-4`}>
+          <p className={eyebrowClassName}>Projeto e pasta</p>
+          <label className="flex flex-col gap-2 text-control font-semibold text-secondary">Projeto<select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>
+          <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-outline bg-surface p-4">
+            <span className="flex items-baseline justify-between text-control font-semibold text-secondary">Pasta própria <small className="text-metadata font-medium text-muted">Opcional</small></span>
+            <button className={directoryPickerClassName} type="button" onClick={handleChooseDirectory}><FolderIcon aria-hidden="true" /><span className="min-w-0 truncate">{workingDirectoryOverride || "Usar outra pasta"}</span></button>
+            {workingDirectoryOverride && <button className={`${textButtonClassName} self-start px-2 py-1.5`} type="button" onClick={() => setWorkingDirectoryOverride("")}>Remover pasta própria</button>}
           </div>
           <WorkspaceChoice projectName={selectedProject?.name} workingDirectoryOverride={workingDirectoryOverride} />
-          <div className="effective-directory"><span>Pasta efetiva atual</span><strong>{bot.effectiveWorkingDirectory}</strong></div>
-          {(directoryError || projectsError || error) && <p className="error">Falha ao alterar o Projeto: {directoryError ?? projectsError?.message ?? error?.message}</p>}
-          <button type="button" disabled={isPending} onClick={() => mutate({ id: bot.id, projectId: projectId || null, workingDirectoryOverride: workingDirectoryOverride || null })}>{isPending ? "Salvando..." : "Salvar alterações"}</button>
+          <div className="flex min-w-0 flex-col gap-1.25 border-t border-outline pt-4"><span className="text-metadata font-semibold tracking-[0.08em] text-muted uppercase">Pasta efetiva atual</span><strong className="font-mono text-support font-medium text-secondary [overflow-wrap:anywhere]">{bot.effectiveWorkingDirectory}</strong></div>
+          {(directoryError || projectsError || error) && <p className="text-support text-status-error">Falha ao alterar o Projeto: {directoryError ?? projectsError?.message ?? error?.message}</p>}
+          <button className="cursor-pointer rounded-lg bg-accent px-3.5 py-2.5 text-control font-semibold text-accent-ink hover:bg-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-focus disabled:cursor-default disabled:bg-surface-active disabled:text-muted disabled:opacity-100" type="button" disabled={isPending} onClick={() => mutate({ id: bot.id, projectId: projectId || null, workingDirectoryOverride: workingDirectoryOverride || null })}>{isPending ? "Salvando..." : "Salvar alterações"}</button>
         </section>
       </aside>
     </div>
@@ -65,12 +76,12 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
 
 function WorkspaceChoice({ projectName, workingDirectoryOverride }: { projectName?: string; workingDirectoryOverride: string }) {
   if (workingDirectoryOverride) {
-    return <p className="workspace-choice">Ao salvar, o Bot usará a pasta própria.</p>
+    return <p className="text-support text-secondary">Ao salvar, o Bot usará a pasta própria.</p>
   }
 
   if (projectName) {
-    return <p className="workspace-choice">Ao salvar, o Bot herdará a pasta de {projectName}.</p>
+    return <p className="text-support text-secondary">Ao salvar, o Bot herdará a pasta de {projectName}.</p>
   }
 
-  return <p className="workspace-choice">Ao salvar, o Bot usará sua pasta privada.</p>
+  return <p className="text-support text-secondary">Ao salvar, o Bot usará sua pasta privada.</p>
 }

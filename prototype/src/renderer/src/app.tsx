@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { createPrototypeClient, type PrototypeClient } from "./prototype-client"
 
+const buttonClassName =
+  "cursor-pointer rounded-lg bg-orange-400 px-4 py-2.5 font-bold text-stone-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-300 disabled:cursor-wait disabled:opacity-60"
+
 export function App() {
   const [client, setClient] = useState<PrototypeClient>()
 
@@ -12,7 +15,11 @@ export function App() {
   }, [])
 
   if (!client) {
-    return <main>Waiting for Bun engine…</main>
+    return (
+      <main className="mx-auto max-w-[760px] px-8 py-18 font-sans text-stone-200">
+        Waiting for Bun engine…
+      </main>
+    )
   }
 
   return <PrototypeStatus client={client} />
@@ -63,37 +70,41 @@ function PrototypeStatus({ client }: { client: PrototypeClient }) {
   const error = healthError ?? counterError
 
   return (
-    <main>
-      <p className="eyebrow">Throwaway technical prototype</p>
-      <h1>Electron supervises a Bun engine</h1>
-      {pending && <p>Reading engine state…</p>}
-      {error && <p className="error">{error.message}</p>}
+    <main className="mx-auto max-w-[760px] px-8 py-18 font-sans text-stone-200">
+      <p className="my-[1em] text-xs font-bold tracking-[0.12em] text-orange-400 uppercase">
+        Throwaway technical prototype
+      </p>
+      <h1 className="mt-2 mb-6 max-w-[680px] text-[52px] leading-[1.05] font-bold tracking-[-0.04em]">
+        Electron supervises a Bun engine
+      </h1>
+      {pending && <p className="my-[1em]">Reading engine state…</p>}
+      {error && <p className="my-[1em] text-red-300">{error.message}</p>}
       {health && counter && (
-        <section>
-          <dl>
-            <div><dt>Runtime</dt><dd>{health.runtime}</dd></div>
-            <div><dt>Process</dt><dd>{health.pid}</dd></div>
-            <div><dt>Started</dt><dd>{health.startedAt}</dd></div>
-            <div><dt>Scratch database</dt><dd>{health.databasePath}</dd></div>
-            <div><dt>Persisted counter</dt><dd>{counter.value}</dd></div>
-            <div><dt>Last write</dt><dd>{counter.updatedAt}</dd></div>
+        <section className="rounded-2xl border border-stone-800 bg-stone-900 p-6">
+          <dl className="mb-6 grid gap-4">
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Runtime</dt><dd className="m-0 [overflow-wrap:anywhere]">{health.runtime}</dd></div>
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Process</dt><dd className="m-0 [overflow-wrap:anywhere]">{health.pid}</dd></div>
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Started</dt><dd className="m-0 [overflow-wrap:anywhere]">{health.startedAt}</dd></div>
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Scratch database</dt><dd className="m-0 [overflow-wrap:anywhere]">{health.databasePath}</dd></div>
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Persisted counter</dt><dd className="m-0 [overflow-wrap:anywhere]">{counter.value}</dd></div>
+            <div className="grid grid-cols-[160px_1fr] gap-4"><dt className="text-stone-400">Last write</dt><dd className="m-0 [overflow-wrap:anywhere]">{counter.updatedAt}</dd></div>
           </dl>
-          <button disabled={incrementPending} onClick={() => increment({})}>
+          <button className={buttonClassName} disabled={incrementPending} onClick={() => increment({})}>
             {incrementPending ? "Writing…" : "Write through Drizzle"}
           </button>
-          <h2>oRPC event iterator</h2>
-          <ol>
+          <h2 className="mt-8 mb-3 text-lg font-bold">oRPC event iterator</h2>
+          <ol className="my-[1em] list-decimal pl-5">
             {events.map((event) => <li key={event.sequence}>{event.sequence}. {event.message}</li>)}
           </ol>
-          <h2>Read-only provider probes</h2>
-          <div className="actions">
-            <button disabled={codexPending} onClick={() => probeCodex({})}>{codexPending ? "Probing Codex…" : "Probe Codex"}</button>
-            <button disabled={claudePending} onClick={() => probeClaude({})}>{claudePending ? "Probing Claude…" : "Probe Claude"}</button>
+          <h2 className="mt-8 mb-3 text-lg font-bold">Read-only provider probes</h2>
+          <div className="flex gap-3">
+            <button className={buttonClassName} disabled={codexPending} onClick={() => probeCodex({})}>{codexPending ? "Probing Codex…" : "Probe Codex"}</button>
+            <button className={buttonClassName} disabled={claudePending} onClick={() => probeClaude({})}>{claudePending ? "Probing Claude…" : "Probe Claude"}</button>
           </div>
-          {codexError && <p className="error">Codex: {codexError.message}</p>}
-          {claudeError && <p className="error">Claude: {claudeError.message}</p>}
-          {codex && <pre>{JSON.stringify(codex, null, 2)}</pre>}
-          {claude && <pre>{JSON.stringify(claude, null, 2)}</pre>}
+          {codexError && <p className="my-[1em] text-red-300">Codex: {codexError.message}</p>}
+          {claudeError && <p className="my-[1em] text-red-300">Claude: {claudeError.message}</p>}
+          {codex && <pre className="my-[1em] overflow-auto rounded-lg bg-stone-950 p-4">{JSON.stringify(codex, null, 2)}</pre>}
+          {claude && <pre className="my-[1em] overflow-auto rounded-lg bg-stone-950 p-4">{JSON.stringify(claude, null, 2)}</pre>}
         </section>
       )}
     </main>

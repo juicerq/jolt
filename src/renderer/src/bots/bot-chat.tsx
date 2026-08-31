@@ -9,15 +9,15 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   const { data, error, isPending } = useQuery(client.query.bots.get.queryOptions({ input: botId ? { id: botId } : skipToken }))
 
   if (!botId) {
-    return <div className="bot-placeholder"><strong>Escolha um Bot</strong><p>Abra um Bot da lista ou crie um novo.</p></div>
+    return <div className="flex min-h-[460px] flex-col items-center justify-center gap-1.5 text-center text-support text-secondary max-[700px]:min-h-60"><strong className="text-section font-semibold text-primary">Escolha um Bot</strong><p>Abra um Bot da lista ou crie um novo.</p></div>
   }
 
   if (error) {
-    return <p className="error bot-opening">Falha ao abrir o Bot: {error.message}</p>
+    return <p className="p-7 text-support text-status-error">Falha ao abrir o Bot: {error.message}</p>
   }
 
   if (isPending || !data) {
-    return <p className="empty bot-opening">Abrindo Bot...</p>
+    return <p className="p-7 text-muted">Abrindo Bot...</p>
   }
 
   return (
