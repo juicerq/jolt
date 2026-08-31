@@ -18,10 +18,11 @@
   --color-error: #f87171;
   --color-working: #60a5fa;
   --color-overlay: rgb(0 0 0 / 72%);
-  --syntax-keyword: #c4a7c7;
-  --syntax-string: #aebd98;
-  --syntax-number: #d2ad84;
-  --syntax-title: #9eb7c6;
+  --color-inline-code: #f0ad67;
+  --syntax-keyword: #e4a7eb;
+  --syntax-string: #b9df8f;
+  --syntax-number: #f2b86f;
+  --syntax-title: #8dcced;
   --font-title: 600 20px/1.25 system-ui, sans-serif;
   --font-section: 600 15px/1.35 system-ui, sans-serif;
   --font-body: 400 15px/1.65 system-ui, sans-serif;
@@ -2602,13 +2603,10 @@ legend {
 }
 
 .chat-content :not(pre) > code {
-  border: 1px solid var(--color-outline);
-  border-radius: 5px;
-  padding: 1px 5px;
-  color: var(--color-primary);
-  background: var(--color-canvas);
+  color: var(--color-inline-code);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: .88em;
+  font-weight: 600;
 }
 
 .chat-content hr {

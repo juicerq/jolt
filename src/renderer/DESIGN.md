@@ -22,10 +22,11 @@ colors:
   error: "#f87171"
   working: "#60a5fa"
   overlay: "rgb(0 0 0 / 72%)"
-  syntax-keyword: "#c4a7c7"
-  syntax-string: "#aebd98"
-  syntax-number: "#d2ad84"
-  syntax-title: "#9eb7c6"
+  inline-code: "#f0ad67"
+  syntax-keyword: "#e4a7eb"
+  syntax-string: "#b9df8f"
+  syntax-number: "#f2b86f"
+  syntax-title: "#8dcced"
 typography:
   title:
     fontFamily: system-ui
@@ -178,6 +179,10 @@ The interface stays dark, warm, and restrained. Large rounded planes separate
 the persistent workspace. Controls stay quiet until the pointer or keyboard
 reaches them. The user's message, the Bot's answer, and the prompt are the
 strongest elements in that order.
+
+Inline code in conversations uses a strong warm amber and semibold monospace
+text without a border or background. Fenced code remains contained in its own
+surface with syntax highlighting.
 
 ## Colors
 
