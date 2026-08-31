@@ -34,6 +34,13 @@ export function openDatabase(path: string, observability: Observability) {
           return row ? botSchemas.bot.assert(row) : undefined
         })
       },
+      updateWorkingDirectory(id: string, workingDirectory: string | null) {
+        return observability.span({ name: "database.botworkingdirectoryupdate", context: { botId: id } }, () => {
+          const row = database.update(bots).set({ workingDirectory }).where(eq(bots.id, id)).returning().get()
+
+          return row ? botSchemas.bot.assert(row) : undefined
+        })
+      },
     },
     migrationState() {
       return observability.span({ name: "database.transaction" }, () => database.all<{ name: string }>(sql`SELECT name FROM __drizzle_migrations ORDER BY id`).map((entry) => entry.name))

@@ -52,9 +52,29 @@ function BotsSidebar({ client }: { client: EngineClient }) {
 }
 
 function BotSummary({ client, botId }: { client: EngineClient; botId: string | null }) {
+  const queryClient = useQueryClient()
+  const [workingDirectoryError, setWorkingDirectoryError] = useState<string>()
   const { data, error, isFetching } = useQuery(client.bots.get.queryOptions({
     input: botId ? { id: botId } : skipToken,
   }))
+  const workingDirectoryMutation = useMutation(client.bots.updateWorkingDirectory.mutationOptions({
+    onSuccess(updated) {
+      queryClient.invalidateQueries({ queryKey: client.bots.get.queryOptions({ input: { id: updated.id } }).queryKey })
+      queryClient.invalidateQueries({ queryKey: client.bots.list.queryOptions().queryKey })
+    },
+  }))
+
+  async function handleChooseWorkingDirectory() {
+    setWorkingDirectoryError(undefined)
+    const workingDirectory = await window.desktop.chooseWorkingDirectory().catch((selectionError: unknown) => {
+      setWorkingDirectoryError(selectionError instanceof Error ? selectionError.message : "Não foi possível abrir a pasta")
+      return null
+    })
+
+    if (workingDirectory && botId) {
+      workingDirectoryMutation.mutate({ id: botId, workingDirectory })
+    }
+  }
 
   if (!botId) {
     return <div className="bot-placeholder"><strong>Escolha um Bot</strong><p>Abra um Bot da lista ou crie um novo.</p></div>
@@ -83,6 +103,14 @@ function BotSummary({ client, botId }: { client: EngineClient; botId: string | n
           <div><dt>Entrega</dt><dd>{data.function.delivery}</dd></div>
         </dl>
       </section>
+      <section className="leader-card working-directory-card">
+        <div><p className="eyebrow">Pasta de trabalho</p><strong>{data.workingDirectory ?? "Pasta privada do Bot"}</strong></div>
+        <div className="working-directory-actions">
+          <button className="secondary-button" type="button" disabled={workingDirectoryMutation.isPending} onClick={handleChooseWorkingDirectory}>Escolher pasta</button>
+          {data.workingDirectory && <button className="text-button" type="button" disabled={workingDirectoryMutation.isPending} onClick={() => workingDirectoryMutation.mutate({ id: data.id, workingDirectory: null })}>Usar pasta privada</button>}
+        </div>
+        {(workingDirectoryError || workingDirectoryMutation.error) && <p className="error">Falha ao alterar a pasta: {workingDirectoryError ?? workingDirectoryMutation.error?.message}</p>}
+      </section>
     </article>
   )
 }
@@ -95,6 +123,8 @@ function CreateBotForm({ client }: { client: EngineClient }) {
   const [responsibilities, setResponsibilities] = useState("")
   const [limits, setLimits] = useState("")
   const [delivery, setDelivery] = useState("")
+  const [workingDirectory, setWorkingDirectory] = useState<string | null>(null)
+  const [workingDirectoryError, setWorkingDirectoryError] = useState<string>()
   const { data: providers, error: providersError, isPending: providersPending } = useQuery(client.providers.list.queryOptions())
   const availableProviders = providers?.filter((candidate) => candidate.status === "available") ?? []
   const { mutate, isPending, error } = useMutation(client.bots.create.mutationOptions({
@@ -111,7 +141,19 @@ function CreateBotForm({ client }: { client: EngineClient }) {
       return
     }
 
-    mutate({ name, provider, function: { outcome, responsibilities, limits, delivery } })
+    mutate({ name, provider, function: { outcome, responsibilities, limits, delivery }, ...(workingDirectory ? { workingDirectory } : {}) })
+  }
+
+  async function handleChooseWorkingDirectory() {
+    setWorkingDirectoryError(undefined)
+    const selected = await window.desktop.chooseWorkingDirectory().catch((selectionError: unknown) => {
+      setWorkingDirectoryError(selectionError instanceof Error ? selectionError.message : "Não foi possível abrir a pasta")
+      return null
+    })
+
+    if (selected) {
+      setWorkingDirectory(selected)
+    }
   }
 
   function handleProviderChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -137,6 +179,14 @@ function CreateBotForm({ client }: { client: EngineClient }) {
           </select>
         </label>
       </div>
+      <div className="working-directory-field">
+        <div><span>Pasta de trabalho</span><small>{workingDirectory ?? "O aplicativo criará uma pasta privada para este Bot."}</small></div>
+        <div>
+          <button className="secondary-button" type="button" onClick={handleChooseWorkingDirectory}>Escolher pasta</button>
+          {workingDirectory && <button className="text-button" type="button" onClick={() => setWorkingDirectory(null)}>Remover</button>}
+        </div>
+      </div>
+      {workingDirectoryError && <p className="error">Falha ao escolher a pasta: {workingDirectoryError}</p>}
       <fieldset>
         <legend>Função</legend>
         <label>Resultado esperado<textarea required rows={2} value={outcome} onChange={(event) => setOutcome(event.target.value)} /></label>

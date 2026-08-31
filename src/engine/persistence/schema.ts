@@ -8,5 +8,6 @@ export const bots = snakeCase.table("bots", {
   name: text().notNull(),
   provider: text({ enum: ["codex", "claude"] }).notNull(),
   function: text({ mode: "json" }).$type<Bot["function"]>().notNull(),
+  workingDirectory: text(),
   createdAt: text().notNull(),
 }, (table) => [index("bots_leader_bot_id").on(table.leaderBotId)])

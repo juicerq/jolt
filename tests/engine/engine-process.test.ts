@@ -20,6 +20,7 @@ describe("compiled Bun Engine", () => {
       env: {
         BOT_TEAMS_ENGINE_TOKEN: "test-token",
         BOT_TEAMS_DATABASE_PATH: databasePath,
+        BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: join(directory, "bots"),
       },
       cwd: directory,
       stdout: "pipe",

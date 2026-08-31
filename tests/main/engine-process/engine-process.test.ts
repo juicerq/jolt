@@ -12,6 +12,7 @@ describe("EngineProcess", () => {
     const engine = new EngineProcess({
       executable: join(process.cwd(), "dist-engine", "bot-teams-engine"),
       databasePath: join(directory, "test.sqlite"),
+      privateBotsDirectory: join(directory, "bots"),
     })
     const connection = await engine.start()
 
@@ -45,6 +46,7 @@ describe("EngineProcess", () => {
     const engine = new EngineProcess({
       executable: join(process.cwd(), "dist-engine", "bot-teams-engine"),
       databasePath: join(directory, "test.sqlite"),
+      privateBotsDirectory: join(directory, "bots"),
       onUnexpectedExit: resolveExit,
     })
     await engine.start()
@@ -62,6 +64,7 @@ describe("EngineProcess", () => {
     const engine = new EngineProcess({
       executable: join(directory, "missing-engine"),
       databasePath: join(directory, "test.sqlite"),
+      privateBotsDirectory: join(directory, "bots"),
     })
 
     await expect(engine.start()).rejects.toThrow()

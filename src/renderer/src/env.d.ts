@@ -4,6 +4,7 @@ declare global {
   interface Window {
     desktop: {
       getEngineConnection(): Promise<typeof engineConnection.infer>
+      chooseWorkingDirectory(): Promise<string | null>
     }
   }
 }

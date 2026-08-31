@@ -16,7 +16,7 @@ describe("database", () => {
       development: false,
     })
     const database = openDatabase(databasePath, observability)
-    expect(database.migrationState()).toEqual(["20260831101537_create-bots"])
+    expect(database.migrationState()).toEqual(["20260831102905_create-bots"])
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
@@ -30,6 +30,7 @@ describe("database", () => {
     expect(migration?.count).toBe(1)
     expect(bots?.name).toBe("bots")
     expect(botColumns).toContain("function")
+    expect(botColumns).toContain("working_directory")
     expect(botColumns).not.toContain("function_outcome")
   })
 })

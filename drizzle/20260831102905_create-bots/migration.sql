@@ -4,6 +4,7 @@ CREATE TABLE `bots` (
 	`name` text NOT NULL,
 	`provider` text NOT NULL,
 	`function` text NOT NULL,
+	`working_directory` text,
 	`created_at` text NOT NULL,
 	CONSTRAINT `fk_bots_leader_bot_id_bots_id_fk` FOREIGN KEY (`leader_bot_id`) REFERENCES `bots`(`id`) ON DELETE CASCADE
 );

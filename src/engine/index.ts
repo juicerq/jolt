@@ -15,6 +15,7 @@ import { createBots } from "./bots/bots"
 const environment = type({
   BOT_TEAMS_ENGINE_TOKEN: "string > 0",
   BOT_TEAMS_DATABASE_PATH: "string > 0",
+  BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: "string > 0",
   "BOT_TEAMS_DEVELOPMENT?": type.enumerated("true", "false"),
   "BOT_TEAMS_APP_VERSION?": "string > 0",
   "BOT_TEAMS_ELECTRON_VERSION?": "string > 0",
@@ -90,7 +91,7 @@ const providers = createProviderDiscovery(observationSystem.observability, [
   createCodexProvider(observationSystem.observability),
   createClaudeProvider(observationSystem.observability),
 ])
-const bots = createBots({ database, observability: observationSystem.observability, providers })
+const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: environment.BOT_TEAMS_PRIVATE_BOTS_DIRECTORY, providers })
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {

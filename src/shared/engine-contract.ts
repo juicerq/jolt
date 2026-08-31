@@ -60,6 +60,7 @@ export const engineContract = {
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
+    updateWorkingDirectory: oc.input(botSchemas.updateWorkingDirectoryInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/working-directory" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

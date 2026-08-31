@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "dfb223c2-745f-44d7-890e-17cc4639fb83",
+  "id": "7046442f-dedd-4f24-b231-314ca2959232",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -57,6 +57,16 @@
       "default": null,
       "generated": null,
       "name": "function",
+      "entityType": "columns",
+      "table": "bots"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "working_directory",
       "entityType": "columns",
       "table": "bots"
     },

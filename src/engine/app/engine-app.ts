@@ -76,6 +76,12 @@ export function createEngineRouter(
           },
         ),
       ),
+      updateWorkingDirectory: operations.bots.updateWorkingDirectory.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.botworkingdirectoryupdate", context: observationContext(context) },
+          () => bots.updateWorkingDirectory(input),
+        ),
+      ),
     },
     observations: {
       rendererSpan: operations.observations.rendererSpan.handler(({ input }) => receiver.span(input)),

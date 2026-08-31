@@ -1,5 +1,8 @@
+import { access, stat } from "node:fs/promises"
+import { constants } from "node:fs"
 import { join } from "node:path"
-import { app, BrowserWindow, ipcMain } from "electron"
+import { app, BrowserWindow, dialog, ipcMain } from "electron"
+import { type } from "arktype"
 import { loopbackHttpUrl } from "../shared/engine-contract"
 import { EngineProcess } from "./engine-process/engine-process"
 
@@ -9,6 +12,7 @@ const executable = app.isPackaged
 const engine = new EngineProcess({
   executable,
   databasePath: join(app.getPath("userData"), "bot-teams.sqlite"),
+  privateBotsDirectory: join(app.getPath("userData"), "bots"),
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
@@ -35,6 +39,26 @@ app.whenReady().then(async () => {
   })
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
+  ipcMain.handle("working-directory:choose", async () => {
+    const selection = type({ "+": "delete", canceled: "boolean", filePaths: "string[]" }).assert(await dialog.showOpenDialog(window, {
+      properties: ["openDirectory", "createDirectory"],
+    }))
+
+    if (selection.canceled) {
+      return null
+    }
+
+    const path = selection.filePaths.at(0)
+    const directory = path ? await stat(path).catch(() => undefined) : undefined
+
+    if (!path || !directory?.isDirectory()) {
+      throw new Error("The selected working directory is invalid")
+    }
+
+    await access(path, constants.R_OK | constants.W_OK)
+
+    return path
+  })
 
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     await window.loadURL(loopbackHttpUrl.assert(process.env.ELECTRON_RENDERER_URL))

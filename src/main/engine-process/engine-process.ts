@@ -5,6 +5,7 @@ import { engineConnection, engineReadyMessage, forwardedObservation, forwardedOb
 type EngineProcessOptions = {
   executable: string
   databasePath: string
+  privateBotsDirectory: string
   appVersion?: string
   electronVersion?: string
   development?: boolean
@@ -43,6 +44,7 @@ export class EngineProcess {
       env: {
         BOT_TEAMS_ENGINE_TOKEN: token,
         BOT_TEAMS_DATABASE_PATH: this.options.databasePath,
+        BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: this.options.privateBotsDirectory,
         BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
         BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
         BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",

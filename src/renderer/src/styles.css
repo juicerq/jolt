@@ -345,6 +345,47 @@ button:disabled {
   background: #141210;
 }
 
+.working-directory-card,
+.working-directory-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.working-directory-card strong,
+.working-directory-field small {
+  display: block;
+  max-width: 520px;
+  overflow: hidden;
+  color: #a8a29e;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.working-directory-actions,
+.working-directory-field > div:last-child {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.working-directory-field {
+  border: 1px solid #292524;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.working-directory-field span {
+  display: block;
+  margin-bottom: 4px;
+  color: #d6d3d1;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .members-section {
   margin-top: 28px;
 }
