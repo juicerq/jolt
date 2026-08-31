@@ -1,4 +1,5 @@
 import { RPCHandler } from "@orpc/server/fetch"
+import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
 import { type } from "arktype"
 import { dirname, join } from "node:path"
 import { forwardedObservation } from "../shared/engine-contract"
@@ -6,11 +7,15 @@ import type { processState } from "../shared/observability/diagnostics"
 import { createEngineRouter } from "./app/engine-app"
 import { createDiagnostics } from "./observability/diagnostics"
 import { createObservationSystem } from "./observability/observability"
-import { createClaudeProvider } from "./claude/claude-provider"
-import { createCodexProvider } from "./codex/codex-provider"
-import { createProviderDiscovery } from "./providers/provider-discovery"
 import { openDatabase } from "./persistence/database"
 import { createBots } from "./bots/bots"
+import { createConversations } from "./conversations/conversations"
+import { createPiAgentRuntime } from "./pi/pi-agent-runtime"
+import { createPiSessionFactory } from "./pi/pi-session-adapter"
+import { createPiProvider } from "./pi/pi-provider"
+import { createProjects } from "./projects/projects"
+
+registerBunOAuthFlows()
 
 const environment = type({
   BOT_TEAMS_ENGINE_TOKEN: "string > 0",
@@ -87,11 +92,16 @@ function withCors(response: Response, origin: string | null | undefined) {
 const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
-const providers = createProviderDiscovery(observationSystem.observability, [
-  createCodexProvider(observationSystem.observability),
-  createClaudeProvider(observationSystem.observability),
-])
+const providers = createPiProvider(observationSystem.observability)
 const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: environment.BOT_TEAMS_PRIVATE_BOTS_DIRECTORY, providers })
+const projects = createProjects({ database, observability: observationSystem.observability, bots })
+const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
+const piRuntime = createPiAgentRuntime(createPiSessionFactory({
+  agentDirectory: join(piDirectory, "agent"),
+  sessionsDirectory: join(piDirectory, "sessions"),
+  modelId: "gpt-5.6-luna",
+}), observationSystem.observability)
+const conversations = createConversations({ database, bots, runtime: piRuntime, observability: observationSystem.observability })
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
@@ -105,7 +115,7 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -192,6 +202,7 @@ process.on("SIGTERM", async () => {
         })
       }
 
+      conversations.dispose()
       database.close()
       engineState = "stopped"
 

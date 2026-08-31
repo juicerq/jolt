@@ -16,8 +16,7 @@ describe("Diagnostics", () => {
       migrationState: () => ["20260831101537_create-bots"],
       exportDirectory: directory,
       providerState: () => [
-        { provider: "codex", status: "available", version: "0.151.0" },
-        { provider: "claude", status: "unauthenticated", version: "2.1.250" },
+        { provider: "codex", status: "available" },
       ],
     })
 
@@ -32,7 +31,7 @@ describe("Diagnostics", () => {
     expect(report.operations[0]).toMatchObject({ name: "orpc.health", count: 2 })
     expect(report.operations[0]?.maximumMs).toBeGreaterThanOrEqual(report.operations[0]?.p95Ms ?? 0)
     expect(report.slowOperations[0]?.name).toBe("orpc.health")
-    expect(report.authentication).toEqual({ codex: "authenticated", claude: "unauthenticated" })
+    expect(report.authentication).toEqual({ codex: "authenticated" })
   })
 
   test("exports only sanitized observations and non-sensitive metadata", async () => {

@@ -5,6 +5,9 @@ declare global {
     desktop: {
       getEngineConnection(): Promise<typeof engineConnection.infer>
       chooseWorkingDirectory(): Promise<string | null>
+      minimizeWindow(): Promise<void>
+      toggleMaximizeWindow(): Promise<void>
+      closeWindow(): Promise<void>
     }
   }
 }

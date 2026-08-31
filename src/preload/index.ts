@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron"
-import { engineConnection } from "../shared/engine-contract"
-import { type } from "arktype"
+import type { engineConnection } from "../shared/engine-contract"
 
 contextBridge.exposeInMainWorld("desktop", {
-  getEngineConnection: async () => engineConnection.assert(await ipcRenderer.invoke("engine:get-connection")),
-  chooseWorkingDirectory: async () => type("string > 0").or("null").assert(await ipcRenderer.invoke("working-directory:choose")),
+  getEngineConnection: (): Promise<typeof engineConnection.infer> => ipcRenderer.invoke("engine:get-connection"),
+  chooseWorkingDirectory: (): Promise<string | null> => ipcRenderer.invoke("working-directory:choose"),
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke("window:close"),
 })

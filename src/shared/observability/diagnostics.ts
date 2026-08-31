@@ -22,7 +22,6 @@ export const diagnosticsReport = type({
   authentication: {
     "+": "reject",
     codex: authenticationState,
-    claude: authenticationState,
   },
   failures: observation.array(),
   operations: type({

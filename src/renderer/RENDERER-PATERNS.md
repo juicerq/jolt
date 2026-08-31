@@ -2,6 +2,8 @@
 
 Leia este arquivo antes de criar ou alterar código no Renderer.
 
+Leia `DESIGN.md` antes de criar, alterar ou revisar a interface. Ele define os tokens, a hierarquia visual e a anatomia dos componentes do Jots.
+
 ## React
 
 `useEffect` é proibido, exceto quando uma sincronização externa não puder ser feita durante a renderização, por um evento, pelo TanStack Query, pelo TanStack Store ou por uma API de assinatura. O uso exige uma explicação durante a revisão mostrando por que essas opções não resolvem o caso.

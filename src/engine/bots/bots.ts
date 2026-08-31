@@ -1,35 +1,41 @@
-import { access, mkdir, stat } from "node:fs/promises"
-import { constants } from "node:fs"
-import { isAbsolute, join } from "node:path"
-import { botSchemas, type Bot } from "../../shared/bots"
+import { mkdir } from "node:fs/promises"
+import { join } from "node:path"
+import { botSchemas, type Bot, type StoredBot } from "../../shared/bots"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
+import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
 
 type BotsDependencies = { database: AppDatabase; observability: Observability; privateBotsDirectory: string; providers: { list(): Promise<ProviderAvailability[]> } }
 
 export function createBots({ database, observability, privateBotsDirectory, providers }: BotsDependencies) {
-  async function assertAccessibleDirectory(path: string) {
-    if (!isAbsolute(path)) {
-      throw new Error("Working directory is not accessible")
-    }
-
-    const directory = await stat(path).catch(() => undefined)
-
-    if (!directory?.isDirectory()) {
-      throw new Error("Working directory is not accessible")
-    }
-
-    await access(path, constants.R_OK | constants.W_OK).catch(() => {
-      throw new Error("Working directory is not accessible")
-    })
-  }
-
   async function privateDirectory(botId: string) {
     const path = join(privateBotsDirectory, botId)
     await mkdir(path, { recursive: true })
 
     return path
+  }
+
+  function projectWorkingDirectory(projectId: string | null) {
+    if (!projectId) {
+      return undefined
+    }
+
+    const project = database.projects.get(projectId)
+
+    if (!project) {
+      throw new Error("Project not found")
+    }
+
+    return project.defaultWorkingDirectory
+  }
+
+  function withEffectiveWorkingDirectory(storedBot: StoredBot): Bot {
+    const effectiveWorkingDirectory = storedBot.workingDirectoryOverride
+      ?? projectWorkingDirectory(storedBot.projectId)
+      ?? join(privateBotsDirectory, storedBot.id)
+
+    return botSchemas.bot.assert({ ...storedBot, effectiveWorkingDirectory })
   }
 
   return {
@@ -42,63 +48,95 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         throw new Error(`Provider ${input.provider} is not available`)
       }
 
-      if (input.workingDirectory) {
-        await assertAccessibleDirectory(input.workingDirectory)
+      if (input.projectId) {
+        projectWorkingDirectory(input.projectId)
       }
 
-      const bot: Bot = { id: crypto.randomUUID(), leaderBotId: null, ...input, workingDirectory: input.workingDirectory ?? null, createdAt: new Date().toISOString() }
-
-      if (!bot.workingDirectory) {
-        await privateDirectory(bot.id)
+      if (input.workingDirectoryOverride) {
+        await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
       }
 
-      return observability.span({ name: "bots.create", context: { botId: bot.id, provider: bot.provider } }, () => database.bots.create(bot))
+      const storedBot: StoredBot = {
+        id: crypto.randomUUID(),
+        leaderBotId: null,
+        projectId: input.projectId ?? null,
+        name: input.name,
+        provider: input.provider,
+        function: input.function,
+        workingDirectoryOverride: input.workingDirectoryOverride ?? null,
+        createdAt: new Date().toISOString(),
+      }
+      await privateDirectory(storedBot.id)
+
+      return observability.span(
+        { name: "bots.create", context: { botId: storedBot.id, provider: storedBot.provider, ...(storedBot.projectId ? { projectId: storedBot.projectId } : {}) } },
+        () => withEffectiveWorkingDirectory(database.bots.create(storedBot)),
+      )
     },
     list() {
-      return botSchemas.botList.assert(database.bots.list())
+      const listedBots = database.bots.list().map(withEffectiveWorkingDirectory)
+
+      return botSchemas.botList.assert(listedBots)
     },
     get(rawInput: unknown) {
       const input = botSchemas.idInput.assert(rawInput)
-      const bot = database.bots.get(input.id)
+      const storedBot = database.bots.get(input.id)
 
-      return bot ? botSchemas.bot.assert(bot) : undefined
+      return storedBot ? withEffectiveWorkingDirectory(storedBot) : undefined
     },
-    async updateWorkingDirectory(rawInput: unknown) {
-      const input = botSchemas.updateWorkingDirectoryInput.assert(rawInput)
-      const bot = database.bots.get(input.id)
+    async updateWorkspace(rawInput: unknown) {
+      const input = botSchemas.updateWorkspaceInput.assert(rawInput)
+      const storedBot = database.bots.get(input.id)
 
-      if (!bot) {
+      if (!storedBot) {
         throw new Error("Bot not found")
       }
 
-      if (input.workingDirectory) {
-        await assertAccessibleDirectory(input.workingDirectory)
-      } else {
-        await privateDirectory(bot.id)
+      if (input.projectId) {
+        projectWorkingDirectory(input.projectId)
       }
 
-      return observability.span({ name: "bots.workingdirectoryupdate", context: { botId: bot.id } }, () => {
-        const updated = database.bots.updateWorkingDirectory(bot.id, input.workingDirectory)
+      if (input.workingDirectoryOverride) {
+        await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
+      }
 
-        if (!updated) {
-          throw new Error("Bot not found")
+      if (storedBot.leaderBotId) {
+        const leader = database.bots.get(storedBot.leaderBotId)
+
+        if (!leader || leader.projectId !== input.projectId) {
+          throw new Error("A member must remain in the Leader Project")
         }
+      }
 
-        return updated
-      })
+      return observability.span(
+        { name: "bots.workspaceupdate", context: { botId: storedBot.id, ...(input.projectId ? { projectId: input.projectId } : {}) } },
+        () => {
+          const updated = database.bots.updateWorkspace(storedBot.id, {
+            projectId: input.projectId,
+            workingDirectoryOverride: input.workingDirectoryOverride,
+          })
+
+          if (!updated) {
+            throw new Error("Bot not found")
+          }
+
+          return withEffectiveWorkingDirectory(updated)
+        },
+      )
     },
     async resolveWorkingDirectory(rawInput: unknown) {
       const input = botSchemas.idInput.assert(rawInput)
-      const bot = database.bots.get(input.id)
+      const storedBot = database.bots.get(input.id)
 
-      if (!bot) {
+      if (!storedBot) {
         throw new Error("Bot not found")
       }
 
-      const path = bot.workingDirectory ?? await privateDirectory(bot.id)
-      await assertAccessibleDirectory(path)
+      await privateDirectory(storedBot.id)
+      const effectiveWorkingDirectory = withEffectiveWorkingDirectory(storedBot).effectiveWorkingDirectory
+      await assertAccessibleWorkingDirectory(effectiveWorkingDirectory)
 
-      return path
+      return effectiveWorkingDirectory
     },
   }
 }

@@ -2,22 +2,26 @@ import { Store } from "@tanstack/react-store"
 
 type BotsState = {
   selectedBotId: string | null
-  isCreateOpen: boolean
+  dialog: "create-bot" | "create-project" | null
 }
 
 export const botsStore = new Store<BotsState>({
   selectedBotId: null,
-  isCreateOpen: false,
+  dialog: null,
 })
 
 export function selectBot(botId: string) {
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, isCreateOpen: false }))
+  botsStore.setState((state) => ({ ...state, selectedBotId: botId, dialog: null }))
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, isCreateOpen: true }))
+  botsStore.setState((state) => ({ ...state, dialog: "create-bot" }))
 }
 
-export function closeCreateBot() {
-  botsStore.setState((state) => ({ ...state, isCreateOpen: false }))
+export function openCreateProject() {
+  botsStore.setState((state) => ({ ...state, dialog: "create-project" }))
+}
+
+export function closeDialog() {
+  botsStore.setState((state) => ({ ...state, dialog: null }))
 }

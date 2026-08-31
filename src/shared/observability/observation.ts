@@ -1,7 +1,7 @@
 import { type } from "arktype"
 
 export const observationName = type("string").narrow((value) => /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/.test(value))
-const provider = type.enumerated("codex", "claude")
+const provider = type.enumerated("codex")
 const outcome = type.enumerated("ok", "error")
 const level = type.enumerated("info", "error")
 
@@ -27,6 +27,7 @@ export const observationContext = type({
   "parentSpanId?": "string > 0",
   "leaderBotId?": "string > 0",
   "botId?": "string > 0",
+  "projectId?": "string > 0",
   "taskId?": "string > 0",
   "provider?": provider,
 })
@@ -52,6 +53,7 @@ const baseObservation = {
   "parentSpanId?": "string > 0" as const,
   "leaderBotId?": "string > 0" as const,
   "botId?": "string > 0" as const,
+  "projectId?": "string > 0" as const,
   "taskId?": "string > 0" as const,
   "provider?": provider,
 }

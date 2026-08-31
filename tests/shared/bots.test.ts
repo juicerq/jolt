@@ -15,20 +15,23 @@ const input = {
 describe("bot boundary", () => {
   test("accepts a standalone bot creation input", () => {
     expect(botSchemas.createInput.assert(input)).toEqual(input)
-    expect(botSchemas.createInput.assert({ ...input, workingDirectory: "/projects/jots" })).toEqual({
+    expect(botSchemas.createInput.assert({ ...input, projectId: "project-1", workingDirectoryOverride: "/projects/jots" })).toEqual({
       ...input,
-      workingDirectory: "/projects/jots",
+      projectId: "project-1",
+      workingDirectoryOverride: "/projects/jots",
     })
   })
 
-  test("accepts choosing or removing a working directory", () => {
-    expect(botSchemas.updateWorkingDirectoryInput.assert({ id: "bot-1", workingDirectory: "/projects/jots" })).toEqual({
+  test("accepts changing the Project and working directory override together", () => {
+    expect(botSchemas.updateWorkspaceInput.assert({ id: "bot-1", projectId: "project-1", workingDirectoryOverride: "/projects/jots" })).toEqual({
       id: "bot-1",
-      workingDirectory: "/projects/jots",
+      projectId: "project-1",
+      workingDirectoryOverride: "/projects/jots",
     })
-    expect(botSchemas.updateWorkingDirectoryInput.assert({ id: "bot-1", workingDirectory: null })).toEqual({
+    expect(botSchemas.updateWorkspaceInput.assert({ id: "bot-1", projectId: null, workingDirectoryOverride: null })).toEqual({
       id: "bot-1",
-      workingDirectory: null,
+      projectId: null,
+      workingDirectoryOverride: null,
     })
   })
 

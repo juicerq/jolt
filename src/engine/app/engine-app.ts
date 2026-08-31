@@ -2,8 +2,10 @@ import { implement } from "@orpc/server"
 import { engineContract } from "../../shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
-import type { createProviderDiscovery } from "../providers/provider-discovery"
+import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
+import type { createConversations } from "../conversations/conversations"
+import type { createProjects } from "../projects/projects"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -19,8 +21,10 @@ export function createEngineRouter(
   observability: Observability,
   diagnostics: ReturnType<typeof createDiagnostics>,
   receiver: ObservationReceiver,
-  providers: ReturnType<typeof createProviderDiscovery>,
+  providers: ReturnType<typeof createPiProvider>,
   bots: ReturnType<typeof createBots>,
+  projects: ReturnType<typeof createProjects>,
+  conversations: ReturnType<typeof createConversations>,
 ) {
   const operations = implement(engineContract)
 
@@ -46,6 +50,20 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.providerlist", context: observationContext(context) },
           () => providers.list(),
+        ),
+      ),
+    },
+    projects: {
+      create: operations.projects.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.projectcreate", context: observationContext(context) },
+          () => projects.create(input),
+        ),
+      ),
+      list: operations.projects.list.handler(({ context }: { context: EngineContext }) =>
+        observability.span(
+          { name: "orpc.projectlist", context: observationContext(context) },
+          () => projects.list(),
         ),
       ),
     },
@@ -76,10 +94,25 @@ export function createEngineRouter(
           },
         ),
       ),
-      updateWorkingDirectory: operations.bots.updateWorkingDirectory.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+      updateWorkspace: operations.bots.updateWorkspace.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
-          { name: "orpc.botworkingdirectoryupdate", context: observationContext(context) },
-          () => bots.updateWorkingDirectory(input),
+          { name: "orpc.botworkspaceupdate", context: observationContext(context) },
+          () => bots.updateWorkspace(input),
+        ),
+      ),
+    },
+    conversations: {
+      history: operations.conversations.history.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationhistory", context: observationContext(context) },
+          () => conversations.history(input),
+        ),
+      ),
+      send: operations.conversations.send.handler(({ input }: { input: unknown }) => conversations.send(input)),
+      abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationabort", context: observationContext(context) },
+          () => conversations.abort(input),
         ),
       ),
     },

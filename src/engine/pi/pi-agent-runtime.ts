@@ -25,6 +25,7 @@ export type PiSessionFactory = {
     policy: PiPermissionPolicy
     decisions: PiPermissionDecision[]
     sessionFile?: string
+    instructions?: string
   }): Promise<PiSession>
 }
 
@@ -33,7 +34,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   const decisions: PiPermissionDecision[] = []
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; grants: Set<string>; sessionFile?: string }) {
+    async open(input: { botId: string; cwd: string; tools: string[]; grants: Set<string>; sessionFile?: string; instructions?: string }) {
       sessions.get(input.botId)?.unsubscribe()
       sessions.get(input.botId)?.session.dispose()
 

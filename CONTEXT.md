@@ -1,11 +1,11 @@
 # Bots locais
 
-Este contexto define como uma pessoa cria Bots persistentes, conversa com eles e permite que coordenem outros Bots.
+Este contexto define como uma pessoa cria Bots, conversa com eles e permite que coordenem outros Bots.
 
 ## Linguagem
 
 **Bot**:
-Um participante persistente com identidade, Função, contexto, memória e histórico próprios. Um Bot existe sem pertencer a um Time.
+Um participante com identidade, Função, contexto, memória e histórico próprios. Um Bot pode existir sem pertencer a um Projeto ou Time.
 _Evitar_: Agente, assistente
 
 **Líder**:
@@ -23,6 +23,18 @@ _Evitar_: Integrante permanente, subprocesso
 **Time**:
 A forma informal de chamar um Líder e seus Integrantes. Time não é uma entidade separada.
 _Evitar_: Objeto Time, grupo obrigatório
+
+**Projeto**:
+Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trabalho padrão. Todo Projeto possui uma Pasta de trabalho, mas um Bot pode substituí-la. Um Líder e seus Integrantes permanecem no mesmo Projeto; mover o Líder move o Time inteiro.
+_Evitar_: Time, codebase, pasta de Bots
+
+**Diretório do Bot**:
+O espaço privado pertencente a um Bot, onde ficam sua memória e seus próprios arquivos. Ele não muda quando o Bot troca de Projeto ou de Pasta de trabalho.
+_Evitar_: Pasta de trabalho, pasta do Projeto
+
+**Pasta de trabalho**:
+O local em que um Bot é iniciado e realiza seu trabalho. Ela pode ser escolhida pelo Bot, herdada de seu Projeto ou, na ausência das duas, ser o próprio Diretório do Bot.
+_Evitar_: Diretório do Bot, memória, Projeto
 
 **Fornecedor do Bot**:
 O agente compatível, como Codex ou Claude Code, escolhido para executar o trabalho de um Bot.

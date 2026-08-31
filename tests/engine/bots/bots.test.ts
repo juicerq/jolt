@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { openDatabase } from "@src/engine/persistence/database"
+import { createProjects } from "@src/engine/projects/projects"
 import type { ProviderAvailability } from "@src/shared/providers"
 import { testDirectory } from "../../support/test-directory"
 
@@ -19,38 +20,50 @@ const input = {
   },
 }
 
-function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), providerList: ProviderAvailability[] = [{ provider: "codex", status: "available" }]) {
+function setup(options?: { databasePath?: string; providerList?: ProviderAvailability[]; privateBotsDirectory?: string }) {
+  const databasePath = options?.databasePath ?? join(directory, `${crypto.randomUUID()}.sqlite`)
+  const providerList = options?.providerList ?? [{ provider: "codex" as const, status: "available" as const }]
+  const privateBotsDirectory = options?.privateBotsDirectory ?? join(directory, crypto.randomUUID())
   const observationSystem = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, crypto.randomUUID()), development: false })
   const database = openDatabase(databasePath, observationSystem.observability)
-  const privateBotsDirectory = join(directory, crypto.randomUUID())
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory, providers: { list: async () => providerList } })
+  const projects = createProjects({ database, observability: observationSystem.observability, bots })
 
-  return { bots, database, observationSystem, privateBotsDirectory }
+  return { bots, database, observationSystem, privateBotsDirectory, projects }
 }
 
 describe("bots", () => {
   test("creates, lists, and gets a persistent standalone bot", async () => {
     const databasePath = join(directory, `${crypto.randomUUID()}.sqlite`)
-    const first = setup(databasePath)
+    const first = setup({ databasePath })
     const created = await first.bots.create(input)
 
-    expect(created).toEqual({ id: expect.any(String), leaderBotId: null, ...input, workingDirectory: null, createdAt: expect.any(String) })
-    expect(first.bots.list()).toEqual([created])
-    expect(first.bots.get({ id: created.id })).toEqual(created)
+    expect(created).toEqual({
+      id: created.id,
+      leaderBotId: null,
+      projectId: null,
+      ...input,
+      workingDirectoryOverride: null,
+      effectiveWorkingDirectory: join(first.privateBotsDirectory, created.id),
+      createdAt: expect.any(String),
+    })
+    expect(created.effectiveWorkingDirectory).toBe(join(first.privateBotsDirectory, created.id))
+    expect(await first.bots.list()).toEqual([created])
+    expect(await first.bots.get({ id: created.id })).toEqual(created)
     first.database.close()
     await first.observationSystem.observability.flush()
-    const reopened = setup(databasePath)
+    const reopened = setup({ databasePath, privateBotsDirectory: first.privateBotsDirectory })
 
-    expect(reopened.bots.get({ id: created.id })).toEqual(created)
+    expect(await reopened.bots.get({ id: created.id })).toEqual(created)
     reopened.database.close()
     await reopened.observationSystem.observability.flush()
   })
 
   test("rejects an unavailable provider without writing a bot", async () => {
-    const { bots, database, observationSystem } = setup(join(directory, `${crypto.randomUUID()}.sqlite`), [{ provider: "codex", status: "unauthenticated" }])
+    const { bots, database, observationSystem } = setup({ providerList: [{ provider: "codex", status: "unauthenticated" }] })
 
     expect(() => bots.create(input)).toThrow("Provider codex is not available")
-    expect(bots.list()).toEqual([])
+    expect(await bots.list()).toEqual([])
     database.close()
     await observationSystem.observability.flush()
   })
@@ -60,32 +73,44 @@ describe("bots", () => {
     const created = await bots.create(input)
     const effectiveDirectory = await bots.resolveWorkingDirectory({ id: created.id })
 
-    expect(created.workingDirectory).toBeNull()
+    expect(created.workingDirectoryOverride).toBeNull()
     expect(effectiveDirectory).toBe(join(privateBotsDirectory, created.id))
     expect((await stat(effectiveDirectory)).isDirectory()).toBe(true)
     database.close()
     await observationSystem.observability.flush()
   })
 
-  test("uses a chosen directory and returns to the private directory when removed", async () => {
-    const { bots, database, observationSystem, privateBotsDirectory } = setup()
+  test("uses an override before the Project default and the private directory", async () => {
+    const { bots, database, observationSystem, privateBotsDirectory, projects } = setup()
+    const projectDirectory = join(directory, crypto.randomUUID())
     const chosenDirectory = join(directory, crypto.randomUUID())
     const replacementDirectory = join(directory, crypto.randomUUID())
+    await mkdir(projectDirectory)
     await mkdir(chosenDirectory)
     await mkdir(replacementDirectory)
-    const created = await bots.create({ ...input, workingDirectory: chosenDirectory })
+    const project = await projects.create({ name: "Jots", defaultWorkingDirectory: projectDirectory })
+    const created = await bots.create({ ...input, projectId: project.id, workingDirectoryOverride: chosenDirectory })
 
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(chosenDirectory)
-    expect(await bots.updateWorkingDirectory({ id: created.id, workingDirectory: replacementDirectory })).toEqual({
+    expect((await stat(join(privateBotsDirectory, created.id))).isDirectory()).toBe(true)
+    expect(await bots.updateWorkspace({ id: created.id, projectId: project.id, workingDirectoryOverride: replacementDirectory })).toEqual({
       ...created,
-      workingDirectory: replacementDirectory,
+      workingDirectoryOverride: replacementDirectory,
+      effectiveWorkingDirectory: replacementDirectory,
     })
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(replacementDirectory)
-    expect(await bots.updateWorkingDirectory({ id: created.id, workingDirectory: null })).toEqual({
+    expect(await bots.updateWorkspace({ id: created.id, projectId: project.id, workingDirectoryOverride: null })).toEqual({
       ...created,
-      workingDirectory: null,
+      workingDirectoryOverride: null,
+      effectiveWorkingDirectory: projectDirectory,
     })
-    expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(join(privateBotsDirectory, created.id))
+    expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(projectDirectory)
+    expect(await bots.updateWorkspace({ id: created.id, projectId: null, workingDirectoryOverride: null })).toEqual({
+      ...created,
+      projectId: null,
+      workingDirectoryOverride: null,
+      effectiveWorkingDirectory: join(privateBotsDirectory, created.id),
+    })
     database.close()
     await observationSystem.observability.flush()
   })
@@ -94,8 +119,68 @@ describe("bots", () => {
     const { bots, database, observationSystem } = setup()
     const missingDirectory = join(directory, crypto.randomUUID(), "missing")
 
-    expect(() => bots.create({ ...input, workingDirectory: missingDirectory })).toThrow("Working directory is not accessible")
-    expect(bots.list()).toEqual([])
+    expect(() => bots.create({ ...input, workingDirectoryOverride: missingDirectory })).toThrow("Working directory is not accessible")
+    expect(await bots.list()).toEqual([])
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("rejects creating a Bot in a missing Project without writing it", async () => {
+    const { bots, database, observationSystem } = setup()
+
+    expect(() => bots.create({ ...input, projectId: "missing-project" })).toThrow("Project not found")
+    expect(await bots.list()).toEqual([])
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("rejects moving a Bot to a missing Project without changing it", async () => {
+    const { bots, database, observationSystem } = setup()
+    const created = await bots.create(input)
+
+    expect(() => bots.updateWorkspace({ id: created.id, projectId: "missing-project", workingDirectoryOverride: null })).toThrow("Project not found")
+    expect(await bots.get({ id: created.id })).toEqual(created)
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("moves a Leader and every member to the same Project atomically while preserving member overrides", async () => {
+    const { bots, database, observationSystem, projects } = setup()
+    const firstProjectDirectory = join(directory, crypto.randomUUID())
+    const nextProjectDirectory = join(directory, crypto.randomUUID())
+    const leaderOverride = join(directory, crypto.randomUUID())
+    const memberOverride = join(directory, crypto.randomUUID())
+    await mkdir(firstProjectDirectory)
+    await mkdir(nextProjectDirectory)
+    await mkdir(leaderOverride)
+    await mkdir(memberOverride)
+    const firstProject = await projects.create({ name: "Jots", defaultWorkingDirectory: firstProjectDirectory })
+    const nextProject = await projects.create({ name: "Dogama", defaultWorkingDirectory: nextProjectDirectory })
+    const leader = await bots.create({ ...input, projectId: firstProject.id })
+    const member = database.bots.create({
+      id: crypto.randomUUID(),
+      leaderBotId: leader.id,
+      projectId: firstProject.id,
+      name: "Calo",
+      provider: "codex",
+      function: input.function,
+      workingDirectoryOverride: memberOverride,
+      createdAt: new Date().toISOString(),
+    })
+
+    expect(() => bots.updateWorkspace({ id: member.id, projectId: null, workingDirectoryOverride: null })).toThrow("A member must remain in the Leader Project")
+    expect(await bots.updateWorkspace({ id: leader.id, projectId: nextProject.id, workingDirectoryOverride: leaderOverride })).toEqual({
+      ...leader,
+      projectId: nextProject.id,
+      workingDirectoryOverride: leaderOverride,
+      effectiveWorkingDirectory: leaderOverride,
+    })
+    expect(await bots.get({ id: member.id })).toEqual({
+      ...member,
+      projectId: nextProject.id,
+      workingDirectoryOverride: memberOverride,
+      effectiveWorkingDirectory: memberOverride,
+    })
     database.close()
     await observationSystem.observability.flush()
   })
@@ -103,8 +188,8 @@ describe("bots", () => {
   test("records identifiers but not function text", async () => {
     const { bots, database, observationSystem } = setup()
     const created = await bots.create(input)
-    bots.list()
-    bots.get({ id: created.id })
+    await bots.list()
+    await bots.get({ id: created.id })
     await observationSystem.observability.flush()
     const observations = JSON.stringify(observationSystem.diagnostics.recent())
 

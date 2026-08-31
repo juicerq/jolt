@@ -31,6 +31,7 @@ app.whenReady().then(async () => {
   const window = new BrowserWindow({
     width: 1100,
     height: 760,
+    frame: false,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -39,6 +40,9 @@ app.whenReady().then(async () => {
   })
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
+  ipcMain.handle("window:minimize", () => window.minimize())
+  ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
+  ipcMain.handle("window:close", () => window.close())
   ipcMain.handle("working-directory:choose", async () => {
     const selection = type({ "+": "delete", canceled: "boolean", filePaths: "string[]" }).assert(await dialog.showOpenDialog(window, {
       properties: ["openDirectory", "createDirectory"],

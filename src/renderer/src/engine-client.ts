@@ -56,8 +56,9 @@ export function createEngineClient(connection: typeof engineConnection.infer) {
     },
   })
   const client: ContractRouterClient<typeof engineContract> = createORPCClient(link)
+  const queryUtils = createTanstackQueryUtils(client)
 
-  return createTanstackQueryUtils(client)
+  return { query: queryUtils, raw: client }
 }
 
 export type EngineClient = ReturnType<typeof createEngineClient>
