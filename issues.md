@@ -62,12 +62,12 @@ Não adicionar OpenTelemetry nem banco de métricas. Instrumentar interfaces imp
 
 ### Outcome
 
-A pessoa vê se Codex e Claude Code estão instalados, autenticados e disponíveis sem o aplicativo ler ou armazenar tokens.
+A pessoa vê se o Codex está instalado, autenticado e disponível sem o aplicativo ler ou armazenar tokens.
 
 ### Acceptance criteria
 
-- [ ] O Bun Engine descobre os executáveis Codex e Claude Code.
-- [ ] Cada fornecedor informa versão e estado de login pelo fluxo oficial.
+- [ ] O Bun Engine descobre o executável do Codex.
+- [ ] O Codex informa versão e estado de login pelo fluxo oficial.
 - [ ] Saídas externas são validadas na entrada antes de virarem estado interno.
 - [ ] O Renderer apresenta disponível, desautenticado, ausente ou incompatível.
 - [ ] Nenhum token, cookie, e-mail ou ambiente completo entra em logs ou respostas.
@@ -84,7 +84,7 @@ Reusar os protocolos confirmados pelo protótipo e pelo estudo do t3code. Usar o
 
 ### Addresses
 
-`Critério de conclusão` item 2 e `Execução dos fornecedores` em `spec.md`.
+`Critério de conclusão` item 2 e `Execução dos Bots` em `spec.md`.
 
 ## bots-as-primary-unit
 
@@ -95,7 +95,7 @@ A pessoa cria, lista, abre e configura um Bot persistente sem precisar criar um 
 ### Acceptance criteria
 
 - [ ] A pessoa cria um Bot com nome, Função e executor.
-- [ ] Codex ou Claude Code só pode ser escolhido quando estiver disponível.
+- [ ] Codex só pode ser usado quando estiver disponível.
 - [ ] O Bot existe sem Líder, Integrante ou objeto Time associado.
 - [ ] O Bot aparece na lista principal com um único avatar.
 - [ ] A pessoa abre o Bot e consulta sua Função e seu executor.
@@ -146,6 +146,38 @@ A pasta escolhida é configuração persistida; a pasta privada é um recurso ad
 
 `Pasta de trabalho`, `Arquitetura do Electron: Main` e `Fora da V1` em `spec.md`.
 
+## pi-agent-runtime
+
+### Outcome
+
+O Bun Engine executa um Bot pelo Pi com a sessão local do Codex, na pasta efetiva do Bot e com ferramentas autorizadas por Bot.
+
+### Acceptance criteria
+
+- [ ] Cada Bot abre uma sessão Pi isolada usando a autenticação existente do Codex.
+- [ ] A sessão executa na pasta efetiva resolvida pelo módulo de Bots.
+- [ ] O Bun Engine envia uma mensagem, recebe eventos parciais, interrompe um turno e retoma uma sessão salva.
+- [ ] Cada Bot possui uma lista própria de ferramentas ativas.
+- [ ] Uma autorização central verifica a permissão atual antes de cada chamada de ferramenta.
+- [ ] Alterar ferramentas ou permissões afeta a sessão existente.
+- [ ] Caminhos permitidos usam resolução canônica para bloquear travessia e symlinks fora da pasta autorizada.
+- [ ] Respostas externas são validadas antes de chegar ao modelo.
+- [ ] A auditoria registra decisões e durações sem argumentos, conteúdo ou caminhos completos.
+- [ ] Observations medem sessão, primeiro evento, turno, ferramenta, interrupção e falha.
+- [ ] Testes usam um executor controlado e não consomem uma chamada real do Codex.
+
+### Blocked by
+
+`bot-working-directory`.
+
+### Context
+
+Levar para produção somente os comportamentos provados em `prototype/pi-bun-spike`. O Pi é o único executor da primeira entrega. A interface para editar plugins e permissões fica fora desta issue. Usar o Skill tool com name `external-integration`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype` e o Skill tool com name `testing-with-tdd`.
+
+### Addresses
+
+`Execução dos Bots`, `Pasta de trabalho`, `Observabilidade local` e `Veredito dos protótipos` em `spec.md`.
+
 ## chat-with-bot
 
 ### Outcome
@@ -156,26 +188,26 @@ A pessoa conversa com um Bot pelo executor escolhido, acompanha a resposta e rea
 
 - [ ] A lista principal mostra Bots independentes e Líderes, sem exigir uma lista de Times.
 - [ ] A pessoa abre o chat de qualquer Bot.
-- [ ] Enviar uma mensagem inicia Codex ou Claude Code na pasta efetiva do Bot.
+- [ ] Enviar uma mensagem inicia a sessão Pi na pasta efetiva do Bot.
 - [ ] Eventos parciais chegam ao Renderer por stream do oRPC.
 - [ ] Mensagens persistidas identificam autor e ordem cronológica.
 - [ ] Reabrir o chat carrega o histórico pelo TanStack Query.
 - [ ] Interromper encerra o turno e preserva o histórico confirmado.
 - [ ] A interface mostra estado disponível, trabalhando, aguardando, concluído ou com erro.
-- [ ] Payloads dos fornecedores são normalizados na entrada.
+- [ ] Eventos do Pi são normalizados na entrada.
 - [ ] Observations medem início, primeiro evento, contagens, bytes, duração, interrupção e erro sem conteúdo.
 
 ### Blocked by
 
-`bot-working-directory`.
+`pi-agent-runtime`.
 
 ### Context
 
-Codex e Claude usam Adapters separados que satisfazem a mesma interface. Implementar o comportamento do protótipo sem copiar sua estrutura descartável. Usar o Skill tool com name `external-integration`, o Skill tool com name `openai-docs`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
+Usar o runtime Pi criado na issue anterior. Implementar o comportamento da interface validada pelo protótipo. Usar o Skill tool com name `external-integration`, o Skill tool com name `code-practices`, o Skill tool com name `codebase-design`, o Skill tool com name `arktype`, o Skill tool com name `tanstack-query`, o Skill tool com name `frontend`, o Skill tool com name `react-components` e o Skill tool com name `testing-with-tdd`.
 
 ### Addresses
 
-`Critério de conclusão` item 4, `Conversas`, `Execução dos fornecedores` e `Veredito dos protótipos` em `spec.md`.
+`Critério de conclusão` item 4, `Conversas`, `Execução dos Bots` e `Veredito dos protótipos` em `spec.md`.
 
 ## add-bot-members
 

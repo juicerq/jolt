@@ -2,14 +2,14 @@
 
 ## Objetivo
 
-Criar um aplicativo desktop local no qual uma pessoa cria Bots, conversa com cada um e, quando precisa dividir um trabalho, adiciona Integrantes a um Bot. Esse Bot passa a atuar como Líder. Os Bots usam as sessões já autenticadas da pessoa no Codex ou no Claude Code.
+Criar um aplicativo desktop local no qual uma pessoa cria Bots, conversa com cada um e, quando precisa dividir um trabalho, adiciona Integrantes a um Bot. Esse Bot passa a atuar como Líder. Os Bots usam o Pi com a sessão já autenticada da pessoa no Codex.
 
 ## Critério de conclusão
 
-A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Claude Code:
+A V1 está concluída quando este fluxo funciona de ponta a ponta com Pi e Codex:
 
 1. A pessoa abre o aplicativo local.
-2. O aplicativo encontra Codex e Claude Code já autenticados.
+2. O aplicativo encontra o Codex já autenticado.
 3. A pessoa cria um Bot com uma pasta de trabalho opcional.
 4. A pessoa conversa com o Bot e reabre seu histórico.
 5. A pessoa adiciona um Integrante ao Bot, que passa a atuar como Líder.
@@ -21,7 +21,7 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 ## Escopo da V1
 
 - Execução somente na máquina da pessoa.
-- Suporte a Codex e Claude Code pelas sessões oficiais já autenticadas.
+- Execução pelo Pi usando a sessão oficial já autenticada do Codex.
 - Bots independentes.
 - Pasta de trabalho opcional por Bot.
 - Integrantes permanentes adicionados a um Bot.
@@ -45,7 +45,7 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 - Um Integrante pertence a um único Líder.
 - Remover o último Integrante faz o Líder voltar a ser um Bot independente.
 - A pessoa abre o chat de qualquer Bot ou Integrante a qualquer momento.
-- Cada Bot escolhe Codex ou Claude Code como executor.
+- Cada Bot executa pelo Pi com Codex.
 - O executor não muda silenciosamente durante uma Tarefa.
 - A interface mostra um avatar para um Bot independente e até três avatares empilhados para um Líder com Integrantes.
 
@@ -104,25 +104,27 @@ A V1 está concluída quando este fluxo funciona de ponta a ponta com Codex e Cl
 - O Bot decide quando consultar esses recursos.
 - Identidade, Função, Tarefa, ordens diretas, acessos e limites aplicáveis nunca dependem dessa consulta opcional.
 
-## Execução dos fornecedores
+## Execução dos Bots
 
 ### Regra comum
 
 - O aplicativo não recebe nem administra tokens das assinaturas.
-- A pessoa autentica os agentes pelos fluxos oficiais do Codex e do Claude Code.
+- A pessoa autentica o Codex pelo fluxo oficial.
 - A execução acontece na mesma máquina que contém essas sessões.
 - Bots, conversas e Tarefas pertencem ao aplicativo.
-- Codex e Claude Code implementam uma interface comum de execução por meio de adaptadores separados.
+- O Pi controla sessões, mensagens, ferramentas, interrupções e retomadas.
+- O Pi usa a sessão existente do Codex sem o aplicativo ler ou armazenar tokens.
+- Cada Bot possui sua própria lista de ferramentas e permissões.
+- Remover uma permissão impede a próxima chamada mesmo quando a ferramenta ainda aparece na sessão.
+- A lista de ferramentas visíveis pode mudar sem recriar a sessão.
+- Toda chamada de ferramenta passa por uma autorização central antes de executar.
+- A auditoria registra Bot, ferramenta, decisão, motivo e duração sem registrar argumentos ou conteúdo.
 
 ### Codex
 
-- O adaptador inicia `codex app-server`.
-- O adaptador controla threads, turnos, interrupções, eventos e pedidos de aprovação pelo protocolo do App Server.
-
-### Claude Code
-
-- O adaptador usa o Claude Agent SDK e o executável local do Claude Code.
-- O adaptador controla sessões, mensagens, interrupções, eventos e pedidos de aprovação pelo SDK.
+- O Pi usa o pacote de autenticação do Codex e a sessão local já conectada.
+- O aplicativo não inicia `codex app-server` para executar um Bot.
+- Claude Code não faz parte da primeira entrega com Pi.
 
 ## Stack
 
@@ -150,7 +152,7 @@ O processo Main cria a janela, inicia e supervisiona o Bun Engine, encerra o pro
 
 ### Bun Engine
 
-O Bun Engine possui Bots, relações entre Líderes e Integrantes, conversas, persistência e execução dos fornecedores. Ele acessa o banco por Drizzle com `bun:sqlite` e inicia Codex ou Claude Code.
+O Bun Engine possui Bots, relações entre Líderes e Integrantes, conversas, persistência e sessões do Pi. Ele acessa o banco por Drizzle com `bun:sqlite`.
 
 ### Preload
 
@@ -158,7 +160,7 @@ O Preload expõe uma interface pequena e tipada para funções nativas do Electr
 
 ### Renderer
 
-O Renderer apresenta a interface validada pelo protótipo e envia intenções. Ele não acessa arquivos, banco, Codex ou Claude Code diretamente. Recarregar o Renderer não encerra uma execução que pertence ao Bun Engine.
+O Renderer apresenta a interface validada pelo protótipo e envia intenções. Ele não acessa arquivos, banco, Pi ou Codex diretamente. Recarregar o Renderer não encerra uma execução que pertence ao Bun Engine.
 
 ### Comunicação
 
@@ -184,8 +186,7 @@ src/
 │   ├── bots/
 │   ├── conversations/
 │   ├── execution/
-│   ├── codex/
-│   ├── claude/
+│   ├── pi/
 │   ├── persistence/
 │   └── index.ts
 ├── main/
@@ -211,7 +212,7 @@ src/
 - Classes, tipos e componentes React usam `PascalCase`.
 - Cada pasta possui um conceito definido.
 - Não existem pastas genéricas como `utils`, `helpers`, `services`, `managers` ou `common`.
-- Codex e Claude Code satisfazem a mesma interface de fornecedor.
+- O módulo Pi possui sessões, ferramentas e autorização.
 - O Renderer não importa o Main nem o Bun Engine.
 - O Main não importa módulos de domínio do Bun Engine.
 - O Bun Engine não importa Electron nem o Renderer.
@@ -222,7 +223,7 @@ src/
 
 ### Objetivo
 
-A V1 produz dados suficientes para depurar falhas e analisar performance entre Renderer, Electron Main, Bun Engine, banco, Codex e Claude Code. A observabilidade não depende de um serviço remoto.
+A V1 produz dados suficientes para depurar falhas e analisar performance entre Renderer, Electron Main, Bun Engine, banco, Pi e Codex. A observabilidade não depende de um serviço remoto.
 
 ### Modelo
 
@@ -244,8 +245,8 @@ Uma Observation pode incluir `appSessionId`, `traceId`, `spanId`, `parentSpanId`
 - Inicialização e encerramento do Electron Main e do Bun Engine.
 - Duração das operações oRPC.
 - Duração das transações no banco.
-- Inicialização de Codex e Claude Code.
-- Tempo até o primeiro evento do fornecedor.
+- Inicialização da sessão do Pi.
+- Tempo até o primeiro evento da execução.
 - Duração total da execução.
 - Contagem de eventos e bytes do stream.
 - Duração das chamadas de ferramentas.
@@ -267,7 +268,7 @@ Funções internas triviais, eventos de interface e cada fragmento de streaming 
 
 - Atributos seguem uma lista permitida.
 - Observations podem registrar IDs, nomes estáveis, contagens, tamanhos, durações, códigos, versões e estados.
-- Observations não registram conteúdo de mensagem, prompt, resposta, raciocínio, arquivo, ambiente, header, token, cookie nem evento bruto de fornecedor.
+- Observations não registram conteúdo de mensagem, prompt, resposta, raciocínio, arquivo, ambiente, header, token, cookie, argumentos de ferramentas nem evento bruto do Pi ou Codex.
 - Erros externos são normalizados para tipo, código, mensagem e stack antes da gravação.
 
 ### Diagnóstico
@@ -287,7 +288,7 @@ A tela local de diagnóstico mostra versões, estado dos processos, estado de au
 - Filas e limites avançados de paralelismo.
 - Agendamentos e trabalho sempre ativo.
 - Integrações com serviços externos.
-- Permissões detalhadas por ferramenta.
+- Interface para editar plugins e permissões.
 - Memória semântica e recuperação automática avançada.
 - Worktrees e edição concorrente de projetos.
 - Múltiplas contas por fornecedor.
@@ -307,6 +308,9 @@ O protótipo do Bun Engine aprovou a arquitetura para desenvolvimento local no L
 - Drizzle leu e gravou SQLite por meio de `bun:sqlite`.
 - Bun iniciou o Codex App Server, completou o handshake e consultou conta e modelos sem iniciar uma Tarefa.
 - Claude Agent SDK inicializou no Bun e controlou o processo local sem custo.
+- Pi executou duas sessões isoladas pelo Codex no Bun, interrompeu uma execução e retomou uma sessão salva.
+- Pi carregou um plugin de clima apenas para o Bot autorizado e validou a resposta externa antes de entregá-la ao modelo.
+- Pi aplicou permissões diferentes por Bot, bloqueou travessia de pasta e symlink, revogou acesso durante a sessão e registrou decisões sem argumentos.
 - `bun build --compile` gerou um executável do Bun Engine.
 - Electron iniciou o executável compilado em modo de desenvolvimento.
 - TypeScript e os builds do Bun Engine e do Electron passaram.
@@ -325,7 +329,5 @@ O protótipo da interface aprovou estes comportamentos:
 
 Os protótipos ainda não provaram:
 
-- uma resposta real do Claude por assinatura, pois o Claude Code local não está autenticado;
 - empacotamento e execução em Windows ou macOS;
-- distribuição dos binários específicos do Claude Agent SDK em cada plataforma;
 - um instalador final do Electron contendo o Bun Engine compilado.
