@@ -1983,6 +1983,14 @@ legend {
   height: 34px;
 }
 
+.jots-app .bot-list-button > .bot-avatar-status.team-leader-avatar {
+  width: 42px;
+  min-width: 42px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+}
+
 .bot-avatar-status::after {
   bottom: calc(100% + 8px);
   left: 50%;
@@ -2853,7 +2861,12 @@ legend {
 }
 
 .chat-activity-stage-disclosure > summary {
-  grid-template-columns: 15px minmax(0, 1fr) 13px;
+  width: fit-content;
+  grid-template-columns: 15px auto 13px;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 8px;
   cursor: pointer;
   list-style: none;
 }
@@ -2873,6 +2886,12 @@ legend {
 .chat-activity-stage-disclosure:hover > summary .chat-activity-stage-chevron,
 .chat-activity-stage-disclosure > summary:focus-visible .chat-activity-stage-chevron {
   opacity: 1;
+}
+
+.chat-activity-stage-disclosure > summary:hover,
+.chat-activity-stage-disclosure > summary:focus-visible {
+  color: var(--color-secondary);
+  background: var(--color-surface-hover);
 }
 
 .chat-activity-stage-disclosure[open] > summary .chat-activity-stage-chevron {
@@ -3212,8 +3231,32 @@ legend {
 
 .member-bots-list {
   position: relative;
-  margin: 0 0 8px 22px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 8px 0 22px;
   padding: 2px 0 2px 10px;
+}
+
+.team-bot-group {
+  margin-bottom: 8px;
+}
+
+.member-bots-disclosure {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 160ms ease-out, opacity 120ms ease-out;
+}
+
+.team-bot-group.expanded .member-bots-disclosure {
+  overflow: visible;
+}
+
+.team-bot-group.collapsed .member-bots-disclosure {
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .member-bots-list li {
@@ -3242,8 +3285,68 @@ legend {
   content: "";
 }
 
-.team-bot-group > .bot-list-button {
+.team-leader-row {
+  position: relative;
+}
+
+.team-leader-row > .bot-list-button {
   margin-bottom: 0;
+  padding-right: 38px;
+}
+
+.team-toggle {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  color: var(--color-muted);
+  background: transparent;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: color 120ms ease, opacity 120ms ease;
+}
+
+.team-leader-row:hover .team-toggle,
+.team-toggle:focus-visible {
+  opacity: 1;
+}
+
+.team-leader-row:hover > .bot-list-button {
+  border-color: var(--color-outline);
+  background: var(--color-surface-raised);
+}
+
+.team-toggle:hover,
+.team-toggle:focus-visible {
+  color: var(--color-primary);
+  background: var(--color-surface-hover);
+  outline: 0;
+}
+
+.team-toggle[data-tooltip-placement="top"]::after {
+  right: 0;
+  left: auto;
+  transform: translateY(2px);
+}
+
+.team-toggle[data-tooltip-placement="top"]:hover::after,
+.team-toggle[data-tooltip-placement="top"]:focus-visible::after {
+  transform: translateY(0);
+}
+
+.team-toggle svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 150ms ease-out;
+}
+
+.team-bot-group.expanded .team-toggle svg {
+  transform: rotate(180deg);
 }
 
 .jots-app .member-bot-button {
@@ -3255,18 +3358,15 @@ legend {
   transition: transform 160ms ease;
 }
 
-.jots-app .bot-list-button:hover .team-avatar-stack .bot-avatar:nth-child(1),
-.jots-app .bot-list-button:focus-visible .team-avatar-stack .bot-avatar:nth-child(1) {
+.jots-app .team-avatar-stack:hover .bot-avatar:nth-child(1) {
   transform: translateY(-2px);
 }
 
-.jots-app .bot-list-button:hover .team-avatar-stack .bot-avatar:nth-child(2),
-.jots-app .bot-list-button:focus-visible .team-avatar-stack .bot-avatar:nth-child(2) {
+.jots-app .team-avatar-stack:hover .bot-avatar:nth-child(2) {
   transform: translateX(-3px) translateY(1px);
 }
 
-.jots-app .bot-list-button:hover .team-avatar-stack .bot-avatar:nth-child(3),
-.jots-app .bot-list-button:focus-visible .team-avatar-stack .bot-avatar:nth-child(3) {
+.jots-app .team-avatar-stack:hover .bot-avatar:nth-child(3) {
   transform: translateX(3px) translateY(1px);
 }
 
@@ -3571,6 +3671,8 @@ legend {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .member-bots-disclosure,
+  .team-toggle svg,
   .jots-app .team-avatar-stack .bot-avatar {
     transition: none;
   }

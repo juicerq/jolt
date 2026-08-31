@@ -194,7 +194,8 @@ It softens clipped content without creating a visible header layer.
 Activity steps with multiple targets present one target per line in a nested
 disclosure. Completed history opens the list initially, while settled live
 steps keep it closed. The disclosure chevron appears only on hover or keyboard
-focus. Lists add no border, surface, or spacing between their items.
+focus, close to the label inside the standard hover surface. Lists add no
+border, surface, or spacing between their items.
 
 ## Colors
 
@@ -315,10 +316,14 @@ Bot name in control type and primary ink. The second line combines a 6px status
 light, a short state, and a clipped work summary in metadata type. Hover and
 selection use tone. The row keeps the same outline in every state.
 
-**Leader row.** It has the same anatomy as a Bot row. Three 24px Blabatars
-overlap inside the avatar slot. The stack alone communicates that the Bot leads
-a team. The first avatar belongs to the Leader; the next two represent the most
-relevant Integrantes.
+**Leader row.** It has the same anatomy as a Bot row and two disclosure states.
+Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes
+below. Collapsed, it hides the Integrantes and overlaps the Leader plus up to two
+members as 24px Blabatars. A separate chevron toggles the team without changing
+which Bot conversation is selected. The complete team block owns 8px of space
+below it in either state so adjacent teams remain distinct. Expansion combines
+a 160ms height transition with a shorter opacity fade and becomes immediate
+when reduced motion is requested.
 
 **Conversation.** Bot messages read as plain content on the conversation plane.
 User messages use a compact raised bubble aligned right. Message author and time
@@ -373,8 +378,8 @@ state does not repeat it as a second button.
 
 - Do make the conversation the first reading target. Keep navigation and
   configuration one or two ink levels quieter.
-- Do show a Bot as one identity and a Leader as a stack of identities. Keep the
-  row anatomy unchanged when the role changes.
+- Do show an expanded Leader as one identity and a collapsed Leader as a stack
+  of identities. Keep the row anatomy stable while the team is disclosed.
 - Do use one primary action in each state. Let ghost controls wait for intent.
 - Do use realistic Bot names, tasks, statuses, and messages when judging a
   screen. Empty placeholders hide hierarchy problems.

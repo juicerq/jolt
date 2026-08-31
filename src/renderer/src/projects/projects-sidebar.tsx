@@ -1,7 +1,8 @@
 import { Blobatar } from "@blobatar/react"
-import { FolderIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ChevronDownIcon, FolderIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
+import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -56,22 +57,44 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 }
 
 function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
+  const hasTeam = bot.members.length > 0
+  const [expanded, setExpanded] = useState(hasTeam)
+  const memberListId = `team-members-${bot.id}`
+
+  if (!hasTeam) {
+    return <li className="bot-group"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} /></li>
+  }
+
   return (
-    <li className={bot.members.length > 0 ? "bot-group team-bot-group" : "bot-group"}>
-      <BotRow bot={bot} members={bot.members} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
-      {bot.members.length > 0 && (
+    <li className={`bot-group team-bot-group ${expanded ? "expanded" : "collapsed"}`}>
+      <div className="team-leader-row">
+        <BotRow bot={bot} members={expanded ? undefined : bot.members} teamLeader selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
+        <IconButton
+          className="team-toggle"
+          type="button"
+          label={expanded ? `Recolher time de ${bot.name}` : `Expandir time de ${bot.name}`}
+          aria-expanded={expanded}
+          aria-controls={memberListId}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <ChevronDownIcon aria-hidden="true" />
+        </IconButton>
+      </div>
+      <div className="member-bots-disclosure" id={memberListId} aria-hidden={!expanded} inert={!expanded ? true : undefined}>
         <ul className="member-bots-list" aria-label={`Integrantes de ${bot.name}`}>
           {bot.members.map((member) => <li key={member.id}><BotRow bot={member} member selected={selectedBotId === member.id} status={statuses[member.id] ?? "available"} /></li>)}
         </ul>
-      )}
+      </div>
     </li>
   )
 }
 
-function BotRow({ bot, member = false, members, selected, status }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status: ChatStatus }) {
+function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status: ChatStatus; teamLeader?: boolean }) {
+  const avatarClasses = ["bot-avatar-status", members?.length ? "has-team" : "", teamLeader ? "team-leader-avatar" : ""].filter(Boolean).join(" ")
+
   return (
     <button className={`${selected ? "bot-list-button conversation-button selected" : "bot-list-button conversation-button"}${member ? " member-bot-button" : ""}`} type="button" onClick={() => selectBot(bot.id)}>
-      <span className={`bot-avatar-status${members?.length ? " has-team" : ""}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`} data-tooltip={chatStatusLabels[status]} data-tooltip-placement="top">
+      <span className={avatarClasses} role="img" aria-label={`Status: ${chatStatusLabels[status]}`} data-tooltip={chatStatusLabels[status]} data-tooltip-placement="top">
         <BotAvatar bot={bot} members={members} />
         <span className={`chat-status-dot ${status}`} aria-hidden="true" />
       </span>
