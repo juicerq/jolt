@@ -191,6 +191,11 @@ surface with syntax highlighting.
 The conversation's top edge uses a 12px translucent fade with a light 6px blur.
 It softens clipped content without creating a visible header layer.
 
+Activity steps with multiple targets present one target per line in a nested
+disclosure. Completed history opens the list initially, while settled live
+steps keep it closed. The disclosure chevron appears only on hover or keyboard
+focus. Lists add no border, surface, or spacing between their items.
+
 ## Colors
 
 The palette uses warm near-black surfaces and three strengths of neutral text.

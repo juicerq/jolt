@@ -54,6 +54,26 @@ describe("ChatActivity", () => {
     expect(secondThinking).toBeGreaterThan(fileRead)
   })
 
+  test("renders multi-item action details as an open collapsible list in history", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{
+        steps: [{
+          type: "tool",
+          name: "read",
+          tools: [
+            { callId: "read-1", name: "read", detail: "src/app.ts", status: "done" },
+            { callId: "read-2", name: "read", detail: "src/store.ts", status: "done" },
+          ],
+        }],
+      }} />,
+    )
+
+    expect(markup).toContain('<details class="chat-activity-stage-disclosure" open="">')
+    expect(markup).toContain('<li><code>src/app.ts</code></li>')
+    expect(markup).toContain('<li><code>src/store.ts</code></li>')
+    expect(markup).toContain('class="chat-activity-stage-chevron"')
+  })
+
   test("renders a pending run without a second thinking label", () => {
     const markup = renderToStaticMarkup(
       <ChatActivity
@@ -66,7 +86,7 @@ describe("ChatActivity", () => {
 
     expect(markup).toContain("Contatando Nina…")
     expect(markup).toContain("role=\"status\"")
-    expect(markup).not.toContain("<summary")
+    expect(markup).not.toContain("chat-activity-details")
     expect(markup).not.toContain(">Pensando<")
   })
 
@@ -100,7 +120,11 @@ describe("ChatActivity", () => {
 
     expect(markup).toContain("Raciocinou por 5s")
     expect(markup).toContain("Leu 3 arquivos")
-    expect(markup).toContain("README.md, PROJECT.md e CONTEXT.md")
+    expect(markup).toContain('<details class="chat-activity-stage-disclosure">')
+    expect(markup).toContain('<li><code>README.md</code></li>')
+    expect(markup).toContain('<li><code>PROJECT.md</code></li>')
+    expect(markup).toContain('<li><code>CONTEXT.md</code></li>')
+    expect(markup).not.toContain("README.md, PROJECT.md e CONTEXT.md")
     expect(markup).toContain("Raciocinou por 8s")
     expect(markup).toContain("Executando comando")
     expect(markup).toContain("bun test")
@@ -111,6 +135,6 @@ describe("ChatActivity", () => {
     expect(markup).not.toContain("Analisando o projeto")
     expect(markup).not.toContain("Escolhendo a validação")
     expect(markup).not.toContain("Nina está trabalhando · 2 ações")
-    expect(markup).not.toContain("<summary")
+    expect(markup).not.toContain("chat-activity-details")
   })
 })

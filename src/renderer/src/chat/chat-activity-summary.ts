@@ -144,10 +144,8 @@ export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
   return capitalize(group.active(count))
 }
 
-export function formatChatActivityStepDetail(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
-  const details = [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
-
-  return joinClauses(details)
+export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
+  return [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
 }
 
 function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {

@@ -13,10 +13,10 @@ import {
 } from "@heroicons/react/24/outline"
 import type { ConversationActivity } from "../../../shared/conversations"
 import {
-  formatChatActivityStepDetail,
   formatChatActivityStepLabel,
   formatChatActivitySummary,
   formatRunningChatActivityStepLabel,
+  getChatActivityStepDetails,
 } from "./chat-activity-summary"
 import { ChatContent } from "./chat-content"
 
@@ -95,19 +95,33 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const status = getStepStatus(step, mode === "current")
   const currentProps = mode === "current" && status === "running" ? { "aria-current": "step" as const } : {}
   const label = status === "running" ? formatRunningChatActivityStepLabel(step) : formatChatActivityStepLabel(step)
-  const detail = step.type === "tool" ? formatChatActivityStepDetail(step) : ""
+  const details = step.type === "tool" ? getChatActivityStepDetails(step) : []
+  const hasDetailList = details.length > 1
+  const heading = (
+    <>
+      <ActivityStageIcon step={step} status={status} />
+      <div>
+        <strong>{label}</strong>
+        {mode === "compact" && details.length === 1 && <code>{details[0]}</code>}
+      </div>
+      {hasDetailList && <ChevronDownIcon className="chat-activity-stage-chevron" aria-hidden="true" />}
+    </>
+  )
 
   return (
     <div className={`chat-activity-stage ${mode} ${status}`} {...currentProps}>
-      <div className="chat-activity-stage-heading">
-        <ActivityStageIcon step={step} status={status} />
-        <div>
-          <strong>{label}</strong>
-          {mode === "compact" && detail && <code>{detail}</code>}
-        </div>
-      </div>
+      {hasDetailList
+        ? (
+            <details className="chat-activity-stage-disclosure" open={mode !== "compact"}>
+              <summary className="chat-activity-stage-heading">{heading}</summary>
+              <ul className="chat-activity-stage-list">
+                {details.map((detail) => <li key={detail}><code>{detail}</code></li>)}
+              </ul>
+            </details>
+          )
+        : <div className="chat-activity-stage-heading">{heading}</div>}
       {mode === "current" && step.type === "thinking" && step.content && <ThinkingTrace content={step.content} />}
-      {mode !== "compact" && detail && <code className="chat-activity-stage-detail">{detail}</code>}
+      {mode !== "compact" && details.length === 1 && <code className="chat-activity-stage-detail">{details[0]}</code>}
     </div>
   )
 }

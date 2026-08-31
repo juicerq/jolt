@@ -2852,6 +2852,37 @@ legend {
   gap: 8px;
 }
 
+.chat-activity-stage-disclosure > summary {
+  grid-template-columns: 15px minmax(0, 1fr) 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.chat-activity-stage-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-activity-stage-chevron {
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+  opacity: 0;
+  transition: opacity 120ms ease, transform 150ms ease-out;
+}
+
+.chat-activity-stage-disclosure:hover > summary .chat-activity-stage-chevron,
+.chat-activity-stage-disclosure > summary:focus-visible .chat-activity-stage-chevron {
+  opacity: 1;
+}
+
+.chat-activity-stage-disclosure[open] > summary .chat-activity-stage-chevron {
+  transform: rotate(180deg);
+}
+
+.chat-activity-stage-disclosure > summary:focus-visible {
+  outline: 0;
+}
+
 .chat-activity-stage-heading > .chat-activity-stage-icon,
 .chat-activity-stage-heading > .tool-activity-spinner {
   width: 14px;
@@ -2893,7 +2924,8 @@ legend {
 }
 
 .chat-activity-stage-heading code,
-.chat-activity-stage-detail {
+.chat-activity-stage-detail,
+.chat-activity-stage-list code {
   color: var(--color-muted);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
@@ -2920,8 +2952,24 @@ legend {
   border-left: 0;
 }
 
+.chat-activity-stage-list {
+  display: grid;
+  gap: 0;
+  margin: 0 0 0 23px;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-activity-stage-list li {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
 .chat-activity-status,
-.chat-activity-details summary {
+.chat-activity-details > summary {
   display: grid;
   width: fit-content;
   align-items: center;
@@ -2934,36 +2982,36 @@ legend {
   grid-template-columns: 16px auto;
 }
 
-.chat-activity-details summary {
+.chat-activity-details > summary {
   grid-template-columns: 16px auto 14px;
   cursor: pointer;
   list-style: none;
 }
 
-.chat-activity-details summary:hover,
-.chat-activity-details summary:focus-visible {
+.chat-activity-details > summary:hover,
+.chat-activity-details > summary:focus-visible {
   color: var(--color-secondary);
   background: var(--color-surface-hover);
   outline: 0;
 }
 
-.chat-activity-details summary::-webkit-details-marker {
+.chat-activity-details > summary::-webkit-details-marker {
   display: none;
 }
 
-.chat-activity-details summary svg {
+.chat-activity-details > summary svg {
   width: 16px;
   height: 16px;
   stroke-width: 1.75;
 }
 
-.chat-activity-details summary svg:last-child {
+.chat-activity-details > summary svg:last-child {
   width: 13px;
   height: 13px;
   transition: transform 150ms ease-out;
 }
 
-.chat-activity-details[open] summary svg:last-child {
+.chat-activity-details[open] > summary svg:last-child {
   transform: rotate(180deg);
 }
 
