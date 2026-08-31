@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import { closeDialog } from "../bots/bots-store"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 
 export function CreateProjectDialog({ client }: { client: EngineClient }) {
   const queryClient = useQueryClient()
@@ -46,7 +47,7 @@ export function CreateProjectDialog({ client }: { client: EngineClient }) {
         <form className="project-form" onSubmit={handleSubmit}>
           <header className="dialog-heading">
             <div><p className="eyebrow">Novo Projeto</p><h2 id="create-project-title">Agrupe Bots pela pasta</h2></div>
-            <button className="dialog-close-button" type="button" aria-label="Fechar" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></button>
+            <IconButton className="dialog-close-button" type="button" label="Fechar" tooltipPlacement="left" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></IconButton>
           </header>
           <div className="project-form-body">
             <label>Nome<input autoFocus required placeholder="Ex: Jots" value={name} onChange={(event) => setName(event.target.value)} /></label>

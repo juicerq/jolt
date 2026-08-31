@@ -23,6 +23,7 @@ CREATE TABLE `messages` (
 	`position` integer NOT NULL,
 	`author` text NOT NULL,
 	`content` text NOT NULL,
+	`activity` text,
 	`created_at` text NOT NULL,
 	CONSTRAINT `fk_messages_bot_id_bots_id_fk` FOREIGN KEY (`bot_id`) REFERENCES `bots`(`id`) ON DELETE CASCADE
 );

@@ -6,6 +6,7 @@ import type { Bot } from "../../../shared/bots"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 
 const chatStatusLabels: Record<ChatStatus, string> = {
   available: "Disponível",
@@ -25,8 +26,8 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       <div className="bots-sidebar-heading">
         <h2>Bots</h2>
         <div className="sidebar-create-actions">
-          <button type="button" aria-label="Criar projeto" onClick={openCreateProject}><FolderIcon aria-hidden="true" /></button>
-          <button type="button" aria-label="Criar bot" onClick={openCreateBot}><UserPlusIcon aria-hidden="true" /></button>
+          <IconButton type="button" label="Criar projeto" onClick={openCreateProject}><FolderIcon aria-hidden="true" /></IconButton>
+          <IconButton type="button" label="Criar bot" onClick={openCreateBot}><UserPlusIcon aria-hidden="true" /></IconButton>
         </div>
       </div>
       {error && <p className="error sidebar-state">Falha ao carregar Projetos: {error.message}</p>}
@@ -56,7 +57,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 
 function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
   return (
-    <li className="bot-group">
+    <li className={bot.members.length > 0 ? "bot-group team-bot-group" : "bot-group"}>
       <BotRow bot={bot} members={bot.members} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
       {bot.members.length > 0 && (
         <ul className="member-bots-list" aria-label={`Integrantes de ${bot.name}`}>

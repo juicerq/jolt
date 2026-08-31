@@ -2,6 +2,7 @@ import { FolderIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 import { closeDialog, selectBot } from "./bots-store"
 
 export function CreateBotDialog({ client }: { client: EngineClient }) {
@@ -72,7 +73,7 @@ function CreateBotForm({ client }: { client: EngineClient }) {
     <form className="bot-form" onSubmit={handleSubmit}>
       <div className="bot-form-heading">
         <div><p className="eyebrow">Novo Bot · {step} de 2</p><h2 id="create-bot-title">{step === 1 ? "Quem vai trabalhar?" : "Qual é o trabalho?"}</h2></div>
-        <button className="dialog-close-button" type="button" aria-label="Fechar" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></button>
+        <IconButton className="dialog-close-button" type="button" label="Fechar" tooltipPlacement="left" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></IconButton>
       </div>
       <div className="create-bot-progress" aria-hidden="true"><span className={step === 2 ? "complete" : ""} /></div>
       <div className="create-bot-body">

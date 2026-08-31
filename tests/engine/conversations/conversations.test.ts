@@ -27,6 +27,16 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
 
           for (const listener of state.listeners) {
             listener({ type: "started" })
+            listener({ type: "thinking-started" })
+            listener({ type: "thinking", text: "Vou verificar o arquivo." })
+            listener({ type: "thinking-finished" })
+            listener({ type: "tool-started", callId: "read-1", tool: "read", detail: "PROJECT.md" })
+            listener({ type: "tool-finished", callId: "read-1", tool: "read", failed: false })
+            listener({ type: "tool-started", callId: "read-2", tool: "read", detail: "CONTEXT.md" })
+            listener({ type: "tool-finished", callId: "read-2", tool: "read", failed: false })
+            listener({ type: "thinking-started" })
+            listener({ type: "thinking", text: "Agora vou responder." })
+            listener({ type: "thinking-finished" })
             listener({ type: "text", text: "Resposta " })
 
             if (completePrompt) {
@@ -84,18 +94,42 @@ describe("conversations", () => {
       events.push(event)
     }
 
-    expect(events).toEqual([
-      { type: "started" },
-      { type: "text", text: "Resposta " },
-      { type: "text", text: "confirmada" },
-      { type: "finished", reason: "stop" },
+    expect(events.map((event) => event.type)).toEqual([
+      "started",
+      "thinking-started",
+      "thinking",
+      "thinking-finished",
+      "tool-started",
+      "tool-finished",
+      "tool-started",
+      "tool-finished",
+      "thinking-started",
+      "thinking",
+      "thinking-finished",
+      "text",
+      "text",
+      "finished",
     ])
+    expect(events.filter((event) => event.type === "thinking-finished").every((event) => event.durationMs > 0)).toBe(true)
     expect(first.prompts).toEqual(["Olá"])
     expect(first.instructions).toEqual(["You are Atlas.\nExpected outcome: Answer\nResponsibilities: Help\nLimits: Be safe\nDelivery: Text"])
     expect(first.conversations.history({ botId: bot.id }).map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
       { author: "bot", content: "Resposta confirmada" },
     ])
+    const activity = first.conversations.history({ botId: bot.id }).at(-1)?.activity
+
+    expect(activity?.steps.map((step) => step.type)).toEqual(["thinking", "tool", "thinking"])
+    expect(activity?.steps[0]).toMatchObject({ type: "thinking", content: "Vou verificar o arquivo." })
+    expect(activity?.steps[1]).toEqual({
+      type: "tool",
+      name: "read",
+      tools: [
+        { callId: "read-1", name: "read", detail: "PROJECT.md", status: "done" },
+        { callId: "read-2", name: "read", detail: "CONTEXT.md", status: "done" },
+      ],
+    })
+    expect(activity?.steps[2]).toMatchObject({ type: "thinking", content: "Agora vou responder." })
 
     first.conversations.dispose()
     first.database.close()
@@ -105,6 +139,7 @@ describe("conversations", () => {
       { author: "person", content: "Olá" },
       { author: "bot", content: "Resposta confirmada" },
     ])
+    expect(reopened.conversations.history({ botId: bot.id }).at(-1)?.activity).toEqual(activity)
 
     reopened.conversations.dispose()
     reopened.database.close()

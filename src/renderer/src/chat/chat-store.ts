@@ -1,14 +1,21 @@
 import { Store } from "@tanstack/react-store"
+import type { ConversationActivity } from "../../../shared/conversations"
+import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
-type ToolActivity = {
-  name: string
-  status: "running" | "done" | "failed"
-}
+type ConversationStep = ConversationActivity["steps"][number]
+type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
+type ToolStep = Extract<ConversationStep, { type: "tool" }>
+type ToolActivity = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" }
+
+export type ChatActivityStep =
+  | (ThinkingStep & { status: "running" | "done" })
+  | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 
 export type ChatRun = {
   personContent: string
   responseContent: string
-  tools: ToolActivity[]
+  steps: ChatActivityStep[]
+  waitingMessage: string
   status: "running" | "aborting" | "failed"
   error?: string
 }
@@ -27,12 +34,12 @@ export function setChatDraft(botId: string, draft: string) {
   chatStore.setState((state) => ({ ...state, drafts: { ...state.drafts, [botId]: draft } }))
 }
 
-export function startChatRun(botId: string, personContent: string) {
+export function startChatRun({ botId, botName, personContent }: { botId: string; botName: string; personContent: string }) {
   chatStore.setState((state) => ({
     drafts: { ...state.drafts, [botId]: "" },
     runs: {
       ...state.runs,
-      [botId]: { personContent, responseContent: "", tools: [], status: "running" },
+      [botId]: { personContent, responseContent: "", steps: [], waitingMessage: nextChatWaitingMessage(botName), status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -42,21 +49,60 @@ export function appendChatText(botId: string, text: string) {
   updateRun(botId, (run) => ({ ...run, responseContent: `${run.responseContent}${text}` }))
 }
 
+export function startChatThinking(botId: string) {
+  updateRun(botId, (run) => ({ ...run, steps: [...run.steps, { type: "thinking", content: "", status: "running" }] }))
+}
+
+export function appendChatThinking(botId: string, text: string) {
+  updateRun(botId, (run) => {
+    const lastStep = run.steps.at(-1)
+
+    if (lastStep?.type === "thinking") {
+      return { ...run, steps: [...run.steps.slice(0, -1), { ...lastStep, content: `${lastStep.content}${text}` }] }
+    }
+
+    return { ...run, steps: [...run.steps, { type: "thinking", content: text, status: "running" }] }
+  })
+}
+
+export function finishChatThinking(botId: string, durationMs: number) {
+  updateRun(botId, (run) => ({
+    ...run,
+    steps: run.steps.map((step, index) => step.type === "thinking" && index === run.steps.length - 1
+      ? { ...step, durationMs, status: "done" }
+      : step),
+  }))
+}
+
 export function restartChatRun(botId: string) {
-  updateRun(botId, (run) => ({ personContent: run.personContent, responseContent: "", tools: [], status: "running" }))
+  updateRun(botId, (run) => ({ personContent: run.personContent, responseContent: "", steps: [], waitingMessage: run.waitingMessage, status: "running" }))
   setChatStatus(botId, "working")
 }
 
-export function startChatTool(botId: string, name: string) {
-  updateRun(botId, (run) => ({ ...run, tools: [...run.tools, { name, status: "running" }] }))
+export function startChatTool(botId: string, callId: string, name: string, detail?: string) {
+  updateRun(botId, (run) => {
+    const tool = { callId, name, ...(detail ? { detail } : {}), status: "running" as const }
+    const lastStep = run.steps.at(-1)
+
+    if (lastStep?.type === "tool" && lastStep.name === name) {
+      return { ...run, steps: [...run.steps.slice(0, -1), { ...lastStep, tools: [...lastStep.tools, tool] }] }
+    }
+
+    return { ...run, steps: [...run.steps, { type: "tool", name, tools: [tool] }] }
+  })
 }
 
-export function finishChatTool(botId: string, name: string, failed: boolean) {
+export function finishChatTool(botId: string, callId: string, failed: boolean) {
   updateRun(botId, (run) => ({
     ...run,
-    tools: run.tools.map((tool) => tool.name === name && tool.status === "running"
-      ? { ...tool, status: failed ? "failed" : "done" }
-      : tool),
+    steps: run.steps.map((step) => step.type === "tool"
+      ? {
+          ...step,
+          tools: step.tools.map((tool) => tool.callId === callId
+            ? { ...tool, status: failed ? "failed" as const : "done" as const }
+            : tool),
+        }
+      : step),
   }))
 }
 

@@ -22,6 +22,10 @@ colors:
   error: "#f87171"
   working: "#60a5fa"
   overlay: "rgb(0 0 0 / 72%)"
+  syntax-keyword: "#c4a7c7"
+  syntax-string: "#aebd98"
+  syntax-number: "#d2ad84"
+  syntax-title: "#9eb7c6"
 typography:
   title:
     fontFamily: system-ui
@@ -196,6 +200,8 @@ The app has no decorative brand color.
 - **Status colors:** Green means available or complete. Blue means working.
   Yellow means waiting for the user. Red means failure. Each color answers a
   state question and never decorates a button or avatar.
+- **Syntax colors:** Muted lavender, sage, amber, and blue distinguish code
+  tokens inside fenced blocks. They never leave code or replace status colors.
 
 Primary, secondary, and muted are the complete ink scale. Adding another gray
 creates an unnamed focus level and weakens the hierarchy.
@@ -245,7 +251,7 @@ expanding with the window: messages top out near 720px, and the prompt follows
 the same horizontal center.
 
 The message list scrolls while the prompt remains visible. New content follows
-the end while the reader is within 160px of it. Farther up, the position stays
+the end while the reader is within 312px of it. Farther up, the position stays
 fixed and a quiet return-to-end button appears above the prompt. Empty, loading,
 streaming, interrupted, and failed states keep the same geometry. A state change
 must not move the prompt or resize the conversation plane.
@@ -297,8 +303,30 @@ relevant Integrantes.
 
 **Conversation.** Bot messages read as plain content on the conversation plane.
 User messages use a compact raised bubble aligned right. Message author and time
-sit above the content in metadata type. Tool calls and thinking stay collapsed
-or visually subordinate until the user opens them.
+sit above the content in metadata type. Thinking and tool calls share one
+activity history. While a response runs, reasoning and every tool call remain
+visible as a progressive stack. The newest activity stays open with its detail;
+each earlier activity becomes a compact status line but remains visible. New
+activities enter with a short fade and vertical motion. Completed and failed
+activities stop moving. Consecutive calls to the same tool form one activity,
+such as `Leu 3 arquivos`, with their targets on the supporting line. Separate
+reasoning periods remain separate activities with their own durations. Before
+the Provider reports an activity, the response uses short contact copy such as
+`Contatando Marina…`. It must not describe that waiting period as thinking. The
+copy stays stable for the turn and gives way to reasoning or tool activity when
+either begins. A completed response collapses the activity history into one
+disclosure. Expanding it restores the same chronological sequence instead of
+regrouping activities by type. The collapsed line replaces the live stack
+instead of appearing beside it. It includes reasoning duration only when the Provider
+explicitly reported reasoning; contact and response latency never become
+`Raciocínio` after completion. Its collapsed summary uses a sentence that names
+the observed work, such as `Raciocinou por 5s, leu 3 arquivos e executou 5
+comandos.` The duration stays beside reasoning because it does not measure tool
+execution. Each live and expanded step uses an icon for its action instead of a
+generic completion check. The current step stays on the conversation plane
+without a separate background. Live and expanded steps use the same branching
+line as grouped team members in the sidebar, and the final step ends the line.
+Failed and unfinished actions do not count as completed work.
 
 **Prompt.** One line by default, centered near the bottom of the conversation.
 The field is the strongest control on the screen. Its send action is the only

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 
 export function BotSettings({ bot, client, onClose }: { bot: Bot; client: EngineClient; onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -34,7 +35,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   return (
     <div className="prototype-overlay panel-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <aside className="function-drawer bot-settings-drawer">
-        <button className="settings-close" type="button" aria-label="Fechar configurações" onClick={onClose}><XMarkIcon aria-hidden="true" /></button>
+        <IconButton className="settings-close" type="button" label="Fechar configurações" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
         <header className="bot-summary-heading"><div><p className="eyebrow">Bot</p><h2>{bot.name}</h2></div><span className="provider-chip">Pi · Codex</span></header>
         <section className="leader-card">
           <p className="eyebrow">Função</p>

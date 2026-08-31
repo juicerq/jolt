@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "4ddf3e0d-50bc-4e41-96be-ef1c74630b01",
+  "id": "38f2f677-e9e0-41d1-b104-27e6f80d0108",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -169,6 +169,16 @@
       "default": null,
       "generated": null,
       "name": "content",
+      "entityType": "columns",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "activity",
       "entityType": "columns",
       "table": "messages"
     },

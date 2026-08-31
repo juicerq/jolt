@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { ArrowUpIcon, CheckIcon, Cog6ToothIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowUpIcon, Cog6ToothIcon, StopIcon } from "@heroicons/react/24/outline"
 import { consumeEventIterator } from "@orpc/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
@@ -7,21 +7,27 @@ import { type KeyboardEvent, useCallback, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ConversationEvent, ConversationMessage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 import {
   appendChatText,
+  appendChatThinking,
   chatStore,
   dismissChatRun,
   failChatRun,
+  finishChatThinking,
   finishChatTool,
   markChatAborting,
   restartChatRun,
   setChatDraft,
   settleChatRun,
   startChatRun,
+  startChatThinking,
   startChatTool,
   type ChatRun as ChatRunState,
 } from "./chat-store"
 import { ChatScroller } from "./chat-scroller"
+import { ChatActivity } from "./chat-activity"
+import { ChatContent } from "./chat-content"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
   const queryClient = useQueryClient()
@@ -67,7 +73,7 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
       return
     }
 
-    startChatRun(bot.id, content)
+    startChatRun({ botId: bot.id, botName: bot.name, personContent: content })
 
     let finishReason: "stop" | "aborted" | "error" = "stop"
 
@@ -120,11 +126,11 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
 
   return (
     <section className="chat-panel real-chat-panel">
-      <button className="chat-settings-button" type="button" aria-label={`Abrir configurações de ${bot.name}`} onClick={onOpenSettings}><Cog6ToothIcon aria-hidden="true" /></button>
+      <IconButton className="chat-settings-button" type="button" label={`Abrir configurações de ${bot.name}`} tooltipPlacement="left" onClick={onOpenSettings}><Cog6ToothIcon aria-hidden="true" /></IconButton>
       <ChatScroller>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
-        {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} onDraftChange={(value) => setChatDraft(bot.id, value)} />}
+        {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} />)}
         {run && <ChatRun bot={bot} run={run} />}
       </ChatScroller>
@@ -141,8 +147,8 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
           onKeyDown={handleComposerKey}
         />
         {run
-          ? <button className="stop-button" type="button" disabled={run.status === "aborting"} onClick={handleAbort} aria-label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"}><StopIcon aria-hidden="true" /></button>
-          : <button className="prompt-send-button" type="button" disabled={!draft.trim()} onClick={handleSend} aria-label="Enviar mensagem"><ArrowUpIcon aria-hidden="true" /></button>}
+          ? <IconButton className="stop-button" type="button" disabled={run.status === "aborting"} label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={handleAbort}><StopIcon aria-hidden="true" /></IconButton>
+          : <IconButton className="prompt-send-button" type="button" disabled={!draft.trim()} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
       </div>
     </section>
   )
@@ -159,13 +165,28 @@ function handleConversationEvent(botId: string, event: ConversationEvent) {
     return
   }
 
+  if (event.type === "thinking") {
+    appendChatThinking(botId, event.text)
+    return
+  }
+
+  if (event.type === "thinking-started") {
+    startChatThinking(botId)
+    return
+  }
+
+  if (event.type === "thinking-finished") {
+    finishChatThinking(botId, event.durationMs)
+    return
+  }
+
   if (event.type === "tool-started") {
-    startChatTool(botId, event.tool)
+    startChatTool(botId, event.callId, event.tool, event.detail)
     return
   }
 
   if (event.type === "tool-finished") {
-    finishChatTool(botId, event.tool, event.failed)
+    finishChatTool(botId, event.callId, event.failed)
   }
 }
 
@@ -173,7 +194,8 @@ function ChatMessage({ bot, message }: { bot: Bot; message: ConversationMessage 
   return (
     <article className={`chat-message ${message.author}`}>
       <div className="message-meta"><strong>{message.author === "person" ? "Você" : bot.name}</strong><time>{formatMessageTime(message.createdAt)}</time></div>
-      <p>{message.content}</p>
+      {message.author === "bot" && message.activity && <ChatActivity activity={message.activity} />}
+      {message.author === "bot" ? <ChatContent content={message.content} /> : <p>{message.content}</p>}
     </article>
   )
 }
@@ -184,21 +206,20 @@ function ChatRun({ bot, run }: { bot: Bot; run: ChatRunState }) {
       <article className="chat-message person pending-message"><div className="message-meta"><strong>Você</strong><span>Agora</span></div><p>{run.personContent}</p></article>
       <article className="chat-message bot streaming-message">
         <div className="message-meta"><strong>{bot.name}</strong><span>Agora</span></div>
-        {run.tools.length > 0 && <div className="tool-chips" aria-label="Ferramentas usadas">{run.tools.map((tool, index) => <span className={`tool-chip ${tool.status}`} key={`${tool.name}-${index}`}>{tool.status === "running" ? <span className="tool-running-dot" /> : tool.status === "done" ? <CheckIcon aria-hidden="true" /> : <XMarkIcon aria-hidden="true" />}{tool.name}</span>)}</div>}
-        {run.responseContent ? <p>{run.responseContent}{run.status !== "failed" && <span className="stream-cursor" aria-hidden="true" />}</p> : run.status !== "failed" && <p className="thinking-label"><span className="thinking-dot running" />{run.status === "aborting" ? "Interrompendo" : "Pensando"}</p>}
+        <ChatActivity activity={run} botName={bot.name} status={run.status} waitingMessage={run.waitingMessage} />
+        {run.responseContent && <ChatContent content={run.responseContent} streaming={run.status !== "failed"} />}
         {run.error && <div className="message-error"><div><strong>O bot parou</strong><p>{run.error}</p></div><button type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>
   )
 }
 
-function EmptyChat({ bot, onDraftChange }: { bot: Bot; onDraftChange: (value: string) => void }) {
+function EmptyChat({ bot }: { bot: Bot }) {
   return (
     <div className="chat-empty">
-      <Blobatar className="bot-avatar large" name={`jots:${bot.id}:${bot.name}`} size={40} alt="" />
+      <Blobatar className="bot-avatar chat-empty-avatar" name={`jots:${bot.id}:${bot.name}`} size={64} alt="" />
       <h2>Converse com {bot.name}</h2>
       <p>{bot.function.outcome}</p>
-      <div><button type="button" onClick={() => onDraftChange("O que você recomenda fazer primeiro?")}>Pedir recomendação</button><button type="button" onClick={() => onDraftChange("Resuma o estado atual do seu trabalho.")}>Pedir resumo</button></div>
     </div>
   )
 }
