@@ -104,12 +104,12 @@ export function formatChatActivitySummary(activity: ActivitySummaryInput) {
   }
 
   if (clauses.length === 0) {
-    return "Atividade concluída."
+    return "Atividade concluída"
   }
 
   const sentence = joinClauses(clauses)
 
-  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}`
 }
 
 export function formatChatActivityStepLabel(step: ActivitySummaryStep) {

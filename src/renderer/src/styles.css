@@ -16,7 +16,8 @@
   --color-success: #4ade80;
   --color-warning: #fbbf24;
   --color-error: #f87171;
-  --color-working: #60a5fa;
+  --color-working: #fbbf24;
+  --color-awaiting-decision: #60a5fa;
   --color-overlay: rgb(0 0 0 / 72%);
   --color-inline-code: #f0ad67;
   --syntax-keyword: #e4a7eb;
@@ -78,7 +79,8 @@
   background: transparent;
 }
 
-.icon-button {
+.icon-button,
+.bot-avatar-status {
   position: relative;
 }
 
@@ -87,7 +89,8 @@
   position: absolute;
 }
 
-.icon-button::after {
+.icon-button::after,
+.bot-avatar-status::after {
   position: absolute;
   z-index: 100;
   width: max-content;
@@ -113,7 +116,8 @@
   transform: translate(-50%, -2px);
 }
 
-.icon-button[data-tooltip-placement="top"]::after {
+.icon-button[data-tooltip-placement="top"]::after,
+.bot-avatar-status[data-tooltip-placement="top"]::after {
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translate(-50%, 2px);
@@ -132,7 +136,9 @@
 }
 
 .icon-button:hover::after,
-.icon-button:focus-visible::after {
+.icon-button:focus-visible::after,
+.bot-avatar-status:hover::after,
+.bot-list-button:focus-visible .bot-avatar-status::after {
   opacity: 1;
   transition-delay: 160ms;
 }
@@ -140,7 +146,9 @@
 .icon-button[data-tooltip-placement="bottom"]:hover::after,
 .icon-button[data-tooltip-placement="bottom"]:focus-visible::after,
 .icon-button[data-tooltip-placement="top"]:hover::after,
-.icon-button[data-tooltip-placement="top"]:focus-visible::after {
+.icon-button[data-tooltip-placement="top"]:focus-visible::after,
+.bot-avatar-status[data-tooltip-placement="top"]:hover::after,
+.bot-list-button:focus-visible .bot-avatar-status[data-tooltip-placement="top"]::after {
   transform: translate(-50%, 0);
 }
 
@@ -1435,7 +1443,7 @@ legend {
 
 .bot-button i {
   width: 6px;
-  height: 6px;
+  height: 12px;
   border-radius: 50%;
   background: #4ade80;
 }
@@ -1956,11 +1964,39 @@ legend {
   background: var(--color-surface-raised);
 }
 
+.jots-app .bot-list-button > .bot-avatar-status {
+  display: flex;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  flex: none;
+  flex-direction: row;
+  gap: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.jots-app .bot-list-button > .bot-avatar-status.has-team {
+  width: 42px;
+  min-width: 42px;
+  height: 34px;
+}
+
+.bot-avatar-status::after {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 2px);
+}
+
 .chat-status-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
+  position: absolute;
+  z-index: 5;
+  right: -2px;
+  bottom: -2px;
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--color-success);
 }
@@ -2171,15 +2207,15 @@ legend {
   top: 0;
   right: 8px;
   left: 1px;
-  height: 88px;
+  height: 6px;
   border-radius: 23px 0 0;
-  background: color-mix(in srgb, var(--color-surface) 52%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 36%, transparent);
   clip-path: inset(0 round 23px 0 0);
   content: "";
   pointer-events: none;
-  backdrop-filter: blur(10px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 100%);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
 }
 
 .jots-app .message-list {

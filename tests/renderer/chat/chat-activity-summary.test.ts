@@ -30,7 +30,7 @@ describe("formatChatActivitySummary", () => {
       ],
     })
 
-    expect(summary).toBe("Raciocinou por 5s, leu 3 arquivos e executou 5 comandos.")
+    expect(summary).toBe("Raciocinou por 5s, leu 3 arquivos e executou 5 comandos")
   })
 
   test("does not present failed commands as successful commands", () => {
@@ -41,7 +41,7 @@ describe("formatChatActivitySummary", () => {
       ],
     })
 
-    expect(summary).toBe("Leu 1 arquivo e 1 comando falhou.")
+    expect(summary).toBe("Leu 1 arquivo e 1 comando falhou")
   })
 
   test("counts the same file once when it is read repeatedly", () => {
@@ -58,6 +58,6 @@ describe("formatChatActivitySummary", () => {
       ],
     })
 
-    expect(summary).toBe("Leu 1 arquivo.")
+    expect(summary).toBe("Leu 1 arquivo")
   })
 })

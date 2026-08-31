@@ -71,8 +71,11 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
 function BotRow({ bot, member = false, members, selected, status }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status: ChatStatus }) {
   return (
     <button className={`${selected ? "bot-list-button conversation-button selected" : "bot-list-button conversation-button"}${member ? " member-bot-button" : ""}`} type="button" onClick={() => selectBot(bot.id)}>
-      <BotAvatar bot={bot} members={members} />
-      <span className="conversation-copy"><strong>{bot.name}</strong><small><span className={`chat-status-dot ${status}`} />{chatStatusLabels[status]} · {bot.function.outcome}</small></span>
+      <span className={`bot-avatar-status${members?.length ? " has-team" : ""}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`} data-tooltip={chatStatusLabels[status]} data-tooltip-placement="top">
+        <BotAvatar bot={bot} members={members} />
+        <span className={`chat-status-dot ${status}`} aria-hidden="true" />
+      </span>
+      <span className="conversation-copy"><strong>{bot.name}</strong><small>{bot.function.outcome}</small></span>
     </button>
   )
 }

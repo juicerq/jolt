@@ -20,7 +20,8 @@ colors:
   success: "#4ade80"
   warning: "#fbbf24"
   error: "#f87171"
-  working: "#60a5fa"
+  working: "#fbbf24"
+  awaiting-decision: "#60a5fa"
   overlay: "rgb(0 0 0 / 72%)"
   inline-code: "#f0ad67"
   syntax-keyword: "#e4a7eb"
@@ -140,16 +141,19 @@ components:
     padding: "{spacing.xl}"
   status-available:
     backgroundColor: "{colors.success}"
-    size: 6px
+    size: 7px
   status-working:
     backgroundColor: "{colors.working}"
-    size: 6px
+    size: 7px
   status-waiting:
     backgroundColor: "{colors.warning}"
-    size: 6px
+    size: 7px
+  status-awaiting-decision:
+    backgroundColor: "{colors.awaiting-decision}"
+    size: 7px
   status-error:
     backgroundColor: "{colors.error}"
-    size: 6px
+    size: 7px
   divider:
     backgroundColor: "{colors.outline}"
   control-outline:
@@ -184,6 +188,9 @@ Inline code in conversations uses a strong warm amber and semibold monospace
 text without a border or background. Fenced code remains contained in its own
 surface with syntax highlighting.
 
+The conversation's top edge uses a 12px translucent fade with a light 6px blur.
+It softens clipped content without creating a visible header layer.
+
 ## Colors
 
 The palette uses warm near-black surfaces and three strengths of neutral text.
@@ -202,9 +209,11 @@ The app has no decorative brand color.
   `surface-hover` and `surface-active` belong only to interaction states.
 - **Outlines (#302c29, #57514d):** The soft outline separates persistent
   regions. The strong outline belongs to controls and focus-adjacent states.
-- **Status colors:** Green means available or complete. Blue means working.
-  Yellow means waiting for the user. Red means failure. Each color answers a
-  state question and never decorates a button or avatar.
+- **Status colors:** Green means available or complete. Yellow means working or
+  interrupting. Red means failure. Blue is reserved for a future state where
+  the Bot is waiting for a decision from the user. Each color answers a state
+  question. In the sidebar, a status badge sits on the avatar and exposes its
+  text in a top tooltip instead of repeating it in the Bot description.
 - **Syntax colors:** Muted lavender, sage, amber, and blue distinguish code
   tokens inside fenced blocks. They never leave code or replace status colors.
 

@@ -15,7 +15,7 @@ describe("ChatActivity", () => {
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
-    expect(markup).toContain("Raciocinou por 3s, leu 1 arquivo e executou 1 comando.")
+    expect(markup).toContain("Raciocinou por 3s, leu 1 arquivo e executou 1 comando")
     expect(markup).toContain("Raciocinou por 3s")
     expect(markup).toContain("Leu 1 arquivo")
     expect(markup).toContain("Executou 1 comando")
@@ -30,7 +30,7 @@ describe("ChatActivity", () => {
       <ChatActivity activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: thinkingDurationMs }] }} />,
     )
 
-    expect(markup).toContain(`Raciocinou por ${label}.`)
+    expect(markup).toContain(`Raciocinou por ${label}`)
   })
 
   test("restores the chronological steps when the completed summary opens", () => {
@@ -48,7 +48,7 @@ describe("ChatActivity", () => {
     const fileRead = markup.indexOf("Leu 1 arquivo", firstThinking)
     const secondThinking = markup.indexOf("Raciocinou por 8s", fileRead)
 
-    expect(markup).toContain("Raciocinou por 13s e leu 1 arquivo.")
+    expect(markup).toContain("Raciocinou por 13s e leu 1 arquivo")
     expect(firstThinking).toBeGreaterThan(-1)
     expect(fileRead).toBeGreaterThan(firstThinking)
     expect(secondThinking).toBeGreaterThan(fileRead)
