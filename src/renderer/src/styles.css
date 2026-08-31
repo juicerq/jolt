@@ -1891,21 +1891,15 @@ legend {
 }
 
 .jots-app .bots-sidebar {
-  padding: 58px 0 10px 12px;
+  padding: 12px 0 10px 12px;
   border: 0;
   background: var(--color-sidebar);
 }
 
 .jots-app .bots-sidebar-heading {
   min-height: 36px;
-  margin: 0 0 8px;
-}
-
-.jots-app .bots-sidebar-heading h2 {
-  color: var(--color-muted);
-  font: var(--font-label);
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  gap: 8px;
+  margin: 0 8px 12px 0;
 }
 
 .jots-app .bots-sidebar-heading button {
@@ -3188,6 +3182,37 @@ legend {
   gap: 4px;
 }
 
+.bots-search {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+}
+
+.bots-search > svg {
+  position: absolute;
+  left: 10px;
+  width: 15px;
+  height: 15px;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.jots-app .bots-search > input {
+  width: 100%;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px 0 32px;
+  border: 1px solid var(--color-outline);
+  border-radius: 8px;
+  background: var(--color-canvas);
+}
+
+.jots-app .bots-search > input:hover {
+  border-color: var(--color-outline-strong);
+}
+
 .project-groups {
   padding-right: 8px;
 }
@@ -3621,7 +3646,7 @@ legend {
     align-items: stretch;
     gap: 0;
     overflow: hidden;
-    padding: 58px 0 10px 8px;
+    padding: 8px 0 10px 8px;
     border: 0;
   }
 
@@ -3643,7 +3668,6 @@ legend {
     margin-left: 8px;
   }
 
-  .jots-app .bots-sidebar-heading h2,
   .jots-app .conversation-copy,
   .project-group-heading,
   .project-empty {
@@ -3654,6 +3678,10 @@ legend {
     align-self: start;
     justify-content: center;
     margin-inline: 0;
+  }
+
+  .jots-app .bots-search {
+    display: none;
   }
 
   .jots-app .bot-list-button {

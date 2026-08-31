@@ -1,9 +1,10 @@
 import { Blobatar } from "@blobatar/react"
-import { ChevronDownIcon, FolderIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ChevronDownIcon, FolderIcon, MagnifyingGlassIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
+import type { projectSchemas } from "../../../shared/projects"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
@@ -20,12 +21,16 @@ const chatStatusLabels: Record<ChatStatus, string> = {
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const selectedBotId = useSelector(botsStore, (state) => state.selectedBotId)
   const statuses = useSelector(chatStore, (state) => state.statuses)
+  const [search, setSearch] = useState("")
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
+  const query = search.trim().toLocaleLowerCase("pt-BR")
+  const visibleData = data && query ? filterProjects(data, query) : data
+  const hasVisibleBots = !!visibleData && (visibleData.projects.length > 0 || visibleData.unassignedBots.length > 0)
 
   return (
     <aside className="bots-sidebar conversation-sidebar">
       <div className="bots-sidebar-heading">
-        <h2>Bots</h2>
+        <BotSearch value={search} onChange={setSearch} />
         <div className="sidebar-create-actions">
           <IconButton type="button" label="Criar projeto" onClick={openCreateProject}><FolderIcon aria-hidden="true" /></IconButton>
           <IconButton type="button" label="Criar bot" onClick={openCreateBot}><UserPlusIcon aria-hidden="true" /></IconButton>
@@ -34,9 +39,10 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       {error && <p className="error sidebar-state">Falha ao carregar Projetos: {error.message}</p>}
       {isPending && <p className="empty sidebar-state">Carregando Projetos...</p>}
       {data && data.projects.length === 0 && data.unassignedBots.length === 0 && <div className="bots-empty"><strong>Nenhum Bot</strong><span>Crie um Bot ou Projeto para começar.</span></div>}
-      {data && (
+      {data && query && !hasVisibleBots && <div className="bots-empty"><strong>Nenhum Bot encontrado</strong><span>Tente outro nome ou função.</span></div>}
+      {visibleData && hasVisibleBots && (
         <nav className="project-groups conversation-list" aria-label="Projetos e Bots">
-          {data.projects.map((project) => (
+          {visibleData.projects.map((project) => (
             <section className="project-group" key={project.id} aria-labelledby={`project-${project.id}`}>
               <div className="project-group-heading"><h3 id={`project-${project.id}`}>{project.name}</h3></div>
               {project.bots.length === 0
@@ -44,16 +50,49 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
                 : <ul className="bots-list">{project.bots.map((bot) => <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />)}</ul>}
             </section>
           ))}
-          {data.unassignedBots.length > 0 && (
+          {visibleData.unassignedBots.length > 0 && (
             <section className="project-group unassigned-group" aria-labelledby="unassigned-bots">
               <div className="project-group-heading"><h3 id="unassigned-bots">Sem projeto</h3></div>
-              <ul className="bots-list">{data.unassignedBots.map((bot) => <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />)}</ul>
+              <ul className="bots-list">{visibleData.unassignedBots.map((bot) => <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />)}</ul>
             </section>
           )}
         </nav>
       )}
     </aside>
   )
+}
+
+function BotSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="bots-search">
+      <MagnifyingGlassIcon aria-hidden="true" />
+      <input type="search" aria-label="Buscar Bots" placeholder="Buscar Bots" value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  )
+}
+
+function filterProjects(data: typeof projectSchemas.groupedList.infer, query: string) {
+  const filterBots = (bots: (Bot & { members: Bot[] })[]) => bots.flatMap((bot) => {
+    const leaderMatches = matchesSearch(bot, query)
+    const matchingMembers = bot.members.filter((member) => matchesSearch(member, query))
+
+    if (!leaderMatches && matchingMembers.length === 0) {
+      return []
+    }
+
+    return [{ ...bot, members: leaderMatches ? bot.members : matchingMembers }]
+  })
+
+  return {
+    projects: data.projects
+      .map((project) => ({ ...project, bots: filterBots(project.bots) }))
+      .filter((project) => project.bots.length > 0),
+    unassignedBots: filterBots(data.unassignedBots),
+  }
+}
+
+function matchesSearch(bot: Bot, query: string) {
+  return `${bot.name} ${bot.function.outcome}`.toLocaleLowerCase("pt-BR").includes(query)
 }
 
 function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {

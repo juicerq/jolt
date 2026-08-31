@@ -262,8 +262,9 @@ conversation plane. A 12px channel separates them. Window controls occupy the
 sidebar's upper-left corner without reserving height above the conversation.
 
 The sidebar holds the Bot list directly. It does not start with a team picker.
-A plus beside `BOTS` creates a Bot. Selection uses a tonal row, not a leading
-line, checkmark, or accent color.
+Its top row combines Bot search with the quiet actions for creating a Project
+or Bot. Selection uses a tonal row, not a leading line, checkmark, or accent
+color.
 
 The conversation plane runs to the bottom and right window margins. It uses one
 24px outer radius and one outline. The content column stays readable instead of
