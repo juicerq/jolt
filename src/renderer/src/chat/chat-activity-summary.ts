@@ -88,6 +88,15 @@ const toolGroups: ToolGroup[] = [
     running: (_count, targets) => `deixou ${targets} sem resposta`,
   },
   {
+    name: "hire",
+    countTargets: true,
+    namesTargets: true,
+    active: (_count, targets) => `aguardando ${targets}`,
+    done: (_count, targets) => `contratou ${targets}`,
+    failed: (count, targets) => `${count === 1 ? "contratação" : "contratações"} de ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    running: (_count, targets) => `deixou ${targets} sem resposta`,
+  },
+  {
     name: "transfer",
     countTargets: true,
     namesTargets: true,

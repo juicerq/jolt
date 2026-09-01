@@ -187,6 +187,38 @@ describe("ChatActivity", () => {
     expect(history).not.toContain("<summary")
   })
 
+  test("shows a hire as waiting for the new member live and as hired in history", () => {
+    const live = renderToStaticMarkup(
+      <ChatActivity
+        activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", brief: "Resumo do clima hoje em SP", status: "running" }] }] }}
+        botName="Marina"
+        status="running"
+      />,
+    )
+    const history = renderToStaticMarkup(
+      <ChatActivity activity={{
+        steps: [
+          { type: "thinking", content: "", durationMs: 4_000 },
+          { type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", brief: "Resumo do clima hoje em SP", status: "done" }] },
+        ],
+      }} />,
+    )
+    const failed = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", status: "failed" }] }] }} />,
+    )
+
+    expect(live).toContain("Aguardando Clima SP")
+    expect(live).toContain("Resumo do clima hoje em SP")
+    expect(live).not.toContain("<code")
+    expect(live).toContain('aria-label="Atividade de contratação em andamento"')
+    expect(live).not.toContain("Usando hire")
+    expect(history).toContain("Pensou por 4s e contratou Clima SP")
+    expect(history).toContain("Contratou Clima SP")
+    expect(history).toContain("Resumo do clima hoje em SP")
+    expect(history).not.toContain("<code")
+    expect(failed).toContain("Contratação de Clima SP falhou")
+  })
+
   test("splits consecutive delegations into one row per member", () => {
     const markup = renderToStaticMarkup(
       <ChatActivity activity={{

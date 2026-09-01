@@ -10,6 +10,7 @@ import {
   PencilSquareIcon,
   SparklesIcon,
   UserGroupIcon,
+  UserPlusIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline"
 import type { ConversationActivity } from "../../../shared/conversations"
@@ -254,6 +255,10 @@ function getActivityStageIcon(step: VisibleStep) {
 
   if (step.name === "delegate") {
     return { label: "delegação", icon: <UserGroupIcon {...iconProps} /> }
+  }
+
+  if (step.name === "hire") {
+    return { label: "contratação", icon: <UserPlusIcon {...iconProps} /> }
   }
 
   if (step.name === "transfer") {
