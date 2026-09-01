@@ -7,6 +7,8 @@ import {
   SessionManager,
   type AgentSessionEvent,
 } from "@earendil-works/pi-coding-agent"
+import { existsSync } from "node:fs"
+import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
 
@@ -97,6 +99,21 @@ function summarizeToolInput(tool: string, input: unknown) {
   return summary.length > 160 ? `${summary.slice(0, 157)}...` : summary
 }
 
+function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?: string) {
+  if (!sessionFile) {
+    return SessionManager.create(cwd, sessionsDirectory)
+  }
+
+  const sessionPath = join(sessionsDirectory, basename(sessionFile))
+  const sessionExists = existsSync(sessionPath)
+
+  if (!sessionExists) {
+    return SessionManager.create(cwd, sessionsDirectory)
+  }
+
+  return SessionManager.open(sessionPath, sessionsDirectory, cwd)
+}
+
 export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; modelId: string }): PiSessionFactory {
   let resources: Promise<{ modelRuntime: ModelRuntime; model: Awaited<ReturnType<ModelRuntime["getAvailable"]>>[number] }> | undefined
 
@@ -127,9 +144,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         ...(input.instructions ? { appendSystemPrompt: [input.instructions] } : {}),
       })
       await loader.reload()
-      const sessionManager = input.sessionFile
-        ? SessionManager.open(input.sessionFile, options.sessionsDirectory, input.cwd)
-        : SessionManager.create(input.cwd, options.sessionsDirectory)
+      const sessionManager = openSessionManager(options.sessionsDirectory, input.cwd, input.sessionFile)
       const result = await createAgentSession({
         cwd: input.cwd,
         model,
@@ -142,7 +157,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const normalizeEvent = createEventNormalizer()
 
       return {
-        sessionFile: result.session.sessionFile,
+        sessionFile: result.session.sessionFile ? basename(result.session.sessionFile) : undefined,
         prompt: (message) => result.session.prompt(message),
         abort: () => result.session.abort(),
         setTools: (tools) => result.session.setActiveToolsByName(tools),
