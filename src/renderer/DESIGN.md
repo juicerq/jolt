@@ -351,8 +351,11 @@ the observed work, such as `Raciocinou por 5s, leu 3 arquivos e executou 5
 comandos.` The duration stays beside reasoning because it does not measure tool
 execution. Each live and expanded step uses an icon for its action instead of a
 generic completion check. The current step stays on the conversation plane
-without a separate background. Live and expanded steps use the same branching
-line as grouped team members in the sidebar, and the final step ends the line.
+without a separate background. Expanded history steps hang from the collapsed
+summary with the same branching line as grouped team members in the sidebar,
+and the final step ends the line. The live stack has no parent above it, so its
+steps sit flush with the icon column without a branching line. Only a step's
+supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work.
 
 **Prompt.** One line by default, centered near the bottom of the conversation.

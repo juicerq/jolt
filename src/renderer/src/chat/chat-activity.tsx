@@ -82,12 +82,12 @@ function LiveActivity({ activity, botName, status }: { activity: VisibleActivity
   const currentIndex = status === "aborting" ? -1 : activity.steps.length - 1
 
   return (
-    <div className="mb-3 grid w-[min(620px,100%)] gap-1 pl-3 text-support text-muted" role="status" aria-label={label}>
+    <div className="mb-3 grid w-[min(620px,100%)] gap-1 text-support text-muted" role="status" aria-label={label}>
       {activity.steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
       {status === "aborting" && (
-        <div className="relative grid min-w-0 gap-1.5 px-[7px] py-[5px] before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline" aria-current="step">
+        <div className="grid min-w-0 gap-1.5 px-[7px] py-[5px]" aria-current="step">
           <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">
             <span className="mt-px size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" role="status" aria-label="Em andamento" />
             <strong className="text-support font-medium text-secondary">Interrompendo resposta…</strong>
@@ -107,7 +107,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const stageModeClasses = {
     compact: "px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none",
     current: "gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none",
-    history: "gap-0.5 px-[7px] py-[5px]",
+    history: "gap-0.5 px-[7px] py-[5px] before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden",
   }
   const heading = (
     <>
@@ -121,7 +121,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   )
 
   return (
-    <div className={`relative grid min-w-0 before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden ${stageModeClasses[mode]}`} {...currentProps}>
+    <div className={`relative grid min-w-0 ${stageModeClasses[mode]}`} {...currentProps}>
       {hasDetailList
         ? (
             <details className="group/stage" open={mode !== "compact"}>
