@@ -143,7 +143,7 @@ export function openDatabase(path: string, observability: Observability) {
       },
       interruptWorking(finishedAt: string) {
         return observability.span({ name: "database.taskinterruptworking" }, () => {
-          database.update(tasks).set({ status: "interrupted", finishedAt }).where(eq(tasks.status, "working")).run()
+          return database.update(tasks).set({ status: "interrupted", finishedAt }).where(eq(tasks.status, "working")).run().changes
         })
       },
       listForLeader(leaderBotId: string) {
