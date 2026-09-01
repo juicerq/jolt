@@ -100,7 +100,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 
 function DraftRow({ name }: { name: string }) {
   return (
-    <div className="mr-2 mb-2 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
+    <div className="mr-2 mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
       <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{name || "Novo Bot"}</strong>
@@ -184,7 +184,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   }
 
   return (
-    <li className="mb-2 block border-0 p-0">
+    <li className="block border-0 p-0">
       <div className="group/leader relative">
         <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} />
         <IconButton
@@ -207,11 +207,11 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
         aria-hidden={!expanded}
         inert={!expanded ? true : undefined}
       >
-        <ul className={memberListClassName} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
+        <ul className={`${memberListClassName} ${expanded ? "py-0.5" : "py-0"}`} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
           {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
-              <button className="mb-2 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
                 <span className="max-[720px]:hidden">Encerrados</span>
                 <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
               </button>
@@ -224,7 +224,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   )
 }
 
-const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden py-0.5 pr-0 pl-2.5 max-[720px]:ml-2"
+const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5 max-[720px]:ml-2"
 const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
 
 function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status?: ChatStatus }) {
@@ -242,7 +242,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
 
   return (
     <button
-      className={`group/row relative mb-2 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
+      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
       type="button"
       aria-current={selected ? "true" : undefined}
       onClick={() => selectBot(bot.id)}
