@@ -216,8 +216,10 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       onBlur={tooltip.hide}
     >
       <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
-        <BotAvatar bot={bot} members={members} />
-        <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+        <span className="relative flex shrink-0">
+          <BotAvatar bot={bot} members={members} />
+          <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+        </span>
       </span>
       <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>
       <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden text-ellipsis whitespace-nowrap max-[720px]:hidden">
