@@ -101,23 +101,25 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
         {run && <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />}
       </ChatScroller>
-      <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
-        <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
-        <textarea
-          className={`field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none ${composerExpanded ? "col-span-full min-h-[25px] py-0 pr-[46px] pl-1" : "min-h-[34px] px-1 py-2"}`}
-          id={`prompt-${bot.id}`}
-          placeholder={`Converse com ${bot.name}...`}
-          value={draft}
-          rows={1}
-          ref={attachComposer}
-          disabled={!!run}
-          onChange={(event) => setChatDraft(bot.id, event.target.value)}
-          onKeyDown={handleComposerKey}
-        />
-        {run
-          ? <IconButton className={composerExpanded ? "col-start-2 row-start-2" : undefined} iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={run.status === "aborting"} label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={handleAbort}><StopIcon aria-hidden="true" /></IconButton>
-          : <IconButton className={`${composerExpanded ? "col-start-2 row-start-2 " : ""}active:scale-96 [&>svg]:stroke-2`} shape="circle" size={34} tone="primary" type="button" disabled={!draft.trim()} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
-      </div>
+      {bot.closed ? <ChatClosed bot={bot} /> : (
+        <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
+          <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
+          <textarea
+            className={`field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none ${composerExpanded ? "col-span-full min-h-[25px] py-0 pr-[46px] pl-1" : "min-h-[34px] px-1 py-2"}`}
+            id={`prompt-${bot.id}`}
+            placeholder={`Converse com ${bot.name}...`}
+            value={draft}
+            rows={1}
+            ref={attachComposer}
+            disabled={!!run}
+            onChange={(event) => setChatDraft(bot.id, event.target.value)}
+            onKeyDown={handleComposerKey}
+          />
+          {run
+            ? <IconButton className={composerExpanded ? "col-start-2 row-start-2" : undefined} iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={run.status === "aborting"} label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={handleAbort}><StopIcon aria-hidden="true" /></IconButton>
+            : <IconButton className={`${composerExpanded ? "col-start-2 row-start-2 " : ""}active:scale-96 [&>svg]:stroke-2`} shape="circle" size={34} tone="primary" type="button" disabled={!draft.trim()} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        </div>
+      )}
     </section>
   )
 }
@@ -160,6 +162,14 @@ function ChatRun({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<st
         {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>
+  )
+}
+
+function ChatClosed({ bot }: { bot: Bot }) {
+  return (
+    <p className="z-[1] col-start-1 row-start-1 m-0 mb-[22px] w-[min(680px,calc(100%-48px))] self-end justify-self-center rounded-full border border-outline bg-surface-raised px-4 py-3 text-center text-support text-muted max-[700px]:w-[calc(100%-28px)]" role="status">
+      {bot.name} encerrou com a Tarefa. O histórico fica aqui.
+    </p>
   )
 }
 

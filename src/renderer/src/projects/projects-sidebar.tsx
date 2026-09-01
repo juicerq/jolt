@@ -6,6 +6,7 @@ import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { projectSchemas } from "../../../shared/projects"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
+import { describeMember, groupMembers } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
@@ -157,7 +158,10 @@ function matchesSearch(bot: Bot, query: string) {
 function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
   const hasTeam = bot.members.length > 0
   const [expanded, setExpanded] = useState(hasTeam)
+  const [closedShown, setClosedShown] = useState(false)
   const memberListId = `team-members-${bot.id}`
+  const groups = groupMembers(bot.members)
+  const openMembers = [...groups.permanent, ...groups.active]
 
   if (!hasTeam) {
     return <li className="block border-0 p-0"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} /></li>
@@ -166,7 +170,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   return (
     <li className="mb-2 block border-0 p-0">
       <div className="group/leader relative">
-        <BotRow bot={bot} members={expanded ? undefined : bot.members} teamLeader selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
+        <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
         <IconButton
           className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100"
           iconSize={13}
@@ -187,17 +191,34 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
         aria-hidden={!expanded}
         inert={!expanded ? true : undefined}
       >
-        <ul className="relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden py-0.5 pr-0 pl-2.5 max-[720px]:ml-2" aria-label={`Integrantes de ${bot.name}`}>
-          {bot.members.map((member) => (
-            <li
-              className="relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
-              key={member.id}
-            >
-              <BotRow bot={member} member selected={selectedBotId === member.id} status={statuses[member.id] ?? "available"} />
+        <ul className={memberListClassName} aria-label={`Integrantes de ${bot.name}`}>
+          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={selectedBotId === member.id} status={statuses[member.id] ?? "available"} />)}
+          {groups.closed.length > 0 && (
+            <li className={memberItemClassName}>
+              <button className="mb-[3px] flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} onClick={() => setClosedShown((current) => !current)}>
+                <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
+                <span className="max-[720px]:hidden">Encerrados ({groups.closed.length})</span>
+              </button>
+              {closedShown && (
+                <ul className={memberListClassName} aria-label={`Integrantes encerrados de ${bot.name}`}>
+                  {groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={selectedBotId === member.id} status="available" />)}
+                </ul>
+              )}
             </li>
-          ))}
+          )}
         </ul>
       </div>
+    </li>
+  )
+}
+
+const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden py-0.5 pr-0 pl-2.5 max-[720px]:ml-2"
+const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
+
+function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status: ChatStatus }) {
+  return (
+    <li className={`${memberItemClassName}${member.closed ? " opacity-60" : ""}`}>
+      <BotRow bot={member} member selected={selected} status={status} />
     </li>
   )
 }
@@ -223,7 +244,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>
       <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden text-ellipsis whitespace-nowrap max-[720px]:hidden">
         <strong className="text-control font-semibold text-primary">{bot.name}</strong>
-        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{bot.function.outcome}</small>
+        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>
       </span>
     </button>
   )
