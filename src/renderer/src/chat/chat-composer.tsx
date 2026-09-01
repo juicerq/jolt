@@ -59,14 +59,17 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   }
 
   function pickCommand(index: number) {
-    const action = suggestions[index]?.action
+    const suggestion = suggestions[index]
 
-    if (!action) {
+    if (!suggestion) {
       return
     }
 
-    runCommand(action)
-    setChatDraftContent(bot.id, "")
+    const ran = runCommand(suggestion)
+
+    if (ran) {
+      setChatDraftContent(bot.id, "")
+    }
   }
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {

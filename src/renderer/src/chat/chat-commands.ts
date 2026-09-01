@@ -1,77 +1,32 @@
-import { type BotEffort, botEfforts } from "../../../shared/bots"
-import type { ProviderModels } from "../../../shared/providers"
-import { effortLabels } from "../bots/bot-effort"
-
-export type ChatCommandAction =
-  | { kind: "model"; model: string }
-  | { kind: "effort"; effort: BotEffort }
-  | { kind: "remember"; content: string }
-
 export type ChatCommandSuggestion = {
-  command: "modelo" | "esforco" | "lembrar"
+  command: "lembrar"
   label: string
-  detail?: string
-  standard: boolean
-  action: ChatCommandAction | null
-}
-
-type ChatCommandContext = {
-  catalog: Pick<ProviderModels, "default" | "models"> | undefined
-  memoryEnabled: boolean
+  detail: string
+  content: string | null
 }
 
 export function isChatCommand(content: string) {
   return content.startsWith("/") && !content.includes("\n")
 }
 
-export function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {
-  if (!isChatCommand(content)) {
+export function suggestChatCommands(content: string, context: { memoryEnabled: boolean }): ChatCommandSuggestion[] {
+  if (!isChatCommand(content) || !context.memoryEnabled) {
     return []
   }
 
-  const [name = "", ...rest] = content.slice(1).split(/\s+/)
-  const argument = rest.join(" ").trim()
-  const rememberContent = content.slice(1).replace(/^\S*\s*/, "").trim()
-
-  const models = (context.catalog?.models ?? []).map((model): ChatCommandSuggestion => ({
-    command: "modelo",
-    label: model.name,
-    standard: model.id === context.catalog?.default,
-    action: { kind: "model", model: model.id },
-  }))
-  const efforts = botEfforts.map((effort): ChatCommandSuggestion => ({
-    command: "esforco",
-    label: effortLabels[effort],
-    standard: effort === "medium",
-    action: { kind: "effort", effort },
-  }))
-  const remember: ChatCommandSuggestion[] = context.memoryEnabled
-    ? [{
-        command: "lembrar",
-        label: "Lembrar",
-        detail: rememberContent || "Escreva a Lembrança depois de /lembrar",
-        standard: false,
-        action: rememberContent ? { kind: "remember", content: rememberContent } : null,
-      }]
-    : []
-
-  return [...models, ...efforts, ...remember].filter((suggestion) => matches(suggestion, name, argument))
-}
-
-function matches(suggestion: ChatCommandSuggestion, name: string, argument: string) {
-  const commandMatches = suggestion.command.startsWith(normalize(name))
+  const [name = ""] = content.slice(1).split(/\s+/)
+  const commandMatches = "lembrar".startsWith(name.toLowerCase())
 
   if (!commandMatches) {
-    return false
+    return []
   }
 
-  if (suggestion.command === "lembrar" || argument === "") {
-    return true
-  }
+  const rememberContent = content.slice(1).replace(/^\S*\s*/, "").trim()
 
-  return normalize(suggestion.label).includes(normalize(argument))
-}
-
-function normalize(text: string) {
-  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+  return [{
+    command: "lembrar",
+    label: "Lembrar",
+    detail: rememberContent || "Escreva a Lembrança depois de /lembrar",
+    content: rememberContent || null,
+  }]
 }

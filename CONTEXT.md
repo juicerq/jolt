@@ -117,7 +117,7 @@ A variante do Fornecedor do Bot que executa o trabalho, como um modelo específi
 _Evitar_: Fornecedor, Conexão, versão
 
 **Comando**:
-Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem: `/modelo`, `/esforco` e `/lembrar`. Executar um Comando limpa o que foi digitado.
+Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem. Hoje existe `/lembrar`, que cria uma Lembrança. Executar um Comando limpa o que foi digitado.
 _Evitar_: Atalho, slash command, ação rápida
 
 **Tarefa**:
