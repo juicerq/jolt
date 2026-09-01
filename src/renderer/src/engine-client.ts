@@ -40,6 +40,10 @@ export function createEngineClient(connection: typeof engineConnection.infer) {
 
         return response
       } catch (error) {
+        if (request.signal.aborted) {
+          throw error
+        }
+
         await sender.observations.rendererSpan({
           name: "renderer.rpc",
           timestamp: new Date().toISOString(),
