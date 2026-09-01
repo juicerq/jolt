@@ -21,7 +21,7 @@ import { ChatScroller } from "./chat-scroller"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 import { ChatMemberResult } from "./chat-member-result"
-import { ChatMissingReply } from "./chat-missing-reply"
+import { ChatTurnEnding } from "./chat-turn-ending"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
   const draft = useSelector(chatStore, (state) => state.drafts[bot.id] ?? "")
@@ -99,9 +99,7 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {error && <ChatError message={error.message} />}
         {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
-        {run
-          ? <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
-          : <ChatMissingReply botId={bot.id} messages={messages ?? []} />}
+        {run && <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />}
       </ChatScroller>
       <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
         <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
@@ -140,7 +138,9 @@ function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message:
     <article className={`group relative max-w-[720px] ${personClasses}`}>
       <div className="pointer-events-none absolute -top-5 left-0 flex items-center justify-start gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{authorName}</strong><time>{formatMessageTime(message.createdAt)}</time></div>
       {message.author === "bot" && message.activity && <ChatActivity activity={message.activity} />}
-      {message.author === "bot" ? <ChatContent content={message.content} /> : <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>}
+      {message.author === "bot" && message.content && <ChatContent content={message.content} />}
+      {message.author === "person" && <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>}
+      {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} />}
     </article>
   )
 }

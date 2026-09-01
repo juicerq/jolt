@@ -115,7 +115,7 @@ export function dismissChatRun(botId: string) {
   settleChatRun(botId, "available")
 }
 
-export function settleChatRun(botId: string, status: "available" | "completed") {
+export function settleChatRun(botId: string, status: "available" | "completed" | "error") {
   chatStore.setState((state) => ({
     ...state,
     runs: { ...state.runs, [botId]: undefined },

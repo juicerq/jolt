@@ -1,10 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query"
-import type { BotConversationEvent } from "../../../shared/conversations"
+import type { BotConversationEvent, FinishReason } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
 import {
   appendChatText,
   appendChatThinking,
-  failChatRun,
   finishChatThinking,
   finishChatTool,
   settleChatRun,
@@ -14,6 +13,7 @@ import {
 } from "./chat-store"
 
 const reconnectDelayMs = 1_000
+const settledStatuses: Record<FinishReason, "available" | "completed" | "error"> = { stop: "completed", aborted: "available", error: "error" }
 
 export function subscribeChatEvents({ client, queryClient }: { client: Pick<EngineClient, "query" | "raw">; queryClient: QueryClient }) {
   const controller = new AbortController()
@@ -54,16 +54,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       return
     }
 
-    if (event.reason === "error") {
-      failChatRun(botId, "O bot não conseguiu concluir a resposta")
-      return
-    }
-
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: client.query.conversations.key() }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
     ])
-    settleChatRun(botId, event.reason === "stop" ? "completed" : "available")
+    settleChatRun(botId, settledStatuses[event.reason])
   }
 
   async function consume(events: AsyncIterable<BotConversationEvent>) {
