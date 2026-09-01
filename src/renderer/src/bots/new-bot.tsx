@@ -15,7 +15,7 @@ type Step = "name" | "outcome" | "workspace"
 const chipClassName = `${fieldControlClassName} flex cursor-pointer items-center gap-2 text-left hover:border-focus`
 const lineClassName = "w-full border-0 bg-transparent text-center text-primary placeholder:text-muted focus-visible:outline-none"
 const revealClassName = "transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
-const hintClassName = `${revealClassName} text-metadata font-medium text-muted`
+const hintClassName = `${revealClassName} text-metadata font-normal text-muted opacity-60`
 const settledClassName = `${revealClassName} cursor-text rounded-md border-0 bg-transparent px-2 py-0 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active`
 
 function onEnter(commit: () => void) {
