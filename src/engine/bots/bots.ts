@@ -107,7 +107,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         provider: leader.provider,
         function: details.function,
         workingDirectoryOverride: leader.workingDirectoryOverride,
-        temporary: true,
+        temporary: !details.permanent,
         createdAt: new Date().toISOString(),
       })
     },

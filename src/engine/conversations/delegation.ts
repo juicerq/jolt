@@ -142,7 +142,7 @@ export function createDelegation(input: {
 
       const hire: PiCustomTool = {
         name: "hire",
-        description: "Create a temporary member for one Tarefa and delegate it in the same call. The member inherits your folder and executor, cannot create Bots, and closes when the Tarefa ends. Use it when no permanent member fits the Tarefa.",
+        description: "Add a member to your team and delegate its first Tarefa in the same call. The member inherits your folder and executor and cannot create Bots. A permanent member stays for future Tarefas; a temporary one closes when this Tarefa ends. Use it when no current member fits the Tarefa.",
         parameters: {
           name: "Name of the member",
           role: "The member's Função: what it delivers, in one line",
@@ -153,14 +153,10 @@ export function createDelegation(input: {
           wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
         },
         async execute(params) {
-          const to = await input.bots.hire(bot, { name: params.name, function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
+          const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
 
           return assign(bot, to, params)
         },
-      }
-
-      if (members(bot).length === 0) {
-        return [hire]
       }
 
       return [hire, {
@@ -189,7 +185,7 @@ export function createDelegation(input: {
       }
 
       const team = members(bot)
-      const hiring = "Use the hire tool to create a temporary member for one Tarefa when nobody on your team fits it. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message."
+      const hiring = "Use the hire tool when nobody on your team fits a Tarefa: permanent yes when the Função will be needed again, no for a one-off member. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message."
 
       if (team.length === 0) {
         return [hiring, "You remain responsible for the overall result. Orders from the person prevail over yours."].join("\n")

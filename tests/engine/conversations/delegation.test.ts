@@ -143,7 +143,6 @@ describe("delegation", () => {
     const events = await environment.turn(leader.id, "Delegue os testes")
 
     expect(events.map((event) => event.type)).toEqual(["started", "tool-started", "tool-finished", "text", "finished"])
-    expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Dara: Telas desenhadas")
     expect(environment.sessions.get(member.id)?.tools).toContain("transfer")
@@ -280,12 +279,11 @@ describe("delegation", () => {
 
     await environment.turn(leader.id, "Oi")
 
-    expect(environment.sessions.get(leader.id)?.tools).not.toContain("delegate")
+    expect(environment.sessions.get(leader.id)?.instructions).not.toContain("- Calo")
     environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 
-    expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")
     await environment.close()
   })
@@ -324,6 +322,34 @@ describe("delegation", () => {
     expect(history).toContainEqual({ author: "bot", authorBotId: other.id, taskId: tasks[1]?.id, content: "Tela desenhada" })
     expect(history).toContainEqual({ author: "bot", authorBotId: leader.id, taskId: tasks[1]?.id, content: "Recebi: Tela desenhada" })
     expect(history).toHaveLength(6)
+    await environment.close()
+  })
+
+  test("a Leader without a team hires a permanent member and delegates to it in the same turn", async () => {
+    const environment = setup()
+    const leader = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
+    environment.scripts.set(leader.id, async (message, call) => {
+      if (message === "Peça a segunda revisão") {
+        return `Segunda: ${await call("delegate", { member: "Revisor", outcome: "Segunda revisão", instructions: "Revise de novo" })}`
+      }
+
+      const first = await call("hire", { name: "Revisor", role: "Revisão de código", permanent: "yes", outcome: "Primeira revisão", instructions: "Leia tudo" })
+
+      return `Primeira: ${first}. Mesma volta: ${await call("delegate", { member: "Revisor", outcome: "Revisão extra", instructions: "Confira o resto" })}`
+    })
+    environment.scripts.set("*", async (message) => `Feito: ${message.split("\n")[0]}`)
+
+    await environment.turn(leader.id, "Contrate um revisor fixo")
+    const hired = environment.bots.list().find((bot) => bot.name === "Revisor")
+
+    expect(hired).toMatchObject({ leaderBotId: leader.id, temporary: false, closed: false, function: { outcome: "Revisão de código" } })
+    expect(hired?.function).not.toHaveProperty("description")
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Primeira: Feito: Primeira revisão. Mesma volta: Feito: Revisão extra")
+    await environment.turn(leader.id, "Peça a segunda revisão")
+
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Segunda: Feito: Segunda revisão")
+    expect(environment.sessions.get(leader.id)?.instructions).toContain("- Revisor: Revisão de código")
+    expect(environment.tasks.listForLeader({ leaderBotId: leader.id }).map((task) => task.status)).toEqual(["done", "done", "done"])
     await environment.close()
   })
 

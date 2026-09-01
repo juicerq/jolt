@@ -22,7 +22,7 @@ const createInput = type({ ...createFields, "projectId?": "string > 0" }).or(typ
 
 export const botSchemas = {
   createInput,
-  hireInput: type({ "+": "reject", name: "string > 0", function: botFunction }),
+  hireInput: type({ "+": "reject", name: "string > 0", function: botFunction, permanent: "boolean" }),
   idInput: type({ "+": "reject", id: "string > 0" }),
   updateWorkspaceInput: type({ "+": "reject", id: "string > 0", projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null") }),
   storedBot,
