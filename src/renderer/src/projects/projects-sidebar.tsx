@@ -212,8 +212,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       className={`group/row relative mb-[3px] flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
       type="button"
       onClick={() => selectBot(bot.id)}
-      onFocus={tooltip.show}
-      onBlur={tooltip.hide}
+      {...tooltip.focusProps}
     >
       <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
         <span className="relative flex shrink-0">

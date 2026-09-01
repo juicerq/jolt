@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, type Ref, useId, useRef } from "react"
+import { type CSSProperties, type FocusEvent, type ReactNode, type Ref, useId, useRef } from "react"
 
 export type TooltipPlacement = "top" | "right" | "bottom" | "left"
 
@@ -25,11 +25,17 @@ export function useTooltip() {
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(show, 160)
   }
+  const showOnKeyboardFocus = (event: FocusEvent<HTMLElement>) => {
+    const keyboardFocus = event.currentTarget.matches(":focus-visible")
+
+    if (keyboardFocus) {
+      show()
+    }
+  }
 
   return {
-    show,
-    hide,
-    anchorProps: { style: { anchorName } satisfies CSSProperties, onPointerEnter: showAfterDelay, onPointerLeave: hide, onFocus: show, onBlur: hide },
+    focusProps: { onFocus: showOnKeyboardFocus, onBlur: hide },
+    anchorProps: { style: { anchorName } satisfies CSSProperties, onPointerEnter: showAfterDelay, onPointerLeave: hide, onFocus: showOnKeyboardFocus, onBlur: hide },
     popoverProps: { anchorName, ref: popoverRef },
   }
 }
