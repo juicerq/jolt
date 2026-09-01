@@ -24,7 +24,7 @@ const directory = testDirectory("jolt-chat-events-")
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), system.observability)
-  const providers = createPiProvider(system.observability, async () => [{ id: "gpt-5.6-luna" }])
+  const providers = createPiProvider(system.observability, async () => [{ id: "gpt-5.6-luna", name: "GPT-5.6 Luna" }])
   const bots = createBots({ database, observability: system.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const projects = createProjects({ database, observability: system.observability, bots })
   const tasks = createTasks({ database, observability: system.observability })
@@ -107,7 +107,7 @@ test("a turn streamed by the Engine drives the chat store from start to completi
     }
   })
 
-  await environment.client.raw.conversations.send({ botId: bot.id, content: "Olá" })
+  await environment.client.raw.conversations.send({ botId: bot.id, content: "Olá", images: [] })
   await until(() => chatStore.state.statuses[bot.id] === "completed")
 
   expect(seen).toContain("Resposta pronta")

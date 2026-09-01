@@ -13,7 +13,7 @@ import { createConversations } from "./conversations/conversations"
 import { createMemory } from "./memory/memory"
 import { createPiAgentRuntime } from "./pi/pi-agent-runtime"
 import { createPiSessionFactory } from "./pi/pi-session-adapter"
-import { createPiProvider } from "./pi/pi-provider"
+import { codexDefaultModelId, createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
 import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
@@ -108,7 +108,7 @@ const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
 const piSessionFactory = createPiSessionFactory({
   agentDirectory: join(piDirectory, "agent"),
   sessionsDirectory: join(piDirectory, "sessions"),
-  modelId: "gpt-5.6-luna",
+  modelId: codexDefaultModelId,
 })
 const piRuntime = createPiAgentRuntime(piSessionFactory, observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })

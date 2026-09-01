@@ -10,7 +10,7 @@ const directory = testDirectory("jolt-database-")
 function setup() {
   const { observability } = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), observability)
-  const bot = database.bots.create({ id: crypto.randomUUID(), leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: { outcome: "Answer" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
+  const bot = database.bots.create({ id: crypto.randomUUID(), leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: { outcome: "Answer" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
 
   return { bot, database, observability }
 }
@@ -24,7 +24,7 @@ describe("database", () => {
       development: false,
     })
     const database = openDatabase(databasePath, observability)
-    expect(database.migrationState()).toEqual(["20260901132949_initial-schema", "20260901184631_routines", "20260901200730_memory"])
+    expect(database.migrationState()).toEqual(["20260901132949_initial-schema", "20260901184631_routines", "20260901200730_memory", "20260901224322_message-images", "20260901225418_bot-effort", "20260901225922_bot-model"])
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
@@ -45,7 +45,7 @@ describe("database", () => {
     sqlite.close()
     await observability.flush()
 
-    expect(migration?.count).toBe(3)
+    expect(migration?.count).toBe(6)
     expect(bots?.name).toBe("bots")
     expect(projects?.name).toBe("projects")
     expect(conversations?.name).toBe("conversations")
@@ -56,6 +56,7 @@ describe("database", () => {
     expect(botColumns).toContain("temporary")
     expect(botColumns).toContain("memory_enabled")
     expect(botColumns).not.toContain("function_outcome")
+    expect(messageColumns).toContain("images")
     expect(messageColumns).toContain("activity")
   })
 
@@ -63,7 +64,7 @@ describe("database", () => {
     const { bot, database, observability } = setup()
     const createdAt = new Date().toISOString()
     const later = new Date(Date.now() + 1000).toISOString()
-    const message = database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Rode typecheck", activity: null, ending: null, createdAt })
+    const message = database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Rode typecheck", images: [], activity: null, ending: null, createdAt })
     const first = database.notes.create({ id: crypto.randomUUID(), botId: bot.id, content: "A pessoa exige typecheck", turnAuthor: "person", taskId: null, messageId: message.id, createdAt, curatedAt: null })
     const second = database.notes.create({ id: crypto.randomUUID(), botId: bot.id, content: "Nada novo na caixa", turnAuthor: "routine", taskId: null, messageId: null, createdAt: later, curatedAt: null })
 

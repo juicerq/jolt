@@ -1,22 +1,21 @@
 import { Blobatar } from "@blobatar/react"
-import { ArrowUpIcon, StopIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { type KeyboardEvent, useCallback, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
-import type { ConversationMessage } from "../../../shared/conversations"
+import type { ConversationMessage, MessageImage } from "../../../shared/conversations"
 import type { TaskStatus } from "../../../shared/tasks"
 import type { EngineClient } from "../engine-client"
-import { IconButton } from "../ui/icon-button"
 import {
+  type ChatDraft,
   chatStore,
   dismissChatRun,
   failChatRun,
   markChatAborting,
-  setChatDraft,
   startChatRun,
   type ChatRun as ChatRunState,
 } from "./chat-store"
+import { ChatComposer } from "./chat-composer"
+import { messageImageSource } from "./chat-images"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
@@ -26,10 +25,7 @@ import { ChatRoutineCall } from "./chat-routine-call"
 import { ChatTurnEnding } from "./chat-turn-ending"
 
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
-  const draft = useSelector(chatStore, (state) => state.drafts[bot.id] ?? "")
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
-  const [composerExpanded, setComposerExpanded] = useState(false)
-  const composerObserverRef = useRef<ResizeObserver | null>(null)
   const historyOptions = client.query.conversations.history.queryOptions({ input: { botId: bot.id } })
   const { data: messages, error, isPending } = useQuery(historyOptions)
   const { data: allBots } = useQuery(client.query.bots.list.queryOptions())
@@ -38,37 +34,11 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const taskStatuses = Object.fromEntries((tasks ?? []).map((task) => [task.id, task.status]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
 
-  const attachComposer = useCallback((composer: HTMLTextAreaElement | null) => {
-    composerObserverRef.current?.disconnect()
+  async function handleSend(draft: ChatDraft) {
+    const message = { ...draft, content: draft.content.trim() }
 
-    if (!composer) {
-      return
-    }
-
-    const element = composer
-
-    function updateComposerLayout() {
-      const styles = getComputedStyle(element)
-      const contentHeight = element.clientHeight - Number.parseFloat(styles.paddingTop) - Number.parseFloat(styles.paddingBottom)
-      const lineHeight = Number.parseFloat(styles.lineHeight)
-
-      setComposerExpanded(contentHeight > lineHeight * 1.5)
-    }
-
-    composerObserverRef.current = new ResizeObserver(updateComposerLayout)
-    composerObserverRef.current.observe(element)
-    updateComposerLayout()
-  }, [])
-
-  async function handleSend() {
-    const content = draft.trim()
-
-    if (!content || run) {
-      return
-    }
-
-    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, content })
-    await client.raw.conversations.send({ botId: bot.id, content }).catch((sendError: unknown) => {
+    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message })
+    await client.raw.conversations.send({ botId: bot.id, ...message }).catch((sendError: unknown) => {
       failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder")
     })
   }
@@ -84,15 +54,6 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
     })
   }
 
-  function handleComposerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
-      return
-    }
-
-    event.preventDefault()
-    handleSend()
-  }
-
   return (
     <section className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
       <ChatScroller>
@@ -102,25 +63,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
         {run && <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />}
       </ChatScroller>
-      {bot.closed ? <ChatClosed bot={bot} /> : (
-        <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
-          <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
-          <textarea
-            className={`field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none ${composerExpanded ? "col-span-full min-h-[25px] py-0 pr-[46px] pl-1" : "min-h-[34px] px-1 py-2"}`}
-            id={`prompt-${bot.id}`}
-            placeholder={`Converse com ${bot.name}...`}
-            value={draft}
-            rows={1}
-            ref={attachComposer}
-            disabled={!!run}
-            onChange={(event) => setChatDraft(bot.id, event.target.value)}
-            onKeyDown={handleComposerKey}
-          />
-          {run
-            ? <IconButton className={composerExpanded ? "col-start-2 row-start-2" : undefined} iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={run.status === "aborting"} label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={handleAbort}><StopIcon aria-hidden="true" /></IconButton>
-            : <IconButton className={`${composerExpanded ? "col-start-2 row-start-2 " : ""}active:scale-96 [&>svg]:stroke-2`} shape="circle" size={34} tone="primary" type="button" disabled={!draft.trim()} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
-        </div>
-      )}
+      {bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />}
     </section>
   )
 }
@@ -147,7 +90,7 @@ function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message:
   const time = formatMessageTime(message.createdAt)
 
   if (message.author === "person") {
-    return <PersonBubble time={time} content={message.content} />
+    return <PersonBubble time={time} content={message.content} images={message.images} />
   }
 
   return (
@@ -161,17 +104,22 @@ function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message:
   )
 }
 
-function PersonBubble({ time, content }: { time: string; content: string }) {
+function PersonBubble({ time, content, images }: { time: string; content: string; images: MessageImage[] }) {
   return (
-    <ChatStamped className="max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" name="Você" time={time} side="left" anchor="bubble">
-      <p className="m-0 whitespace-pre-wrap text-body text-primary">{content}</p>
+    <ChatStamped className="flex max-w-[min(640px,84%)] flex-col gap-2 self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" name="Você" time={time} side="left" anchor="bubble">
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {images.map((image, index) => <img key={`${index}-${image.data.length}`} className="block max-h-60 max-w-full rounded-lg border border-outline-strong object-contain" src={messageImageSource(image)} alt={`Imagem ${index + 1}`} />)}
+        </div>
+      )}
+      {content && <p className="m-0 whitespace-pre-wrap text-body text-primary">{content}</p>}
     </ChatStamped>
   )
 }
 
 function ChatRunMessage({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
   if (run.message.author === "person") {
-    return <PersonBubble time="Agora" content={run.message.content} />
+    return <PersonBubble time="Agora" content={run.message.content} images={run.message.images} />
   }
 
   if (run.message.author === "routine") {

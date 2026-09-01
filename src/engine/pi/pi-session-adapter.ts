@@ -137,24 +137,26 @@ function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?
 }
 
 export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; modelId: string }): PiSessionFactory {
-  let resources: Promise<{ modelRuntime: ModelRuntime; model: Awaited<ReturnType<ModelRuntime["getAvailable"]>>[number] }> | undefined
+  let resources: Promise<{ modelRuntime: ModelRuntime; models: Awaited<ReturnType<ModelRuntime["getAvailable"]>> }> | undefined
 
   async function loadResources() {
     const modelRuntime = await ModelRuntime.create({ signal: AbortSignal.timeout(15_000) })
     const models = await modelRuntime.getAvailable("openai-codex")
-    const model = models.find((candidate) => candidate.id === options.modelId)
 
-    if (!model) {
-      throw new Error("Pi did not find the configured Codex model")
-    }
-
-    return { modelRuntime, model }
+    return { modelRuntime, models }
   }
 
   return {
     async open(input) {
       resources ??= loadResources()
-      const { modelRuntime, model } = await resources
+      const { modelRuntime, models } = await resources
+      const modelId = input.model ?? options.modelId
+      const model = models.find((candidate) => candidate.id === modelId)
+
+      if (!model) {
+        throw new Error(`Pi did not find the Codex model ${modelId}`)
+      }
+
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
@@ -171,6 +173,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         cwd: input.cwd,
         model,
         modelRuntime,
+        thinkingLevel: input.effort,
         resourceLoader: loader,
         sessionManager,
         tools: input.tools,
@@ -180,7 +183,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
 
       return {
         sessionFile: result.session.sessionFile ? basename(result.session.sessionFile) : undefined,
-        prompt: (message) => result.session.prompt(message),
+        prompt: (content, images = []) => result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) }),
         abort: () => result.session.abort(),
         setTools: (tools) => result.session.setActiveToolsByName(tools),
         subscribe(listener) {

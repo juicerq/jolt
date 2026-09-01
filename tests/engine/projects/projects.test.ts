@@ -61,7 +61,7 @@ describe("projects", () => {
       function: botInput.function,
       workingDirectoryOverride: null,
       temporary: false,
-      memoryEnabled: true,
+      memoryEnabled: true, effort: "medium", model: null,
       createdAt: new Date().toISOString(),
     })
 

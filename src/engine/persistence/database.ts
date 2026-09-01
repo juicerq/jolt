@@ -30,6 +30,7 @@ const messageColumns = {
   authorBotId: messages.authorBotId,
   taskId: messages.taskId,
   content: messages.content,
+  images: messages.images,
   activity: messages.activity,
   ending: messages.ending,
   createdAt: messages.createdAt,
@@ -83,7 +84,7 @@ export function openDatabase(path: string, observability: Observability) {
           return row ? botSchemas.storedBot.assert(row) : undefined
         })
       },
-      update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled">) {
+      update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled" | "effort" | "model">) {
         return observability.span({ name: "database.botupdate", context: { botId: id, ...(changes.projectId ? { projectId: changes.projectId } : {}) } }, () => {
           const row = database.transaction((transaction) => {
             const updated = transaction.update(bots).set(changes).where(eq(bots.id, id)).returning().get()

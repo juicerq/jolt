@@ -141,7 +141,7 @@ describe("routines", () => {
     const bot = await createBot(environment)
     environment.routines.create({ botId: bot.id, content: "Verifique a caixa de entrada", frequency: { form: "interval", everyMinutes: 30 } })
     environment.holdPrompts()
-    await environment.conversations.send({ botId: bot.id, content: "Revise o relatório" })
+    await environment.conversations.send({ botId: bot.id, content: "Revise o relatório", images: [] })
 
     const reopened = new Date(Date.now() + hour)
     setSystemTime(reopened)
@@ -188,7 +188,7 @@ describe("routines", () => {
   test("the Bot edits its own Rotinas through the routine tools", async () => {
     const environment = setup()
     const bot = await createBot(environment)
-    await environment.conversations.send({ botId: bot.id, content: "Olá" })
+    await environment.conversations.send({ botId: bot.id, content: "Olá", images: [] })
     const botTools = environment.tools.get(bot.id) ?? []
     const routineTool = botTools.find((tool) => tool.name === "routine")
     const removeTool = botTools.find((tool) => tool.name === "remove_routine")
@@ -242,7 +242,7 @@ describe("routines", () => {
     const now = new Date()
     now.setHours(10, 0, 0, 0)
     setSystemTime(now)
-    await environment.conversations.send({ botId: bot.id, content: "Olá" })
+    await environment.conversations.send({ botId: bot.id, content: "Olá", images: [] })
     const routineTool = environment.tools.get(bot.id)?.find((tool) => tool.name === "routine")
 
     await routineTool?.execute({ content: "Tomar café", inMinutes: "5" })

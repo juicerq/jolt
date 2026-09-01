@@ -20,23 +20,35 @@ export type ChatRun = {
   error?: string
 }
 
+export type ChatDraft = Pick<IncomingMessage, "content" | "images">
+
 type ChatState = {
-  drafts: Record<string, string>
+  drafts: Record<string, ChatDraft>
   runs: Record<string, ChatRun | undefined>
   statuses: Record<string, ChatStatus | undefined>
 }
 
 export type ChatStatus = "available" | "working" | "waiting" | "completed" | "error"
 
+export const emptyChatDraft: ChatDraft = { content: "", images: [] }
+
 export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {} })
 
-export function setChatDraft(botId: string, draft: string) {
-  chatStore.setState((state) => ({ ...state, drafts: { ...state.drafts, [botId]: draft } }))
+export function setChatDraftContent(botId: string, content: string) {
+  updateDraft(botId, (draft) => ({ ...draft, content }))
+}
+
+export function addChatDraftImages(botId: string, images: ChatDraft["images"]) {
+  updateDraft(botId, (draft) => ({ ...draft, images: [...draft.images, ...images] }))
+}
+
+export function removeChatDraftImage(botId: string, index: number) {
+  updateDraft(botId, (draft) => ({ ...draft, images: draft.images.filter((_, position) => position !== index) }))
 }
 
 export function startChatRun(botId: string, message: IncomingMessage) {
   chatStore.setState((state) => ({
-    drafts: { ...state.drafts, [botId]: message.author === "person" ? "" : state.drafts[botId] ?? "" },
+    drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
       [botId]: { message, responseContent: "", steps: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
@@ -121,6 +133,10 @@ export function settleChatRun(botId: string, status: "available" | "completed" |
     runs: { ...state.runs, [botId]: undefined },
     statuses: { ...state.statuses, [botId]: status },
   }))
+}
+
+function updateDraft(botId: string, update: (draft: ChatDraft) => ChatDraft) {
+  chatStore.setState((state) => ({ ...state, drafts: { ...state.drafts, [botId]: update(state.drafts[botId] ?? emptyChatDraft) } }))
 }
 
 function updateRun(botId: string, update: (run: ChatRun) => ChatRun) {

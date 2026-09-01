@@ -1,0 +1,1 @@
+ALTER TABLE `bots` ADD `effort` text DEFAULT 'medium' NOT NULL;

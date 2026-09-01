@@ -80,6 +80,12 @@ export function createEngineRouter(
           () => providers.list(),
         ),
       ),
+      models: operations.providers.models.handler(({ context }: { context: EngineContext }) =>
+        observability.span(
+          { name: "orpc.providermodels", context: observationContext(context) },
+          () => providers.models(),
+        ),
+      ),
     },
     projects: {
       create: operations.projects.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>

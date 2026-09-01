@@ -1,3 +1,5 @@
+import type { BotEffort } from "../../shared/bots"
+import type { IncomingMessage, MessageImage } from "../../shared/conversations"
 import type { Observability } from "../observability/observability"
 import type { PiPermissionDecision, PiPermissionPolicy } from "./pi-permissions"
 
@@ -20,7 +22,7 @@ export type PiCustomTool = {
 
 export type PiSession = {
   sessionFile?: string
-  prompt(message: string): Promise<void>
+  prompt(content: string, images?: MessageImage[]): Promise<void>
   abort(): Promise<void>
   setTools(tools: string[]): void
   subscribe(listener: (event: PiRuntimeEvent) => void): () => void
@@ -32,6 +34,8 @@ export type PiSessionFactory = {
     botId: string
     cwd: string
     tools: string[]
+    effort: BotEffort
+    model: string | null
     policy: PiPermissionPolicy
     decisions: PiPermissionDecision[]
     customTools?: PiCustomTool[]
@@ -46,7 +50,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   const decisions: PiPermissionDecision[] = []
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; grants: Set<string>; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
+    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; grants: Set<string>; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
       sessions.get(input.botId)?.unsubscribe()
       sessions.get(input.botId)?.session.dispose()
 
@@ -83,14 +87,14 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
 
       return () => entry.listeners.delete(listener)
     },
-    async prompt(botId: string, message: string) {
+    async prompt(botId: string, message: Pick<IncomingMessage, "content" | "images">) {
       const entry = sessions.get(botId)
 
       if (!entry) {
         throw new Error("Pi session not found")
       }
 
-      return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(message))
+      return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(message.content, message.images))
     },
     async abort(botId: string) {
       const entry = sessions.get(botId)

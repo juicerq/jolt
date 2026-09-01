@@ -114,7 +114,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
     add({ botId: bot.id, content })
   }
 
-  const toggle = <Switch checked={bot.memoryEnabled} disabled={busy} aria-label="Memória ligada" onChange={(memoryEnabled) => update({ id: bot.id, name: bot.name, function: bot.function, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride, memoryEnabled })} />
+  const toggle = <Switch checked={bot.memoryEnabled} disabled={busy} aria-label="Memória ligada" onChange={(memoryEnabled) => update({ id: bot.id, name: bot.name, function: bot.function, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride, memoryEnabled, effort: bot.effort, model: bot.model })} />
 
   if (!bot.memoryEnabled) {
     return (

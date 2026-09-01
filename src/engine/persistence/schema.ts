@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm"
 import { index, integer, snakeCase, text } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "../../shared/bots"
@@ -23,6 +24,8 @@ export const bots = snakeCase.table("bots", {
   workingDirectoryOverride: text(),
   temporary: integer({ mode: "boolean" }).notNull().default(false),
   memoryEnabled: integer({ mode: "boolean" }).notNull().default(true),
+  effort: text({ enum: ["low", "medium", "high", "xhigh", "max"] }).$type<StoredBot["effort"]>().notNull().default("medium"),
+  model: text(),
   createdAt: text().notNull(),
 }, (table) => [
   index("bots_leader_bot_id").on(table.leaderBotId),
@@ -52,6 +55,7 @@ export const messages = snakeCase.table("messages", {
   authorBotId: text().references(() => bots.id, { onDelete: "set null" }),
   taskId: text().references(() => tasks.id, { onDelete: "set null" }),
   content: text().notNull(),
+  images: text({ mode: "json" }).$type<ConversationMessage["images"]>().notNull().default(sql`'[]'`),
   activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
   ending: text({ enum: ["aborted", "failed", "closed"] }).$type<ConversationMessage["ending"]>(),
   createdAt: text().notNull(),

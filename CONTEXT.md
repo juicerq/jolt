@@ -108,6 +108,14 @@ _Evitar_: Mensagem, pensamento não exposto, raciocínio
 A soma dos períodos em que o Fornecedor do Bot sinaliza pensamento durante uma execução. Ela só existe quando o Fornecedor expõe esse estado.
 _Evitar_: Tempo até a primeira resposta, duração total da execução
 
+**Esforço**:
+Quanto um Bot pensa antes de agir: baixo, médio, alto, muito alto ou máximo. A pessoa escolhe por Bot, e a escolha vale para toda Conversa, Tarefa e Chamada até ela mudar.
+_Evitar_: Nível de pensamento, reasoning, raciocínio, modelo
+
+**Modelo**:
+A variante do Fornecedor do Bot que executa o trabalho, como um modelo específico dentro do Codex. A pessoa escolhe por Bot; sem escolha, o Bot usa o padrão do Fornecedor.
+_Evitar_: Fornecedor, Conexão, versão
+
 **Tarefa**:
 Um trabalho com resultado esperado e um único Bot responsável.
 _Evitar_: Mensagem, atividade

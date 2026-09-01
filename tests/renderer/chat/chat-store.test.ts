@@ -1,8 +1,11 @@
 import { expect, test } from "bun:test"
 import {
+  addChatDraftImages,
   appendChatThinking,
   chatStore,
   dismissChatRun,
+  removeChatDraftImage,
+  setChatDraftContent,
   finishChatThinking,
   finishChatTool,
   startChatRun,
@@ -13,7 +16,7 @@ import {
 test("live chat groups consecutive tools without merging separate reasoning periods", () => {
   const botId = crypto.randomUUID()
 
-  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Inspecione o projeto" })
+  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Inspecione o projeto", images: [] })
   startChatThinking(botId)
   appendChatThinking(botId, "Primeira análise")
   finishChatThinking(botId, 5_000)
@@ -39,4 +42,20 @@ test("live chat groups consecutive tools without merging separate reasoning peri
   ])
 
   dismissChatRun(botId)
+})
+
+test("a draft keeps text and images per Bot until the person sends it", () => {
+  const botId = crypto.randomUUID()
+  const first = { data: "AAAA", mimeType: "image/png" as const }
+  const second = { data: "BBBB", mimeType: "image/jpeg" as const }
+
+  setChatDraftContent(botId, "Veja as telas")
+  addChatDraftImages(botId, [first, second])
+  removeChatDraftImage(botId, 0)
+
+  expect(chatStore.state.drafts[botId]).toEqual({ content: "Veja as telas", images: [second] })
+
+  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Veja as telas", images: [second] })
+
+  expect(chatStore.state.drafts[botId]).toEqual({ content: "", images: [] })
 })

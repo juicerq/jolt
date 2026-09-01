@@ -2,6 +2,8 @@ import { type } from "arktype"
 import { providerName } from "./providers"
 
 const botFunction = type({ "+": "reject", outcome: "string > 0", "description?": "string > 0" })
+export const botEfforts = ["low", "medium", "high", "xhigh", "max"] as const
+const botEffort = type.enumerated(...botEfforts)
 export const workingDirectory = type("string > 0")
 const optionalId = type("string > 0").or("null")
 const storedBot = type({
@@ -15,6 +17,8 @@ const storedBot = type({
   workingDirectoryOverride: workingDirectory.or("null"),
   temporary: "boolean",
   memoryEnabled: "boolean",
+  effort: botEffort,
+  model: optionalId,
   createdAt: "string > 0",
 })
 const bot = storedBot.merge({ effectiveWorkingDirectory: workingDirectory, closed: "boolean" })
@@ -25,7 +29,7 @@ export const botSchemas = {
   createInput,
   hireInput: type({ "+": "reject", name: "string > 0", function: botFunction, permanent: "boolean" }),
   idInput: type({ "+": "reject", id: "string > 0" }),
-  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null"), memoryEnabled: "boolean" }),
+  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null"), memoryEnabled: "boolean", effort: botEffort, model: optionalId }),
   storedBot,
   storedBotList: storedBot.array(),
   bot,
@@ -35,3 +39,4 @@ export const botSchemas = {
 export type Bot = typeof bot.infer
 export type CreateBotInput = typeof createInput.infer
 export type StoredBot = typeof storedBot.infer
+export type BotEffort = typeof botEffort.infer

@@ -50,6 +50,8 @@ export function settingsChange(bot: Bot, draft: SettingsDraft) {
       projectId: draft.projectId || null,
       workingDirectoryOverride: draft.workingDirectoryOverride || null,
       memoryEnabled: bot.memoryEnabled,
+      effort: bot.effort,
+      model: bot.model,
     },
   }
 }

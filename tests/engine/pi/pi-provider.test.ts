@@ -9,10 +9,11 @@ const directory = testDirectory("jolt-pi-provider-")
 describe("Pi provider", () => {
   test("reports the configured Codex model from the Pi session", async () => {
     const observationSystem = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, crypto.randomUUID()), development: false })
-    const providers = createPiProvider(observationSystem.observability, async () => [{ id: "gpt-5.6-luna" }], "gpt-5.6-luna")
+    const providers = createPiProvider(observationSystem.observability, async () => [{ id: "gpt-5.6-luna", name: "GPT-5.6 Luna" }], "gpt-5.6-luna")
 
     expect(await providers.list()).toEqual([{ provider: "codex", status: "available" }])
     expect(providers.current()).toEqual([{ provider: "codex", status: "available" }])
+    expect(await providers.models()).toEqual([{ provider: "codex", default: "gpt-5.6-luna", models: [{ id: "gpt-5.6-luna", name: "GPT-5.6 Luna" }] }])
     await observationSystem.observability.flush()
   })
 

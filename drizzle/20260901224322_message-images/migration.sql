@@ -1,0 +1,1 @@
+ALTER TABLE `messages` ADD `images` text DEFAULT '[]' NOT NULL;

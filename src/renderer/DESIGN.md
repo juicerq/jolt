@@ -310,7 +310,7 @@ cards use 12px. Inputs and buttons use 8px. A nested shape always uses a smaller
 radius than its container.
 
 Circles belong to avatars, status lights, and icon buttons whose hit target is
-visibly circular. Pills belong to the one-line prompt and short status chips.
+visibly circular. Pills belong to short status chips.
 Text buttons and form fields do not become pills.
 
 ## Components
@@ -407,10 +407,31 @@ while the chevron slides to the left end and turns toward the edge. Settings liv
 future Bot actions join the same column. Nothing sits in the top-right corner
 beside the window controls.
 
-**Prompt.** One line by default, centered near the bottom of the conversation.
+**Prompt.** An 18px-radius card centered near the bottom of the conversation.
 The field is the strongest control on the screen. Its send action is the only
 filled primary action in the normal chat state. Attach, stop, and secondary
-actions remain ghost or outlined.
+actions remain ghost or outlined. A ghost paper clip at the left end attaches
+images; pasting or dropping a file on the prompt does the same. Attached images
+sit above the text as 48px thumbnails with the 8px radius and the strong
+outline, each with a remove
+action that appears on hover or keyboard focus. The text sits on its own row
+above a bottom row that holds the clip at the left and the send action at the
+right. The layout never changes with the text length; the field grows
+downward until it scrolls. Send stays
+disabled until the draft holds text or an image. The user bubble shows its
+images above the text, up to 240px tall, with the same 8px radius. Between the
+text and the send action sits one quiet chip in metadata type and muted ink
+that names the Bot's Modelo and Esforço, such as `GPT-5.6 Luna · médio`. It
+ends in a small chevron and opens a menu above itself. The menu is a raised
+12px card with two sections split by one divider, each under a short label in
+metadata type: the Modelos the Fornecedor offers, then the five Esforço
+levels, baixo, médio, alto, muito alto, máximo. Options are full-width rows in
+control type: secondary ink at rest, hover surface on hover, and the active
+surface with primary ink for the current choice. The Fornecedor default and
+the médio Esforço carry a quiet `Padrão` badge. Choosing one saves at once and
+the menu stays open, so the person can set both before clicking away or
+pressing Escape. The chip stays disabled while the Bot
+responds; the next turn already uses the new choice.
 
 **Dialog.** A fixed header names the task and offers one ghost close action. A
 thin progress indicator appears only for a real multi-step flow. The body groups

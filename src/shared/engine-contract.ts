@@ -2,7 +2,7 @@ import { eventIterator, oc } from "@orpc/contract"
 import { type } from "arktype"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan, observationAttributes, observationContext, observationName } from "./observability/observation"
-import { providerAvailabilityList } from "./providers"
+import { providerAvailabilityList, providerModelsList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
@@ -60,6 +60,7 @@ export const engineContract = {
   },
   providers: {
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
+    models: oc.output(providerModelsList).route({ method: "GET", path: "/providers/models" }),
   },
   projects: {
     create: oc.input(projectSchemas.createInput).output(projectSchemas.project).route({ method: "POST", path: "/projects" }),

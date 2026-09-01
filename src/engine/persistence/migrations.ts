@@ -2,9 +2,15 @@ import type { MigrationsJournal } from "drizzle-orm/migrator"
 import initialSchema from "../../../drizzle/20260901132949_initial-schema/migration.sql" with { type: "text" }
 import routines from "../../../drizzle/20260901184631_routines/migration.sql" with { type: "text" }
 import memory from "../../../drizzle/20260901200730_memory/migration.sql" with { type: "text" }
+import messageImages from "../../../drizzle/20260901224322_message-images/migration.sql" with { type: "text" }
+import botEffort from "../../../drizzle/20260901225418_bot-effort/migration.sql" with { type: "text" }
+import botModel from "../../../drizzle/20260901225922_bot-model/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
   { name: "20260901184631_routines", timestamp: 1788288391000, sql: routines },
   { name: "20260901200730_memory", timestamp: 1788293250000, sql: memory },
+  { name: "20260901224322_message-images", timestamp: 1788302602000, sql: messageImages },
+  { name: "20260901225418_bot-effort", timestamp: 1788303258000, sql: botEffort },
+  { name: "20260901225922_bot-model", timestamp: 1788303562000, sql: botModel },
 ] satisfies MigrationsJournal

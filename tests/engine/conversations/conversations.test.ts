@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { ConversationEvent } from "@src/shared/conversations"
+import type { ConversationEvent, MessageImage } from "@src/shared/conversations"
 import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
@@ -15,11 +15,14 @@ const directory = testDirectory("jolt-conversations-")
 
 function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), completePrompt = true) {
   const prompts: string[] = []
+  const promptImages: MessageImage[][] = []
+  const efforts: string[] = []
   const instructions: string[] = []
   const sessions = new Map<string, { listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; fail(): void }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
       instructions.push(input.instructions ?? "")
+      efforts.push(`${input.effort}/${input.model ?? "default"}`)
       let finishPrompt: (() => void) | undefined
       let rejectPrompt: ((error: Error) => void) | undefined
       const state = { listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false, fail: () => rejectPrompt?.(new Error("Provider crashed")) }
@@ -27,8 +30,9 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
 
       return {
         sessionFile: join(directory, `${input.botId}.jsonl`),
-        async prompt(message) {
+        async prompt(message, images = []) {
           prompts.push(message)
+          promptImages.push(images)
 
           for (const listener of state.listeners) {
             listener({ type: "started" })
@@ -85,9 +89,9 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
   const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
-  async function turn(botId: string, content: string) {
+  async function turn(botId: string, content: string, images: MessageImage[] = []) {
     const events = conversations.events()[Symbol.asyncIterator]()
-    await conversations.send({ botId, content })
+    await conversations.send({ botId, content, images })
     const collected: ConversationEvent[] = []
 
     for (let step = await events.next(); step.value; step = await events.next()) {
@@ -119,7 +123,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
     }
   }
 
-  return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem, turn, turnSettled }
+  return { bots, conversations, database, databasePath, efforts, instructions, prompts, promptImages, runtime, sessions, observationSystem, turn, turnSettled }
 }
 
 describe("conversations", () => {
@@ -193,7 +197,7 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", description: "Help" },
     })
-    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois", images: [] })
     await environment.conversations.abort({ botId: bot.id })
 
     expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
@@ -214,7 +218,7 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", description: "Help" },
     })
-    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois", images: [] })
     const settled = environment.turnSettled(bot.id)
 
     await environment.bots.remove({ id: bot.id })
@@ -237,7 +241,7 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", description: "Help" },
     })
-    await environment.conversations.send({ botId: bot.id, content: "Quebre" })
+    await environment.conversations.send({ botId: bot.id, content: "Quebre", images: [] })
     environment.sessions.get(bot.id)?.fail()
     await environment.turnSettled(bot.id)
 
@@ -255,7 +259,7 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", description: "Help" },
     })
-    first.database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Sem resposta", activity: null, ending: null, createdAt: new Date().toISOString() })
+    first.database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Sem resposta", images: [], activity: null, ending: null, createdAt: new Date().toISOString() })
     first.conversations.dispose()
     first.database.close()
     await first.observationSystem.observability.flush()
@@ -278,6 +282,47 @@ describe("conversations", () => {
     }
   })
 
+  test("delivers the images a person attaches to the Provider and keeps them in the history", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
+    const image = { data: "iVBORw0KGgo=", mimeType: "image/png" as const }
+
+    await environment.turn(bot.id, "", [image])
+
+    expect(environment.prompts).toEqual([""])
+    expect(environment.promptImages).toEqual([[image]])
+    expect(environment.conversations.history({ botId: bot.id })[0]).toMatchObject({ author: "person", content: "", images: [image] })
+    expect(environment.conversations.history({ botId: bot.id })[1]).toMatchObject({ author: "bot", images: [] })
+    environment.conversations.dispose()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("opens the session with the Bot Esforço and Modelo and reopens it when either changes", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
+
+    await environment.turn(bot.id, "Olá")
+    await environment.turn(bot.id, "De novo")
+    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "high", model: null })
+    await environment.turn(bot.id, "Pense mais")
+    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "high", model: "gpt-5.6-mini" })
+    await environment.turn(bot.id, "Mais rápido")
+
+    expect(environment.efforts).toEqual(["medium/default", "high/default", "high/gpt-5.6-mini"])
+    environment.conversations.dispose()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("rejects a message with neither text nor images", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
+
+    await expect(environment.conversations.send({ botId: bot.id, content: "", images: [] })).rejects.toThrow("Message is empty")
+    expect(environment.prompts).toEqual([])
+    environment.conversations.dispose()
+    await environment.observationSystem.observability.flush()
+  })
+
   test("events carry every turn with its Bot and the incoming message", async () => {
     const environment = setup()
     const bot = await environment.bots.create({
@@ -286,9 +331,9 @@ describe("conversations", () => {
       function: { outcome: "Answer", description: "Help" },
     })
     const events = environment.conversations.events()[Symbol.asyncIterator]()
-    await environment.conversations.send({ botId: bot.id, content: "Olá" })
+    await environment.conversations.send({ botId: bot.id, content: "Olá", images: [] })
 
-    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Olá" } } })
+    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Olá", images: [] } } })
     const types = []
 
     for (let step = await events.next(); step.value?.event.type !== "finished"; step = await events.next()) {
@@ -309,11 +354,11 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", description: "Help" },
     })
-    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois", images: [] })
 
     const events = environment.conversations.events()[Symbol.asyncIterator]()
 
-    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Pare depois" } } })
+    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Pare depois", images: [] } } })
     await environment.conversations.abort({ botId: bot.id })
     await events.return?.(undefined)
     environment.conversations.dispose()

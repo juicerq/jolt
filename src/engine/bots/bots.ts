@@ -100,6 +100,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         function: input.function,
         temporary: false,
         memoryEnabled: true,
+        effort: "medium",
+        model: null,
         createdAt: new Date().toISOString(),
       })
     },
@@ -116,6 +118,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         workingDirectoryOverride: leader.workingDirectoryOverride,
         temporary: !details.permanent,
         memoryEnabled: true,
+        effort: "medium",
+        model: null,
         createdAt: new Date().toISOString(),
       })
     },
@@ -164,6 +168,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
             projectId: input.projectId,
             workingDirectoryOverride: input.workingDirectoryOverride,
             memoryEnabled: input.memoryEnabled,
+            effort: input.effort,
+            model: input.model,
           })
 
           if (!updated) {

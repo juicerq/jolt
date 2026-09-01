@@ -1,7 +1,9 @@
 import { type } from "arktype"
 
 export const messageAuthor = type.enumerated("person", "bot", "routine")
+export const messageImageMimeTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const
 const optionalId = type("string > 0").or("null")
+const messageImage = type({ "+": "reject", data: "string > 0", mimeType: type.enumerated(...messageImageMimeTypes) })
 const conversationTool = type({
   "+": "reject",
   callId: "string > 0",
@@ -36,11 +38,12 @@ const message = type({
   authorBotId: optionalId,
   taskId: optionalId,
   content: "string",
+  images: messageImage.array(),
   activity: conversationActivity.or("null"),
   ending: turnEnding.or("null"),
   createdAt: "string > 0",
 })
-const incomingMessage = message.pick("author", "authorBotId", "taskId", "content")
+const incomingMessage = message.pick("author", "authorBotId", "taskId", "content", "images")
 const startedEvent = type({ "+": "reject", type: type.enumerated("started"), message: incomingMessage })
 const textEvent = type({ "+": "reject", type: type.enumerated("text"), text: "string" })
 const thinkingEvent = type({ "+": "reject", type: type.enumerated("thinking"), text: "string" })
@@ -68,7 +71,7 @@ const botEvent = type({ "+": "reject", botId: "string > 0", event })
 
 export const conversationSchemas = {
   botInput: type({ "+": "reject", botId: "string > 0" }),
-  sendInput: type({ "+": "reject", botId: "string > 0", content: "string > 0" }),
+  sendInput: type({ "+": "reject", botId: "string > 0", content: "string", images: messageImage.array() }),
   taskInput: type({ "+": "reject", taskId: "string > 0" }),
   message,
   messageList: message.array(),
@@ -77,6 +80,7 @@ export const conversationSchemas = {
 }
 
 export type ConversationMessage = typeof message.infer
+export type MessageImage = typeof messageImage.infer
 export type TurnEnding = typeof turnEnding.infer
 export type ConversationEvent = typeof event.infer
 export type FinishReason = typeof finishedEvent.infer["reason"]

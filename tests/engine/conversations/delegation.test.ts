@@ -94,15 +94,15 @@ function setup() {
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
 
   async function turn(botId: string, content: string) {
     const events = conversations.events()[Symbol.asyncIterator]()
-    await conversations.send({ botId, content })
+    await conversations.send({ botId, content, images: [] })
     const collected: ConversationEvent[] = []
 
     for (let step = await events.next(); step.value; step = await events.next()) {
@@ -266,7 +266,7 @@ describe("delegation", () => {
     const stranger = await environment.bots.create({ name: "Zeta", provider: "codex", function: botFunction })
     environment.scripts.set(leader.id, async (_message, call) => `${await call("delegate", { member: stranger.id, outcome: "x", instructions: "y" })} | ${await call("delegate", { member: "Calo", outcome: "x", instructions: "y" })}`)
 
-    await environment.conversations.send({ botId: member.id, content: "Trabalhe" })
+    await environment.conversations.send({ botId: member.id, content: "Trabalhe", images: [] })
     await environment.turn(leader.id, "Delegue")
 
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Error: Zeta is not a member of Atlas | Error: Calo is already working")
@@ -283,7 +283,7 @@ describe("delegation", () => {
     await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("- Calo")
-    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
+    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 
@@ -382,7 +382,7 @@ describe("delegation", () => {
       { taskId: task?.id, content: "Revisão pronta\n\nLeia os 5 arquivos" },
       { taskId: task?.id, content: "Três achados" },
     ])
-    expect(() => environment.conversations.send({ botId: hired?.id ?? "", content: "Mais um" })).toThrow("Revisor was closed with its Tarefa")
+    expect(() => environment.conversations.send({ botId: hired?.id ?? "", content: "Mais um", images: [] })).toThrow("Revisor was closed with its Tarefa")
     await environment.turn(leader.id, "Delegue de novo")
 
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Falhou: Error: Revisor is not a member of Atlas")

@@ -50,12 +50,12 @@ describe("Pi agent runtime", () => {
     const { runtime, sessions, observations } = setup()
     const atlasGrants = new Set(["read"])
     const beaconGrants = new Set(["weather"])
-    await runtime.open({ botId: "atlas", cwd: directory, tools: ["read"], grants: atlasGrants })
-    await runtime.open({ botId: "beacon", cwd: directory, tools: ["weather"], grants: beaconGrants })
+    await runtime.open({ botId: "atlas", cwd: directory, tools: ["read"], effort: "medium", model: null, grants: atlasGrants })
+    await runtime.open({ botId: "beacon", cwd: directory, tools: ["weather"], effort: "medium", model: null, grants: beaconGrants })
     const events: PiRuntimeEvent[] = []
     runtime.subscribe("atlas", (event) => events.push(event))
 
-    await runtime.prompt("atlas", "work")
+    await runtime.prompt("atlas", { content: "work", images: [] })
     runtime.setTools("atlas", ["read", "weather"])
     await runtime.abort("beacon")
 
@@ -71,8 +71,8 @@ describe("Pi agent runtime", () => {
 
   test("reopens a saved session file", async () => {
     const { runtime, observations } = setup()
-    const first = await runtime.open({ botId: "atlas", cwd: directory, tools: [], grants: new Set() })
-    const reopened = await runtime.open({ botId: "atlas", cwd: directory, tools: [], grants: new Set(), sessionFile: first.sessionFile })
+    const first = await runtime.open({ botId: "atlas", cwd: directory, tools: [], effort: "medium", model: null, grants: new Set() })
+    const reopened = await runtime.open({ botId: "atlas", cwd: directory, tools: [], effort: "medium", model: null, grants: new Set(), sessionFile: first.sessionFile })
 
     expect(reopened.sessionFile).toBe(first.sessionFile)
     runtime.dispose()

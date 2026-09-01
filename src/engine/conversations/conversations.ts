@@ -64,7 +64,7 @@ export function createConversations(input: {
     const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
 
     for (const message of unanswered) {
-      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", activity: null, ending: "closed", createdAt: new Date().toISOString() })
+      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", images: [], activity: null, ending: "closed", createdAt: new Date().toISOString() })
     }
 
     input.observability.event({ name: "conversation.closeunanswered", attributes: { count: unanswered.length } })
@@ -91,7 +91,7 @@ export function createConversations(input: {
       ...extensions.map((extension) => extension.instructions(bot)),
       voice,
     ].filter(Boolean).join("\n")
-    const profile = JSON.stringify({ cwd, tools, instructions })
+    const profile = JSON.stringify({ cwd, tools, instructions, effort: bot.effort, model: bot.model })
 
     if (sessions.get(botId) === profile) {
       return
@@ -102,6 +102,8 @@ export function createConversations(input: {
       botId,
       cwd,
       tools,
+      effort: bot.effort,
+      model: bot.model,
       grants: new Set(tools),
       customTools,
       instructions,
@@ -116,7 +118,7 @@ export function createConversations(input: {
   }
 
   function incoming(message: ConversationMessage): IncomingMessage {
-    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content }
+    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content, images: message.images }
   }
 
   async function claim(botId: string, message: IncomingMessage): Promise<{ message: ConversationMessage; release(): void }> {
@@ -208,7 +210,7 @@ export function createConversations(input: {
       queue.push(deliveredEvent)
       deliver(botId, deliveredEvent)
     })
-    void input.runtime.prompt(botId, message.content).catch((error) => {
+    void input.runtime.prompt(botId, message).catch((error) => {
       if (finished) {
         return
       }
@@ -231,6 +233,7 @@ export function createConversations(input: {
             authorBotId: botId,
             taskId: turn.message.taskId,
             content: response,
+            images: [],
             activity: activity.snapshot(),
             ending,
             createdAt: new Date().toISOString(),
@@ -310,12 +313,17 @@ export function createConversations(input: {
       return active.get(botId)?.message
     },
     async send(rawInput: unknown) {
-      const { botId, content } = conversationSchemas.sendInput.assert(rawInput)
+      const { botId, content, images } = conversationSchemas.sendInput.assert(rawInput)
+      const empty = content.length === 0 && images.length === 0
 
-      await start(botId, { author: "person", authorBotId: null, taskId: null, content })
+      if (empty) {
+        throw new Error("Message is empty")
+      }
+
+      await start(botId, { author: "person", authorBotId: null, taskId: null, content, images })
     },
     async call(botId: string, content: string) {
-      await start(botId, { author: "routine", authorBotId: null, taskId: null, content })
+      await start(botId, { author: "routine", authorBotId: null, taskId: null, content, images: [] })
     },
     async abort(rawInput: unknown) {
       const { botId } = conversationSchemas.botInput.assert(rawInput)

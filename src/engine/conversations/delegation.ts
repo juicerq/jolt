@@ -1,5 +1,5 @@
 import type { Bot } from "../../shared/bots"
-import type { ConversationEvent, ConversationMessage } from "../../shared/conversations"
+import type { ConversationEvent, ConversationMessage, IncomingMessage } from "../../shared/conversations"
 import type { Task } from "../../shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
@@ -12,7 +12,7 @@ export function createDelegation(input: {
   bots: ReturnType<typeof createBots>
   tasks: ReturnType<typeof createTasks>
   observability: Observability
-  runTurn(botId: string, message: Pick<ConversationMessage, "author" | "authorBotId" | "taskId" | "content">): AsyncGenerator<ConversationEvent>
+  runTurn(botId: string, message: IncomingMessage): AsyncGenerator<ConversationEvent>
   active(botId: string): { taskId: string | null } | undefined
 }) {
   function members(leader: Pick<Bot, "id">) {
@@ -39,7 +39,7 @@ export function createDelegation(input: {
     return input.observability.span({ name: "delegation.turn", context: { botId: to.id, leaderBotId: task.leaderBotId, taskId: task.id } }, async () => {
       const outcome: Outcome = { reason: "error", response: "" }
 
-      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, content })) {
+      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, content, images: [] })) {
         if (event.type === "text") {
           outcome.response += event.text
         }
@@ -87,7 +87,7 @@ export function createDelegation(input: {
   async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
     const outcome = await delegate(from, to, task, content)
 
-    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome) }))
+    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome), images: [] }))
   }
 
   async function assign(from: Bot, to: Bot, params: Record<string, string>) {

@@ -45,7 +45,7 @@ describe("bots", () => {
       ...input,
       workingDirectoryOverride: null,
       temporary: false,
-      memoryEnabled: true,
+      memoryEnabled: true, effort: "medium", model: null,
       effectiveWorkingDirectory: join(first.privateBotsDirectory, created.id),
       closed: false,
       createdAt: expect.any(String),
@@ -118,19 +118,19 @@ describe("bots", () => {
 
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(chosenDirectory)
     expect((await stat(join(privateBotsDirectory, created.id))).isDirectory()).toBe(true)
-    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: replacementDirectory, memoryEnabled: true })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: replacementDirectory, memoryEnabled: true, effort: "medium", model: null })).toEqual({
       ...created,
       workingDirectoryOverride: replacementDirectory,
       effectiveWorkingDirectory: replacementDirectory,
     })
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(replacementDirectory)
-    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: null, memoryEnabled: true })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toEqual({
       ...created,
       workingDirectoryOverride: null,
       effectiveWorkingDirectory: projectDirectory,
     })
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(projectDirectory)
-    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toEqual({
       ...created,
       projectId: null,
       workingDirectoryOverride: null,
@@ -163,7 +163,7 @@ describe("bots", () => {
     const { bots, database, observationSystem } = setup()
     const created = await bots.create(input)
 
-    expect(() => bots.update({ id: created.id, name: created.name, function: created.function, projectId: "missing-project", workingDirectoryOverride: null, memoryEnabled: true })).toThrow("Project not found")
+    expect(() => bots.update({ id: created.id, name: created.name, function: created.function, projectId: "missing-project", workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toThrow("Project not found")
     expect(await bots.get({ id: created.id })).toEqual(created)
     database.close()
     await observationSystem.observability.flush()
@@ -191,12 +191,12 @@ describe("bots", () => {
       function: input.function,
       workingDirectoryOverride: memberOverride,
       temporary: false,
-      memoryEnabled: true,
+      memoryEnabled: true, effort: "medium", model: null,
       createdAt: new Date().toISOString(),
     })
 
-    expect(() => bots.update({ id: member.id, name: member.name, function: member.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true })).toThrow("A member must remain in the Leader Project")
-    expect(await bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: nextProject.id, workingDirectoryOverride: leaderOverride, memoryEnabled: true })).toEqual({
+    expect(() => bots.update({ id: member.id, name: member.name, function: member.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toThrow("A member must remain in the Leader Project")
+    expect(await bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: nextProject.id, workingDirectoryOverride: leaderOverride, memoryEnabled: true, effort: "medium", model: null })).toEqual({
       ...leader,
       projectId: nextProject.id,
       workingDirectoryOverride: leaderOverride,
@@ -226,16 +226,27 @@ describe("bots", () => {
     expect(observations).not.toContain(input.function.description)
     database.close()
   })
+  test("a new Bot starts with medium Esforço and the person changes it", async () => {
+    const { bots, database, observationSystem } = setup()
+    const created = await bots.create({ name: "Marina", provider: "codex", function: { outcome: "Contratos prontos" } })
+
+    expect(created.effort).toBe("medium")
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "high", model: null })).toEqual({ ...created, effort: "high", model: null })
+    expect(await bots.get({ id: created.id })).toMatchObject({ effort: "high", model: null })
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
   test("renames a Bot and rewrites its Função", async () => {
     const { bots, database, observationSystem } = setup()
     const created = await bots.create(input)
 
-    expect(await bots.update({ id: created.id, name: "Lia", function: { outcome: "Propostas revisadas" }, projectId: null, workingDirectoryOverride: null, memoryEnabled: true })).toEqual({
+    expect(await bots.update({ id: created.id, name: "Lia", function: { outcome: "Propostas revisadas" }, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toEqual({
       ...created,
       name: "Lia",
       function: { outcome: "Propostas revisadas" },
     })
-    expect(() => bots.update({ id: "missing-bot", name: "Lia", function: input.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true })).toThrow("Bot not found")
+    expect(() => bots.update({ id: "missing-bot", name: "Lia", function: input.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })).toThrow("Bot not found")
     database.close()
     await observationSystem.observability.flush()
   })
