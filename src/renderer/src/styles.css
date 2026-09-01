@@ -104,6 +104,11 @@
     background: radial-gradient(circle at bottom left, transparent 7.5px, var(--edge-tab-outline) 8.25px 8.75px, var(--color-surface-raised) 9.5px);
   }
 
+  .edge-tab-tongue:has(+ * > * > button:only-of-type)::before,
+  .edge-tab-tongue:has(+ * > * > button:only-of-type)::after {
+    display: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .edge-tab-tongue::before,
     .edge-tab-tongue::after {
