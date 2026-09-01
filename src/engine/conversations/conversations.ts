@@ -90,11 +90,16 @@ export function createConversations(input: {
     sessions.set(botId, profile)
   }
 
-  async function claim(botId: string, message: IncomingMessage) {
+  async function claim(botId: string, message: IncomingMessage): Promise<{ taskId: string | null; release(): void }> {
     const current = active.get(botId)
-    const personOverridesBot = message.author === "person" && current?.message.author === "bot"
 
-    if (current && !personOverridesBot) {
+    if (current && message.author === "bot") {
+      await current.settled
+
+      return claim(botId, message)
+    }
+
+    if (current?.message.author === "person") {
       throw new Error("Bot is already working")
     }
 

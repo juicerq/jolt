@@ -53,7 +53,7 @@ export function createDelegation(input: {
     })
   }
 
-  function describe(to: Bot, outcome: Outcome) {
+  function summarize(to: Bot, outcome: Outcome) {
     if (outcome.reason === "stop") {
       return outcome.response || `${to.name} finished without a reply.`
     }
@@ -62,10 +62,33 @@ export function createDelegation(input: {
       return [`The person gave ${to.name} a direct order and interrupted this delegation. The person's order prevails.`, outcome.response].filter(Boolean).join("\n\nPartial reply:\n")
     }
 
-    throw new Error(`${to.name} failed before finishing.`)
+    return `${to.name} failed before finishing.`
+  }
+
+  function describe(to: Bot, outcome: Outcome) {
+    const summary = summarize(to, outcome)
+
+    if (outcome.reason === "error") {
+      throw new Error(summary)
+    }
+
+    return summary
   }
 
   const statusByReason = { stop: "done", aborted: "interrupted", error: "failed" } as const
+
+  async function delegate(from: Bot, to: Bot, task: Task, content: string) {
+    const outcome = await handoff(from, to, task, content)
+    input.tasks.finish(task.id, statusByReason[outcome.reason])
+
+    return outcome
+  }
+
+  async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
+    const outcome = await delegate(from, to, task, content)
+
+    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome) }))
+  }
 
   return {
     tools(bot: Bot): PiCustomTool[] {
@@ -108,15 +131,27 @@ export function createDelegation(input: {
 
       return [{
         name: "delegate",
-        description: "Create a Tarefa and delegate it to one member of your team. Waits for the member's reply. You remain responsible for the overall result.",
-        parameters: { member: "Name or id of the member", outcome: "Expected result of the Tarefa", instructions: "Instructions for the member" },
+        description: "Create a Tarefa and delegate it to one member of your team. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
+        parameters: {
+          member: "Name or id of the member",
+          outcome: "Expected result of the Tarefa",
+          instructions: "Instructions for the member",
+          wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
+        },
         async execute(params) {
           const to = pickMember(bot, params.member ?? "")
           const task = input.tasks.create({ leaderBotId: bot.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
-          const outcome = await handoff(bot, to, task, [params.outcome, params.instructions].filter(Boolean).join("\n\n"))
-          input.tasks.finish(task.id, statusByReason[outcome.reason])
+          const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
 
-          return describe(to, outcome)
+          if (params.wait === "no") {
+            void deliverLater(bot, to, task, content).catch((error) => {
+              input.observability.event({ name: "delegation.deliveryfailed", context: { botId: bot.id, leaderBotId: bot.id, taskId: task.id }, error })
+            })
+
+            return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
+          }
+
+          return describe(to, await delegate(bot, to, task, content))
         },
       }]
     },
@@ -140,7 +175,7 @@ export function createDelegation(input: {
       return [
         "You lead a team. Each member and the outcome their Function delivers:",
         ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
-        "Use the delegate tool to assign a Tarefa to the member whose Function fits it and wait for the reply.",
+        "Use the delegate tool to assign a Tarefa to the member whose Function fits it. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message.",
         "You remain responsible for the overall result. Orders from the person prevail over yours.",
       ].join("\n")
     },

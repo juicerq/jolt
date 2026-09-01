@@ -287,4 +287,41 @@ describe("delegation", () => {
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")
     await environment.close()
   })
+
+  test("a Leader that delegates without waiting keeps working and later receives each reply as a message", async () => {
+    const environment = setup()
+    const { leader, member, other } = await environment.team()
+    environment.scripts.set(leader.id, async (message, call) => {
+      if (message !== "Delegue") {
+        return `Recebi: ${message}`
+      }
+
+      const first = await call("delegate", { member: "Calo", outcome: "Escrever testes", instructions: "Cubra tudo", wait: "no" })
+      const second = await call("delegate", { member: "Dara", outcome: "Desenhar a tela", instructions: "Use o DESIGN.md", wait: "no" })
+
+      return `${first} ${second}`
+    })
+    environment.scripts.set(member.id, async () => "Testes escritos")
+    environment.scripts.set(other.id, async () => "Tela desenhada")
+
+    const events = await environment.turn(leader.id, "Delegue")
+
+    expect(events.map((event) => event.type)).toEqual(["started", "tool-started", "tool-finished", "tool-started", "tool-finished", "text", "finished"])
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toContain("Calo")
+
+    for (let attempt = 0; attempt < 200 && environment.conversations.history({ botId: leader.id }).length < 6; attempt++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10))
+    }
+
+    const tasks = environment.tasks.listForLeader({ leaderBotId: leader.id })
+    const history = environment.conversations.history({ botId: leader.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
+
+    expect(tasks.map((task) => task.status)).toEqual(["done", "done"])
+    expect(history).toContainEqual({ author: "bot", authorBotId: member.id, taskId: tasks[0]?.id, content: "Testes escritos" })
+    expect(history).toContainEqual({ author: "bot", authorBotId: leader.id, taskId: tasks[0]?.id, content: "Recebi: Testes escritos" })
+    expect(history).toContainEqual({ author: "bot", authorBotId: other.id, taskId: tasks[1]?.id, content: "Tela desenhada" })
+    expect(history).toContainEqual({ author: "bot", authorBotId: leader.id, taskId: tasks[1]?.id, content: "Recebi: Tela desenhada" })
+    expect(history).toHaveLength(6)
+    await environment.close()
+  })
 })
