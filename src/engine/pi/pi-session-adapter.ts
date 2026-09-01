@@ -13,14 +13,16 @@ import { createPermissionExtension } from "./pi-permissions"
 import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name" }
-const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions" }
+const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions", routine: "content" }
 
-function toPiTool(tool: PiCustomTool) {
+export function toPiTool(tool: PiCustomTool) {
   return defineTool({
     name: tool.name,
     label: tool.name,
     description: tool.description,
-    parameters: Type.Object(Object.fromEntries(Object.entries(tool.parameters).map(([name, description]) => [name, Type.String({ description })]))),
+    parameters: Type.Object(Object.fromEntries(Object.entries(tool.parameters).map(([name, description]) => name.endsWith("?")
+      ? [name.slice(0, -1), Type.Optional(Type.String({ description }))]
+      : [name, Type.String({ description })]))),
     async execute(_toolCallId, params) {
       const text = await tool.execute(params)
 
@@ -63,7 +65,9 @@ function createEventNormalizer() {
     }
 
     if (event.type === "tool_execution_end") {
-      return { type: "tool-finished", callId: event.toolCallId, tool: event.toolName, failed: event.isError }
+      const error = event.isError ? summarizeToolError(event.result) : undefined
+
+      return { type: "tool-finished", callId: event.toolCallId, tool: event.toolName, failed: event.isError, ...(error ? { error } : {}) }
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
@@ -99,6 +103,18 @@ function summarizeToolInput(input: unknown, field?: string) {
   }
 
   return summary.length > 160 ? `${summary.slice(0, 157)}...` : summary
+}
+
+function summarizeToolError(result: unknown) {
+  const content = result && typeof result === "object" && "content" in result && Array.isArray(result.content) ? result.content : []
+  const text = content.find((block): block is { type: "text"; text: string } => !!block && typeof block === "object" && block.type === "text" && typeof block.text === "string")
+  const summary = text?.text.split(/\n\s*\n/, 1)[0]?.trim() ?? ""
+
+  if (!summary) {
+    return undefined
+  }
+
+  return summary.length > 300 ? `${summary.slice(0, 297)}...` : summary
 }
 
 function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?: string) {

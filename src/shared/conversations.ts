@@ -1,6 +1,6 @@
 import { type } from "arktype"
 
-const messageAuthor = type.enumerated("person", "bot")
+const messageAuthor = type.enumerated("person", "bot", "routine")
 const optionalId = type("string > 0").or("null")
 const conversationTool = type({
   "+": "reject",
@@ -9,6 +9,7 @@ const conversationTool = type({
   "detail?": "string > 0",
   "brief?": "string > 0",
   status: type.enumerated("done", "failed"),
+  "error?": "string > 0",
 })
 const thinkingActivityStep = type({
   "+": "reject",
@@ -59,6 +60,7 @@ const toolFinishedEvent = type({
   callId: "string > 0",
   tool: "string > 0",
   failed: "boolean",
+  "error?": "string > 0",
 })
 const finishedEvent = type({ "+": "reject", type: type.enumerated("finished"), reason: type.enumerated("stop", "aborted", "error") })
 const event = startedEvent.or(textEvent).or(thinkingStartedEvent).or(thinkingEvent).or(thinkingFinishedEvent).or(toolStartedEvent).or(toolFinishedEvent).or(finishedEvent)

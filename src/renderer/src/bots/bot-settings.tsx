@@ -10,6 +10,7 @@ import { useDirectoryChooser } from "../ui/directory-picker"
 import { Select } from "../ui/select"
 import { useEscape } from "../ui/use-escape"
 import { EditableLine, FolderChip, editableLineClassName, revealClassName } from "./bot-form"
+import { BotRoutines } from "./bot-routines"
 import { forgetBot } from "./bots-store"
 import { WorkspaceHint } from "./workspace-hint"
 
@@ -110,6 +111,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
                 <Button className="mt-4" type="submit" disabled={saving || !changed || !trimmedName || !trimmedOutcome}>{saving ? "Salvando..." : "Salvar alterações"}</Button>
               </div>
               {failure && <p className="m-0 text-support text-status-error">Falha ao salvar o Bot: {failure}</p>}
+              {!bot.temporary && <BotRoutines bot={bot} client={client} />}
               <Button className="mt-8 hover:text-status-error focus-visible:text-status-error" variant="text" type="button" onClick={() => setConfirmingRemoval(true)}>Excluir Bot</Button>
             </>
           )}

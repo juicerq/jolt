@@ -10,9 +10,11 @@ import type { Observability } from "../observability/observability"
 import { migrations } from "./migrations"
 import type { ConversationMessage } from "../../shared/conversations"
 import { conversationSchemas } from "../../shared/conversations"
+import type { Routine } from "../../shared/routines"
+import { routineSchemas } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 import { taskSchemas } from "../../shared/tasks"
-import { bots, conversations, messages, projects, tasks } from "./schema"
+import { bots, conversations, messages, projects, routines, tasks } from "./schema"
 
 const messageColumns = {
   id: messages.id,
@@ -168,6 +170,42 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => taskSchemas.taskList.assert(
           database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(tasks.id)).all(),
         ))
+      },
+    },
+    routines: {
+      create(routine: Routine) {
+        return observability.span({ name: "database.routinecreate", context: { botId: routine.botId } }, () => {
+          database.insert(routines).values(routine).run()
+
+          return routine
+        })
+      },
+      get(id: string) {
+        return observability.span({ name: "database.routineget" }, () => {
+          const row = database.select().from(routines).where(eq(routines.id, id)).get()
+
+          return row ? routineSchemas.routine.assert(row) : undefined
+        })
+      },
+      listForBot(botId: string) {
+        return observability.span({ name: "database.routinelist", context: { botId } }, () => routineSchemas.routineList.assert(
+          database.select().from(routines).where(eq(routines.botId, botId)).orderBy(asc(routines.createdAt), asc(routines.id)).all(),
+        ))
+      },
+      listEnabled() {
+        return observability.span({ name: "database.routinelistenabled" }, () => routineSchemas.routineList.assert(
+          database.select().from(routines).where(eq(routines.enabled, true)).orderBy(asc(routines.nextCallAt), asc(routines.id)).all(),
+        ))
+      },
+      update(id: string, changes: Partial<Pick<Routine, "content" | "frequency" | "enabled" | "nextCallAt">>) {
+        return observability.span({ name: "database.routineupdate" }, () => {
+          const row = database.update(routines).set(changes).where(eq(routines.id, id)).returning().get()
+
+          return row ? routineSchemas.routine.assert(row) : undefined
+        })
+      },
+      remove(id: string) {
+        return observability.span({ name: "database.routineremove" }, () => database.delete(routines).where(eq(routines.id, id)).run().changes)
       },
     },
     migrationState() {

@@ -6,6 +6,7 @@ import { providerAvailabilityList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { projectSchemas } from "./projects"
+import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
 
 export const engineReadyMessage = type({
@@ -79,6 +80,12 @@ export const engineContract = {
   },
   tasks: {
     listForLeader: oc.input(taskSchemas.leaderInput).output(taskSchemas.taskList).route({ method: "GET", path: "/bots/{leaderBotId}/tasks" }),
+  },
+  routines: {
+    create: oc.input(routineSchemas.createInput).output(routineSchemas.routine).route({ method: "POST", path: "/routines" }),
+    list: oc.input(routineSchemas.botInput).output(routineSchemas.routineList).route({ method: "GET", path: "/bots/{botId}/routines" }),
+    update: oc.input(routineSchemas.updateInput).output(routineSchemas.routine).route({ method: "POST", path: "/routines/{id}/update" }),
+    remove: oc.input(routineSchemas.idInput).route({ method: "POST", path: "/routines/{id}/remove" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

@@ -87,14 +87,14 @@ export function startChatTool(botId: string, { callId, tool: name, detail, brief
   })
 }
 
-export function finishChatTool(botId: string, callId: string, failed: boolean) {
+export function finishChatTool(botId: string, callId: string, failed: boolean, error?: string) {
   updateRun(botId, (run) => ({
     ...run,
     steps: run.steps.map((step) => step.type === "tool"
       ? {
           ...step,
           tools: step.tools.map((tool) => tool.callId === callId
-            ? { ...tool, status: failed ? "failed" as const : "done" as const }
+            ? { ...tool, status: failed ? "failed" as const : "done" as const, ...(error ? { error } : {}) }
             : tool),
         }
       : step),

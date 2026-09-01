@@ -87,3 +87,15 @@ _Evitar_: BYOK, API key do modelo
 **Execução local**:
 O trabalho de um Bot realizado na máquina da pessoa.
 _Evitar_: Execução remota, execução em VPS
+
+**Rotina**:
+Um pedido fixo que o Jolt entrega a um Bot na Frequência escolhida. Pertence a um único Bot, que pode ter várias. A pessoa ou o próprio Bot cria, altera, pausa e remove uma Rotina. Um Integrante temporário não tem Rotina.
+_Evitar_: Cron, agendamento, gatilho, job, timer
+
+**Frequência**:
+Quando uma Rotina chama o Bot. Ela tem três formas: Intervalo, a cada tantos minutos; Horário fixo, em dias da semana e hora local escolhidos; ou Uma vez, em uma data e hora local. Uma Rotina de uma vez some sozinha depois da Chamada.
+_Evitar_: Cron, expressão, agenda, schedule
+
+**Chamada**:
+Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Jolt estava fechado acontece uma única vez ao abrir.
+_Evitar_: Tick, execução, disparo, mensagem da pessoa

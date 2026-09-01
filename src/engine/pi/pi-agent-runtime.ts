@@ -8,7 +8,7 @@ export type PiRuntimeEvent =
   | { type: "thinking"; text: string }
   | { type: "thinking-finished" }
   | { type: "tool-started"; callId: string; tool: string; detail?: string; brief?: string }
-  | { type: "tool-finished"; callId: string; tool: string; failed: boolean }
+  | { type: "tool-finished"; callId: string; tool: string; failed: boolean; error?: string }
   | { type: "finished"; reason: "stop" | "aborted" | "error" }
 
 export type PiCustomTool = {

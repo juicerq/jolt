@@ -6,6 +6,7 @@ import { createConversations } from "@src/engine/conversations/conversations"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { createPiAgentRuntime, type PiCustomTool, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
+import { createRoutines } from "@src/engine/routines/routines"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { testDirectory } from "../../support/test-directory"
 
@@ -88,7 +89,8 @@ function setup() {
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
@@ -125,6 +127,7 @@ function setup() {
   }
 
   async function close() {
+    routines.dispose()
     conversations.dispose()
     database.close()
     await observationSystem.observability.flush()

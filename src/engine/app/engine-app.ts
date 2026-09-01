@@ -6,6 +6,7 @@ import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
 import type { createConversations } from "../conversations/conversations"
 import type { createProjects } from "../projects/projects"
+import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 
 type EngineContext = { traceId?: string; spanId?: string }
@@ -43,6 +44,7 @@ export function createEngineRouter(
   projects: ReturnType<typeof createProjects>,
   conversations: ReturnType<typeof createConversations>,
   tasks: ReturnType<typeof createTasks>,
+  routines: ReturnType<typeof createRoutines>,
 ) {
   const operations = implement(engineContract).use(async ({ next }) => {
     try {
@@ -163,6 +165,32 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.tasklist", context: observationContext(context) },
           () => tasks.listForLeader(input),
+        ),
+      ),
+    },
+    routines: {
+      create: operations.routines.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.routinecreate", context: observationContext(context) },
+          () => routines.create(input),
+        ),
+      ),
+      list: operations.routines.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.routinelist", context: observationContext(context) },
+          () => routines.list(input),
+        ),
+      ),
+      update: operations.routines.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.routineupdate", context: observationContext(context) },
+          () => routines.update(input),
+        ),
+      ),
+      remove: operations.routines.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.routineremove", context: observationContext(context) },
+          () => routines.remove(input),
         ),
       ),
     },

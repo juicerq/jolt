@@ -14,6 +14,7 @@ import { createPiAgentRuntime } from "./pi/pi-agent-runtime"
 import { createPiSessionFactory } from "./pi/pi-session-adapter"
 import { createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
+import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
 
 registerBunOAuthFlows()
@@ -109,7 +110,8 @@ const piRuntime = createPiAgentRuntime(createPiSessionFactory({
   modelId: "gpt-5.6-luna",
 }), observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })
-const conversations = createConversations({ database, bots, tasks, runtime: piRuntime, observability: observationSystem.observability })
+const conversations = createConversations({ database, bots, tasks, runtime: piRuntime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
@@ -123,7 +125,7 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -210,6 +212,7 @@ process.on("SIGTERM", async () => {
         })
       }
 
+      routines.dispose()
       conversations.dispose()
       database.close()
       engineState = "stopped"

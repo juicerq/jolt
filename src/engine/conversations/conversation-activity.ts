@@ -65,7 +65,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           ? {
               ...step,
               tools: step.tools.map((tool) => tool.callId === runtimeEvent.callId
-                ? { ...tool, status: runtimeEvent.failed ? "failed" as const : "done" as const }
+                ? { ...tool, status: runtimeEvent.failed ? "failed" as const : "done" as const, ...(runtimeEvent.error ? { error: runtimeEvent.error } : {}) }
                 : tool),
             }
           : step)

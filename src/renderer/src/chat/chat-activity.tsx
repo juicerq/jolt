@@ -1,5 +1,6 @@
 import {
   ChevronDownIcon,
+  ClockIcon,
   CommandLineIcon,
   DocumentMagnifyingGlassIcon,
   DocumentPlusIcon,
@@ -264,6 +265,10 @@ function getActivityStageIcon(step: VisibleStep) {
 
   if (step.name === "transfer") {
     return { label: "transferência", icon: <UserGroupIcon {...iconProps} /> }
+  }
+
+  if (step.name === "routine" || step.name === "remove_routine") {
+    return { label: "Rotina", icon: <ClockIcon {...iconProps} /> }
   }
 
   return { label: step.name, icon: <WrenchScrewdriverIcon {...iconProps} /> }

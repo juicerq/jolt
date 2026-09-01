@@ -18,6 +18,7 @@ type ToolGroup = {
   name: string
   countTargets?: boolean
   namesTargets?: boolean
+  prose?: boolean
   active: (count: number, targets: string) => string
   done: (count: number, targets: string) => string
   failed: (count: number, targets: string) => string
@@ -82,6 +83,7 @@ const toolGroups: ToolGroup[] = [
     name: "delegate",
     countTargets: true,
     namesTargets: true,
+    prose: true,
     active: (_count, targets) => `aguardando ${targets}`,
     done: (_count, targets) => `delegou para ${targets}`,
     failed: (count, targets) => `${count === 1 ? "delegação" : "delegações"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
@@ -91,6 +93,7 @@ const toolGroups: ToolGroup[] = [
     name: "hire",
     countTargets: true,
     namesTargets: true,
+    prose: true,
     active: (_count, targets) => `aguardando ${targets}`,
     done: (_count, targets) => `contratou ${targets}`,
     failed: (count, targets) => `${count === 1 ? "contratação" : "contratações"} de ${targets} ${count === 1 ? "falhou" : "falharam"}`,
@@ -100,10 +103,27 @@ const toolGroups: ToolGroup[] = [
     name: "transfer",
     countTargets: true,
     namesTargets: true,
+    prose: true,
     active: (_count, targets) => `transferindo para ${targets}`,
     done: (_count, targets) => `transferiu para ${targets}`,
     failed: (count, targets) => `${count === 1 ? "transferência" : "transferências"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
     running: (_count, targets) => `deixou a transferência para ${targets} sem concluir`,
+  },
+  {
+    name: "routine",
+    prose: true,
+    active: () => "ajustando uma Rotina",
+    done: (count) => count === 1 ? "ajustou uma Rotina" : `ajustou ${count} Rotinas`,
+    failed: (count) => count === 1 ? "não conseguiu ajustar a Rotina" : `não conseguiu ajustar ${count} Rotinas`,
+    running: () => "deixou a Rotina sem ajustar",
+  },
+  {
+    name: "remove_routine",
+    prose: true,
+    active: () => "removendo uma Rotina",
+    done: (count) => count === 1 ? "removeu uma Rotina" : `removeu ${count} Rotinas`,
+    failed: (count) => count === 1 ? "não conseguiu remover a Rotina" : `não conseguiu remover ${count} Rotinas`,
+    running: () => "deixou a Rotina sem remover",
   },
 ]
 
@@ -190,12 +210,13 @@ export function splitChatActivitySteps<Step extends ActivitySummaryStep>(steps: 
 
 export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
   const group = toolGroups.find((candidate) => candidate.name === step.name)
+  const errors = step.tools.flatMap((tool) => tool.error ? [tool.error] : [])
 
-  if (group?.namesTargets) {
-    return { prose: true, items: [...new Set(step.tools.flatMap((tool) => tool.brief ? [tool.brief] : []))] }
+  if (group?.prose) {
+    return { prose: true, items: [...new Set([...step.tools.flatMap((tool) => tool.brief ? [tool.brief] : []), ...errors])] }
   }
 
-  return { prose: false, items: [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))] }
+  return { prose: false, items: [...new Set([...step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []), ...errors])] }
 }
 
 function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {

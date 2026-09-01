@@ -7,6 +7,7 @@ import { voice } from "@src/engine/conversations/voice"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
+import { createRoutines } from "@src/engine/routines/routines"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { testDirectory } from "../../support/test-directory"
 
@@ -37,7 +38,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
             listener({ type: "tool-started", callId: "read-1", tool: "read", detail: "PROJECT.md" })
             listener({ type: "tool-finished", callId: "read-1", tool: "read", failed: false })
             listener({ type: "tool-started", callId: "read-2", tool: "read", detail: "CONTEXT.md" })
-            listener({ type: "tool-finished", callId: "read-2", tool: "read", failed: false })
+            listener({ type: "tool-finished", callId: "read-2", tool: "read", failed: true, error: "File not found: CONTEXT.md" })
             listener({ type: "thinking-started" })
             listener({ type: "thinking", text: "Agora vou responder." })
             listener({ type: "thinking-finished" })
@@ -81,7 +82,8 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const tasks = createTasks({ database, observability: observationSystem.observability })
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
   async function turn(botId: string, content: string) {
     const events = conversations.events()[Symbol.asyncIterator]()
@@ -163,7 +165,7 @@ describe("conversations", () => {
       name: "read",
       tools: [
         { callId: "read-1", name: "read", detail: "PROJECT.md", status: "done" },
-        { callId: "read-2", name: "read", detail: "CONTEXT.md", status: "done" },
+        { callId: "read-2", name: "read", detail: "CONTEXT.md", status: "failed", error: "File not found: CONTEXT.md" },
       ],
     })
     expect(activity?.steps[2]).toMatchObject({ type: "thinking", content: "Agora vou responder." })

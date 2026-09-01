@@ -14,6 +14,7 @@ import { openDatabase } from "@src/engine/persistence/database"
 import { createPiAgentRuntime, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { createPiProvider } from "@src/engine/pi/pi-provider"
 import { createProjects } from "@src/engine/projects/projects"
+import { createRoutines } from "@src/engine/routines/routines"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { engineContract } from "@src/shared/engine-contract"
 import { testDirectory } from "../../support/test-directory"
@@ -34,7 +35,8 @@ function setup() {
     },
   }
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
   const diagnostics = createDiagnostics({
     source: system.diagnostics,
     versions: { app: "0.0.0", bun: Bun.version, electron: "test" },
@@ -42,7 +44,7 @@ function setup() {
     migrationState: database.migrationState,
     exportDirectory: join(directory, "diagnostics"),
   })
-  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks))
+  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines))
   const server = Bun.serve({
     port: 0,
     async fetch(request) {
@@ -55,6 +57,7 @@ function setup() {
 
   async function close() {
     await server.stop(true)
+    routines.dispose()
     conversations.dispose()
     database.close()
     await system.observability.flush()

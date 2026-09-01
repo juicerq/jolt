@@ -2,6 +2,7 @@ import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
 import type { AppDatabase } from "../persistence/database"
+import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
@@ -44,6 +45,7 @@ export function createConversations(input: {
   tasks: ReturnType<typeof createTasks>
   runtime: ReturnType<typeof createPiAgentRuntime>
   observability: Observability
+  routines: Pick<ReturnType<typeof createRoutines>, "tools" | "instructions">
 }) {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
@@ -74,13 +76,14 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const customTools = delegation.tools(bot)
+    const customTools = [...delegation.tools(bot), ...input.routines.tools(bot)]
     const tools = [...defaultTools, ...customTools.map((tool) => tool.name)]
     const instructions = [
       `You are ${bot.name}.`,
       `Expected outcome: ${bot.function.outcome}`,
       bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
       delegation.instructions(bot),
+      input.routines.instructions(bot),
       voice,
     ].filter(Boolean).join("\n")
     const profile = JSON.stringify({ cwd, tools, instructions })
@@ -109,6 +112,10 @@ export function createConversations(input: {
 
   async function claim(botId: string, message: IncomingMessage): Promise<{ taskId: string | null; release(): void }> {
     const current = active.get(botId)
+
+    if (current && message.author === "routine") {
+      throw new Error("Bot is already working")
+    }
 
     if (current && message.author === "bot") {
       await current.settled
@@ -245,6 +252,13 @@ export function createConversations(input: {
     }
   }
 
+  async function start(botId: string, message: IncomingMessage) {
+    const turn = runTurn(botId, message)
+    await turn.next()
+
+    void Array.fromAsync(turn)
+  }
+
   return {
     history(rawInput: unknown) {
       const { botId } = conversationSchemas.botInput.assert(rawInput)
@@ -286,10 +300,11 @@ export function createConversations(input: {
     },
     async send(rawInput: unknown) {
       const { botId, content } = conversationSchemas.sendInput.assert(rawInput)
-      const turn = runTurn(botId, { author: "person", authorBotId: null, taskId: null, content })
-      await turn.next()
 
-      void Array.fromAsync(turn)
+      await start(botId, { author: "person", authorBotId: null, taskId: null, content })
+    },
+    async call(botId: string, content: string) {
+      await start(botId, { author: "routine", authorBotId: null, taskId: null, content })
     },
     async abort(rawInput: unknown) {
       const { botId } = conversationSchemas.botInput.assert(rawInput)

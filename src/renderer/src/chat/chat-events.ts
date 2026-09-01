@@ -51,7 +51,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     if (event.type === "tool-finished") {
-      finishChatTool(botId, event.callId, event.failed)
+      finishChatTool(botId, event.callId, event.failed, event.error)
       return
     }
 

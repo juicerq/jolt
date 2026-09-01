@@ -146,7 +146,7 @@ export function createDelegation(input: {
         parameters: {
           name: "Name of the member",
           role: "The member's Função: what it delivers, in one line",
-          description: "Optional. Responsibilities, limits and how the member presents its work",
+          "description?": "Responsibilities, limits and how the member presents its work",
           permanent: "\"yes\" to keep the member on your team for future Tarefas. \"no\" for a temporary member that closes when this Tarefa ends.",
           outcome: "Expected result of the Tarefa",
           instructions: "Instructions for the member",

@@ -219,6 +219,22 @@ describe("ChatActivity", () => {
     expect(failed).toContain("Contratação de Clima SP falhou")
   })
 
+  test("shows why a Rotina tool failed", () => {
+    const failed = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [
+        { type: "thinking", content: "", durationMs: 3_000 },
+        { type: "tool", name: "routine", tools: [{ callId: "routine-1", name: "routine", brief: "Lembre o usuário de tomar café", status: "failed", error: "Validation failed for tool \"routine\":\n  - id: must have required properties id" }] },
+      ] }} />,
+    )
+
+    expect(failed).toContain("Pensou por 3s e não conseguiu ajustar a Rotina")
+    expect(failed).toContain("Não conseguiu ajustar a Rotina")
+    expect(failed).toContain("Lembre o usuário de tomar café")
+    expect(failed).toContain("must have required properties id")
+    expect(failed).toContain('aria-label="Atividade de Rotina com falha"')
+    expect(failed).not.toContain("<code")
+  })
+
   test("splits consecutive delegations into one row per member", () => {
     const markup = renderToStaticMarkup(
       <ChatActivity activity={{

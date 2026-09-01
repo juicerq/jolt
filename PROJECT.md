@@ -25,5 +25,6 @@ Cada Bot tem sua própria função, instruções e histórico. Todas as conversa
 4. Você adiciona Integrantes quando quiser dividir o trabalho.
 5. O Líder chama os Integrantes e reúne os resultados.
 6. Você acompanha as conversas e fala com qualquer Bot.
+7. Você ou o próprio Bot cria Rotinas, e o Jolt chama o Bot sozinho na Frequência escolhida.
 
 O histórico continua salvo quando o aplicativo é fechado.
