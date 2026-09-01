@@ -35,5 +35,6 @@ export const messages = snakeCase.table("messages", {
   position: integer().notNull(),
   author: text({ enum: ["person", "bot"] }).$type<ConversationMessage["author"]>().notNull(),
   content: text().notNull(),
+  activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
   createdAt: text().notNull(),
 }, (table) => [index("messages_bot_position").on(table.botId, table.position)])

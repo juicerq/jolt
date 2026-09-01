@@ -4,8 +4,11 @@ import type { PiPermissionDecision, PiPermissionPolicy } from "./pi-permissions"
 export type PiRuntimeEvent =
   | { type: "started" }
   | { type: "text"; text: string }
-  | { type: "tool-started"; tool: string }
-  | { type: "tool-finished"; tool: string; failed: boolean }
+  | { type: "thinking-started" }
+  | { type: "thinking"; text: string }
+  | { type: "thinking-finished" }
+  | { type: "tool-started"; callId: string; tool: string; detail?: string }
+  | { type: "tool-finished"; callId: string; tool: string; failed: boolean }
   | { type: "finished"; reason: "stop" | "aborted" | "error" }
 
 export type PiSession = {

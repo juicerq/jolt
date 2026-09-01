@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 
 const eyebrowClassName = "mb-[1em] text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
 const cardClassName = "rounded-xl border border-outline bg-surface p-5"
@@ -45,7 +46,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   return (
     <div className="fixed inset-0 z-40 grid place-items-center justify-items-end bg-overlay p-3 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <aside className="relative flex h-full w-[min(390px,100%)] flex-col gap-4 overflow-y-auto rounded-shell border border-outline-strong bg-surface-raised p-6 text-primary shadow-[0_24px_80px_rgb(0_0_0/55%)]">
-        <button className="absolute top-6 right-6 z-1 grid size-[30px] cursor-pointer place-items-center rounded-lg bg-transparent p-0 text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px]" type="button" aria-label="Fechar configurações" onClick={onClose}><XMarkIcon aria-hidden="true" /></button>
+        <IconButton className="top-6 right-6 z-1" position="absolute" size={30} type="button" label="Fechar configurações" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
         <header className="flex items-start justify-between gap-4 pr-9"><div><p className={eyebrowClassName}>Bot</p><h2 className="text-title font-semibold text-primary">{bot.name}</h2></div><span className="rounded-full border border-outline-strong px-2.5 py-1.5 text-support font-semibold text-focus">Pi · Codex</span></header>
         <section className={cardClassName}>
           <p className={eyebrowClassName}>Função</p>

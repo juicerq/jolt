@@ -32,8 +32,11 @@
     "arktype": "2.2.3",
     "blobatar": "^2.7.0",
     "drizzle-orm": "1.0.0-rc.4",
+    "highlight.js": "10.7.3",
     "react": "19.2.5",
-    "react-dom": "19.2.5"
+    "react-dom": "19.2.5",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4",

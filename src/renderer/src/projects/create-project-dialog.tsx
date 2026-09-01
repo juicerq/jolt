@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import { closeDialog } from "../bots/bots-store"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 
 export function CreateProjectDialog({ client }: { client: EngineClient }) {
   const queryClient = useQueryClient()
@@ -64,14 +65,7 @@ export function CreateProjectDialog({ client }: { client: EngineClient }) {
                 Agrupe Bots pela pasta
               </h2>
             </div>
-            <button
-              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent p-0 text-muted hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active"
-              type="button"
-              aria-label="Fechar"
-              onClick={closeDialog}
-            >
-              <XMarkIcon className="size-[17px]" aria-hidden="true" />
-            </button>
+            <IconButton className="shrink-0" type="button" label="Fechar" tooltipPlacement="left" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></IconButton>
           </header>
           <div className="flex flex-col gap-5 p-6">
             <label className="flex flex-col gap-2 text-control font-semibold text-secondary">

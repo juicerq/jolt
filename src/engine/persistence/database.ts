@@ -81,7 +81,7 @@ export function openDatabase(path: string, observability: Observability) {
     conversations: {
       history(botId: string) {
         return observability.span({ name: "database.conversationhistory", context: { botId } }, () => conversationSchemas.messageList.assert(
-          database.select({ id: messages.id, botId: messages.botId, author: messages.author, content: messages.content, createdAt: messages.createdAt }).from(messages).where(eq(messages.botId, botId)).orderBy(asc(messages.position)).all(),
+          database.select({ id: messages.id, botId: messages.botId, author: messages.author, content: messages.content, activity: messages.activity, createdAt: messages.createdAt }).from(messages).where(eq(messages.botId, botId)).orderBy(asc(messages.position)).all(),
         ))
       },
       append(message: ConversationMessage) {

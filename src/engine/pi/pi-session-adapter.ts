@@ -22,12 +22,26 @@ function createEventNormalizer() {
       return { type: "text", text: event.assistantMessageEvent.delta }
     }
 
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_start") {
+      return { type: "thinking-started" }
+    }
+
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_delta") {
+      return { type: "thinking", text: event.assistantMessageEvent.delta }
+    }
+
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_end") {
+      return { type: "thinking-finished" }
+    }
+
     if (event.type === "tool_execution_start") {
-      return { type: "tool-started", tool: event.toolName }
+      const detail = summarizeToolInput(event.toolName, event.args)
+
+      return { type: "tool-started", callId: event.toolCallId, tool: event.toolName, ...(detail ? { detail } : {}) }
     }
 
     if (event.type === "tool_execution_end") {
-      return { type: "tool-finished", tool: event.toolName, failed: event.isError }
+      return { type: "tool-finished", callId: event.toolCallId, tool: event.toolName, failed: event.isError }
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
@@ -42,6 +56,28 @@ function createEventNormalizer() {
 
     return undefined
   }
+}
+
+function summarizeToolInput(tool: string, input: unknown) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return undefined
+  }
+
+  const values = input as Record<string, unknown>
+  const field = tool === "bash" ? "command" : tool === "grep" || tool === "find" ? "pattern" : "path"
+  const value = values[field]
+
+  if (typeof value !== "string") {
+    return undefined
+  }
+
+  const summary = value.replace(/\s+/g, " ").trim()
+
+  if (!summary) {
+    return undefined
+  }
+
+  return summary.length > 160 ? `${summary.slice(0, 157)}...` : summary
 }
 
 export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; modelId: string }): PiSessionFactory {

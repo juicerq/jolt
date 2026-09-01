@@ -1,8 +1,9 @@
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
-import type { createPiAgentRuntime, PiRuntimeEvent } from "../pi/pi-agent-runtime"
+import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
 import type { AppDatabase } from "../persistence/database"
 import { conversationSchemas, type ConversationEvent, type ConversationMessage } from "../../shared/conversations"
+import { createConversationActivityRecorder } from "./conversation-activity"
 
 const defaultTools = ["read", "bash", "edit", "write"]
 
@@ -78,6 +79,7 @@ export function createConversations(input: {
         botId,
         author: "person",
         content,
+        activity: null,
         createdAt: new Date().toISOString(),
       }
       try {
@@ -91,13 +93,14 @@ export function createConversations(input: {
       let wake: (() => void) | undefined
       let finished = false
       let response = ""
+      const activity = createConversationActivityRecorder()
       let eventCount = 0
       let receivedFirstEvent = false
       let unsubscribe = () => {}
       input.observability.event({ name: "conversation.started", context: { botId, provider: "codex" } })
-      unsubscribe = input.runtime.subscribe(botId, (runtimeEvent: PiRuntimeEvent) => {
-        const event = conversationSchemas.event.assert(runtimeEvent)
-        let deliveredEvent = event
+      unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
+        let deliveredEvent = activity.record(runtimeEvent)
+
         eventCount++
 
         if (!receivedFirstEvent) {
@@ -105,24 +108,25 @@ export function createConversations(input: {
           input.observability.event({ name: "conversation.firstevent", context: { botId, provider: "codex" } })
         }
 
-        if (event.type === "started") {
+        if (deliveredEvent.type === "started") {
           response = ""
         }
 
-        if (event.type === "text") {
-          response += event.text
+        if (deliveredEvent.type === "text") {
+          response += deliveredEvent.text
         }
 
-        if (event.type === "finished") {
-          let finishReason = event.reason
+        if (deliveredEvent.type === "finished") {
+          let finishReason = deliveredEvent.reason
 
-          if (event.reason === "stop" && response.length > 0) {
+          if (deliveredEvent.reason === "stop" && response.length > 0) {
             try {
               input.database.conversations.append({
                 id: crypto.randomUUID(),
                 botId,
                 author: "bot",
                 content: response,
+                activity: activity.snapshot(),
                 createdAt: new Date().toISOString(),
               })
             } catch (error) {

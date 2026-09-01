@@ -19,8 +19,14 @@
   --color-status-success: #4ade80;
   --color-status-warning: #fbbf24;
   --color-status-error: #f87171;
-  --color-status-working: #60a5fa;
+  --color-status-working: #fbbf24;
+  --color-status-awaiting-decision: #60a5fa;
   --color-overlay: rgb(0 0 0 / 72%);
+  --color-inline-code: #f0ad67;
+  --color-syntax-keyword: #e4a7eb;
+  --color-syntax-string: #b9df8f;
+  --color-syntax-number: #f2b86f;
+  --color-syntax-title: #8dcced;
   --radius-shell: 1.5rem;
   --text-title: 1.25rem;
   --text-title--line-height: 1.25;
@@ -35,6 +41,9 @@
   --text-support--line-height: 1.5;
   --text-metadata: 0.6875rem;
   --text-metadata--line-height: 1.4;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.08em;
 }
 
 @layer base {

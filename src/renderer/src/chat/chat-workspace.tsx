@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { ArrowUpIcon, CheckIcon, Cog6ToothIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowUpIcon, Cog6ToothIcon, StopIcon } from "@heroicons/react/24/outline"
 import { consumeEventIterator } from "@orpc/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
@@ -7,29 +7,27 @@ import { type KeyboardEvent, useCallback, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ConversationEvent, ConversationMessage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 import {
   appendChatText,
+  appendChatThinking,
   chatStore,
   dismissChatRun,
   failChatRun,
+  finishChatThinking,
   finishChatTool,
   markChatAborting,
   restartChatRun,
   setChatDraft,
   settleChatRun,
   startChatRun,
+  startChatThinking,
   startChatTool,
   type ChatRun as ChatRunState,
 } from "./chat-store"
 import { ChatScroller } from "./chat-scroller"
-
-type ToolStatus = ChatRunState["tools"][number]["status"]
-
-const toolStatusClassNames: Record<ToolStatus, string> = {
-  running: "border-[color-mix(in_oklch,var(--color-status-working)_35%,transparent)] text-status-working",
-  done: "border-[color-mix(in_oklch,var(--color-status-success)_35%,transparent)] text-status-success",
-  failed: "border-[color-mix(in_oklch,var(--color-status-error)_35%,transparent)] text-status-error",
-}
+import { ChatActivity } from "./chat-activity"
+import { ChatContent } from "./chat-content"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
   const queryClient = useQueryClient()
@@ -75,7 +73,7 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
       return
     }
 
-    startChatRun(bot.id, content)
+    startChatRun({ botId: bot.id, botName: bot.name, personContent: content })
 
     let finishReason: "stop" | "aborted" | "error" = "stop"
 
@@ -127,19 +125,19 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
   }
 
   return (
-    <section className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-[88px] before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_52%,transparent)] before:backdrop-blur-[10px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_42%,transparent_100%)]">
-      <button className="absolute top-6 right-[clamp(20px,4vw,48px)] z-[2] grid size-[30px] place-items-center rounded-lg bg-transparent p-0 text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&_svg]:size-[17px]" type="button" aria-label={`Abrir configurações de ${bot.name}`} onClick={onOpenSettings}><Cog6ToothIcon aria-hidden="true" /></button>
+    <section className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
+      <IconButton className="top-2.5 right-[var(--window-controls-clearance)] z-2 focus-visible:ring-inset" iconSize={16} position="absolute" type="button" label={`Abrir configurações de ${bot.name}`} tooltipPlacement="left" onClick={onOpenSettings}><Cog6ToothIcon aria-hidden="true" /></IconButton>
       <ChatScroller>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
-        {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} onDraftChange={(value) => setChatDraft(bot.id, value)} />}
+        {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} />)}
         {run && <ChatRun bot={bot} run={run} />}
       </ChatScroller>
-      <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
+      <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
         <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
         <textarea
-          className={`field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${composerExpanded ? "col-span-full min-h-[25px] py-0 pr-[46px] pl-1" : "min-h-[34px] px-1 py-2"}`}
+          className={`field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none ${composerExpanded ? "col-span-full min-h-[25px] py-0 pr-[46px] pl-1" : "min-h-[34px] px-1 py-2"}`}
           id={`prompt-${bot.id}`}
           placeholder={`Converse com ${bot.name}...`}
           value={draft}
@@ -150,8 +148,8 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
           onKeyDown={handleComposerKey}
         />
         {run
-          ? <button className={`inline-flex size-[34px] items-center justify-center rounded-full border border-outline-strong bg-transparent p-0 text-status-error hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60 [&_svg]:size-3.5 ${composerExpanded ? "col-start-2 row-start-2" : ""}`} type="button" disabled={run.status === "aborting"} onClick={handleAbort} aria-label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"}><StopIcon aria-hidden="true" /></button>
-          : <button className={`grid size-[34px] place-items-center rounded-full bg-accent p-0 text-accent-ink hover:bg-primary active:scale-96 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60 [&_svg]:size-[17px] [&_svg]:stroke-2 ${composerExpanded ? "col-start-2 row-start-2" : ""}`} type="button" disabled={!draft.trim()} onClick={handleSend} aria-label="Enviar mensagem"><ArrowUpIcon aria-hidden="true" /></button>}
+          ? <IconButton className={composerExpanded ? "col-start-2 row-start-2" : undefined} iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={run.status === "aborting"} label={run.status === "aborting" ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={handleAbort}><StopIcon aria-hidden="true" /></IconButton>
+          : <IconButton className={`${composerExpanded ? "col-start-2 row-start-2 " : ""}active:scale-96 [&>svg]:stroke-2`} shape="circle" size={34} tone="primary" type="button" disabled={!draft.trim()} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
       </div>
     </section>
   )
@@ -168,21 +166,41 @@ function handleConversationEvent(botId: string, event: ConversationEvent) {
     return
   }
 
+  if (event.type === "thinking") {
+    appendChatThinking(botId, event.text)
+    return
+  }
+
+  if (event.type === "thinking-started") {
+    startChatThinking(botId)
+    return
+  }
+
+  if (event.type === "thinking-finished") {
+    finishChatThinking(botId, event.durationMs)
+    return
+  }
+
   if (event.type === "tool-started") {
-    startChatTool(botId, event.tool)
+    startChatTool(botId, event.callId, event.tool, event.detail)
     return
   }
 
   if (event.type === "tool-finished") {
-    finishChatTool(botId, event.tool, event.failed)
+    finishChatTool(botId, event.callId, event.failed)
   }
 }
 
 function ChatMessage({ bot, message }: { bot: Bot; message: ConversationMessage }) {
+  const personClasses = message.author === "person"
+    ? "max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3"
+    : ""
+
   return (
-    <article className={`group relative max-w-[720px] ${message.author === "person" ? "max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" : ""}`}>
+    <article className={`group relative max-w-[720px] ${personClasses}`}>
       <div className="pointer-events-none absolute -top-5 left-0 flex items-center justify-start gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{message.author === "person" ? "Você" : bot.name}</strong><time>{formatMessageTime(message.createdAt)}</time></div>
-      <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>
+      {message.author === "bot" && message.activity && <ChatActivity activity={message.activity} />}
+      {message.author === "bot" ? <ChatContent content={message.content} /> : <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>}
     </article>
   )
 }
@@ -193,33 +211,20 @@ function ChatRun({ bot, run }: { bot: Bot; run: ChatRunState }) {
       <article className="group relative max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3 opacity-70"><div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">Você</strong><span>Agora</span></div><p className="m-0 whitespace-pre-wrap text-body text-primary">{run.personContent}</p></article>
       <article className="group relative max-w-[720px]">
         <div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{bot.name}</strong><span>Agora</span></div>
-        {run.tools.length > 0 && <div className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Ferramentas usadas">{run.tools.map((tool, index) => <span className={`inline-flex items-center gap-1 rounded-full border bg-surface-raised px-[9px] py-[5px] text-metadata ${toolStatusClassNames[tool.status]} [&_svg]:size-3 [&_svg]:stroke-2`} key={`${tool.name}-${index}`}><ToolStatusIcon status={tool.status} />{tool.name}</span>)}</div>}
-        {run.responseContent ? <p className="m-0 whitespace-pre-wrap text-body text-primary">{run.responseContent}{run.status !== "failed" && <span className="ml-[3px] inline-block h-[15px] w-1.5 animate-pulse bg-accent align-text-bottom [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />}</p> : run.status !== "failed" && <p className="m-0 flex items-center gap-2 text-support text-muted"><span className="size-1.5 animate-pulse rounded-full bg-accent [animation-duration:900ms] motion-reduce:animate-none" />{run.status === "aborting" ? "Interrompendo" : "Pensando"}</p>}
+        <ChatActivity activity={run} botName={bot.name} status={run.status} waitingMessage={run.waitingMessage} />
+        {run.responseContent && <ChatContent content={run.responseContent} streaming={run.status !== "failed"} />}
         {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>
   )
 }
 
-function ToolStatusIcon({ status }: { status: ToolStatus }) {
-  if (status === "running") {
-    return <span className="size-[5px] rounded-full bg-current" />
-  }
-
-  if (status === "done") {
-    return <CheckIcon aria-hidden="true" />
-  }
-
-  return <XMarkIcon aria-hidden="true" />
-}
-
-function EmptyChat({ bot, onDraftChange }: { bot: Bot; onDraftChange: (value: string) => void }) {
+function EmptyChat({ bot }: { bot: Bot }) {
   return (
     <div className="m-auto flex max-w-[520px] flex-col items-center text-center text-support text-secondary">
-      <Blobatar className="size-10 flex-none rounded-xl border border-outline-strong bg-surface-raised" name={`jots:${bot.id}:${bot.name}`} size={40} alt="" />
+      <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jots:${bot.id}:${bot.name}`} size={64} alt="" />
       <h2 className="mt-4 mb-1.5 text-title font-semibold text-primary">Converse com {bot.name}</h2>
-      <p className="max-w-[48ch] text-support leading-[1.6]">{bot.function.outcome}</p>
-      <div className="flex flex-wrap justify-center gap-2"><button className="rounded-lg border border-outline-strong bg-surface-raised px-3 py-2 text-control font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => onDraftChange("O que você recomenda fazer primeiro?")}>Pedir recomendação</button><button className="rounded-lg border border-outline-strong bg-surface-raised px-3 py-2 text-control font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => onDraftChange("Resuma o estado atual do seu trabalho.")}>Pedir resumo</button></div>
+      <p className="m-0 max-w-[48ch] leading-[1.6]">{bot.function.outcome}</p>
     </div>
   )
 }

@@ -20,8 +20,14 @@ colors:
   success: "#4ade80"
   warning: "#fbbf24"
   error: "#f87171"
-  working: "#60a5fa"
+  working: "#fbbf24"
+  awaiting-decision: "#60a5fa"
   overlay: "rgb(0 0 0 / 72%)"
+  inline-code: "#f0ad67"
+  syntax-keyword: "#e4a7eb"
+  syntax-string: "#b9df8f"
+  syntax-number: "#f2b86f"
+  syntax-title: "#8dcced"
 typography:
   title:
     fontFamily: system-ui
@@ -135,16 +141,19 @@ components:
     padding: "{spacing.xl}"
   status-available:
     backgroundColor: "{colors.success}"
-    size: 6px
+    size: 7px
   status-working:
     backgroundColor: "{colors.working}"
-    size: 6px
+    size: 7px
   status-waiting:
     backgroundColor: "{colors.warning}"
-    size: 6px
+    size: 7px
+  status-awaiting-decision:
+    backgroundColor: "{colors.awaiting-decision}"
+    size: 7px
   status-error:
     backgroundColor: "{colors.error}"
-    size: 6px
+    size: 7px
   divider:
     backgroundColor: "{colors.outline}"
   control-outline:
@@ -175,6 +184,19 @@ the persistent workspace. Controls stay quiet until the pointer or keyboard
 reaches them. The user's message, the Bot's answer, and the prompt are the
 strongest elements in that order.
 
+Inline code in conversations uses a strong warm amber and semibold monospace
+text without a border or background. Fenced code remains contained in its own
+surface with syntax highlighting.
+
+The conversation's top edge uses a 12px translucent fade with a light 6px blur.
+It softens clipped content without creating a visible header layer.
+
+Activity steps with multiple targets present one target per line in a nested
+disclosure. Completed history opens the list initially, while settled live
+steps keep it closed. The disclosure chevron appears only on hover or keyboard
+focus, close to the label inside the standard hover surface. Lists add no
+border, surface, or spacing between their items.
+
 ## Colors
 
 The palette uses warm near-black surfaces and three strengths of neutral text.
@@ -193,9 +215,13 @@ The app has no decorative brand color.
   `surface-hover` and `surface-active` belong only to interaction states.
 - **Outlines (#302c29, #57514d):** The soft outline separates persistent
   regions. The strong outline belongs to controls and focus-adjacent states.
-- **Status colors:** Green means available or complete. Blue means working.
-  Yellow means waiting for the user. Red means failure. Each color answers a
-  state question and never decorates a button or avatar.
+- **Status colors:** Green means available or complete. Yellow means working or
+  interrupting. Red means failure. Blue is reserved for a future state where
+  the Bot is waiting for a decision from the user. Each color answers a state
+  question. In the sidebar, a status badge sits on the avatar and exposes its
+  text in a top tooltip instead of repeating it in the Bot description.
+- **Syntax colors:** Muted lavender, sage, amber, and blue distinguish code
+  tokens inside fenced blocks. They never leave code or replace status colors.
 
 Primary, secondary, and muted are the complete ink scale. Adding another gray
 creates an unnamed focus level and weakens the hierarchy.
@@ -232,12 +258,15 @@ should survive 100% display scaling without relying on text below 11px.
 ## Layout
 
 The desktop window has two persistent regions: a 286px sidebar and the fluid
-conversation plane. A 12px channel separates them. Window controls occupy the
-sidebar's upper-left corner without reserving height above the conversation.
+conversation plane. A 12px channel separates them. Window controls sit in the
+upper-right corner without reserving height above the conversation. Their icons
+stay faint at rest and reach full ink on pointer or keyboard intent. A separate
+12px strip across the top owns window dragging without covering the search field.
 
 The sidebar holds the Bot list directly. It does not start with a team picker.
-A plus beside `BOTS` creates a Bot. Selection uses a tonal row, not a leading
-line, checkmark, or accent color.
+Its top row combines Bot search with the quiet actions for creating a Project
+or Bot. Selection uses a tonal row, not a leading line, checkmark, or accent
+color.
 
 The conversation plane runs to the bottom and right window margins. It uses one
 24px outer radius and one outline. The content column stays readable instead of
@@ -245,7 +274,7 @@ expanding with the window: messages top out near 720px, and the prompt follows
 the same horizontal center.
 
 The message list scrolls while the prompt remains visible. New content follows
-the end while the reader is within 160px of it. Farther up, the position stays
+the end while the reader is within 312px of it. Farther up, the position stays
 fixed and a quiet return-to-end button appears above the prompt. Empty, loading,
 streaming, interrupted, and failed states keep the same geometry. A state change
 must not move the prompt or resize the conversation plane.
@@ -290,15 +319,41 @@ Bot name in control type and primary ink. The second line combines a 6px status
 light, a short state, and a clipped work summary in metadata type. Hover and
 selection use tone. The row keeps the same outline in every state.
 
-**Leader row.** It has the same anatomy as a Bot row. Three 24px Blabatars
-overlap inside the avatar slot. The stack alone communicates that the Bot leads
-a team. The first avatar belongs to the Leader; the next two represent the most
-relevant Integrantes.
+**Leader row.** It has the same anatomy as a Bot row and two disclosure states.
+Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes
+below. Collapsed, it hides the Integrantes and overlaps the Leader plus up to two
+members as 24px Blabatars. A separate chevron toggles the team without changing
+which Bot conversation is selected. The complete team block owns 8px of space
+below it in either state so adjacent teams remain distinct. Expansion combines
+a 160ms height transition with a shorter opacity fade and becomes immediate
+when reduced motion is requested.
 
 **Conversation.** Bot messages read as plain content on the conversation plane.
 User messages use a compact raised bubble aligned right. Message author and time
-sit above the content in metadata type. Tool calls and thinking stay collapsed
-or visually subordinate until the user opens them.
+sit above the content in metadata type. Thinking and tool calls share one
+activity history. While a response runs, reasoning and every tool call remain
+visible as a progressive stack. The newest activity stays open with its detail;
+each earlier activity becomes a compact status line but remains visible. New
+activities enter with a short fade and vertical motion. Completed and failed
+activities stop moving. Consecutive calls to the same tool form one activity,
+such as `Leu 3 arquivos`, with their targets on the supporting line. Separate
+reasoning periods remain separate activities with their own durations. Before
+the Provider reports an activity, the response uses short contact copy such as
+`Contatando Marina…`. It must not describe that waiting period as thinking. The
+copy stays stable for the turn and gives way to reasoning or tool activity when
+either begins. A completed response collapses the activity history into one
+disclosure. Expanding it restores the same chronological sequence instead of
+regrouping activities by type. The collapsed line replaces the live stack
+instead of appearing beside it. It includes reasoning duration only when the Provider
+explicitly reported reasoning; contact and response latency never become
+`Raciocínio` after completion. Its collapsed summary uses a sentence that names
+the observed work, such as `Raciocinou por 5s, leu 3 arquivos e executou 5
+comandos.` The duration stays beside reasoning because it does not measure tool
+execution. Each live and expanded step uses an icon for its action instead of a
+generic completion check. The current step stays on the conversation plane
+without a separate background. Live and expanded steps use the same branching
+line as grouped team members in the sidebar, and the final step ends the line.
+Failed and unfinished actions do not count as completed work.
 
 **Prompt.** One line by default, centered near the bottom of the conversation.
 The field is the strongest control on the screen. Its send action is the only
@@ -317,6 +372,10 @@ below the field and says how to correct the value.
 **Button.** Primary commits the current flow. Secondary offers a nearby
 alternative. Ghost exposes low-frequency actions such as settings, add, close,
 and window controls. All variants keep a visible keyboard focus state.
+Window controls use the ghost anatomy at reduced rest opacity. Minimize and
+maximize use a neutral hover surface. Close introduces error color only on
+hover or keyboard focus. Their tooltips open downward to remain inside the
+window edge.
 
 **Empty state.** One section heading explains the state. One support sentence
 states the next move. When the next move is already visible nearby, the empty
@@ -326,8 +385,8 @@ state does not repeat it as a second button.
 
 - Do make the conversation the first reading target. Keep navigation and
   configuration one or two ink levels quieter.
-- Do show a Bot as one identity and a Leader as a stack of identities. Keep the
-  row anatomy unchanged when the role changes.
+- Do show an expanded Leader as one identity and a collapsed Leader as a stack
+  of identities. Keep the row anatomy stable while the team is disclosed.
 - Do use one primary action in each state. Let ghost controls wait for intent.
 - Do use realistic Bot names, tasks, statuses, and messages when judging a
   screen. Empty placeholders hide hierarchy problems.

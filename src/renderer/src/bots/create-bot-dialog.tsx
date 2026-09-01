@@ -2,6 +2,7 @@ import { FolderIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { EngineClient } from "../engine-client"
+import { IconButton } from "../ui/icon-button"
 import { closeDialog, selectBot } from "./bots-store"
 
 const eyebrowClassName = "mb-[1em] text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
@@ -81,7 +82,7 @@ function CreateBotForm({ client }: { client: EngineClient }) {
     <form className="flex max-h-[calc(100vh-48px)] flex-col overflow-y-auto" onSubmit={handleSubmit}>
       <div className="flex items-center justify-between gap-4 px-6 pt-6 pb-[18px]">
         <div><p className={eyebrowClassName}>Novo Bot · {step} de 2</p><h2 className="mt-[5px] text-title font-semibold tracking-[-0.02em] text-primary" id="create-bot-title">{step === 1 ? "Quem vai trabalhar?" : "Qual é o trabalho?"}</h2></div>
-        <button className="grid size-8 cursor-pointer place-items-center rounded-lg bg-transparent p-0 text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px]" type="button" aria-label="Fechar" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></button>
+        <IconButton type="button" label="Fechar" tooltipPlacement="left" onClick={closeDialog}><XMarkIcon aria-hidden="true" /></IconButton>
       </div>
       <div className="h-0.5 bg-outline" aria-hidden="true"><span className={`block h-full w-1/2 origin-left bg-accent transition-transform duration-180 ease-out motion-reduce:transition-none${step === 2 ? " scale-x-200" : ""}`} /></div>
       <div className="flex min-h-[300px] flex-col gap-5 p-6 max-[720px]:min-h-0">

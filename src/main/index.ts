@@ -32,6 +32,7 @@ app.whenReady().then(async () => {
     width: 1100,
     height: 760,
     frame: false,
+    icon: join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
