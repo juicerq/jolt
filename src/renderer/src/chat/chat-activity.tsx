@@ -14,6 +14,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline"
 import type { ConversationActivity } from "../../../shared/conversations"
+import { blurMouseClick } from "../ui/blur-mouse-click"
 import {
   formatChatActivityStepLabel,
   formatChatActivitySummary,
@@ -82,7 +83,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
 
   return (
     <div className="mb-3 grid gap-1.5 text-support text-muted">
-      <details className="group/activity max-w-[620px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
+      <details onClick={blurMouseClick} className="group/activity max-w-[620px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
         <summary className="grid w-fit cursor-pointer list-none grid-cols-[16px_auto_14px] items-center gap-[7px] rounded-lg px-[7px] py-[5px] hover:bg-surface-hover hover:text-secondary focus-visible:bg-surface-hover focus-visible:text-secondary focus-visible:outline-none [&::-webkit-details-marker]:hidden [&_svg]:stroke-[1.75]">
           <SparklesIcon className="size-4" aria-hidden="true" />
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
@@ -157,7 +158,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
     <div className={`relative grid min-w-0 ${stageModeClasses[mode]}`} {...currentProps}>
       {hasDetailList
         ? (
-            <details className="group/stage" open={mode !== "compact"}>
+            <details onClick={blurMouseClick} className="group/stage" open={mode !== "compact"}>
               <summary className="grid w-fit cursor-pointer list-none grid-cols-[15px_auto_13px] items-center gap-[7px] rounded-lg px-[7px] py-[5px] hover:bg-surface-hover hover:text-secondary focus-visible:bg-surface-hover focus-visible:text-secondary focus-visible:outline-none [&::-webkit-details-marker]:hidden">{heading}</summary>
               <ul className="m-0 ml-[23px] grid list-none gap-0 p-0">
                 {details.map((detail) => <li className="m-0 block min-w-0 border-0 p-0" key={detail}><ActivityDetail className={detailClassName} prose={prose}>{detail}</ActivityDetail></li>)}

@@ -1,5 +1,6 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline"
 import { type MouseEvent, type ReactNode, useState } from "react"
+import { blurMouseClick } from "../ui/blur-mouse-click"
 
 const plateClassName = "rounded-l-xl border border-r-0 border-[var(--edge-tab-outline)] bg-surface-raised"
 const openClassName = "hover:grid-cols-[20px_45px] hover:[--edge-tab-open:1] hover:[--edge-tab-outline:var(--color-outline-strong)] hover:[--edge-tab-duration:220ms] hover:[--edge-tab-ease:cubic-bezier(0.2,0,0,1)] hover:[--edge-tab-step:steps(1,jump-start)] focus-within:grid-cols-[20px_45px] focus-within:[--edge-tab-open:1] focus-within:[--edge-tab-outline:var(--color-outline-strong)] focus-within:[--edge-tab-duration:220ms] focus-within:[--edge-tab-ease:cubic-bezier(0.2,0,0,1)] focus-within:[--edge-tab-step:steps(1,jump-start)]"
@@ -9,10 +10,7 @@ export function ChatEdgeTab({ children }: { children: ReactNode }) {
 
   function handleToggle(event: MouseEvent<HTMLButtonElement>) {
     setDismissed((current) => !current)
-
-    if (event.detail > 0) {
-      event.currentTarget.blur()
-    }
+    blurMouseClick(event)
   }
 
   return (
@@ -21,7 +19,7 @@ export function ChatEdgeTab({ children }: { children: ReactNode }) {
         <ChevronLeftIcon className="size-3.5 opacity-35 rotate-[calc(var(--edge-tab-open)*180deg)] transition-[rotate] duration-[var(--edge-tab-duration)] ease-[var(--edge-tab-ease)] motion-reduce:transition-none" aria-hidden="true" />
       </button>
       <div className={`${plateClassName} min-w-0 overflow-hidden opacity-[var(--edge-tab-open)] [&:has(>div>button:only-of-type)]:rounded-l-none transition-opacity duration-[var(--edge-tab-duration)] ease-[var(--edge-tab-step)] motion-reduce:transition-none`}>
-        <div className="flex w-11 flex-col items-center gap-1 p-1.5">{children}</div>
+        <div className="flex w-11 flex-col items-center gap-1 p-1.5" onClick={blurMouseClick}>{children}</div>
       </div>
     </div>
   )
