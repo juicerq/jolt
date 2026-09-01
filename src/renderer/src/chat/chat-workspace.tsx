@@ -124,11 +124,19 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
   )
 }
 
+function memberMessageKind(bot: Pick<Bot, "leaderBotId">, message: Pick<ConversationMessage, "authorBotId">) {
+  if (message.authorBotId === bot.leaderBotId) {
+    return "assignment"
+  }
+
+  return "result"
+}
+
 function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message: ConversationMessage; names: Record<string, string>; taskStatuses: Record<string, TaskStatus> }) {
   const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
 
   if (fromOtherBot) {
-    return <ChatMemberResult name={names[message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[message.taskId ?? ""]} time={formatMessageTime(message.createdAt)} content={message.content} />
+    return <ChatMemberResult kind={memberMessageKind(bot, message)} name={names[message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[message.taskId ?? ""]} time={formatMessageTime(message.createdAt)} content={message.content} />
   }
 
   const authorName = message.author === "person" ? "Você" : bot.name
@@ -154,7 +162,7 @@ function ChatRun({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<st
     <>
       {fromPerson
         ? <article className="group relative max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3"><div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">Você</strong><span>Agora</span></div><p className="m-0 whitespace-pre-wrap text-body text-primary">{run.message.content}</p></article>
-        : <ChatMemberResult name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[run.message.taskId ?? ""]} time="Agora" content={run.message.content} open />}
+        : <ChatMemberResult kind={memberMessageKind(bot, run.message)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[run.message.taskId ?? ""]} time="Agora" content={run.message.content} open />}
       <article className="group relative max-w-[720px]">
         <div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{bot.name}</strong><span>Agora</span></div>
         <ChatActivity activity={run} botName={bot.name} status={run.status} waitingMessage={run.waitingMessage} />

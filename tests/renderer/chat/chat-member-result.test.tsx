@@ -29,3 +29,14 @@ describe("ChatMemberResult", () => {
     expect(markup).toMatch(/<details[^>]*\sopen/)
   })
 })
+
+describe("ChatMemberResult assignment", () => {
+  test("labels a message from the Líder as a delegated Tarefa regardless of status", () => {
+    const markup = renderToStaticMarkup(<ChatMemberResult kind="assignment" name="Marina" status="failed" time="22:35" content="Consulte o clima de São Paulo" />)
+
+    expect(markup).toContain("Marina delegou uma Tarefa")
+    expect(markup).not.toContain("retornou")
+    expect(markup).not.toContain("não concluiu")
+    expect(markup).toContain("Consulte o clima de São Paulo")
+  })
+})
