@@ -43,7 +43,7 @@ export function useTooltip() {
 export function Tooltip({ anchorName, children, placement = "top", ref }: { anchorName: string; children: ReactNode; placement?: TooltipPlacement; ref: Ref<HTMLDivElement> }) {
   return (
     <div
-      className={`pointer-events-none inset-auto m-0 w-max max-w-[220px] rounded-lg border border-outline bg-surface-active px-2 py-1.5 text-center text-metadata font-medium whitespace-normal text-primary shadow-[0_8px_24px_rgb(0_0_0/24%)] transition-[opacity,transform,display] transition-discrete duration-120 ease-out [position-try-fallbacks:flip-block,flip-inline] starting:opacity-0 motion-reduce:transition-none ${placementClassNames[placement]}`}
+      className={`pointer-events-none inset-auto m-0 w-max max-w-[220px] rounded-lg border border-outline bg-surface-active px-2 py-1.5 text-center text-metadata font-medium whitespace-normal text-primary shadow-[0_8px_24px_rgb(0_0_0/24%)] transition-[opacity,transform,display,overlay] transition-discrete duration-120 ease-out [position-try-fallbacks:flip-block,flip-inline] starting:opacity-0 motion-reduce:transition-none ${placementClassNames[placement]}`}
       popover="manual"
       ref={ref}
       role="tooltip"
