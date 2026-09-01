@@ -22,6 +22,10 @@ const engine = new EngineProcess({
   },
 })
 
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch("remote-debugging-port", "9222")
+}
+
 app.whenReady().then(async () => {
   const connection = await engine.start()
   await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
