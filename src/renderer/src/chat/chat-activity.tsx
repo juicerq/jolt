@@ -66,7 +66,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
   }
 
   const [onlyStep] = steps
-  const opensNothing = steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).items.length === 0)
+  const opensNothing = steps.length === 1 && (onlyStep.type === "thinking" ? !onlyStep.content.trim() : getChatActivityStepDetails(onlyStep).items.length === 0)
 
   if (opensNothing) {
     return (
@@ -151,7 +151,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
             </details>
           )
         : <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">{heading}</div>}
-      {mode === "current" && step.type === "thinking" && step.content && <ThinkingTrace content={step.content} />}
+      {mode !== "compact" && step.type === "thinking" && step.content.trim() && <ThinkingTrace content={step.content} mode={mode} />}
       {mode !== "compact" && details.length === 1 && <ActivityDetail className={`ml-[23px] block ${detailClassName} ${mode === "history" ? "pt-0.5" : "border-l border-outline py-1 pl-3"}`} prose={prose}>{details[0]}</ActivityDetail>}
     </div>
   )
@@ -165,8 +165,8 @@ function ActivityDetail({ children, className, prose }: { children: string; clas
   return <code className={className}>{children}</code>
 }
 
-function ThinkingTrace({ content }: { content: string }) {
-  return <div className="ml-[23px] border-l border-outline pl-3 [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit"><ChatContent content={content} /></div>
+function ThinkingTrace({ content, mode }: { content: string; mode: "current" | "history" }) {
+  return <div className={`ml-[23px] ${mode === "history" ? "pt-0.5" : "border-l border-outline pl-3"} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
 }
 
 function getStepStatus(step: VisibleStep, active: boolean) {

@@ -19,12 +19,22 @@ describe("ChatActivity", () => {
     expect(markup).toContain("Pensou por 3s")
     expect(markup).toContain("Leu 1 arquivo")
     expect(markup).toContain("Executou 1 comando")
-    expect(markup).not.toContain("**Planejando**")
+    expect(markup).toContain("<strong>Planejando</strong>")
+    expect(markup).toContain("Ler o arquivo")
+  })
+
+  test("opens a single thought to show what was thought", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [{ type: "thinking", content: "Escolhendo a validação", durationMs: 2_000 }] }} />,
+    )
+
+    expect(markup.match(/<summary/g)).toHaveLength(1)
+    expect(markup).toContain("Escolhendo a validação")
   })
 
   test("shows a single step as a flat line when opening it adds nothing", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: 1_000 }] }} />,
+      <ChatActivity activity={{ steps: [{ type: "thinking", content: "", durationMs: 1_000 }] }} />,
     )
 
     expect(markup).not.toContain("<summary")
