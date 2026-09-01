@@ -28,7 +28,6 @@ import {
 import { ChatScroller } from "./chat-scroller"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
-import { ChatDelegations } from "./chat-delegations"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
   const queryClient = useQueryClient()
@@ -137,7 +136,6 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
-        {!isPending && !error && <ChatDelegations bot={bot} client={client} names={names} />}
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} />)}
         {run && <ChatRun bot={bot} run={run} />}
       </ChatScroller>
