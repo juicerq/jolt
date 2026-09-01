@@ -60,4 +60,17 @@ describe("formatChatActivitySummary", () => {
 
     expect(summary).toBe("Leu 1 arquivo")
   })
+
+  test("names the member who received a delegation instead of the tool", () => {
+    const summary = formatChatActivitySummary({
+      steps: [
+        { type: "thinking", content: "Planejando", durationMs: 1_000 },
+        { type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "done" }] },
+        { type: "tool", name: "delegate", tools: [{ callId: "delegate-2", name: "delegate", detail: "Caio", status: "failed" }] },
+        { type: "tool", name: "transfer", tools: [{ callId: "transfer-1", name: "transfer", detail: "Maya", status: "done" }] },
+      ],
+    })
+
+    expect(summary).toBe("Raciocinou por 1s, delegou para Iara, delegação para Caio falhou e transferiu para Maya")
+  })
 })

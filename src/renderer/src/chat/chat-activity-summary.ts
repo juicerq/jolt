@@ -17,10 +17,11 @@ type ActivitySummaryInput = {
 type ToolGroup = {
   name: string
   countTargets?: boolean
-  active: (count: number) => string
-  done: (count: number) => string
-  failed: (count: number) => string
-  running: (count: number) => string
+  namesTargets?: boolean
+  active: (count: number, targets: string) => string
+  done: (count: number, targets: string) => string
+  failed: (count: number, targets: string) => string
+  running: (count: number, targets: string) => string
 }
 
 const toolGroups: ToolGroup[] = [
@@ -76,6 +77,24 @@ const toolGroups: ToolGroup[] = [
     done: (count) => `executou ${formatCount(count, "comando", "comandos")}`,
     failed: (count) => `${formatCount(count, "comando falhou", "comandos falharam")}`,
     running: (count) => `deixou ${formatCount(count, "comando", "comandos")} sem concluir`,
+  },
+  {
+    name: "delegate",
+    countTargets: true,
+    namesTargets: true,
+    active: (_count, targets) => `aguardando ${targets}`,
+    done: (_count, targets) => `delegou para ${targets}`,
+    failed: (count, targets) => `${count === 1 ? "delegação" : "delegações"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    running: (_count, targets) => `deixou ${targets} sem resposta`,
+  },
+  {
+    name: "transfer",
+    countTargets: true,
+    namesTargets: true,
+    active: (_count, targets) => `transferindo para ${targets}`,
+    done: (_count, targets) => `transferiu para ${targets}`,
+    failed: (count, targets) => `${count === 1 ? "transferência" : "transferências"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    running: (_count, targets) => `deixou a transferência para ${targets} sem concluir`,
   },
 ]
 
@@ -141,10 +160,16 @@ export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
 
   const count = group.countTargets ? countTargets(step.tools) : step.tools.length
 
-  return capitalize(group.active(count))
+  return capitalize(group.active(count, formatTargets(step.tools)))
 }
 
 export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
+  const group = toolGroups.find((candidate) => candidate.name === step.name)
+
+  if (group?.namesTargets) {
+    return []
+  }
+
   return [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
 }
 
@@ -160,7 +185,7 @@ function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {
     }
 
     const count = group.countTargets ? countTargets(toolsWithStatus) : toolsWithStatus.length
-    clauses.push(group[status](count))
+    clauses.push(group[status](count, formatTargets(toolsWithStatus)))
   }
 
   return clauses
@@ -193,6 +218,12 @@ function countTargets(tools: ActivityTool[]) {
   const toolsWithoutTarget = tools.filter((tool) => !tool.detail).length
 
   return targets.size + toolsWithoutTarget
+}
+
+function formatTargets(tools: ActivityTool[]) {
+  const targets = [...new Set(tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
+
+  return targets.length > 0 ? joinClauses(targets) : "um Integrante"
 }
 
 function formatCount(count: number, singular: string, plural: string) {

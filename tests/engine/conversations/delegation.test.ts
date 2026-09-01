@@ -51,7 +51,7 @@ function setup() {
               throw new Error(`Tool ${tool} is not registered`)
             }
 
-            emit({ type: "tool-started", callId, tool, detail: params.outcome ?? params.member })
+            emit({ type: "tool-started", callId, tool, detail: params.member })
             const result = await definition.execute(params).catch((error: Error) => `Error: ${error.message}`)
             emit({ type: "tool-finished", callId, tool, failed: result.startsWith("Error:") })
 
@@ -138,7 +138,7 @@ describe("delegation", () => {
       { author: "bot", authorBotId: leader.id, taskId: null, content: "Calo respondeu: Testes escritos" },
     ])
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
-      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Escrever testes", status: "done" }] },
+      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", status: "done" }] },
     ])
     const memberHistory = environment.conversations.history({ botId: member.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
 
@@ -216,6 +216,25 @@ describe("delegation", () => {
     ])
     expect(environment.conversations.related({ taskId: task?.id }).map((message) => message.botId)).toEqual([member.id, other.id, other.id, member.id])
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Dara assumiu: Tela desenhada")
+    await environment.close()
+  })
+
+  test("a member that fails before finishing marks the delegation as failed", async () => {
+    const environment = setup()
+    const { leader, member } = await environment.team()
+    environment.scripts.set(leader.id, async (_message, call) => `Resultado: ${await call("delegate", { member: "Calo", outcome: "Rodar os testes", instructions: "Rode tudo" })}`)
+    environment.scripts.set(member.id, async () => {
+      throw new Error("Provider crashed")
+    })
+
+    const events = await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue" }))
+
+    expect(events).toContainEqual(expect.objectContaining({ type: "tool-finished", tool: "delegate", failed: true }))
+    expect(environment.tasks.listForLeader({ leaderBotId: leader.id })[0]?.status).toBe("failed")
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
+      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", status: "failed" }] },
+    ])
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Resultado: Error: Calo failed before finishing.")
     await environment.close()
   })
 

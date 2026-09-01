@@ -138,4 +138,23 @@ describe("ChatActivity", () => {
     expect(markup).not.toContain("Escolhendo a validação")
     expect(markup).not.toContain("Nina está trabalhando · 2 ações")
   })
+
+  test("shows a live delegation as waiting for the member and a finished one as delegated", () => {
+    const live = renderToStaticMarkup(
+      <ChatActivity
+        activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "running" }] }] }}
+        botName="Dora"
+        status="running"
+      />,
+    )
+    const history = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "done" }] }] }} />,
+    )
+
+    expect(live).toContain("Aguardando Iara")
+    expect(live).toContain('aria-label="Atividade de delegação em andamento"')
+    expect(live).not.toContain("Usando delegate")
+    expect(history).toContain("Delegou para Iara")
+    expect(history).toContain('aria-label="Atividade de delegação concluída"')
+  })
 })

@@ -62,7 +62,7 @@ export function createDelegation(input: {
       return [`The person gave ${to.name} a direct order and interrupted this delegation. The person's order prevails.`, outcome.response].filter(Boolean).join("\n\nPartial reply:\n")
     }
 
-    return `${to.name} failed before finishing.`
+    throw new Error(`${to.name} failed before finishing.`)
   }
 
   const statusByReason = { stop: "done", aborted: "interrupted", error: "failed" } as const

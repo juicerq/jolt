@@ -9,6 +9,7 @@ import {
   MagnifyingGlassIcon,
   PencilSquareIcon,
   SparklesIcon,
+  UserGroupIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline"
 import type { ConversationActivity } from "../../../shared/conversations"
@@ -210,6 +211,14 @@ function getActivityStageIcon(step: VisibleStep) {
 
   if (step.name === "bash") {
     return { label: "comando", icon: <CommandLineIcon {...iconProps} /> }
+  }
+
+  if (step.name === "delegate") {
+    return { label: "delegação", icon: <UserGroupIcon {...iconProps} /> }
+  }
+
+  if (step.name === "transfer") {
+    return { label: "transferência", icon: <UserGroupIcon {...iconProps} /> }
   }
 
   return { label: step.name, icon: <WrenchScrewdriverIcon {...iconProps} /> }
