@@ -1,4 +1,4 @@
-import { implement } from "@orpc/server"
+import { implement, ORPCError } from "@orpc/server"
 import { engineContract } from "../../shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
@@ -9,6 +9,22 @@ import type { createProjects } from "../projects/projects"
 import type { createTasks } from "../tasks/tasks"
 
 type EngineContext = { traceId?: string; spanId?: string }
+
+function surfaced(error: unknown) {
+  if (error instanceof ORPCError) {
+    return error
+  }
+
+  return new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Unknown error", cause: error })
+}
+
+async function* surfacedStream<T>(stream: AsyncIterable<T>) {
+  try {
+    yield* stream
+  } catch (error) {
+    throw surfaced(error)
+  }
+}
 
 function observationContext(context: EngineContext) {
   return {
@@ -28,7 +44,13 @@ export function createEngineRouter(
   conversations: ReturnType<typeof createConversations>,
   tasks: ReturnType<typeof createTasks>,
 ) {
-  const operations = implement(engineContract)
+  const operations = implement(engineContract).use(async ({ next }) => {
+    try {
+      return await next()
+    } catch (error) {
+      throw surfaced(error)
+    }
+  })
 
   return operations.router({
     health: operations.health.handler(({ context }: { context: EngineContext }) =>
@@ -110,7 +132,7 @@ export function createEngineRouter(
           () => conversations.history(input),
         ),
       ),
-      send: operations.conversations.send.handler(({ input }: { input: unknown }) => conversations.send(input)),
+      send: operations.conversations.send.handler(({ input }: { input: unknown }) => surfacedStream(conversations.send(input))),
       abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.conversationabort", context: observationContext(context) },
