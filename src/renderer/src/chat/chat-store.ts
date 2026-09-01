@@ -74,9 +74,9 @@ export function finishChatThinking(botId: string, durationMs: number) {
   }))
 }
 
-export function startChatTool(botId: string, callId: string, name: string, detail?: string) {
+export function startChatTool(botId: string, { callId, tool: name, detail, brief }: { callId: string; tool: string; detail?: string; brief?: string }) {
   updateRun(botId, (run) => {
-    const tool = { callId, name, ...(detail ? { detail } : {}), status: "running" as const }
+    const tool = { callId, name, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), status: "running" as const }
     const lastStep = run.steps.at(-1)
 
     if (lastStep?.type === "tool" && lastStep.name === name) {

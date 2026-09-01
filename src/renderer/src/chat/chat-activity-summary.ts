@@ -167,10 +167,10 @@ export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { 
   const group = toolGroups.find((candidate) => candidate.name === step.name)
 
   if (group?.namesTargets) {
-    return []
+    return { prose: true, items: [...new Set(step.tools.flatMap((tool) => tool.brief ? [tool.brief] : []))] }
   }
 
-  return [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
+  return { prose: false, items: [...new Set(step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []))] }
 }
 
 function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {

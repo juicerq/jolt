@@ -13,6 +13,7 @@ import { createPermissionExtension } from "./pi-permissions"
 import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name" }
+const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions" }
 
 function toPiTool(tool: PiCustomTool) {
   return defineTool({
@@ -55,9 +56,10 @@ function createEventNormalizer() {
     }
 
     if (event.type === "tool_execution_start") {
-      const detail = summarizeToolInput(event.toolName, event.args)
+      const detail = summarizeToolInput(event.args, detailFields[event.toolName] ?? "path")
+      const brief = summarizeToolInput(event.args, briefFields[event.toolName])
 
-      return { type: "tool-started", callId: event.toolCallId, tool: event.toolName, ...(detail ? { detail } : {}) }
+      return { type: "tool-started", callId: event.toolCallId, tool: event.toolName, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}) }
     }
 
     if (event.type === "tool_execution_end") {
@@ -78,13 +80,13 @@ function createEventNormalizer() {
   }
 }
 
-function summarizeToolInput(tool: string, input: unknown) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
+function summarizeToolInput(input: unknown, field?: string) {
+  if (!field || !input || typeof input !== "object" || Array.isArray(input)) {
     return undefined
   }
 
   const values = input as Record<string, unknown>
-  const value = values[detailFields[tool] ?? "path"]
+  const value = values[field]
 
   if (typeof value !== "string") {
     return undefined

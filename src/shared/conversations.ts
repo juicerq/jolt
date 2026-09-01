@@ -7,6 +7,7 @@ const conversationTool = type({
   callId: "string > 0",
   name: "string > 0",
   "detail?": "string > 0",
+  "brief?": "string > 0",
   status: type.enumerated("done", "failed"),
 })
 const thinkingActivityStep = type({
@@ -50,6 +51,7 @@ const toolStartedEvent = type({
   callId: "string > 0",
   tool: "string > 0",
   "detail?": "string > 0",
+  "brief?": "string > 0",
 })
 const toolFinishedEvent = type({
   "+": "reject",

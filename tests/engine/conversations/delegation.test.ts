@@ -53,7 +53,7 @@ function setup() {
             }
 
             const detail = params.member ?? params.name
-            emit({ type: "tool-started", callId, tool, ...(detail ? { detail } : {}) })
+            emit({ type: "tool-started", callId, tool, ...(detail ? { detail } : {}), ...(params.outcome ? { brief: params.outcome } : {}) })
             const result = await definition.execute(params).catch((error: Error) => `Error: ${error.message}`)
             emit({ type: "tool-finished", callId, tool, failed: result.startsWith("Error:") })
 
@@ -157,7 +157,7 @@ describe("delegation", () => {
       { author: "bot", authorBotId: leader.id, taskId: null, content: "Calo respondeu: Testes escritos" },
     ])
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
-      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", status: "done" }] },
+      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", brief: "Escrever testes", status: "done" }] },
     ])
     const memberHistory = environment.conversations.history({ botId: member.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
 
@@ -252,7 +252,7 @@ describe("delegation", () => {
     expect(events).toContainEqual(expect.objectContaining({ type: "tool-finished", tool: "delegate", failed: true }))
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })[0]?.status).toBe("failed")
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
-      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", status: "failed" }] },
+      { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", brief: "Rodar os testes", status: "failed" }] },
     ])
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Resultado: Error: Calo failed before finishing.")
     await environment.close()

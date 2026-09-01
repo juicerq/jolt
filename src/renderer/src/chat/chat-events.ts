@@ -46,7 +46,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     if (event.type === "tool-started") {
-      startChatTool(botId, event.callId, event.tool, event.detail)
+      startChatTool(botId, event)
       return
     }
 

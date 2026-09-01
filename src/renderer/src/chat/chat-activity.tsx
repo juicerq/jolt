@@ -64,7 +64,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
   }
 
   const [onlyStep] = activity.steps
-  const opensNothing = activity.steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).length === 0)
+  const opensNothing = activity.steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).items.length === 0)
 
   if (opensNothing) {
     return (
@@ -118,8 +118,9 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const status = getStepStatus(step, mode === "current")
   const currentProps = mode === "current" && status === "running" ? { "aria-current": "step" as const } : {}
   const label = status === "running" ? formatRunningChatActivityStepLabel(step) : formatChatActivityStepLabel(step)
-  const details = step.type === "tool" ? getChatActivityStepDetails(step) : []
+  const { items: details, prose } = step.type === "tool" ? getChatActivityStepDetails(step) : { items: [], prose: false }
   const hasDetailList = details.length > 1
+  const detailClassName = prose ? "text-support text-muted" : "font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap"
   const stageModeClasses = {
     compact: "px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none",
     current: "gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none",
@@ -130,7 +131,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
       <ActivityStageIcon step={step} status={status} />
       <div className="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
         <strong className="text-support font-medium text-secondary">{label}</strong>
-        {mode === "compact" && details.length === 1 && <code className="font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap">{details[0]}</code>}
+        {mode === "compact" && details.length === 1 && <ActivityDetail className={detailClassName} prose={prose}>{details[0]}</ActivityDetail>}
       </div>
       {hasDetailList && <ChevronDownIcon className="mt-px size-[13px] opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/stage:opacity-100 group-focus-within/stage:opacity-100 group-open/stage:rotate-180 motion-reduce:transition-none" aria-hidden="true" />}
     </>
@@ -143,15 +144,23 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
             <details className="group/stage" open={mode !== "compact"}>
               <summary className="grid w-fit cursor-pointer list-none grid-cols-[15px_auto_13px] items-center gap-[7px] rounded-lg px-[7px] py-[5px] hover:bg-surface-hover hover:text-secondary focus-visible:bg-surface-hover focus-visible:text-secondary focus-visible:outline-none [&::-webkit-details-marker]:hidden">{heading}</summary>
               <ul className="m-0 ml-[23px] grid list-none gap-0 p-0">
-                {details.map((detail) => <li className="m-0 block min-w-0 border-0 p-0" key={detail}><code className="font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap">{detail}</code></li>)}
+                {details.map((detail) => <li className="m-0 block min-w-0 border-0 p-0" key={detail}><ActivityDetail className={detailClassName} prose={prose}>{detail}</ActivityDetail></li>)}
               </ul>
             </details>
           )
         : <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">{heading}</div>}
       {mode === "current" && step.type === "thinking" && step.content && <ThinkingTrace content={step.content} />}
-      {mode !== "compact" && details.length === 1 && <code className={`ml-[23px] block font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap ${mode === "history" ? "pt-0.5" : "border-l border-outline py-1 pl-3"}`}>{details[0]}</code>}
+      {mode !== "compact" && details.length === 1 && <ActivityDetail className={`ml-[23px] block ${detailClassName} ${mode === "history" ? "pt-0.5" : "border-l border-outline py-1 pl-3"}`} prose={prose}>{details[0]}</ActivityDetail>}
     </div>
   )
+}
+
+function ActivityDetail({ children, className, prose }: { children: string; className: string; prose: boolean }) {
+  if (prose) {
+    return <span className={className}>{children}</span>
+  }
+
+  return <code className={className}>{children}</code>
 }
 
 function ThinkingTrace({ content }: { content: string }) {

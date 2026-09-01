@@ -175,4 +175,21 @@ describe("ChatActivity", () => {
     expect(history).toContain("Delegou para Iara")
     expect(history).not.toContain("<summary")
   })
+
+  test("shows what each delegation asked for under the member in history", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{
+        steps: [
+          { type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Calo", brief: "Escrever os testes do módulo", status: "failed" }] },
+          { type: "tool", name: "delegate", tools: [{ callId: "delegate-2", name: "delegate", detail: "Lia", brief: "Revisar a migração", status: "failed" }] },
+        ],
+      }} />,
+    )
+
+    expect(markup).toContain("Delegações para Calo e Lia falharam")
+    expect(markup).toContain("Delegação para Calo falhou")
+    expect(markup).toContain("Escrever os testes do módulo")
+    expect(markup).toContain("Revisar a migração")
+    expect(markup).not.toContain("<code")
+  })
 })

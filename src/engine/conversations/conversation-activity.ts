@@ -48,7 +48,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
       }
 
       if (runtimeEvent.type === "tool-started") {
-        const tool = { callId: runtimeEvent.callId, name: runtimeEvent.tool, ...(runtimeEvent.detail ? { detail: runtimeEvent.detail } : {}), status: "running" as const }
+        const tool = { callId: runtimeEvent.callId, name: runtimeEvent.tool, ...(runtimeEvent.detail ? { detail: runtimeEvent.detail } : {}), ...(runtimeEvent.brief ? { brief: runtimeEvent.brief } : {}), status: "running" as const }
         const lastStep = steps.at(-1)
 
         if (lastStep?.type === "tool" && lastStep.name === runtimeEvent.tool) {
