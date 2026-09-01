@@ -1,0 +1,1 @@
+ALTER TABLE `bots` ADD `temporary` integer DEFAULT false NOT NULL;

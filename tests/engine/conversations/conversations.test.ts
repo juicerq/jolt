@@ -147,7 +147,7 @@ describe("conversations", () => {
     ])
     expect(events.filter((event) => event.type === "thinking-finished").every((event) => event.durationMs > 0)).toBe(true)
     expect(first.prompts).toEqual(["Olá"])
-    expect(first.instructions).toEqual(["You are Atlas.\nExpected outcome: Answer\nResponsibilities: Help\nLimits: Be safe\nDelivery: Text"])
+    expect(first.instructions[0]).toStartWith("You are Atlas.\nExpected outcome: Answer\nResponsibilities: Help\nLimits: Be safe\nDelivery: Text\nUse the hire tool")
     expect(first.conversations.history({ botId: bot.id }).map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
       { author: "bot", content: "Resposta confirmada" },

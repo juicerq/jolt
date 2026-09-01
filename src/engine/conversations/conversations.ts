@@ -68,6 +68,10 @@ export function createConversations(input: {
       throw new Error("Bot not found")
     }
 
+    if (bot.closed) {
+      throw new Error(`${bot.name} was closed with its Tarefa`)
+    }
+
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
     const customTools = delegation.tools(bot)
     const tools = [...defaultTools, ...customTools.map((tool) => tool.name)]

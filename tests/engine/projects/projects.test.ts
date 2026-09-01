@@ -61,11 +61,12 @@ describe("projects", () => {
       provider: "codex",
       function: botInput.function,
       workingDirectoryOverride: null,
+      temporary: false,
       createdAt: new Date().toISOString(),
     })
 
     expect(await projects.list()).toEqual({
-      projects: [{ ...project, bots: [{ ...assigned, members: [{ ...member, effectiveWorkingDirectory: defaultWorkingDirectory }] }] }],
+      projects: [{ ...project, bots: [{ ...assigned, members: [{ ...member, effectiveWorkingDirectory: defaultWorkingDirectory, closed: false }] }] }],
       unassignedBots: [{ ...unassigned, members: [] }],
     })
     database.close()

@@ -34,7 +34,7 @@ function setup() {
         async prompt(message) {
           aborted = false
           emit({ type: "started" })
-          const script = scripts.get(input.botId)
+          const script = scripts.get(input.botId) ?? scripts.get("*")
 
           if (!script) {
             await new Promise<void>((resolve) => {
@@ -52,7 +52,8 @@ function setup() {
               throw new Error(`Tool ${tool} is not registered`)
             }
 
-            emit({ type: "tool-started", callId, tool, detail: params.member })
+            const detail = params.member ?? params.name
+            emit({ type: "tool-started", callId, tool, ...(detail ? { detail } : {}) })
             const result = await definition.execute(params).catch((error: Error) => `Error: ${error.message}`)
             emit({ type: "tool-finished", callId, tool, failed: result.startsWith("Error:") })
 
@@ -91,8 +92,8 @@ function setup() {
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
@@ -280,7 +281,7 @@ describe("delegation", () => {
     await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.tools).not.toContain("delegate")
-    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 
@@ -323,6 +324,40 @@ describe("delegation", () => {
     expect(history).toContainEqual({ author: "bot", authorBotId: other.id, taskId: tasks[1]?.id, content: "Tela desenhada" })
     expect(history).toContainEqual({ author: "bot", authorBotId: leader.id, taskId: tasks[1]?.id, content: "Recebi: Tela desenhada" })
     expect(history).toHaveLength(6)
+    await environment.close()
+  })
+
+  test("a Leader hires a temporary member for one Tarefa and the member closes with it", async () => {
+    const environment = setup()
+    const { leader } = await environment.team()
+    const hireParams = { name: "Revisor", outcome: "Revisão pronta", responsibilities: "Revisar arquivos", limits: "Só esta Tarefa", delivery: "Lista de achados", instructions: "Leia os 5 arquivos" }
+    environment.scripts.set(leader.id, async (message, call) => {
+      if (message === "Delegue de novo") {
+        return `Falhou: ${await call("delegate", { member: "Revisor", outcome: "Outra", instructions: "Mais" })}`
+      }
+
+      return `Revisor respondeu: ${await call("hire", hireParams)}`
+    })
+    environment.scripts.set("*", async () => "Três achados")
+
+    await environment.turn(leader.id, "Contrate um revisor")
+    const hired = environment.bots.list().find((bot) => bot.name === "Revisor")
+    const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
+
+    expect(hired).toMatchObject({ leaderBotId: leader.id, temporary: true, closed: true, provider: "codex", function: { outcome: "Revisão pronta", responsibilities: "Revisar arquivos", limits: "Só esta Tarefa", delivery: "Lista de achados" } })
+    expect(task).toMatchObject({ assigneeBotId: hired?.id, outcome: "Revisão pronta", status: "done" })
+    expect(environment.sessions.get(hired?.id ?? "")?.customTools.map((tool) => tool.name)).toEqual(["transfer"])
+    expect(environment.sessions.get(leader.id)?.instructions).not.toContain("Revisor")
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Revisor respondeu: Três achados")
+    expect(environment.conversations.history({ botId: hired?.id ?? "" }).map(({ taskId, content }) => ({ taskId, content }))).toEqual([
+      { taskId: task?.id, content: "Revisão pronta\n\nLeia os 5 arquivos" },
+      { taskId: task?.id, content: "Três achados" },
+    ])
+    expect(() => environment.conversations.send({ botId: hired?.id ?? "", content: "Mais um" })).toThrow("Revisor was closed with its Tarefa")
+    await environment.turn(leader.id, "Delegue de novo")
+
+    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Falhou: Error: Revisor is not a member of Atlas")
+    expect(environment.tasks.listForLeader({ leaderBotId: leader.id })).toHaveLength(1)
     await environment.close()
   })
 })

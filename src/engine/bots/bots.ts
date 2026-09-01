@@ -52,12 +52,22 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     return { leaderBotId: null, projectId: input.projectId ?? null, workingDirectoryOverride: input.workingDirectoryOverride ?? null }
   }
 
-  function withEffectiveWorkingDirectory(storedBot: StoredBot): Bot {
+  function present(storedBot: StoredBot, workingAssigneeIds = database.tasks.workingAssigneeIds()): Bot {
     const effectiveWorkingDirectory = storedBot.workingDirectoryOverride
       ?? projectWorkingDirectory(storedBot.projectId)
       ?? join(privateBotsDirectory, storedBot.id)
+    const closed = storedBot.temporary && !workingAssigneeIds.has(storedBot.id)
 
-    return botSchemas.bot.assert({ ...storedBot, effectiveWorkingDirectory })
+    return botSchemas.bot.assert({ ...storedBot, effectiveWorkingDirectory, closed })
+  }
+
+  async function store(storedBot: StoredBot) {
+    await privateDirectory(storedBot.id)
+
+    return observability.span(
+      { name: "bots.create", context: { botId: storedBot.id, provider: storedBot.provider, ...(storedBot.projectId ? { projectId: storedBot.projectId } : {}), ...(storedBot.leaderBotId ? { leaderBotId: storedBot.leaderBotId } : {}) }, attributes: { state: storedBot.temporary ? "temporary" : "permanent" } },
+      () => present(database.bots.create(storedBot)),
+    )
   }
 
   return {
@@ -76,23 +86,34 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
       }
 
-      const storedBot: StoredBot = {
+      return store({
         id: crypto.randomUUID(),
         ...workspace,
         name: input.name,
         provider: input.provider,
         function: input.function,
+        temporary: false,
         createdAt: new Date().toISOString(),
-      }
-      await privateDirectory(storedBot.id)
+      })
+    },
+    hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
+      const details = botSchemas.hireInput.assert(rawDetails)
 
-      return observability.span(
-        { name: "bots.create", context: { botId: storedBot.id, provider: storedBot.provider, ...(storedBot.projectId ? { projectId: storedBot.projectId } : {}) } },
-        () => withEffectiveWorkingDirectory(database.bots.create(storedBot)),
-      )
+      return store({
+        id: crypto.randomUUID(),
+        leaderBotId: leader.id,
+        projectId: leader.projectId,
+        name: details.name,
+        provider: leader.provider,
+        function: details.function,
+        workingDirectoryOverride: leader.workingDirectoryOverride,
+        temporary: true,
+        createdAt: new Date().toISOString(),
+      })
     },
     list() {
-      const listedBots = database.bots.list().map(withEffectiveWorkingDirectory)
+      const workingAssigneeIds = database.tasks.workingAssigneeIds()
+      const listedBots = database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds))
 
       return botSchemas.botList.assert(listedBots)
     },
@@ -100,7 +121,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       const input = botSchemas.idInput.assert(rawInput)
       const storedBot = database.bots.get(input.id)
 
-      return storedBot ? withEffectiveWorkingDirectory(storedBot) : undefined
+      return storedBot ? present(storedBot) : undefined
     },
     async updateWorkspace(rawInput: unknown) {
       const input = botSchemas.updateWorkspaceInput.assert(rawInput)
@@ -138,7 +159,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
             throw new Error("Bot not found")
           }
 
-          return withEffectiveWorkingDirectory(updated)
+          return present(updated)
         },
       )
     },
@@ -151,7 +172,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       }
 
       await privateDirectory(storedBot.id)
-      const effectiveWorkingDirectory = withEffectiveWorkingDirectory(storedBot).effectiveWorkingDirectory
+      const effectiveWorkingDirectory = present(storedBot).effectiveWorkingDirectory
       await assertAccessibleWorkingDirectory(effectiveWorkingDirectory)
 
       return effectiveWorkingDirectory

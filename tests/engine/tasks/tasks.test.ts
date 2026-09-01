@@ -11,8 +11,8 @@ const botFunction = { outcome: "Answer", responsibilities: "Help", limits: "Be s
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), system.observability)
-  const leader = database.bots.create({ id: crypto.randomUUID(), leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: botFunction, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
-  const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: botFunction, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+  const leader = database.bots.create({ id: crypto.randomUUID(), leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
+  const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
 
   async function close() {
     database.close()

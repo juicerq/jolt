@@ -16,7 +16,7 @@ export function createDelegation(input: {
   active(botId: string): { taskId: string | null } | undefined
 }) {
   function members(leader: Pick<Bot, "id">) {
-    return input.bots.list().filter((bot) => bot.leaderBotId === leader.id)
+    return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
   }
 
   function pickMember(leader: Bot, reference: string) {
@@ -90,6 +90,21 @@ export function createDelegation(input: {
     await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome) }))
   }
 
+  async function assign(from: Bot, to: Bot, params: Record<string, string>) {
+    const task = input.tasks.create({ leaderBotId: from.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
+    const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
+
+    if (params.wait === "no") {
+      void deliverLater(from, to, task, content).catch((error) => {
+        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, leaderBotId: from.id, taskId: task.id }, error })
+      })
+
+      return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
+    }
+
+    return describe(to, await delegate(from, to, task, content))
+  }
+
   return {
     tools(bot: Bot): PiCustomTool[] {
       if (bot.leaderBotId) {
@@ -125,11 +140,30 @@ export function createDelegation(input: {
         }]
       }
 
-      if (members(bot).length === 0) {
-        return []
+      const hire: PiCustomTool = {
+        name: "hire",
+        description: "Create a temporary member for one Tarefa and delegate it in the same call. The member inherits your folder and executor, cannot create Bots, and closes when the Tarefa ends. Use it when no permanent member fits the Tarefa.",
+        parameters: {
+          name: "Name of the temporary member",
+          outcome: "Expected result of the Tarefa",
+          responsibilities: "What the member takes care of",
+          limits: "What the member must not do",
+          delivery: "How the member presents the result",
+          instructions: "Instructions for the member",
+          wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
+        },
+        async execute(params) {
+          const to = await input.bots.hire(bot, { name: params.name, function: { outcome: params.outcome, responsibilities: params.responsibilities, limits: params.limits, delivery: params.delivery } })
+
+          return assign(bot, to, params)
+        },
       }
 
-      return [{
+      if (members(bot).length === 0) {
+        return [hire]
+      }
+
+      return [hire, {
         name: "delegate",
         description: "Create a Tarefa and delegate it to one member of your team. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
         parameters: {
@@ -139,19 +173,7 @@ export function createDelegation(input: {
           wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
         },
         async execute(params) {
-          const to = pickMember(bot, params.member ?? "")
-          const task = input.tasks.create({ leaderBotId: bot.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
-          const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
-
-          if (params.wait === "no") {
-            void deliverLater(bot, to, task, content).catch((error) => {
-              input.observability.event({ name: "delegation.deliveryfailed", context: { botId: bot.id, leaderBotId: bot.id, taskId: task.id }, error })
-            })
-
-            return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
-          }
-
-          return describe(to, await delegate(bot, to, task, content))
+          return assign(bot, pickMember(bot, params.member ?? ""), params)
         },
       }]
     },
@@ -167,15 +189,17 @@ export function createDelegation(input: {
       }
 
       const team = members(bot)
+      const hiring = "Use the hire tool to create a temporary member for one Tarefa when nobody on your team fits it. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message."
 
       if (team.length === 0) {
-        return undefined
+        return [hiring, "You remain responsible for the overall result. Orders from the person prevail over yours."].join("\n")
       }
 
       return [
         "You lead a team. Each member and the outcome their Function delivers:",
         ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
-        "Use the delegate tool to assign a Tarefa to the member whose Function fits it. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message.",
+        "Use the delegate tool to assign a Tarefa to the member whose Function fits it.",
+        hiring,
         "You remain responsible for the overall result. Orders from the person prevail over yours.",
       ].join("\n")
     },

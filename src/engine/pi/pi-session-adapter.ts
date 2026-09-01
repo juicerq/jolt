@@ -12,7 +12,7 @@ import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
 
-const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member" }
+const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name" }
 
 function toPiTool(tool: PiCustomTool) {
   return defineTool({

@@ -16,7 +16,7 @@ describe("database", () => {
       development: false,
     })
     const database = openDatabase(databasePath, observability)
-    expect(database.migrationState()).toEqual(["20260831155650_initial-schema", "20260901003757_leader-delegation", "20260901111156_turn-ending"])
+    expect(database.migrationState()).toEqual(["20260831155650_initial-schema", "20260901003757_leader-delegation", "20260901111156_turn-ending", "20260901112808_temporary-members"])
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
@@ -37,7 +37,7 @@ describe("database", () => {
     sqlite.close()
     await observability.flush()
 
-    expect(migration?.count).toBe(3)
+    expect(migration?.count).toBe(4)
     expect(bots?.name).toBe("bots")
     expect(projects?.name).toBe("projects")
     expect(conversations?.name).toBe("conversations")
@@ -45,6 +45,7 @@ describe("database", () => {
     expect(botColumns).toContain("function")
     expect(botColumns).toContain("project_id")
     expect(botColumns).toContain("working_directory_override")
+    expect(botColumns).toContain("temporary")
     expect(botColumns).not.toContain("function_outcome")
     expect(messageColumns).toContain("activity")
   })

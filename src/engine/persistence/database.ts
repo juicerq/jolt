@@ -156,6 +156,11 @@ export function openDatabase(path: string, observability: Observability) {
           return database.update(tasks).set({ status: "interrupted", finishedAt }).where(eq(tasks.status, "working")).run().changes
         })
       },
+      workingAssigneeIds() {
+        return observability.span({ name: "database.taskworkingassignees" }, () => new Set(
+          database.selectDistinct({ assigneeBotId: tasks.assigneeBotId }).from(tasks).where(eq(tasks.status, "working")).all().map((row) => row.assigneeBotId),
+        ))
+      },
       listForLeader(leaderBotId: string) {
         return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => taskSchemas.taskList.assert(
           database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(tasks.id)).all(),

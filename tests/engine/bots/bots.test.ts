@@ -44,7 +44,9 @@ describe("bots", () => {
       projectId: null,
       ...input,
       workingDirectoryOverride: null,
+      temporary: false,
       effectiveWorkingDirectory: join(first.privateBotsDirectory, created.id),
+      closed: false,
       createdAt: expect.any(String),
     })
     expect(created.effectiveWorkingDirectory).toBe(join(first.privateBotsDirectory, created.id))
@@ -76,7 +78,7 @@ describe("bots", () => {
     expect(own).toMatchObject({ leaderBotId: leader.id, projectId: project.id, workingDirectoryOverride: ownDirectory, effectiveWorkingDirectory: ownDirectory })
     expect(() => bots.create({ ...input, leaderBotId: inheriting.id })).toThrow("A member cannot lead")
     expect(() => bots.create({ ...input, leaderBotId: "missing-bot" })).toThrow("Leader not found")
-    expect(await bots.list()).toEqual([leader, inheriting, own])
+    expect((await bots.list()).toSorted((left, right) => left.name.localeCompare(right.name))).toEqual([own, inheriting, leader])
     database.close()
     await observationSystem.observability.flush()
   })
@@ -187,6 +189,7 @@ describe("bots", () => {
       provider: "codex",
       function: input.function,
       workingDirectoryOverride: memberOverride,
+      temporary: false,
       createdAt: new Date().toISOString(),
     })
 
@@ -199,6 +202,7 @@ describe("bots", () => {
     })
     expect(await bots.get({ id: member.id })).toEqual({
       ...member,
+      closed: false,
       projectId: nextProject.id,
       workingDirectoryOverride: memberOverride,
       effectiveWorkingDirectory: memberOverride,
