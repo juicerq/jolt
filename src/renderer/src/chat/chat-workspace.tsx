@@ -1,28 +1,19 @@
 import { Blobatar } from "@blobatar/react"
 import { ArrowUpIcon, Cog6ToothIcon, StopIcon } from "@heroicons/react/24/outline"
-import { consumeEventIterator } from "@orpc/client"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type KeyboardEvent, useCallback, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
-import type { ConversationEvent, ConversationMessage } from "../../../shared/conversations"
+import type { ConversationMessage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import {
-  appendChatText,
-  appendChatThinking,
   chatStore,
   dismissChatRun,
   failChatRun,
-  finishChatThinking,
-  finishChatTool,
   markChatAborting,
-  restartChatRun,
   setChatDraft,
-  settleChatRun,
   startChatRun,
-  startChatThinking,
-  startChatTool,
   type ChatRun as ChatRunState,
 } from "./chat-store"
 import { ChatScroller } from "./chat-scroller"
@@ -30,7 +21,6 @@ import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
-  const queryClient = useQueryClient()
   const draft = useSelector(chatStore, (state) => state.drafts[bot.id] ?? "")
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
   const [composerExpanded, setComposerExpanded] = useState(false)
@@ -63,14 +53,6 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
     updateComposerLayout()
   }, [])
 
-  async function refreshHistory(status: "available" | "completed") {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: client.query.conversations.key() }),
-      queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
-    ])
-    settleChatRun(bot.id, status)
-  }
-
   async function handleSend() {
     const content = draft.trim()
 
@@ -78,35 +60,10 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
       return
     }
 
-    startChatRun({ botId: bot.id, botName: bot.name, personContent: content })
-
-    let finishReason: "stop" | "aborted" | "error" = "stop"
-
-    try {
-      const iterator = client.raw.conversations.send({ botId: bot.id, content })
-
-      consumeEventIterator(iterator, {
-        onEvent: (event) => {
-          if (event.type === "finished") {
-            finishReason = event.reason
-            return
-          }
-
-          handleConversationEvent(bot.id, event)
-        },
-        onError: (sendError) => failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder"),
-        onSuccess: () => {
-          if (finishReason === "error") {
-            failChatRun(bot.id, "O bot não conseguiu concluir a resposta")
-            return
-          }
-
-          refreshHistory(finishReason === "stop" ? "completed" : "available")
-        },
-      })
-    } catch (sendError) {
+    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, content })
+    await client.raw.conversations.send({ botId: bot.id, content }).catch((sendError: unknown) => {
       failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder")
-    }
+    })
   }
 
   async function handleAbort() {
@@ -137,7 +94,7 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {error && <ChatError message={error.message} />}
         {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} />)}
-        {run && <ChatRun bot={bot} run={run} />}
+        {run && <ChatRun bot={bot} names={names} run={run} />}
       </ChatScroller>
       <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
         <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
@@ -160,42 +117,6 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
   )
 }
 
-function handleConversationEvent(botId: string, event: ConversationEvent) {
-  if (event.type === "started") {
-    restartChatRun(botId)
-    return
-  }
-
-  if (event.type === "text") {
-    appendChatText(botId, event.text)
-    return
-  }
-
-  if (event.type === "thinking") {
-    appendChatThinking(botId, event.text)
-    return
-  }
-
-  if (event.type === "thinking-started") {
-    startChatThinking(botId)
-    return
-  }
-
-  if (event.type === "thinking-finished") {
-    finishChatThinking(botId, event.durationMs)
-    return
-  }
-
-  if (event.type === "tool-started") {
-    startChatTool(botId, event.callId, event.tool, event.detail)
-    return
-  }
-
-  if (event.type === "tool-finished") {
-    finishChatTool(botId, event.callId, event.failed)
-  }
-}
-
 function ChatMessage({ bot, message, names }: { bot: Bot; message: ConversationMessage; names: Record<string, string> }) {
   const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
   const authorName = message.author === "person" ? "Você" : names[message.authorBotId ?? bot.id] ?? bot.name
@@ -215,10 +136,19 @@ function ChatMessage({ bot, message, names }: { bot: Bot; message: ConversationM
   )
 }
 
-function ChatRun({ bot, run }: { bot: Bot; run: ChatRunState }) {
+function ChatRun({ bot, names, run }: { bot: Bot; names: Record<string, string>; run: ChatRunState }) {
+  const fromPerson = run.message.author === "person"
+  const authorName = fromPerson ? "Você" : names[run.message.authorBotId ?? ""] ?? "Bot"
+  const incomingClasses = fromPerson
+    ? "max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3 opacity-70"
+    : "max-w-[720px]"
+  const metaClasses = fromPerson
+    ? "pointer-events-none absolute -top-5 opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"
+    : "static mb-1 opacity-100"
+
   return (
     <>
-      <article className="group relative max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3 opacity-70"><div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">Você</strong><span>Agora</span></div><p className="m-0 whitespace-pre-wrap text-body text-primary">{run.personContent}</p></article>
+      <article className={`group relative ${incomingClasses}`}><div className={`left-0 flex items-center gap-3 text-metadata font-medium text-muted ${metaClasses}`}><strong className="font-semibold text-secondary">{authorName}</strong>{!fromPerson && <span>Tarefa delegada</span>}<span>Agora</span></div><p className="m-0 whitespace-pre-wrap text-body text-primary">{run.message.content}</p></article>
       <article className="group relative max-w-[720px]">
         <div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{bot.name}</strong><span>Agora</span></div>
         <ChatActivity activity={run} botName={bot.name} status={run.status} waitingMessage={run.waitingMessage} />

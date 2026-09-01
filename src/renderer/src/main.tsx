@@ -3,6 +3,7 @@ import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./app"
 import { createEngineClient } from "./engine-client"
+import { subscribeChatEvents } from "./chat/chat-events"
 import { ChatPrototype } from "./chat/chat-prototype"
 import "./styles.css"
 
@@ -18,6 +19,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_CHAT_PROTOTYPE === "1") {
 } else {
   const connection = await window.desktop.getEngineConnection()
   const engineClient = createEngineClient(connection)
+  subscribeChatEvents({ client: engineClient, queryClient })
 
   ReactDOM.createRoot(root).render(
     <React.StrictMode>

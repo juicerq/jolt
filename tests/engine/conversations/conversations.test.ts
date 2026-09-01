@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { ConversationEvent } from "@src/shared/conversations"
 import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
@@ -79,7 +80,33 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })
 
-  return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem }
+  async function turn(botId: string, content: string) {
+    const events = conversations.events()[Symbol.asyncIterator]()
+    await conversations.send({ botId, content })
+    const collected: ConversationEvent[] = []
+
+    for (let step = await events.next(); step.value; step = await events.next()) {
+      const { event } = step.value
+      const ownStart = event.type === "started" && event.message.content === content
+      const skipped = step.value.botId !== botId || (collected.length === 0 && !ownStart)
+
+      if (skipped) {
+        continue
+      }
+
+      collected.push(event)
+
+      if (step.value.event.type === "finished") {
+        break
+      }
+    }
+
+    await events.return?.(undefined)
+
+    return collected
+  }
+
+  return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem, turn }
 }
 
 describe("conversations", () => {
@@ -90,11 +117,7 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
     })
-    const events = []
-
-    for await (const event of first.conversations.send({ botId: bot.id, content: "Olá" })) {
-      events.push(event)
-    }
+    const events = await first.turn(bot.id, "Olá")
 
     expect(events.map((event) => event.type)).toEqual([
       "started",
@@ -156,15 +179,12 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
     })
-    const stream = environment.conversations.send({ botId: bot.id, content: "Pare depois" })
-    const iterator = stream[Symbol.asyncIterator]()
-    await iterator.next()
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
     await environment.conversations.abort({ botId: bot.id })
 
     expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
     expect(environment.conversations.history({ botId: bot.id }).map((message) => message.author)).toEqual(["person"])
 
-    await iterator.next()
     environment.conversations.dispose()
     environment.database.close()
     await environment.observationSystem.observability.flush()
@@ -178,13 +198,9 @@ describe("conversations", () => {
       function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
     })
     const events = environment.conversations.events()[Symbol.asyncIterator]()
-    const first = events.next()
+    await environment.conversations.send({ botId: bot.id, content: "Olá" })
 
-    for await (const _event of environment.conversations.send({ botId: bot.id, content: "Olá" })) {
-      continue
-    }
-
-    expect((await first).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Olá" } } })
+    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Olá" } } })
     const types = []
 
     for (let step = await events.next(); step.value?.event.type !== "finished"; step = await events.next()) {
@@ -205,14 +221,12 @@ describe("conversations", () => {
       provider: "codex",
       function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
     })
-    const stream = environment.conversations.send({ botId: bot.id, content: "Pare depois" })[Symbol.asyncIterator]()
-    await stream.next()
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
 
     const events = environment.conversations.events()[Symbol.asyncIterator]()
 
     expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Pare depois" } } })
     await environment.conversations.abort({ botId: bot.id })
-    await stream.next()
     await events.return?.(undefined)
     environment.conversations.dispose()
     environment.database.close()

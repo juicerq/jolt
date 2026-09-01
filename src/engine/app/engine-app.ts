@@ -133,7 +133,12 @@ export function createEngineRouter(
         ),
       ),
       events: operations.conversations.events.handler(() => surfacedStream(conversations.events())),
-      send: operations.conversations.send.handler(({ input }: { input: unknown }) => surfacedStream(conversations.send(input))),
+      send: operations.conversations.send.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationsend", context: observationContext(context) },
+          () => conversations.send(input),
+        ),
+      ),
       abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.conversationabort", context: observationContext(context) },

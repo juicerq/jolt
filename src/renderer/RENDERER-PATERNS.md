@@ -12,6 +12,7 @@ Leia `DESIGN.md` antes de criar, alterar ou revisar a interface. Ele define os t
 
 - TanStack Query controla dados recebidos do Bun Engine.
 - TanStack Store controla estado compartilhado no Renderer.
+- `chat/chat-events.ts` assina `conversations.events` uma vez, em `main.tsx`, e alimenta o `chatStore` com todo turno de todo Bot. Componentes não consomem streams do Engine.
 - O estado do componente controla dados usados somente por aquela parte da interface.
 
 Use selectors ao ler o TanStack Store para evitar renderizações causadas por mudanças que o componente não usa.

@@ -1,9 +1,6 @@
-import { createORPCClient } from "@orpc/client"
-import { RPCLink } from "@orpc/client/fetch"
-import type { ContractRouterClient } from "@orpc/contract"
 import { RPCHandler } from "@orpc/server/fetch"
-import { describe, expect, test } from "bun:test"
-import { mkdirSync, rmSync } from "node:fs"
+import { QueryClient } from "@tanstack/react-query"
+import { expect, test } from "bun:test"
 import { join } from "node:path"
 import { createEngineRouter } from "@src/engine/app/engine-app"
 import { createBots } from "@src/engine/bots/bots"
@@ -11,15 +8,16 @@ import { createConversations } from "@src/engine/conversations/conversations"
 import { createDiagnostics } from "@src/engine/observability/diagnostics"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { openDatabase } from "@src/engine/persistence/database"
-import { createPiAgentRuntime, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
+import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { createPiProvider } from "@src/engine/pi/pi-provider"
 import { createProjects } from "@src/engine/projects/projects"
 import { createTasks } from "@src/engine/tasks/tasks"
-import { engineContract } from "@src/shared/engine-contract"
+import { subscribeChatEvents } from "@src/renderer/src/chat/chat-events"
+import { chatStore } from "@src/renderer/src/chat/chat-store"
+import { createEngineClient } from "@src/renderer/src/engine-client"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jolt-engine-app-")
-const botFunction = { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" }
+const directory = testDirectory("jolt-chat-events-")
 
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
@@ -30,7 +28,25 @@ function setup() {
   const tasks = createTasks({ database, observability: system.observability })
   const sessionFactory: PiSessionFactory = {
     async open() {
-      throw new Error("The session must not open")
+      const listeners = new Set<(event: PiRuntimeEvent) => void>()
+
+      return {
+        async prompt() {
+          for (const listener of listeners) {
+            listener({ type: "started" })
+            listener({ type: "text", text: "Resposta pronta" })
+            listener({ type: "finished", reason: "stop" })
+          }
+        },
+        async abort() {},
+        setTools() {},
+        subscribe(listener) {
+          listeners.add(listener)
+
+          return () => listeners.delete(listener)
+        },
+        dispose() {},
+      }
     },
   }
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
@@ -51,7 +67,7 @@ function setup() {
       return result.matched ? result.response : new Response("Not found", { status: 404 })
     },
   })
-  const client: ContractRouterClient<typeof engineContract> = createORPCClient(new RPCLink({ url: `http://127.0.0.1:${server.port}/rpc` }))
+  const client = createEngineClient({ url: `http://127.0.0.1:${server.port}/rpc`, token: "test" })
 
   async function close() {
     await server.stop(true)
@@ -60,26 +76,37 @@ function setup() {
     await system.observability.flush()
   }
 
-  return { bots, client, close, projects }
+  return { bots, client, close }
 }
 
-describe("engine router", () => {
-  test("a domain error reaches the Renderer with its own message", async () => {
-    const environment = setup()
+async function until(condition: () => boolean) {
+  for (let attempt = 0; attempt < 200 && !condition(); attempt++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+  }
 
-    expect(environment.client.bots.get({ id: "missing" })).rejects.toThrow("Bot not found")
-    await environment.close()
+  expect(condition()).toBe(true)
+}
+
+test("a turn streamed by the Engine drives the chat store from start to completion", async () => {
+  const environment = setup()
+  const queryClient = new QueryClient()
+  const stop = subscribeChatEvents({ client: environment.client, queryClient })
+  const bot = await environment.bots.create({ name: "Marina", provider: "codex", function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" } })
+  const seen: string[] = []
+  const subscription = chatStore.subscribe(() => {
+    const response = chatStore.state.runs[bot.id]?.responseContent
+
+    if (response) {
+      seen.push(response)
+    }
   })
 
-  test("a failure before the Bot replies reaches the Renderer with its own message", async () => {
-    const environment = setup()
-    const workingDirectory = join(directory, "project")
-    mkdirSync(workingDirectory)
-    const project = await environment.projects.create({ name: "Jolt", defaultWorkingDirectory: workingDirectory })
-    const bot = await environment.bots.create({ name: "Marina", provider: "codex", function: botFunction, projectId: project.id })
-    rmSync(workingDirectory, { recursive: true })
+  await environment.client.raw.conversations.send({ botId: bot.id, content: "Olá" })
+  await until(() => chatStore.state.statuses[bot.id] === "completed")
 
-    expect(environment.client.conversations.send({ botId: bot.id, content: "oi" })).rejects.toThrow("Working directory is not accessible")
-    await environment.close()
-  })
+  expect(seen).toContain("Resposta pronta")
+  expect(chatStore.state.runs[bot.id]).toBeUndefined()
+  subscription.unsubscribe()
+  stop()
+  await environment.close()
 })

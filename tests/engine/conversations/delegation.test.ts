@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { ConversationEvent } from "@src/shared/conversations"
 import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
@@ -96,14 +97,30 @@ function setup() {
     return { leader, member, other }
   }
 
-  async function collect(stream: AsyncIterable<{ type: string }>) {
-    const events = []
+  async function turn(botId: string, content: string) {
+    const events = conversations.events()[Symbol.asyncIterator]()
+    await conversations.send({ botId, content })
+    const collected: ConversationEvent[] = []
 
-    for await (const event of stream) {
-      events.push(event)
+    for (let step = await events.next(); step.value; step = await events.next()) {
+      const { event } = step.value
+      const ownStart = event.type === "started" && event.message.content === content
+      const skipped = step.value.botId !== botId || (collected.length === 0 && !ownStart)
+
+      if (skipped) {
+        continue
+      }
+
+      collected.push(event)
+
+      if (step.value.event.type === "finished") {
+        break
+      }
     }
 
-    return events
+    await events.return?.(undefined)
+
+    return collected
   }
 
   async function close() {
@@ -112,7 +129,7 @@ function setup() {
     await observationSystem.observability.flush()
   }
 
-  return { bots, close, collect, conversations, database, observationSystem, scripts, sessions, tasks, team }
+  return { bots, close, conversations, database, observationSystem, scripts, sessions, tasks, team, turn }
 }
 
 describe("delegation", () => {
@@ -122,7 +139,7 @@ describe("delegation", () => {
     environment.scripts.set(leader.id, async (_message, call) => `Calo respondeu: ${await call("delegate", { member: "Calo", outcome: "Escrever testes", instructions: "Cubra o módulo de tarefas" })}`)
     environment.scripts.set(member.id, async () => "Testes escritos")
 
-    const events = await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue os testes" }))
+    const events = await environment.turn(leader.id, "Delegue os testes")
 
     expect(events.map((event) => event.type)).toEqual(["started", "tool-started", "tool-finished", "text", "finished"])
     expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
@@ -181,9 +198,9 @@ describe("delegation", () => {
       return "nunca"
     })
 
-    const leaderEvents = environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue a revisão" }))
+    const leaderEvents = environment.turn(leader.id, "Delegue a revisão")
     await started
-    const personEvents = await environment.collect(environment.conversations.send({ botId: member.id, content: "Pare e responda só isto" }))
+    const personEvents = await environment.turn(member.id, "Pare e responda só isto")
     await leaderEvents
 
     expect(personEvents.map((event) => event.type)).toEqual(["started", "text", "finished"])
@@ -206,7 +223,7 @@ describe("delegation", () => {
     environment.scripts.set(member.id, async (_message, call) => `Dara assumiu: ${await call("transfer", { member: "Dara", instructions: "Você conhece o DESIGN.md melhor" })}`)
     environment.scripts.set(other.id, async () => "Tela desenhada")
 
-    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue a tela" }))
+    await environment.turn(leader.id, "Delegue a tela")
 
     const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
 
@@ -228,7 +245,7 @@ describe("delegation", () => {
       throw new Error("Provider crashed")
     })
 
-    const events = await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue" }))
+    const events = await environment.turn(leader.id, "Delegue")
 
     expect(events).toContainEqual(expect.objectContaining({ type: "tool-finished", tool: "delegate", failed: true }))
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })[0]?.status).toBe("failed")
@@ -245,14 +262,12 @@ describe("delegation", () => {
     const stranger = await environment.bots.create({ name: "Zeta", provider: "codex", function: botFunction })
     environment.scripts.set(leader.id, async (_message, call) => `${await call("delegate", { member: stranger.id, outcome: "x", instructions: "y" })} | ${await call("delegate", { member: "Calo", outcome: "x", instructions: "y" })}`)
 
-    const memberStream = environment.conversations.send({ botId: member.id, content: "Trabalhe" })[Symbol.asyncIterator]()
-    await memberStream.next()
-    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue" }))
+    await environment.conversations.send({ botId: member.id, content: "Trabalhe" })
+    await environment.turn(leader.id, "Delegue")
 
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Error: Zeta is not a member of Atlas | Error: Calo is already working")
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })).toEqual([])
     await environment.conversations.abort({ botId: member.id })
-    await memberStream.next()
     await environment.close()
   })
 
@@ -261,12 +276,12 @@ describe("delegation", () => {
     const leader = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
     environment.scripts.set(leader.id, async () => "Oi")
 
-    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Oi" }))
+    await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.tools).not.toContain("delegate")
     environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
 
-    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue" }))
+    await environment.turn(leader.id, "Delegue")
 
     expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")

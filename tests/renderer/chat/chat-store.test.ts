@@ -13,7 +13,7 @@ import {
 test("live chat groups consecutive tools without merging separate reasoning periods", () => {
   const botId = crypto.randomUUID()
 
-  startChatRun({ botId, botName: "Nina", personContent: "Inspecione o projeto" })
+  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Inspecione o projeto" })
   startChatThinking(botId)
   appendChatThinking(botId, "Primeira análise")
   finishChatThinking(botId, 5_000)

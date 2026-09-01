@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store"
-import type { ConversationActivity } from "../../../shared/conversations"
+import type { ConversationActivity, IncomingMessage } from "../../../shared/conversations"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
 type ConversationStep = ConversationActivity["steps"][number]
@@ -12,7 +12,7 @@ export type ChatActivityStep =
   | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 
 export type ChatRun = {
-  personContent: string
+  message: IncomingMessage
   responseContent: string
   steps: ChatActivityStep[]
   waitingMessage: string
@@ -34,12 +34,12 @@ export function setChatDraft(botId: string, draft: string) {
   chatStore.setState((state) => ({ ...state, drafts: { ...state.drafts, [botId]: draft } }))
 }
 
-export function startChatRun({ botId, botName, personContent }: { botId: string; botName: string; personContent: string }) {
+export function startChatRun(botId: string, message: IncomingMessage) {
   chatStore.setState((state) => ({
-    drafts: { ...state.drafts, [botId]: "" },
+    drafts: { ...state.drafts, [botId]: message.author === "person" ? "" : state.drafts[botId] ?? "" },
     runs: {
       ...state.runs,
-      [botId]: { personContent, responseContent: "", steps: [], waitingMessage: nextChatWaitingMessage(botName), status: "running" },
+      [botId]: { message, responseContent: "", steps: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -72,11 +72,6 @@ export function finishChatThinking(botId: string, durationMs: number) {
       ? { ...step, durationMs, status: "done" }
       : step),
   }))
-}
-
-export function restartChatRun(botId: string) {
-  updateRun(botId, (run) => ({ personContent: run.personContent, responseContent: "", steps: [], waitingMessage: run.waitingMessage, status: "running" }))
-  setChatStatus(botId, "working")
 }
 
 export function startChatTool(botId: string, callId: string, name: string, detail?: string) {

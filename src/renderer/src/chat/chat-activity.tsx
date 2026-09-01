@@ -20,6 +20,7 @@ import {
   getChatActivityStepDetails,
 } from "./chat-activity-summary"
 import { ChatContent } from "./chat-content"
+import { formatChatWaitingMessage } from "./chat-waiting-messages"
 
 type PersistedStep = ConversationActivity["steps"][number]
 type PersistedThinkingStep = Extract<PersistedStep, { type: "thinking" }>
@@ -161,7 +162,7 @@ function getActivityLabel(activity: VisibleActivity, botName?: string, status?: 
   }
 
   if (status === "running") {
-    return waitingMessage ?? `Aguardando resposta de ${botName ?? "o Bot"}…`
+    return formatChatWaitingMessage(waitingMessage ?? "Aguardando resposta de {name}…", botName ?? "o Bot")
   }
 
   return formatChatActivitySummary(activity)

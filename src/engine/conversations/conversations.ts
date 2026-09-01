@@ -243,26 +243,32 @@ export function createConversations(input: {
 
       return input.database.conversations.related(taskId)
     },
-    async *events(): AsyncGenerator<BotConversationEvent> {
+    events(): AsyncIterable<BotConversationEvent> {
       const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: turn.message } })))
       listeners.add(queue.push)
 
-      try {
-        while (true) {
-          const event = await queue.next()
+      return {
+        async *[Symbol.asyncIterator]() {
+          try {
+            while (true) {
+              const event = await queue.next()
 
-          if (event) {
-            yield event
+              if (event) {
+                yield event
+              }
+            }
+          } finally {
+            listeners.delete(queue.push)
           }
-        }
-      } finally {
-        listeners.delete(queue.push)
+        },
       }
     },
-    send(rawInput: unknown) {
+    async send(rawInput: unknown) {
       const { botId, content } = conversationSchemas.sendInput.assert(rawInput)
+      const turn = runTurn(botId, { author: "person", authorBotId: null, taskId: null, content })
+      await turn.next()
 
-      return runTurn(botId, { author: "person", authorBotId: null, taskId: null, content })
+      void Array.fromAsync(turn)
     },
     async abort(rawInput: unknown) {
       const { botId } = conversationSchemas.botInput.assert(rawInput)
