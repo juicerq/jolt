@@ -131,14 +131,16 @@ export function createDelegation(input: {
         ].join("\n")
       }
 
-      const names = members(bot).map((member) => member.name)
+      const team = members(bot)
 
-      if (names.length === 0) {
+      if (team.length === 0) {
         return undefined
       }
 
       return [
-        `You lead a team: ${names.join(", ")}. Use the delegate tool to assign a Tarefa to one member and wait for the reply.`,
+        "You lead a team. Each member and the outcome their Function delivers:",
+        ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
+        "Use the delegate tool to assign a Tarefa to the member whose Function fits it and wait for the reply.",
         "You remain responsible for the overall result. Orders from the person prevail over yours.",
       ].join("\n")
     },

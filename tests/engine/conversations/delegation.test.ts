@@ -90,8 +90,8 @@ function setup() {
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: botFunction, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: botFunction, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
@@ -126,7 +126,8 @@ describe("delegation", () => {
 
     expect(events.map((event) => event.type)).toEqual(["started", "tool-started", "tool-finished", "text", "finished"])
     expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
-    expect(environment.sessions.get(leader.id)?.instructions).toContain("Calo")
+    expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")
+    expect(environment.sessions.get(leader.id)?.instructions).toContain("- Dara: Telas desenhadas")
     expect(environment.sessions.get(member.id)?.tools).toContain("transfer")
     expect(environment.sessions.get(member.id)?.instructions).toContain("Atlas")
     const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
