@@ -1,6 +1,7 @@
 import { type } from "arktype"
 
 const messageAuthor = type.enumerated("person", "bot")
+const optionalId = type("string > 0").or("null")
 const conversationTool = type({
   "+": "reject",
   callId: "string > 0",
@@ -55,6 +56,8 @@ const message = type({
   id: "string > 0",
   botId: "string > 0",
   author: messageAuthor,
+  authorBotId: optionalId,
+  taskId: optionalId,
   content: "string > 0",
   activity: compatibleConversationActivity.or("null"),
   createdAt: "string > 0",
@@ -83,6 +86,7 @@ const finishedEvent = type({ "+": "reject", type: type.enumerated("finished"), r
 export const conversationSchemas = {
   botInput: type({ "+": "reject", botId: "string > 0" }),
   sendInput: type({ "+": "reject", botId: "string > 0", content: "string > 0" }),
+  taskInput: type({ "+": "reject", taskId: "string > 0" }),
   message,
   messageList: message.array(),
   event: startedEvent.or(textEvent).or(thinkingStartedEvent).or(thinkingEvent).or(thinkingFinishedEvent).or(toolStartedEvent).or(toolFinishedEvent).or(finishedEvent),

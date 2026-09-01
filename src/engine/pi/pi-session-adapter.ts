@@ -1,12 +1,30 @@
+import { Type } from "@earendil-works/pi-ai"
 import {
   createAgentSession,
   DefaultResourceLoader,
+  defineTool,
   ModelRuntime,
   SessionManager,
   type AgentSessionEvent,
 } from "@earendil-works/pi-coding-agent"
 import { createPermissionExtension } from "./pi-permissions"
-import type { PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
+import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
+
+const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "outcome", transfer: "member" }
+
+function toPiTool(tool: PiCustomTool) {
+  return defineTool({
+    name: tool.name,
+    label: tool.name,
+    description: tool.description,
+    parameters: Type.Object(Object.fromEntries(Object.entries(tool.parameters).map(([name, description]) => [name, Type.String({ description })]))),
+    async execute(_toolCallId, params) {
+      const text = await tool.execute(params)
+
+      return { content: [{ type: "text", text }], details: {} }
+    },
+  })
+}
 
 function createEventNormalizer() {
   let lastReason: "stop" | "aborted" | "error" = "error"
@@ -64,8 +82,7 @@ function summarizeToolInput(tool: string, input: unknown) {
   }
 
   const values = input as Record<string, unknown>
-  const field = tool === "bash" ? "command" : tool === "grep" || tool === "find" ? "pattern" : "path"
-  const value = values[field]
+  const value = values[detailFields[tool] ?? "path"]
 
   if (typeof value !== "string") {
     return undefined
@@ -113,7 +130,15 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const sessionManager = input.sessionFile
         ? SessionManager.open(input.sessionFile, options.sessionsDirectory, input.cwd)
         : SessionManager.create(input.cwd, options.sessionsDirectory)
-      const result = await createAgentSession({ cwd: input.cwd, model, modelRuntime, resourceLoader: loader, sessionManager, tools: input.tools })
+      const result = await createAgentSession({
+        cwd: input.cwd,
+        model,
+        modelRuntime,
+        resourceLoader: loader,
+        sessionManager,
+        tools: input.tools,
+        customTools: (input.customTools ?? []).map(toPiTool),
+      })
       const normalizeEvent = createEventNormalizer()
 
       return {

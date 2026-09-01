@@ -6,6 +6,7 @@ import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
 import type { createConversations } from "../conversations/conversations"
 import type { createProjects } from "../projects/projects"
+import type { createTasks } from "../tasks/tasks"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -25,6 +26,7 @@ export function createEngineRouter(
   bots: ReturnType<typeof createBots>,
   projects: ReturnType<typeof createProjects>,
   conversations: ReturnType<typeof createConversations>,
+  tasks: ReturnType<typeof createTasks>,
 ) {
   const operations = implement(engineContract)
 
@@ -113,6 +115,20 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.conversationabort", context: observationContext(context) },
           () => conversations.abort(input),
+        ),
+      ),
+      related: operations.conversations.related.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationrelated", context: observationContext(context) },
+          () => conversations.related(input),
+        ),
+      ),
+    },
+    tasks: {
+      listForLeader: operations.tasks.listForLeader.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.tasklist", context: observationContext(context) },
+          () => tasks.listForLeader(input),
         ),
       ),
     },

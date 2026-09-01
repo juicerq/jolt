@@ -6,6 +6,8 @@ test("conversation boundary converts saved aggregate activity into chronological
     id: "message-1",
     botId: "bot-1",
     author: "bot",
+    authorBotId: "bot-1",
+    taskId: null,
     content: "Concluído",
     activity: {
       thinkingContent: "Planejando",

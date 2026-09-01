@@ -11,6 +11,13 @@ export type PiRuntimeEvent =
   | { type: "tool-finished"; callId: string; tool: string; failed: boolean }
   | { type: "finished"; reason: "stop" | "aborted" | "error" }
 
+export type PiCustomTool = {
+  name: string
+  description: string
+  parameters: Record<string, string>
+  execute(params: Record<string, string>): Promise<string>
+}
+
 export type PiSession = {
   sessionFile?: string
   prompt(message: string): Promise<void>
@@ -27,6 +34,7 @@ export type PiSessionFactory = {
     tools: string[]
     policy: PiPermissionPolicy
     decisions: PiPermissionDecision[]
+    customTools?: PiCustomTool[]
     sessionFile?: string
     instructions?: string
   }): Promise<PiSession>
@@ -37,7 +45,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   const decisions: PiPermissionDecision[] = []
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; grants: Set<string>; sessionFile?: string; instructions?: string }) {
+    async open(input: { botId: string; cwd: string; tools: string[]; grants: Set<string>; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
       sessions.get(input.botId)?.unsubscribe()
       sessions.get(input.botId)?.session.dispose()
 

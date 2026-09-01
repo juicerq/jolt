@@ -28,6 +28,7 @@ import {
 import { ChatScroller } from "./chat-scroller"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
+import { ChatDelegations } from "./chat-delegations"
 
 export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
   const queryClient = useQueryClient()
@@ -37,6 +38,8 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
   const composerObserverRef = useRef<ResizeObserver | null>(null)
   const historyOptions = client.query.conversations.history.queryOptions({ input: { botId: bot.id } })
   const { data: messages, error, isPending } = useQuery(historyOptions)
+  const { data: allBots } = useQuery(client.query.bots.list.queryOptions())
+  const names = Object.fromEntries((allBots ?? []).map((entry) => [entry.id, entry.name]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
 
   const attachComposer = useCallback((composer: HTMLTextAreaElement | null) => {
@@ -62,7 +65,10 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
   }, [])
 
   async function refreshHistory(status: "available" | "completed") {
-    await queryClient.invalidateQueries({ queryKey: historyOptions.queryKey })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: client.query.conversations.key() }),
+      queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
+    ])
     settleChatRun(bot.id, status)
   }
 
@@ -131,7 +137,8 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
-        {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} />)}
+        {!isPending && !error && <ChatDelegations bot={bot} client={client} names={names} />}
+        {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} />)}
         {run && <ChatRun bot={bot} run={run} />}
       </ChatScroller>
       <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
@@ -191,14 +198,19 @@ function handleConversationEvent(botId: string, event: ConversationEvent) {
   }
 }
 
-function ChatMessage({ bot, message }: { bot: Bot; message: ConversationMessage }) {
+function ChatMessage({ bot, message, names }: { bot: Bot; message: ConversationMessage; names: Record<string, string> }) {
+  const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
+  const authorName = message.author === "person" ? "Você" : names[message.authorBotId ?? bot.id] ?? bot.name
   const personClasses = message.author === "person"
     ? "max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3"
     : ""
+  const metaClasses = fromOtherBot
+    ? "static mb-1 opacity-100"
+    : "pointer-events-none absolute -top-5 opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"
 
   return (
     <article className={`group relative max-w-[720px] ${personClasses}`}>
-      <div className="pointer-events-none absolute -top-5 left-0 flex items-center justify-start gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{message.author === "person" ? "Você" : bot.name}</strong><time>{formatMessageTime(message.createdAt)}</time></div>
+      <div className={`left-0 flex items-center justify-start gap-3 text-metadata font-medium text-muted ${metaClasses}`}><strong className="font-semibold text-secondary">{authorName}</strong>{fromOtherBot && <span>Tarefa delegada</span>}<time>{formatMessageTime(message.createdAt)}</time></div>
       {message.author === "bot" && message.activity && <ChatActivity activity={message.activity} />}
       {message.author === "bot" ? <ChatContent content={message.content} /> : <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>}
     </article>

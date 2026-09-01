@@ -5,6 +5,7 @@ import { createConversations } from "@src/engine/conversations/conversations"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
+import { createTasks } from "@src/engine/tasks/tasks"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-conversations-")
@@ -75,7 +76,8 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const providers = { list: async () => [{ provider: "codex" as const, status: "available" as const }] }
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
-  const conversations = createConversations({ database, bots, runtime, observability: observationSystem.observability })
+  const tasks = createTasks({ database, observability: observationSystem.observability })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })
 
   return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem }
 }

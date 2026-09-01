@@ -16,7 +16,7 @@ describe("database", () => {
       development: false,
     })
     const database = openDatabase(databasePath, observability)
-    expect(database.migrationState()).toEqual(["20260831155650_initial-schema"])
+    expect(database.migrationState()).toEqual(["20260831155650_initial-schema", "20260901003757_leader-delegation"])
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
@@ -37,7 +37,7 @@ describe("database", () => {
     sqlite.close()
     await observability.flush()
 
-    expect(migration?.count).toBe(1)
+    expect(migration?.count).toBe(2)
     expect(bots?.name).toBe("bots")
     expect(projects?.name).toBe("projects")
     expect(conversations?.name).toBe("conversations")

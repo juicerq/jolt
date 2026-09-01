@@ -10,7 +10,20 @@ import type { Observability } from "../observability/observability"
 import { migrations } from "./migrations"
 import type { ConversationMessage } from "../../shared/conversations"
 import { conversationSchemas } from "../../shared/conversations"
-import { bots, conversations, messages, projects } from "./schema"
+import type { Task } from "../../shared/tasks"
+import { taskSchemas } from "../../shared/tasks"
+import { bots, conversations, messages, projects, tasks } from "./schema"
+
+const messageColumns = {
+  id: messages.id,
+  botId: messages.botId,
+  author: messages.author,
+  authorBotId: messages.authorBotId,
+  taskId: messages.taskId,
+  content: messages.content,
+  activity: messages.activity,
+  createdAt: messages.createdAt,
+}
 
 export function openDatabase(path: string, observability: Observability) {
   const sqlite = new Database(path, { create: true })
@@ -81,7 +94,12 @@ export function openDatabase(path: string, observability: Observability) {
     conversations: {
       history(botId: string) {
         return observability.span({ name: "database.conversationhistory", context: { botId } }, () => conversationSchemas.messageList.assert(
-          database.select({ id: messages.id, botId: messages.botId, author: messages.author, content: messages.content, activity: messages.activity, createdAt: messages.createdAt }).from(messages).where(eq(messages.botId, botId)).orderBy(asc(messages.position)).all(),
+          database.select(messageColumns).from(messages).where(eq(messages.botId, botId)).orderBy(asc(messages.position)).all(),
+        ))
+      },
+      related(taskId: string) {
+        return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => conversationSchemas.messageList.assert(
+          database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(asc(sql`rowid`)).all(),
         ))
       },
       append(message: ConversationMessage) {
@@ -99,6 +117,34 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.conversationsessionsave", context: { botId } }, () => {
           database.insert(conversations).values({ botId, sessionFile }).onConflictDoUpdate({ target: conversations.botId, set: { sessionFile } }).run()
         })
+      },
+    },
+    tasks: {
+      create(task: Task) {
+        return observability.span({ name: "database.taskcreate", context: { taskId: task.id, leaderBotId: task.leaderBotId, botId: task.assigneeBotId } }, () => {
+          database.insert(tasks).values(task).run()
+
+          return task
+        })
+      },
+      get(id: string) {
+        return observability.span({ name: "database.taskget", context: { taskId: id } }, () => {
+          const row = database.select().from(tasks).where(eq(tasks.id, id)).get()
+
+          return row ? taskSchemas.task.assert(row) : undefined
+        })
+      },
+      update(id: string, changes: Partial<Pick<Task, "assigneeBotId" | "status" | "finishedAt">>) {
+        return observability.span({ name: "database.taskupdate", context: { taskId: id } }, () => {
+          const row = database.update(tasks).set(changes).where(eq(tasks.id, id)).returning().get()
+
+          return row ? taskSchemas.task.assert(row) : undefined
+        })
+      },
+      listForLeader(leaderBotId: string) {
+        return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => taskSchemas.taskList.assert(
+          database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(tasks.id)).all(),
+        ))
       },
     },
     migrationState() {
