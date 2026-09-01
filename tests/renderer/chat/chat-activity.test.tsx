@@ -15,8 +15,8 @@ describe("ChatActivity", () => {
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
-    expect(markup).toContain("Raciocinou por 3s, leu 1 arquivo e executou 1 comando")
-    expect(markup).toContain("Raciocinou por 3s")
+    expect(markup).toContain("Pensou por 3s, leu 1 arquivo e executou 1 comando")
+    expect(markup).toContain("Pensou por 3s")
     expect(markup).toContain("Leu 1 arquivo")
     expect(markup).toContain("Executou 1 comando")
     expect(markup).not.toContain("**Planejando**")
@@ -30,7 +30,7 @@ describe("ChatActivity", () => {
       <ChatActivity activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: thinkingDurationMs }] }} />,
     )
 
-    expect(markup).toContain(`Raciocinou por ${label}`)
+    expect(markup).toContain(`Pensou por ${label}`)
   })
 
   test("restores the chronological steps when the completed summary opens", () => {
@@ -44,11 +44,11 @@ describe("ChatActivity", () => {
       }} />,
     )
 
-    const firstThinking = markup.indexOf("Raciocinou por 5s", markup.indexOf("</summary>"))
+    const firstThinking = markup.indexOf("Pensou por 5s", markup.indexOf("</summary>"))
     const fileRead = markup.indexOf("Leu 1 arquivo", firstThinking)
-    const secondThinking = markup.indexOf("Raciocinou por 8s", fileRead)
+    const secondThinking = markup.indexOf("Pensou por 8s", fileRead)
 
-    expect(markup).toContain("Raciocinou por 13s e leu 1 arquivo")
+    expect(markup).toContain("Pensou por 13s e leu 1 arquivo")
     expect(firstThinking).toBeGreaterThan(-1)
     expect(fileRead).toBeGreaterThan(firstThinking)
     expect(secondThinking).toBeGreaterThan(fileRead)
@@ -120,17 +120,17 @@ describe("ChatActivity", () => {
       />,
     )
 
-    expect(markup).toContain("Raciocinou por 5s")
+    expect(markup).toContain("Pensou por 5s")
     expect(markup).toContain("Leu 3 arquivos")
     expect(markup).toMatch(/<details[^>]*>[\s\S]*<summary[^>]*>/)
     expect(markup).toMatch(/<li[^>]*><code[^>]*>README\.md<\/code><\/li>/)
     expect(markup).toMatch(/<li[^>]*><code[^>]*>PROJECT\.md<\/code><\/li>/)
     expect(markup).toMatch(/<li[^>]*><code[^>]*>CONTEXT\.md<\/code><\/li>/)
     expect(markup).not.toContain("README.md, PROJECT.md e CONTEXT.md")
-    expect(markup).toContain("Raciocinou por 8s")
+    expect(markup).toContain("Pensou por 8s")
     expect(markup).toContain("Executando comando")
     expect(markup).toContain("bun test")
-    expect(markup).toContain('aria-label="Atividade de raciocínio concluída"')
+    expect(markup).toContain('aria-label="Atividade de pensamento concluída"')
     expect(markup).toContain('aria-label="Atividade de leitura concluída"')
     expect(markup).toContain('aria-label="Atividade de comando em andamento"')
     expect(markup.match(/aria-current="step"/g)).toHaveLength(1)

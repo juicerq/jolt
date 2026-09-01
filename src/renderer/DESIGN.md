@@ -346,8 +346,8 @@ disclosure. Expanding it restores the same chronological sequence instead of
 regrouping activities by type. The collapsed line replaces the live stack
 instead of appearing beside it. It includes reasoning duration only when the Provider
 explicitly reported reasoning; contact and response latency never become
-`Raciocínio` after completion. Its collapsed summary uses a sentence that names
-the observed work, such as `Raciocinou por 5s, leu 3 arquivos e executou 5
+`Pensou` after completion. Its collapsed summary uses a sentence that names
+the observed work, such as `Pensou por 5s, leu 3 arquivos e executou 5
 comandos.` The duration stays beside reasoning because it does not measure tool
 execution. Each live and expanded step uses an icon for its action instead of a
 generic completion check. The current step stays on the conversation plane

@@ -182,7 +182,7 @@ function getActivityStageIcon(step: VisibleStep) {
   const iconProps = { "aria-hidden": true as const }
 
   if (step.type === "thinking") {
-    return { label: "raciocínio", icon: <LightBulbIcon {...iconProps} /> }
+    return { label: "pensamento", icon: <LightBulbIcon {...iconProps} /> }
   }
 
   if (step.name === "read") {

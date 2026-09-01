@@ -107,8 +107,8 @@ export function formatChatActivitySummary(activity: ActivitySummaryInput) {
 
   if (hadThinking) {
     clauses.push(thinkingDurationMs > 0
-      ? `raciocinou por ${formatThinkingDuration(thinkingDurationMs)}`
-      : "raciocinou")
+      ? `pensou por ${formatThinkingDuration(thinkingDurationMs)}`
+      : "pensou")
   }
 
   for (const group of toolGroups) {
@@ -133,7 +133,7 @@ export function formatChatActivitySummary(activity: ActivitySummaryInput) {
 
 export function formatChatActivityStepLabel(step: ActivitySummaryStep) {
   if (step.type === "thinking") {
-    return step.durationMs ? `Raciocinou por ${formatThinkingDuration(step.durationMs)}` : "Raciocinou"
+    return step.durationMs ? `Pensou por ${formatThinkingDuration(step.durationMs)}` : "Pensou"
   }
 
   const group = toolGroups.find((candidate) => candidate.name === step.name)
@@ -149,7 +149,7 @@ export function formatChatActivityStepLabel(step: ActivitySummaryStep) {
 
 export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
   if (step.type === "thinking") {
-    return "Raciocinando"
+    return "Pensando"
   }
 
   const group = toolGroups.find((candidate) => candidate.name === step.name)

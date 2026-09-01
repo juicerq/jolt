@@ -30,7 +30,7 @@ describe("formatChatActivitySummary", () => {
       ],
     })
 
-    expect(summary).toBe("Raciocinou por 5s, leu 3 arquivos e executou 5 comandos")
+    expect(summary).toBe("Pensou por 5s, leu 3 arquivos e executou 5 comandos")
   })
 
   test("does not present failed commands as successful commands", () => {
@@ -71,6 +71,6 @@ describe("formatChatActivitySummary", () => {
       ],
     })
 
-    expect(summary).toBe("Raciocinou por 1s, delegou para Iara, delegação para Caio falhou e transferiu para Maya")
+    expect(summary).toBe("Pensou por 1s, delegou para Iara, delegação para Caio falhou e transferiu para Maya")
   })
 })

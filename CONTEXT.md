@@ -54,14 +54,14 @@ _Evitar_: Contexto, histórico
 
 **Conversa do Bot**:
 A linha cronológica das mensagens trocadas pelo Bot com a pessoa, o Líder e outros Bots.
-_Evitar_: Log interno, raciocínio
+_Evitar_: Log interno, pensamento, raciocínio
 
 **Atividade**:
-O registro do raciocínio exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
-_Evitar_: Mensagem, raciocínio não exposto
+O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
+_Evitar_: Mensagem, pensamento não exposto, raciocínio
 
-**Duração do raciocínio**:
-A soma dos períodos em que o Fornecedor do Bot sinaliza raciocínio durante uma execução. Ela só existe quando o Fornecedor expõe esse estado.
+**Duração do pensamento**:
+A soma dos períodos em que o Fornecedor do Bot sinaliza pensamento durante uma execução. Ela só existe quando o Fornecedor expõe esse estado.
 _Evitar_: Tempo até a primeira resposta, duração total da execução
 
 **Tarefa**:
