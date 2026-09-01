@@ -32,7 +32,7 @@ type VisibleStep =
   | (Omit<PersistedToolStep, "tools"> & { tools: VisibleTool[] })
 type VisibleActivity = { steps: VisibleStep[] }
 type ActivityStatus = "running" | "aborting" | "failed"
-type StageMode = "compact" | "current" | "history"
+type StageMode = "compact" | "current" | "history" | "solo"
 type StageStatus = "running" | "done" | "failed"
 
 const activityStageIconStatusClassNames: Record<StageStatus, string> = {
@@ -88,7 +88,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
         <div className="mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3">
-          {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode="history" />)}
+          {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode={steps.length === 1 ? "solo" : "history"} />)}
         </div>
       </details>
     </div>
@@ -124,6 +124,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const hasDetailList = details.length > 1
   const detailClassName = prose ? "text-support text-muted" : "font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap"
   const stageModeClasses = {
+    solo: "",
     compact: "px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none",
     current: "gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none",
     history: "gap-0.5 px-[7px] py-[5px] before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden",
@@ -138,6 +139,19 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
       {hasDetailList && <ChevronDownIcon className="mt-px size-[13px] opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/stage:opacity-100 group-focus-within/stage:opacity-100 group-open/stage:rotate-180 motion-reduce:transition-none" aria-hidden="true" />}
     </>
   )
+
+  if (mode === "solo") {
+    return (
+      <div className="grid min-w-0">
+        {step.type === "thinking" && <ThinkingTrace content={step.content} mode="solo" />}
+        {step.type === "tool" && (
+          <ul className="m-0 grid list-none gap-0 p-0">
+            {details.map((detail) => <li className="m-0 block min-w-0 border-0 p-0" key={detail}><ActivityDetail className={detailClassName} prose={prose}>{detail}</ActivityDetail></li>)}
+          </ul>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={`relative grid min-w-0 ${stageModeClasses[mode]}`} {...currentProps}>
@@ -165,8 +179,10 @@ function ActivityDetail({ children, className, prose }: { children: string; clas
   return <code className={className}>{children}</code>
 }
 
-function ThinkingTrace({ content, mode }: { content: string; mode: "current" | "history" }) {
-  return <div className={`ml-[23px] ${mode === "history" ? "pt-0.5" : "border-l border-outline pl-3"} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
+function ThinkingTrace({ content, mode }: { content: string; mode: "current" | "history" | "solo" }) {
+  const modeClassName = { current: "ml-[23px] border-l border-outline pl-3", history: "ml-[23px] pt-0.5", solo: "" }
+
+  return <div className={`${modeClassName[mode]} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
 }
 
 function getStepStatus(step: VisibleStep, active: boolean) {

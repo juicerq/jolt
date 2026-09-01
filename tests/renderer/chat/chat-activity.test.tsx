@@ -29,6 +29,7 @@ describe("ChatActivity", () => {
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
+    expect(markup.match(/Pensou por 2s/g)).toHaveLength(1)
     expect(markup).toContain("Escolhendo a validação")
   })
 
@@ -47,6 +48,7 @@ describe("ChatActivity", () => {
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
+    expect(markup.match(/Leu 1 arquivo/g)).toHaveLength(1)
     expect(markup).toContain("README.md")
   })
 
@@ -82,7 +84,7 @@ describe("ChatActivity", () => {
     expect(secondThinking).toBeGreaterThan(fileRead)
   })
 
-  test("renders multi-item action details as an open collapsible list in history", () => {
+  test("lists the files of a lone read step straight under the summary", () => {
     const markup = renderToStaticMarkup(
       <ChatActivity activity={{
         steps: [{
@@ -96,11 +98,10 @@ describe("ChatActivity", () => {
       }} />,
     )
 
-    expect(markup.match(/<details/g)).toHaveLength(2)
-    expect(markup).toMatch(/<details[^>]* open="">[\s\S]*<summary[^>]*>/)
+    expect(markup.match(/<details/g)).toHaveLength(1)
+    expect(markup.match(/Leu 2 arquivos/g)).toHaveLength(1)
     expect(markup).toMatch(/<li[^>]*><code[^>]*>src\/app\.ts<\/code><\/li>/)
     expect(markup).toMatch(/<li[^>]*><code[^>]*>src\/store\.ts<\/code><\/li>/)
-    expect(markup).toContain("</summary><ul")
   })
 
   test("renders a pending run without a second thinking label", () => {
