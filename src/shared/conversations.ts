@@ -25,6 +25,7 @@ const conversationActivity = type({
   "+": "reject",
   steps: thinkingActivityStep.or(toolActivityStep).array(),
 })
+const turnEnding = type.enumerated("aborted", "failed", "closed")
 const message = type({
   "+": "reject",
   id: "string > 0",
@@ -32,8 +33,9 @@ const message = type({
   author: messageAuthor,
   authorBotId: optionalId,
   taskId: optionalId,
-  content: "string > 0",
+  content: "string",
   activity: conversationActivity.or("null"),
+  ending: turnEnding.or("null"),
   createdAt: "string > 0",
 })
 const incomingMessage = message.pick("author", "authorBotId", "taskId", "content")
@@ -71,7 +73,9 @@ export const conversationSchemas = {
 }
 
 export type ConversationMessage = typeof message.infer
+export type TurnEnding = typeof turnEnding.infer
 export type ConversationEvent = typeof event.infer
+export type FinishReason = typeof finishedEvent.infer["reason"]
 export type BotConversationEvent = typeof botEvent.infer
 export type IncomingMessage = typeof incomingMessage.infer
 export type ConversationActivity = typeof conversationActivity.infer

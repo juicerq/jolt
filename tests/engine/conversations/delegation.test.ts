@@ -208,10 +208,11 @@ describe("delegation", () => {
 
     expect(task?.status).toBe("interrupted")
     expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toContain("direct order")
-    expect(environment.conversations.history({ botId: member.id }).map(({ author, taskId, content }) => ({ author, taskId, content }))).toEqual([
-      { author: "bot", taskId: task?.id, content: "Revisar código\n\nLeia tudo" },
-      { author: "person", taskId: task?.id, content: "Pare e responda só isto" },
-      { author: "bot", taskId: task?.id, content: "Respondi à pessoa" },
+    expect(environment.conversations.history({ botId: member.id }).map(({ author, taskId, content, ending }) => ({ author, taskId, content, ending }))).toEqual([
+      { author: "bot", taskId: task?.id, content: "Revisar código\n\nLeia tudo", ending: null },
+      { author: "bot", taskId: task?.id, content: "", ending: "aborted" },
+      { author: "person", taskId: task?.id, content: "Pare e responda só isto", ending: null },
+      { author: "bot", taskId: task?.id, content: "Respondi à pessoa", ending: null },
     ])
     await environment.close()
   })

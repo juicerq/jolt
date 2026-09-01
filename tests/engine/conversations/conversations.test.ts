@@ -14,12 +14,13 @@ const directory = testDirectory("jolt-conversations-")
 function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), completePrompt = true) {
   const prompts: string[] = []
   const instructions: string[] = []
-  const sessions = new Map<string, { listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean }>()
+  const sessions = new Map<string, { listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; fail(): void }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
       instructions.push(input.instructions ?? "")
       let finishPrompt: (() => void) | undefined
-      const state = { listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false }
+      let rejectPrompt: ((error: Error) => void) | undefined
+      const state = { listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false, fail: () => rejectPrompt?.(new Error("Provider crashed")) }
       sessions.set(input.botId, state)
 
       return {
@@ -48,8 +49,9 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
           }
 
           if (!completePrompt) {
-            await new Promise<void>((resolve) => {
+            await new Promise<void>((resolve, reject) => {
               finishPrompt = resolve
+              rejectPrompt = reject
             })
           }
         },
@@ -106,7 +108,15 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
     return collected
   }
 
-  return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem, turn }
+  async function turnSettled(botId: string) {
+    for await (const { botId: eventBotId, event } of conversations.events()) {
+      if (eventBotId === botId && event.type === "finished") {
+        return
+      }
+    }
+  }
+
+  return { bots, conversations, database, databasePath, instructions, prompts, runtime, sessions, observationSystem, turn, turnSettled }
 }
 
 describe("conversations", () => {
@@ -172,7 +182,7 @@ describe("conversations", () => {
     await reopened.observationSystem.observability.flush()
   })
 
-  test("aborts the active turn without persisting its partial response", async () => {
+  test("aborting the turn keeps the partial response marked as aborted", async () => {
     const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
     const bot = await environment.bots.create({
       name: "Atlas",
@@ -183,11 +193,62 @@ describe("conversations", () => {
     await environment.conversations.abort({ botId: bot.id })
 
     expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
-    expect(environment.conversations.history({ botId: bot.id }).map((message) => message.author)).toEqual(["person"])
+    expect(environment.conversations.history({ botId: bot.id }).map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
+      { author: "person", content: "Pare depois", ending: null },
+      { author: "bot", content: "Resposta ", ending: "aborted" },
+    ])
 
     environment.conversations.dispose()
     environment.database.close()
     await environment.observationSystem.observability.flush()
+  })
+
+  test("a turn that fails before answering is recorded as failed", async () => {
+    const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
+    const bot = await environment.bots.create({
+      name: "Atlas",
+      provider: "codex",
+      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+    })
+    await environment.conversations.send({ botId: bot.id, content: "Quebre" })
+    environment.sessions.get(bot.id)?.fail()
+    await environment.turnSettled(bot.id)
+
+    expect(environment.conversations.history({ botId: bot.id }).at(-1)).toMatchObject({ author: "bot", content: "Resposta ", ending: "failed" })
+
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("a message left unanswered by a previous Engine run is closed on startup", async () => {
+    const first = setup()
+    const bot = await first.bots.create({
+      name: "Atlas",
+      provider: "codex",
+      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+    })
+    first.database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Sem resposta", activity: null, ending: null, createdAt: new Date().toISOString() })
+    first.conversations.dispose()
+    first.database.close()
+    await first.observationSystem.observability.flush()
+
+    const reopened = setup(first.databasePath)
+
+    expect(reopened.conversations.history({ botId: bot.id }).map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
+      { author: "person", content: "Sem resposta", ending: null },
+      { author: "bot", content: "", ending: "closed" },
+    ])
+
+    const again = setup(first.databasePath)
+
+    expect(again.conversations.history({ botId: bot.id })).toHaveLength(2)
+
+    for (const environment of [reopened, again]) {
+      environment.conversations.dispose()
+      environment.database.close()
+      await environment.observationSystem.observability.flush()
+    }
   })
 
   test("events carry every turn with its Bot and the incoming message", async () => {

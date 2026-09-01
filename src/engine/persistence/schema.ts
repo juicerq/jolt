@@ -49,6 +49,7 @@ export const messages = snakeCase.table("messages", {
   taskId: text().references(() => tasks.id, { onDelete: "set null" }),
   content: text().notNull(),
   activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
+  ending: text({ enum: ["aborted", "failed", "closed"] }).$type<ConversationMessage["ending"]>(),
   createdAt: text().notNull(),
 }, (table) => [
   index("messages_bot_position").on(table.botId, table.position),

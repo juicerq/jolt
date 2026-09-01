@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite"
-import { asc, eq, max, sql } from "drizzle-orm"
+import { and, asc, eq, max, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { StoredBot } from "../../shared/bots"
@@ -22,6 +22,7 @@ const messageColumns = {
   taskId: messages.taskId,
   content: messages.content,
   activity: messages.activity,
+  ending: messages.ending,
   createdAt: messages.createdAt,
 }
 
@@ -101,6 +102,15 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => conversationSchemas.messageList.assert(
           database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(asc(sql`rowid`)).all(),
         ))
+      },
+      lastMessages() {
+        return observability.span({ name: "database.conversationlast" }, () => {
+          const lastPositions = database.select({ botId: messages.botId, position: max(messages.position).as("position") }).from(messages).groupBy(messages.botId).as("last")
+
+          return conversationSchemas.messageList.assert(
+            database.select(messageColumns).from(messages).innerJoin(lastPositions, and(eq(messages.botId, lastPositions.botId), eq(messages.position, lastPositions.position))).all(),
+          )
+        })
       },
       append(message: ConversationMessage) {
         return observability.span({ name: "database.messageappend", context: { botId: message.botId } }, () => {

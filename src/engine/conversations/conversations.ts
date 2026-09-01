@@ -3,11 +3,12 @@ import type { Observability } from "../observability/observability"
 import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
-import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type IncomingMessage } from "../../shared/conversations"
+import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 
 const defaultTools = ["read", "bash", "edit", "write"]
+const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
 
 type ActiveTurn = { message: IncomingMessage; settled: Promise<void> }
 
@@ -47,6 +48,18 @@ export function createConversations(input: {
   const active = new Map<string, ActiveTurn>()
   const listeners = new Set<(event: BotConversationEvent) => void>()
   const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId)?.message })
+
+  closeUnanswered()
+
+  function closeUnanswered() {
+    const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
+
+    for (const message of unanswered) {
+      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", activity: null, ending: "closed", createdAt: new Date().toISOString() })
+    }
+
+    input.observability.event({ name: "conversation.closeunanswered", attributes: { count: unanswered.length } })
+  }
 
   async function open(botId: string) {
     const bot = input.bots.get({ id: botId })
@@ -136,7 +149,7 @@ export function createConversations(input: {
 
     try {
       await open(botId)
-      input.database.conversations.append({ id: crypto.randomUUID(), botId, ...persisted, activity: null, createdAt: new Date().toISOString() })
+      input.database.conversations.append({ id: crypto.randomUUID(), botId, ...persisted, activity: null, ending: null, createdAt: new Date().toISOString() })
     } catch (error) {
       turn.release()
 
@@ -170,55 +183,54 @@ export function createConversations(input: {
       }
 
       if (deliveredEvent.type === "finished") {
-        let finishReason = deliveredEvent.reason
-
-        if (deliveredEvent.reason === "stop" && response.length > 0) {
-          try {
-            input.database.conversations.append({
-              id: crypto.randomUUID(),
-              botId,
-              author: "bot",
-              authorBotId: botId,
-              taskId: persisted.taskId,
-              content: response,
-              activity: activity.snapshot(),
-              createdAt: new Date().toISOString(),
-            })
-          } catch (error) {
-            finishReason = "error"
-            input.observability.event({ name: "conversation.persistencefailed", context: { botId, provider: "codex" }, error })
-          }
-        }
-
-        deliveredEvent = { type: "finished", reason: finishReason }
-        finished = true
-        input.observability.event({
-          name: "conversation.finished",
-          attributes: { state: finishReason, count: eventCount, bytes: Buffer.byteLength(response) },
-          context: { botId, provider: "codex" },
-        })
-        turn.release()
-        unsubscribe()
+        finish(deliveredEvent.reason)
       }
 
       queue.push(deliveredEvent)
       deliver(botId, deliveredEvent)
     })
     void input.runtime.prompt(botId, message.content).catch((error) => {
-      if (!finished) {
-        queue.push({ type: "finished", reason: "error" })
-        deliver(botId, { type: "finished", reason: "error" })
-        finished = true
-        turn.release()
-        unsubscribe()
-        input.observability.event({
-          name: "conversation.finished",
-          attributes: { state: "error", count: eventCount, bytes: Buffer.byteLength(response) },
-          context: { botId, provider: "codex" },
-          error,
-        })
+      if (finished) {
+        return
       }
+
+      finish("error", error)
+      queue.push({ type: "finished", reason: "error" })
+      deliver(botId, { type: "finished", reason: "error" })
     })
+
+    function finish(reason: FinishReason, error?: unknown) {
+      const ending = turnEndings[reason]
+      const worthKeeping = ending !== null || response.length > 0
+
+      if (worthKeeping) {
+        try {
+          input.database.conversations.append({
+            id: crypto.randomUUID(),
+            botId,
+            author: "bot",
+            authorBotId: botId,
+            taskId: persisted.taskId,
+            content: response,
+            activity: activity.snapshot(),
+            ending,
+            createdAt: new Date().toISOString(),
+          })
+        } catch (persistError) {
+          input.observability.event({ name: "conversation.persistencefailed", context: { botId, provider: "codex" }, error: persistError })
+        }
+      }
+
+      finished = true
+      input.observability.event({
+        name: "conversation.finished",
+        attributes: { state: reason, count: eventCount, bytes: Buffer.byteLength(response) },
+        context: { botId, provider: "codex" },
+        ...(error ? { error } : {}),
+      })
+      turn.release()
+      unsubscribe()
+    }
 
     while (!finished || queue.size > 0) {
       const event = await queue.next()
