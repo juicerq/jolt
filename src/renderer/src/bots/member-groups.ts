@@ -19,3 +19,13 @@ export function describeMember(bot: Bot) {
 
   return bot.function.outcome
 }
+
+export function highlightedBotId(leader: Pick<Bot, "id"> & { members: Pick<Bot, "id">[] }, selectedBotId: string | null, expanded: boolean) {
+  const memberSelected = leader.members.some((member) => member.id === selectedBotId)
+
+  if (!expanded && memberSelected) {
+    return leader.id
+  }
+
+  return selectedBotId
+}

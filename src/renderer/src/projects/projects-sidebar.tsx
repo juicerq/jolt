@@ -6,7 +6,7 @@ import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { projectSchemas } from "../../../shared/projects"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
-import { describeMember, groupMembers } from "../bots/member-groups"
+import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
@@ -162,6 +162,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   const memberListId = `team-members-${bot.id}`
   const groups = groupMembers(bot.members)
   const openMembers = [...groups.permanent, ...groups.active]
+  const highlighted = highlightedBotId(bot, selectedBotId, expanded)
 
   if (!hasTeam) {
     return <li className="block border-0 p-0"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} /></li>
@@ -170,7 +171,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   return (
     <li className="mb-2 block border-0 p-0">
       <div className="group/leader relative">
-        <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} />
+        <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} />
         <IconButton
           className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100"
           iconSize={13}
@@ -192,7 +193,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
         inert={!expanded ? true : undefined}
       >
         <ul className={memberListClassName} aria-label={`Integrantes de ${bot.name}`}>
-          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={selectedBotId === member.id} status={statuses[member.id] ?? "available"} />)}
+          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
               <button className="mb-[3px] flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} onClick={() => setClosedShown((current) => !current)}>
@@ -201,7 +202,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
               </button>
               {closedShown && (
                 <ul className={memberListClassName} aria-label={`Integrantes encerrados de ${bot.name}`}>
-                  {groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={selectedBotId === member.id} status="available" />)}
+                  {groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status="available" />)}
                 </ul>
               )}
             </li>
@@ -232,6 +233,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
     <button
       className={`group/row relative mb-[3px] flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
       type="button"
+      aria-current={selected ? "true" : undefined}
       onClick={() => selectBot(bot.id)}
       {...tooltip.focusProps}
     >
