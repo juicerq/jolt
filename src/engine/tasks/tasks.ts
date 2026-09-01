@@ -14,6 +14,8 @@ export function createTasks({ database, observability }: { database: AppDatabase
     return task
   }
 
+  observability.span({ name: "tasks.interruptorphans" }, () => database.tasks.interruptWorking(new Date().toISOString()))
+
   return {
     create(input: Pick<Task, "leaderBotId" | "assigneeBotId" | "outcome">) {
       const task: Task = { id: crypto.randomUUID(), ...input, status: "working", createdAt: new Date().toISOString(), finishedAt: null }

@@ -141,6 +141,11 @@ export function openDatabase(path: string, observability: Observability) {
           return row ? taskSchemas.task.assert(row) : undefined
         })
       },
+      interruptWorking(finishedAt: string) {
+        return observability.span({ name: "database.taskinterruptworking" }, () => {
+          database.update(tasks).set({ status: "interrupted", finishedAt }).where(eq(tasks.status, "working")).run()
+        })
+      },
       listForLeader(leaderBotId: string) {
         return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => taskSchemas.taskList.assert(
           database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(tasks.id)).all(),
