@@ -37,7 +37,8 @@ const teamAvatarHoverClassNames = [
 ]
 
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
-  const selectedBotId = useSelector(botsStore, (state) => state.selectedBotId)
+  const draft = useSelector(botsStore, (state) => state.draft)
+  const selectedBotId = useSelector(botsStore, (state) => (state.draft ? null : state.selectedBotId))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const [search, setSearch] = useState("")
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -46,7 +47,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const hasVisibleBots = !!visibleData && (visibleData.projects.length > 0 || visibleData.unassignedBots.length > 0)
 
   return (
-    <aside className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
+    <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
       <div className="mr-2 mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:mx-0 max-[720px]:self-start max-[720px]:justify-center">
         <BotSearch value={search} onChange={setSearch} />
         <div className="flex gap-1">
@@ -60,12 +61,13 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       </div>
       {error && <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>}
       {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
-      {data && data.projects.length === 0 && data.unassignedBots.length === 0 && (
+      {draft && <DraftRow />}
+      {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
         <SidebarEmpty title="Nenhum Bot">Crie um Bot ou Projeto para começar.</SidebarEmpty>
       )}
       {data && query && !hasVisibleBots && <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>}
       {visibleData && hasVisibleBots && (
-        <nav className="min-h-0 overflow-x-hidden overflow-y-auto pr-2 max-[720px]:block" aria-label="Projetos e Bots">
+        <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2 max-[720px]:block" aria-label="Projetos e Bots">
           {visibleData.projects.map((project) => (
             <section className="[&+&]:mt-5" key={project.id} aria-labelledby={`project-${project.id}`}>
               <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
@@ -93,6 +95,18 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
         </nav>
       )}
     </aside>
+  )
+}
+
+function DraftRow() {
+  return (
+    <div className="mr-2 mb-2 flex items-center gap-2.5 rounded-lg border border-dashed border-outline-strong px-2.5 py-2.5 text-secondary max-[720px]:justify-center" aria-current="true">
+      <span className="size-8 min-w-8 rounded-[10px] border border-dashed border-outline-strong" aria-hidden="true" />
+      <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
+        <strong className="text-control font-semibold text-primary">Novo Bot</strong>
+        <small className="text-metadata font-medium text-muted">Em rascunho</small>
+      </span>
+    </div>
   )
 }
 
