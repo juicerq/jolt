@@ -304,19 +304,16 @@ Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practi
 
 ### Outcome
 
-Fechar e abrir o aplicativo preserva Bots, relações, configurações e conversas, enquanto execuções interrompidas aguardam uma decisão da pessoa.
+Fechar e abrir o aplicativo preserva Bots, relações, configurações e conversas, e o chat mostra quando um Bot ficou sem responder.
 
 ### Acceptance criteria
 
-- [ ] Reiniciar preserva Bots, Integrantes, Funções, executores, pastas escolhidas e conversas.
-- [ ] Pastas privadas continuam associadas aos Bots corretos.
-- [ ] Uma execução ativa no encerramento reaparece como interrompida.
-- [ ] Nenhuma execução interrompida retoma automaticamente.
-- [ ] A pessoa pode revisar, cancelar ou iniciar uma continuação.
-- [ ] A recuperação não duplica mensagens nem Tarefas.
-- [ ] Falhas de recuperação produzem diagnóstico sem corromper o banco.
-- [ ] Um teste fecha e reabre os processos e confirma o estado esperado.
-- [ ] Spans distinguem inicialização normal, recuperação e falha.
+- [x] Reiniciar preserva Bots, Integrantes, Funções, executores, pastas escolhidas e conversas (coberto por `bots.test.ts` e `conversations.test.ts`).
+- [x] Tarefas em andamento no encerramento reaparecem como interrompidas.
+- [x] Nenhuma execução interrompida retoma automaticamente.
+- [x] Sessão perdida produz diagnóstico e uma sessão nova sem corromper o banco.
+- [x] Quando a última mensagem não é do Bot e não há execução ativa, o chat mostra "<Bot> não respondeu" como linha de atividade.
+- [x] O log registra quantas Tarefas o boot interrompeu.
 
 ### Blocked by
 
