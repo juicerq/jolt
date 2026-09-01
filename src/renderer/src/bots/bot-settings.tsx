@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { LinkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "../../../shared/bots"
@@ -7,7 +7,6 @@ import type { projectSchemas } from "../../../shared/projects"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { useDirectoryChooser } from "../ui/directory-picker"
-import { IconButton } from "../ui/icon-button"
 import { Select } from "../ui/select"
 import { useEscape } from "../ui/use-escape"
 import { EditableLine, FolderChip, editableLineClassName, revealClassName } from "./bot-form"
@@ -82,7 +81,6 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
 
   return (
     <section className="relative grid h-full min-h-0 overflow-y-auto bg-surface" aria-label={`Configurações de ${bot.name}`}>
-      <IconButton className="top-2.5 right-[var(--window-controls-clearance)] z-2" iconSize={16} position="absolute" type="button" label="Fechar configurações" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
       <form className="mx-auto mt-[18vh] mb-auto flex w-[min(520px,calc(100%-48px))] flex-col items-center gap-2 pb-12 text-center" onSubmit={handleSubmit}>
         <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jolt:${bot.id}:${bot.name}`} size={64} alt="" />
         <label className="sr-only" htmlFor="bot-settings-name">Nome</label>

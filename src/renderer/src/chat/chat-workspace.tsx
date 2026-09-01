@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { ArrowUpIcon, Cog6ToothIcon, StopIcon } from "@heroicons/react/24/outline"
+import { ArrowUpIcon, StopIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type KeyboardEvent, useCallback, useRef, useState } from "react"
@@ -20,11 +20,10 @@ import {
 import { ChatScroller } from "./chat-scroller"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
-import { ChatEdgeTab } from "./chat-edge-tab"
 import { ChatMemberResult } from "./chat-member-result"
 import { ChatTurnEnding } from "./chat-turn-ending"
 
-export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; client: EngineClient; onOpenSettings: () => void }) {
+export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
   const draft = useSelector(chatStore, (state) => state.drafts[bot.id] ?? "")
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
   const [composerExpanded, setComposerExpanded] = useState(false)
@@ -94,9 +93,6 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
 
   return (
     <section className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
-      <ChatEdgeTab>
-        <IconButton iconSize={16} type="button" label={`Abrir configurações de ${bot.name}`} tooltipPlacement="left" onClick={onOpenSettings}><Cog6ToothIcon aria-hidden="true" /></IconButton>
-      </ChatEdgeTab>
       <ChatScroller>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
