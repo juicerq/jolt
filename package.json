@@ -9,7 +9,6 @@
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
     "dev": "bun run build:engine && electron-vite dev",
-    "prototype:chat": "VITE_CHAT_PROTOTYPE=1 vite src/renderer --config vite.prototype.config.ts --host 127.0.0.1",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
