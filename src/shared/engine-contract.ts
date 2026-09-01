@@ -5,6 +5,7 @@ import { externalObservationSpan, observationAttributes, observationContext, obs
 import { providerAvailabilityList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
+import { memorySchemas } from "./memory"
 import { projectSchemas } from "./projects"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
@@ -86,6 +87,12 @@ export const engineContract = {
     list: oc.input(routineSchemas.botInput).output(routineSchemas.routineList).route({ method: "GET", path: "/bots/{botId}/routines" }),
     update: oc.input(routineSchemas.updateInput).output(routineSchemas.routine).route({ method: "POST", path: "/routines/{id}/update" }),
     remove: oc.input(routineSchemas.idInput).route({ method: "POST", path: "/routines/{id}/remove" }),
+  },
+  memory: {
+    list: oc.input(memorySchemas.botInput).output(memorySchemas.memoryList).route({ method: "GET", path: "/bots/{botId}/memories" }),
+    add: oc.input(memorySchemas.addInput).output(memorySchemas.memory).route({ method: "POST", path: "/bots/{botId}/memories" }),
+    forget: oc.input(memorySchemas.idInput).route({ method: "POST", path: "/memories/{id}/forget" }),
+    clear: oc.input(memorySchemas.botInput).route({ method: "POST", path: "/bots/{botId}/memories/clear" }),
   },
   observations: {
     rendererSpan: oc.input(externalObservationSpan).route({ method: "POST", path: "/observations/renderer-span" }),

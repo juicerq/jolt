@@ -117,7 +117,11 @@ function summarizeToolError(result: unknown) {
   return summary.length > 300 ? `${summary.slice(0, 297)}...` : summary
 }
 
-function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?: string) {
+function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?: string, ephemeral?: boolean) {
+  if (ephemeral) {
+    return SessionManager.inMemory(cwd)
+  }
+
   if (!sessionFile) {
     return SessionManager.create(cwd, sessionsDirectory)
   }
@@ -162,7 +166,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         ...(input.instructions ? { appendSystemPrompt: [input.instructions] } : {}),
       })
       await loader.reload()
-      const sessionManager = openSessionManager(options.sessionsDirectory, input.cwd, input.sessionFile)
+      const sessionManager = openSessionManager(options.sessionsDirectory, input.cwd, input.sessionFile, input.ephemeral)
       const result = await createAgentSession({
         cwd: input.cwd,
         model,

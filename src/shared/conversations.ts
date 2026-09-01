@@ -1,6 +1,6 @@
 import { type } from "arktype"
 
-const messageAuthor = type.enumerated("person", "bot", "routine")
+export const messageAuthor = type.enumerated("person", "bot", "routine")
 const optionalId = type("string > 0").or("null")
 const conversationTool = type({
   "+": "reject",

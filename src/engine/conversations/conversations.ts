@@ -1,10 +1,10 @@
+import type { Bot } from "../../shared/bots"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
-import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
+import type { createPiAgentRuntime, PiCustomTool } from "../pi/pi-agent-runtime"
 import type { AppDatabase } from "../persistence/database"
-import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
-import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
+import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
@@ -12,7 +12,12 @@ import { voice } from "./voice"
 const defaultTools = ["read", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
 
-type ActiveTurn = { message: IncomingMessage; settled: Promise<void> }
+export type BotExtension = {
+  tools(bot: Bot): PiCustomTool[]
+  instructions(bot: Bot): string
+}
+
+type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
 
 function createQueue<T>(initial: T[] = []) {
   const items = initial
@@ -45,12 +50,13 @@ export function createConversations(input: {
   tasks: ReturnType<typeof createTasks>
   runtime: ReturnType<typeof createPiAgentRuntime>
   observability: Observability
-  routines: Pick<ReturnType<typeof createRoutines>, "tools" | "instructions">
+  extensions: BotExtension[]
 }) {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
   const listeners = new Set<(event: BotConversationEvent) => void>()
   const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId)?.message })
+  const extensions = [delegation, ...input.extensions]
 
   closeUnanswered()
 
@@ -76,14 +82,13 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const customTools = [...delegation.tools(bot), ...input.routines.tools(bot)]
+    const customTools = extensions.flatMap((extension) => extension.tools(bot))
     const tools = [...defaultTools, ...customTools.map((tool) => tool.name)]
     const instructions = [
       `You are ${bot.name}.`,
       `Expected outcome: ${bot.function.outcome}`,
       bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
-      delegation.instructions(bot),
-      input.routines.instructions(bot),
+      ...extensions.map((extension) => extension.instructions(bot)),
       voice,
     ].filter(Boolean).join("\n")
     const profile = JSON.stringify({ cwd, tools, instructions })
@@ -110,7 +115,11 @@ export function createConversations(input: {
     sessions.set(botId, profile)
   }
 
-  async function claim(botId: string, message: IncomingMessage): Promise<{ taskId: string | null; release(): void }> {
+  function incoming(message: ConversationMessage): IncomingMessage {
+    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content }
+  }
+
+  async function claim(botId: string, message: IncomingMessage): Promise<{ message: ConversationMessage; release(): void }> {
     const current = active.get(botId)
 
     if (current && message.author === "routine") {
@@ -136,11 +145,11 @@ export function createConversations(input: {
     const settled = new Promise<void>((resolve) => {
       settle = resolve
     })
-    const taskId = message.taskId ?? current?.message.taskId ?? null
-    active.set(botId, { message: { ...message, taskId }, settled })
+    const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, taskId: message.taskId ?? current?.message.taskId ?? null, activity: null, ending: null, createdAt: new Date().toISOString() }
+    active.set(botId, { message: opened, settled })
 
     return {
-      taskId,
+      message: opened,
       release() {
         active.delete(botId)
         settle()
@@ -156,11 +165,10 @@ export function createConversations(input: {
 
   async function* runTurn(botId: string, message: IncomingMessage): AsyncGenerator<ConversationEvent> {
     const turn = await claim(botId, message)
-    const persisted = { ...message, taskId: turn.taskId }
 
     try {
       await open(botId)
-      input.database.conversations.append({ id: crypto.randomUUID(), botId, ...persisted, activity: null, ending: null, createdAt: new Date().toISOString() })
+      input.database.conversations.append(turn.message)
     } catch (error) {
       turn.release()
 
@@ -170,7 +178,7 @@ export function createConversations(input: {
     const queue = createQueue<ConversationEvent>()
     let finished = false
     let response = ""
-    const activity = createConversationActivityRecorder(persisted)
+    const activity = createConversationActivityRecorder(incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
@@ -221,7 +229,7 @@ export function createConversations(input: {
             botId,
             author: "bot",
             authorBotId: botId,
-            taskId: persisted.taskId,
+            taskId: turn.message.taskId,
             content: response,
             activity: activity.snapshot(),
             ending,
@@ -279,7 +287,7 @@ export function createConversations(input: {
       return input.database.conversations.related(taskId)
     },
     events(): AsyncIterable<BotConversationEvent> {
-      const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: turn.message } })))
+      const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: incoming(turn.message) } })))
       listeners.add(queue.push)
 
       return {
@@ -297,6 +305,9 @@ export function createConversations(input: {
           }
         },
       }
+    },
+    active(botId: string) {
+      return active.get(botId)?.message
     },
     async send(rawInput: unknown) {
       const { botId, content } = conversationSchemas.sendInput.assert(rawInput)

@@ -99,6 +99,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         provider: input.provider,
         function: input.function,
         temporary: false,
+        memoryEnabled: true,
         createdAt: new Date().toISOString(),
       })
     },
@@ -114,6 +115,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         function: details.function,
         workingDirectoryOverride: leader.workingDirectoryOverride,
         temporary: !details.permanent,
+        memoryEnabled: true,
         createdAt: new Date().toISOString(),
       })
     },
@@ -161,6 +163,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
             function: input.function,
             projectId: input.projectId,
             workingDirectoryOverride: input.workingDirectoryOverride,
+            memoryEnabled: input.memoryEnabled,
           })
 
           if (!updated) {
@@ -193,6 +196,15 @@ export function createBots({ database, observability, privateBotsDirectory, prov
           await Promise.all(team.map((bot) => rm(join(privateBotsDirectory, bot.id), { recursive: true, force: true })))
         },
       )
+    },
+    async directory(rawInput: unknown) {
+      const input = botSchemas.idInput.assert(rawInput)
+
+      if (!database.bots.get(input.id)) {
+        throw new Error("Bot not found")
+      }
+
+      return privateDirectory(input.id)
     },
     async resolveWorkingDirectory(rawInput: unknown) {
       const input = botSchemas.idInput.assert(rawInput)

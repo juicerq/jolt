@@ -85,7 +85,7 @@ export function NewBot({ client }: { client: EngineClient }) {
           ? (
             <>
               <label className="sr-only" htmlFor="new-bot-name">Nome</label>
-              <input className={`${lineClassName} mt-4 mb-1.5 w-full text-title font-semibold text-primary placeholder:font-normal`} id="new-bot-name" autoFocus autoComplete="off" placeholder="Nome do Bot" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter(commitName)} />
+              <input className={`${lineClassName} mt-4 mb-1.5 w-full text-center text-title font-semibold text-primary placeholder:font-normal`} id="new-bot-name" autoFocus autoComplete="off" placeholder="Nome do Bot" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter(commitName)} />
               <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
             </>
           )
@@ -93,7 +93,7 @@ export function NewBot({ client }: { client: EngineClient }) {
         {step === "outcome" && (
           <>
             <label className="sr-only" htmlFor="new-bot-outcome">Resultado esperado</label>
-            <input className={`${lineClassName} ${revealClassName} w-full text-support text-secondary`} id="new-bot-outcome" autoFocus autoComplete="off" placeholder="O que ele entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} onKeyDown={onEnter(commitOutcome)} />
+            <input className={`${lineClassName} ${revealClassName} w-full text-center text-support text-secondary`} id="new-bot-outcome" autoFocus autoComplete="off" placeholder="O que ele entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} onKeyDown={onEnter(commitOutcome)} />
             <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
           </>
         )}

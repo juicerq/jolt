@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { createEngineRouter } from "@src/engine/app/engine-app"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
+import { createMemory } from "@src/engine/memory/memory"
 import { createDiagnostics } from "@src/engine/observability/diagnostics"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { openDatabase } from "@src/engine/persistence/database"
@@ -51,8 +52,9 @@ function setup() {
     },
   }
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }, { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) }] })
   const routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+  const memory = createMemory({ database, bots, observability: system.observability, sessionFactory, conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() } })
   const diagnostics = createDiagnostics({
     source: system.diagnostics,
     versions: { app: "0.0.0", bun: Bun.version, electron: "test" },
@@ -60,7 +62,7 @@ function setup() {
     migrationState: database.migrationState,
     exportDirectory: join(directory, "diagnostics"),
   })
-  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines))
+  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory))
   const server = Bun.serve({
     port: 0,
     async fetch(request) {
@@ -73,6 +75,7 @@ function setup() {
 
   async function close() {
     await server.stop(true)
+    memory.dispose()
     routines.dispose()
     conversations.dispose()
     database.close()

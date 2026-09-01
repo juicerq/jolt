@@ -82,7 +82,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const tasks = createTasks({ database, observability: observationSystem.observability })
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
   const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
   async function turn(botId: string, content: string) {

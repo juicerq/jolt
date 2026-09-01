@@ -259,7 +259,8 @@ should survive 100% display scaling without relying on text below 11px.
 
 The desktop window has two persistent regions: a 286px sidebar and the fluid
 conversation plane. A 12px channel separates them. Window controls sit in the
-upper-right corner without reserving height above the conversation. Their icons
+upper-right corner without reserving height above the conversation, with the
+close action centered on the radius center of the conversation plane's corner. Their icons
 stay faint at rest and reach full ink on pointer or keyboard intent. A separate
 12px strip across the top owns window dragging without covering the search field.
 
@@ -358,16 +359,35 @@ steps sit flush with the icon column without a branching line. Only a step's
 supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work.
 
-**Bot profile.** Creating and editing a Bot share one anatomy inside the
-conversation plane instead of a dialog: a 64px Blobatar, the name as a
-borderless title line, the outcome as a borderless support line, the optional
-description below it in muted ink, then a 280px column with the link select, the
-folder chip, and the single primary action. Editable lines stay quiet at rest
-and gain the hover surface hugging their text. A ghost close action sits in the
-top-right corner. The destructive action is a ghost text button at the bottom
-that turns error ink on intent. Committing it keeps the identity block in place
-and swaps the column for one sentence naming what disappears, a text cancel,
-and an outlined error-ink confirm.
+**New Bot.** Creating a Bot happens inside the conversation plane instead of a
+dialog, as a three-step flow: a 64px Blobatar, the name as a borderless title
+line, the outcome as a borderless support line, then a 280px column with the
+link select, the folder chip, and the single primary action. Committed lines
+stay quiet at rest and gain the hover surface hugging their text. A ghost close
+action sits in the top-right corner.
+
+**Bot settings.** Editing a Bot is a page on the conversation plane: one
+centered 560px column, like New Bot. The header reuses the New Bot lines beside
+the 64px Blobatar: the name as a borderless title line and the expected outcome
+as a borderless control line, left-aligned, each gaining the hover surface
+hugging its text. Below come sections labeled in uppercase label type: Função
+with the description, Trabalho, Rotinas, Memória. Every other field shows its
+label. Vínculo shows the Leader as a 32px Blobatar beside its name. The form
+has no footer: while it holds unsaved changes, a bar pinned to the bottom of
+the plane names that state on the left and places discard and the single
+primary action on the right. It disappears when the draft matches the Bot.
+Rotinas save on their own: a divided list with ghost icon actions per row, a
+secondary button with a plus icon to add, and a dialog for creating or editing
+one Rotina. Memória saves on its own: the switch sits in the section header
+and a support sentence names the current state. While on, the section shows a
+divided list of Lembranças with the Origem on the supporting line and a ghost
+trash action per row, one input with a secondary add button, a text action to
+clear that commits the same way as Excluir, and the Leader's Memória as a
+quiet block that appears only when the Leader knows something. Off hides
+everything but the sentence. The destructive action sits last, after a
+divider, as an outlined error-ink button with a trash icon. Committing it
+swaps the button for one sentence naming what disappears, a text cancel, and
+an outlined error-ink confirm. Closing lives in the edge tab and Escape.
 
 **Edge tab.** The Bot's actions on the conversation plane hide inside a small
 tab hugging the plane's right edge at mid-height: a raised half-rounded tongue
@@ -398,6 +418,18 @@ Window controls use the ghost anatomy at reduced rest opacity. Minimize and
 maximize use a neutral hover surface. Close introduces error color only on
 hover or keyboard focus. Their tooltips open downward to remain inside the
 window edge.
+
+**Toggle chip.** A small outlined button that holds a pressed state, such as
+one weekday inside a Rotina. Rest uses the strong outline and muted ink.
+Pressed uses the focus outline, the active surface, and primary ink. It reports
+its state through `aria-pressed` and never replaces a checkbox for a lone option.
+
+**Switch.** A 36×20px pill for one lone on or off option, such as the Memória
+of a Bot. Off uses the strong outline, the active surface, and a secondary-ink
+thumb. On uses the accent surface with a canvas thumb, the same pairing as the
+primary button. It sits at the right end of its row; the text at the left names
+the current state in control type and is not a click target. Only the switch
+toggles. It reports its state through `role="switch"` and `aria-checked`.
 
 **Empty state.** One section heading explains the state. One support sentence
 states the next move. When the next move is already visible nearby, the empty

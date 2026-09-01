@@ -89,13 +89,13 @@ function setup() {
   const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
   const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
@@ -283,7 +283,7 @@ describe("delegation", () => {
     await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("- Calo")
-    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, createdAt: new Date().toISOString() })
+    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 

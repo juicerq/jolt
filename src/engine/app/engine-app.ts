@@ -5,6 +5,7 @@ import type { ObservationReceiver, Observability } from "../observability/observ
 import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
 import type { createConversations } from "../conversations/conversations"
+import type { createMemory } from "../memory/memory"
 import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
@@ -45,6 +46,7 @@ export function createEngineRouter(
   conversations: ReturnType<typeof createConversations>,
   tasks: ReturnType<typeof createTasks>,
   routines: ReturnType<typeof createRoutines>,
+  memory: ReturnType<typeof createMemory>,
 ) {
   const operations = implement(engineContract).use(async ({ next }) => {
     try {
@@ -191,6 +193,32 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.routineremove", context: observationContext(context) },
           () => routines.remove(input),
+        ),
+      ),
+    },
+    memory: {
+      list: operations.memory.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.memorylist", context: observationContext(context) },
+          () => memory.list(input),
+        ),
+      ),
+      add: operations.memory.add.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.memoryadd", context: observationContext(context) },
+          () => memory.add(input),
+        ),
+      ),
+      forget: operations.memory.forget.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.memoryforget", context: observationContext(context) },
+          () => memory.forget(input),
+        ),
+      ),
+      clear: operations.memory.clear.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.memoryclear", context: observationContext(context) },
+          () => memory.clear(input),
         ),
       ),
     },

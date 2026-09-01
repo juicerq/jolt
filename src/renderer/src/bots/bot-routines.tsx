@@ -1,14 +1,16 @@
-import { PauseIcon, PencilIcon, PlayIcon, TrashIcon } from "@heroicons/react/24/outline"
+import { PauseIcon, PencilIcon, PlayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import { type Frequency, type Routine, type Weekday, weekdays } from "../../../shared/routines"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
-import { fieldControlClassName } from "../ui/field"
+import { Dialog, DialogActions, DialogBody } from "../ui/dialog"
+import { Field, fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
 import { Select } from "../ui/select"
-import { revealClassName } from "./bot-form"
+import { ToggleChip } from "../ui/toggle-chip"
+import { BotSettingsSection } from "./bot-settings-section"
 import { describeFrequency, weekdayLabels } from "./routine-frequency"
 
 type Draft = { content: string; form: Frequency["form"]; everyMinutes: string; days: Weekday[]; time: string; at: string }
@@ -66,39 +68,35 @@ export function BotRoutines({ bot, client }: { bot: Bot; client: EngineClient })
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.routines.remove.mutationOptions(settled))
   const failure = listError?.message ?? createError?.message ?? updateError?.message ?? removeError?.message
   const busy = creating || updating || removing
+  const editingRoutine = routines?.find((routine) => routine.id === editing)
 
   return (
-    <section className="mt-10 flex w-[min(360px,100%)] flex-col gap-3 text-left" aria-label="Rotinas">
-      <h3 className="m-0 text-label uppercase text-muted">Rotinas</h3>
-      {routines?.length === 0 && editing !== "new" && <p className="m-0 text-support text-muted">Nenhuma Rotina. {bot.name} só trabalha quando você chama.</p>}
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {routines?.map((routine) => (
-          <li key={routine.id}>
-            {editing === routine.id
-              ? <RoutineForm initial={draftOf(routine)} pending={updating} submitLabel="Salvar Rotina" onCancel={() => setEditing(null)} onSubmit={(content, frequency) => update({ id: routine.id, content, frequency, enabled: routine.enabled })} />
-              : (
-                <div className={`${revealClassName} flex items-center gap-2 rounded-lg border border-outline px-3 py-2`}>
-                  <div className="min-w-0 flex-1">
-                    <p className={`m-0 truncate text-control ${routine.enabled ? "text-primary" : "text-muted"}`} title={routine.content}>{routine.content}</p>
-                    <p className="m-0 text-support text-muted">{describeFrequency(routine.frequency)}{routine.enabled ? "" : " · pausada"}</p>
-                  </div>
-                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label={routine.enabled ? "Pausar Rotina" : "Retomar Rotina"} onClick={() => update({ id: routine.id, content: routine.content, frequency: routine.frequency, enabled: !routine.enabled })}>{routine.enabled ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>
-                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Editar Rotina" onClick={() => setEditing(routine.id)}><PencilIcon aria-hidden="true" /></IconButton>
-                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Remover Rotina" onClick={() => remove({ id: routine.id })}><TrashIcon aria-hidden="true" /></IconButton>
-                </div>
-              )}
-          </li>
-        ))}
-      </ul>
-      {editing === "new"
-        ? <RoutineForm initial={emptyDraft} pending={creating} submitLabel="Adicionar Rotina" onCancel={() => setEditing(null)} onSubmit={(content, frequency) => create({ botId: bot.id, content, frequency })} />
-        : <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setEditing("new")}>Nova Rotina</Button>}
+    <BotSettingsSection title="Rotinas">
+      {routines?.length === 0 && <p className="m-0 text-support text-muted">Nenhuma Rotina. {bot.name} só trabalha quando você chama.</p>}
+      {routines && routines.length > 0 && (
+        <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
+          {routines.map((routine) => (
+            <li className="flex items-center gap-2 py-2.5 first:pt-0" key={routine.id}>
+              <div className="min-w-0 flex-1">
+                <p className={`m-0 truncate text-control font-medium ${routine.enabled ? "text-primary" : "text-muted"}`} title={routine.content}>{routine.content}</p>
+                <p className="m-0 text-support text-muted">{describeFrequency(routine.frequency)}{routine.enabled ? "" : " · pausada"}</p>
+              </div>
+              <IconButton iconSize={14} size={28} type="button" disabled={busy} label={routine.enabled ? "Pausar Rotina" : "Retomar Rotina"} onClick={() => update({ id: routine.id, content: routine.content, frequency: routine.frequency, enabled: !routine.enabled })}>{routine.enabled ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>
+              <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Editar Rotina" onClick={() => setEditing(routine.id)}><PencilIcon aria-hidden="true" /></IconButton>
+              <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Remover Rotina" onClick={() => remove({ id: routine.id })}><TrashIcon aria-hidden="true" /></IconButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Button className="inline-flex items-center gap-2 self-start" variant="secondary" type="button" disabled={busy} onClick={() => setEditing("new")}><PlusIcon className="size-4" aria-hidden="true" />Nova Rotina</Button>
       {failure && <p className="m-0 text-support text-status-error">Falha nas Rotinas: {failure}</p>}
-    </section>
+      {editing === "new" && <RoutineDialog title="Nova Rotina" initial={emptyDraft} pending={creating} submitLabel="Adicionar Rotina" onClose={() => setEditing(null)} onSubmit={(content, frequency) => create({ botId: bot.id, content, frequency })} />}
+      {editingRoutine && <RoutineDialog title="Editar Rotina" initial={draftOf(editingRoutine)} pending={updating} submitLabel="Salvar Rotina" onClose={() => setEditing(null)} onSubmit={(content, frequency) => update({ id: editingRoutine.id, content, frequency, enabled: editingRoutine.enabled })} />}
+    </BotSettingsSection>
   )
 }
 
-function RoutineForm({ initial, pending, submitLabel, onCancel, onSubmit }: { initial: Draft; pending: boolean; submitLabel: string; onCancel: () => void; onSubmit: (content: string, frequency: Frequency) => void }) {
+function RoutineDialog({ title, initial, pending, submitLabel, onClose, onSubmit }: { title: string; initial: Draft; pending: boolean; submitLabel: string; onClose: () => void; onSubmit: (content: string, frequency: Frequency) => void }) {
   const [draft, setDraft] = useState(initial)
   const content = draft.content.trim()
   const frequency = frequencyOf(draft)
@@ -119,31 +117,36 @@ function RoutineForm({ initial, pending, submitLabel, onCancel, onSubmit }: { in
   }
 
   return (
-    <form className={`${revealClassName} flex flex-col gap-2 rounded-lg border border-outline-strong p-3`} onSubmit={handleSubmit}>
-      <label className="sr-only" htmlFor="routine-content">Pedido da Rotina</label>
-      <textarea className={`${fieldControlClassName} field-sizing-content max-h-32 resize-none font-normal`} id="routine-content" autoFocus placeholder="Verifique a caixa de entrada e me avise do que precisa de resposta" rows={2} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} />
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <label>
-          <span className="sr-only">Forma da Frequência</span>
-          <Select value={draft.form} onChange={(event) => setDraft({ ...draft, form: forms[event.target.value] ?? "interval" })}>
-            <option value="interval">A cada</option>
-            <option value="fixed-time">Nos dias</option>
-            <option value="once">Uma vez</option>
-          </Select>
-        </label>
-        {draft.form === "interval" && <label className="flex items-center gap-2 text-control text-secondary"><span className="sr-only">Minutos</span><input className={`${fieldControlClassName} w-20`} type="number" min={1} step={1} value={draft.everyMinutes} onChange={(event) => setDraft({ ...draft, everyMinutes: event.target.value })} />minutos</label>}
-        {draft.form === "fixed-time" && <label className="flex items-center gap-2 text-control text-secondary">às<span className="sr-only">Hora</span><input className={`${fieldControlClassName} w-28`} type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>}
-        {draft.form === "once" && <label className="flex items-center gap-2 text-control text-secondary">em<span className="sr-only">Data e hora</span><input className={`${fieldControlClassName} w-44`} type="datetime-local" value={draft.at} onChange={(event) => setDraft({ ...draft, at: event.target.value })} /></label>}
-      </div>
-      {draft.form === "fixed-time" && (
-        <div className="flex gap-1" role="group" aria-label="Dias da semana">
-          {weekdays.map((day) => <button key={day} className={`flex-1 rounded-md border px-0 py-1.5 text-metadata font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${draft.days.includes(day) ? "border-focus bg-surface-active text-primary" : "border-outline bg-transparent text-muted hover:bg-surface-hover hover:text-secondary"}`} type="button" aria-pressed={draft.days.includes(day)} onClick={() => toggleDay(day)}>{weekdayLabels[day]}</button>)}
-        </div>
-      )}
-      <div className="mt-1 flex justify-end gap-2">
-        <Button variant="text" type="button" disabled={pending} onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={pending || !content || !frequency}>{pending ? "Salvando..." : submitLabel}</Button>
-      </div>
-    </form>
+    <Dialog eyebrow="Rotina" title={title} onClose={onClose}>
+      <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
+        <DialogBody>
+          <Field label="Pedido"><textarea className={`${fieldControlClassName} field-sizing-content max-h-40 min-h-20 resize-none font-normal`} autoFocus placeholder="Verifique a caixa de entrada e me avise do que precisa de resposta" rows={3} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></Field>
+          <Field label="Frequência" as="div">
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <label>
+                <span className="sr-only">Forma da Frequência</span>
+                <Select value={draft.form} onChange={(event) => setDraft({ ...draft, form: forms[event.target.value] ?? "interval" })}>
+                  <option value="interval">A cada</option>
+                  <option value="fixed-time">Nos dias</option>
+                  <option value="once">Uma vez</option>
+                </Select>
+              </label>
+              {draft.form === "interval" && <label className="flex items-center gap-2 text-control font-normal text-secondary"><span className="sr-only">Minutos</span><input className={`${fieldControlClassName} w-20`} type="number" min={1} step={1} value={draft.everyMinutes} onChange={(event) => setDraft({ ...draft, everyMinutes: event.target.value })} />minutos</label>}
+              {draft.form === "fixed-time" && <label className="flex items-center gap-2 text-control font-normal text-secondary">às<span className="sr-only">Hora</span><input className={`${fieldControlClassName} w-28`} type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>}
+              {draft.form === "once" && <label className="flex items-center gap-2 text-control font-normal text-secondary">em<span className="sr-only">Data e hora</span><input className={`${fieldControlClassName} w-48`} type="datetime-local" value={draft.at} onChange={(event) => setDraft({ ...draft, at: event.target.value })} /></label>}
+            </div>
+            {draft.form === "fixed-time" && (
+              <div className="flex gap-1" role="group" aria-label="Dias da semana">
+                {weekdays.map((day) => <ToggleChip className="flex-1 px-0" pressed={draft.days.includes(day)} key={day} onClick={() => toggleDay(day)}>{weekdayLabels[day]}</ToggleChip>)}
+              </div>
+            )}
+          </Field>
+        </DialogBody>
+        <DialogActions>
+          <Button variant="text" type="button" disabled={pending} onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={pending || !content || !frequency}>{pending ? "Salvando..." : submitLabel}</Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   )
 }

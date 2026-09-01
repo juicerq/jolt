@@ -10,6 +10,7 @@ import { createObservationSystem } from "./observability/observability"
 import { openDatabase } from "./persistence/database"
 import { createBots } from "./bots/bots"
 import { createConversations } from "./conversations/conversations"
+import { createMemory } from "./memory/memory"
 import { createPiAgentRuntime } from "./pi/pi-agent-runtime"
 import { createPiSessionFactory } from "./pi/pi-session-adapter"
 import { createPiProvider } from "./pi/pi-provider"
@@ -104,14 +105,32 @@ const bots = createBots({
 })
 const projects = createProjects({ database, observability: observationSystem.observability, bots })
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
-const piRuntime = createPiAgentRuntime(createPiSessionFactory({
+const piSessionFactory = createPiSessionFactory({
   agentDirectory: join(piDirectory, "agent"),
   sessionsDirectory: join(piDirectory, "sessions"),
   modelId: "gpt-5.6-luna",
-}), observationSystem.observability)
+})
+const piRuntime = createPiAgentRuntime(piSessionFactory, observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })
-const conversations = createConversations({ database, bots, tasks, runtime: piRuntime, observability: observationSystem.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+const conversations = createConversations({
+  database,
+  bots,
+  tasks,
+  runtime: piRuntime,
+  observability: observationSystem.observability,
+  extensions: [
+    { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
+    { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
+  ],
+})
 const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+const memory = createMemory({
+  database,
+  bots,
+  observability: observationSystem.observability,
+  sessionFactory: piSessionFactory,
+  conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() },
+})
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
@@ -125,7 +144,7 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, memory),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -212,6 +231,7 @@ process.on("SIGTERM", async () => {
         })
       }
 
+      memory.dispose()
       routines.dispose()
       conversations.dispose()
       database.close()

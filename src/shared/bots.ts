@@ -14,6 +14,7 @@ const storedBot = type({
   function: botFunction,
   workingDirectoryOverride: workingDirectory.or("null"),
   temporary: "boolean",
+  memoryEnabled: "boolean",
   createdAt: "string > 0",
 })
 const bot = storedBot.merge({ effectiveWorkingDirectory: workingDirectory, closed: "boolean" })
@@ -24,7 +25,7 @@ export const botSchemas = {
   createInput,
   hireInput: type({ "+": "reject", name: "string > 0", function: botFunction, permanent: "boolean" }),
   idInput: type({ "+": "reject", id: "string > 0" }),
-  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null") }),
+  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null"), memoryEnabled: "boolean" }),
   storedBot,
   storedBotList: storedBot.array(),
   bot,

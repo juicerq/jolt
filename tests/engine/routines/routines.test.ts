@@ -62,7 +62,7 @@ function setup() {
   const bots = createBots({ database, observability: system.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
   const tasks = createTasks({ database, observability: system.observability })
-  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, routines: { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) } })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
   let routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 
   function restart() {

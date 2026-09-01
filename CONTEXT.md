@@ -37,7 +37,7 @@ Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trab
 _Evitar_: Time, codebase, pasta de Bots
 
 **Diretório do Bot**:
-O espaço privado pertencente a um Bot, onde ficam sua memória e seus próprios arquivos. Ele não muda quando o Bot troca de Projeto ou de Pasta de trabalho.
+O espaço privado pertencente a um Bot, onde ficam seus próprios arquivos. Ele não muda quando o Bot troca de Projeto ou de Pasta de trabalho.
 _Evitar_: Pasta de trabalho, pasta do Projeto
 
 **Pasta de trabalho**:
@@ -57,8 +57,44 @@ A seleção temporária de informações usadas numa execução.
 _Evitar_: Memória, histórico completo, prompt permanente
 
 **Memória do Bot**:
-O conhecimento persistente ligado à Função de um Bot.
-_Evitar_: Contexto, histórico
+A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pessoa liga, desliga e limpa a Memória por Bot. Um Integrante lê também a Memória do seu Líder. Um Integrante temporário não tem Memória própria.
+_Evitar_: Contexto, histórico, Notas
+
+**Lembrança**:
+Um item da Memória. Uma frase que o Bot deve saber em toda execução. Tem Origem e data. A Curadoria cria, substitui e esquece Lembranças; a pessoa cria, esquece e limpa.
+_Evitar_: Fato, entrada, item, memória
+
+**Nota**:
+Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar. Uma Nota nunca entra no Contexto. Ela guarda a Origem do turno em que nasceu.
+_Evitar_: Memória, log, diário, rascunho
+
+**Curadoria**:
+A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui ou esquece Lembranças. Acontece fora da Conversa, quando o Bot está livre. Respeita o Limite da Memória.
+_Evitar_: Dreaming, consolidação, compactação, resumo
+
+**Origem**:
+De onde uma Nota ou Lembrança veio: da pessoa, ou do Bot durante uma conversa, uma Tarefa ou uma Chamada. O Jolt registra a Origem; o Bot não a escreve.
+_Evitar_: Fonte, autor, proveniência
+
+**Limite da Memória**:
+O tamanho máximo da Memória de um Bot. Uma Lembrança que não cabe é recusada até o Bot esquecer ou substituir outra.
+_Evitar_: Budget, cota, orçamento
+
+**Esquecer**:
+Apagar uma Lembrança. A pessoa ou a Curadoria esquece.
+_Evitar_: Remover, deletar, excluir
+
+**Limpar a Memória**:
+Esquecer todas as Lembranças e Notas de um Bot de uma vez.
+_Evitar_: Resetar, apagar tudo, excluir
+
+**Memória desligada**:
+O estado em que o Bot não lê nem escreve Memória, própria ou do Líder. Nada é apagado. Religar devolve tudo.
+_Evitar_: Pausada, arquivada
+
+**Memória do Time**:
+A forma informal de chamar a Memória do Líder vista pelos Integrantes. Não é uma lista separada e some para o Time quando a Memória do Líder está desligada.
+_Evitar_: Memória compartilhada, memória do Projeto
 
 **Conversa do Bot**:
 A linha cronológica das mensagens trocadas pelo Bot com a pessoa, o Líder e outros Bots.

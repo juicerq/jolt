@@ -37,6 +37,7 @@ export type PiSessionFactory = {
     customTools?: PiCustomTool[]
     sessionFile?: string
     instructions?: string
+    ephemeral?: boolean
   }): Promise<PiSession>
 }
 

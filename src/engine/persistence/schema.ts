@@ -2,6 +2,7 @@ import { index, integer, snakeCase, text } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "../../shared/bots"
 import type { ConversationMessage } from "../../shared/conversations"
+import type { Note, StoredMemory } from "../../shared/memory"
 import type { Routine } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 
@@ -21,6 +22,7 @@ export const bots = snakeCase.table("bots", {
   function: text({ mode: "json" }).$type<StoredBot["function"]>().notNull(),
   workingDirectoryOverride: text(),
   temporary: integer({ mode: "boolean" }).notNull().default(false),
+  memoryEnabled: integer({ mode: "boolean" }).notNull().default(true),
   createdAt: text().notNull(),
 }, (table) => [
   index("bots_leader_bot_id").on(table.leaderBotId),
@@ -67,3 +69,23 @@ export const routines = snakeCase.table("routines", {
   nextCallAt: text().notNull(),
   createdAt: text().notNull(),
 }, (table) => [index("routines_bot_id").on(table.botId)])
+
+export const notes = snakeCase.table("notes", {
+  id: text().primaryKey(),
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  content: text().notNull(),
+  turnAuthor: text({ enum: ["person", "bot", "routine"] }).$type<Note["turnAuthor"]>().notNull(),
+  taskId: text().references(() => tasks.id, { onDelete: "set null" }),
+  messageId: text().references(() => messages.id, { onDelete: "set null" }),
+  createdAt: text().notNull(),
+  curatedAt: text(),
+}, (table) => [index("notes_bot_curated").on(table.botId, table.curatedAt)])
+
+export const memories = snakeCase.table("memories", {
+  id: text().primaryKey(),
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  content: text().notNull(),
+  origin: text({ enum: ["person", "bot"] }).$type<StoredMemory["origin"]>().notNull(),
+  noteId: text().references(() => notes.id, { onDelete: "set null" }),
+  createdAt: text().notNull(),
+}, (table) => [index("memories_bot_id").on(table.botId)])

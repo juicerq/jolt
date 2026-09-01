@@ -1,0 +1,154 @@
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type FormEvent, useState } from "react"
+import type { Bot } from "../../../shared/bots"
+import { type Memory, memoryLimits, memoryUsage } from "../../../shared/memory"
+import type { EngineClient } from "../engine-client"
+import { Button } from "../ui/button"
+import { fieldControlClassName } from "../ui/field"
+import { IconButton } from "../ui/icon-button"
+import { Switch } from "../ui/switch"
+import { revealClassName } from "./bot-form"
+import { BotSettingsSection } from "./bot-settings-section"
+
+const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", bot: "Aprendeu com outro Bot" }
+
+export function describeOrigin(memory: Pick<Memory, "origin" | "turnAuthor" | "createdAt">) {
+  const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
+  const source = memory.origin === "person" ? "Você adicionou" : learnedFrom[memory.turnAuthor ?? "bot"]
+
+  return `${source} · ${date}`
+}
+
+export function MemoryList({ memories, busy, onForget }: { memories: Memory[]; busy: boolean; onForget?: (id: string) => void }) {
+  if (memories.length === 0) {
+    return <p className="m-0 text-support text-muted">Nenhuma Lembrança ainda.</p>
+  }
+
+  return (
+    <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
+      {memories.map((memory) => (
+        <li className="flex items-center gap-2 py-2.5 first:pt-0" key={memory.id}>
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-control font-medium text-primary">{memory.content}</p>
+            <p className="m-0 text-support text-muted">{describeOrigin(memory)}</p>
+          </div>
+          {onForget && <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Esquecer Lembrança" onClick={() => onForget(memory.id)}><TrashIcon aria-hidden="true" /></IconButton>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function clearNote(bot: Bot, count: number) {
+  const memories = count === 1 ? "1 Lembrança" : `${count} Lembranças`
+
+  return `Limpar a Memória de ${bot.name} apaga ${memories} e as Notas que ainda não viraram Lembrança. Não é possível desfazer.`
+}
+
+function TeamMemory({ leader, client }: { leader: Pick<Bot, "id" | "name">; client: EngineClient }) {
+  const { data: memories, error } = useQuery(client.query.memory.list.queryOptions({ input: { botId: leader.id } }))
+
+  if (error) {
+    return <p className="m-0 text-support text-status-error">Falha na Memória do Time: {error.message}</p>
+  }
+
+  if (!memories || memories.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="m-0 text-control font-semibold text-secondary">O que {leader.name} sabe</p>
+      <MemoryList memories={memories} busy={false} />
+    </div>
+  )
+}
+
+export function BotMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
+  if (!bot.temporary) {
+    return <OwnMemory bot={bot} client={client} {...(leader ? { leader } : {})} />
+  }
+
+  return (
+    <BotSettingsSection title="Memória">
+      <p className="m-0 text-support text-muted">Um Integrante temporário não tem Memória própria.{leader && ` Ele lê o que ${leader.name} sabe.`}</p>
+      {leader && <TeamMemory leader={leader} client={client} />}
+    </BotSettingsSection>
+  )
+}
+
+function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
+  const queryClient = useQueryClient()
+  const [draft, setDraft] = useState("")
+  const [confirmingClear, setConfirmingClear] = useState(false)
+  const listOptions = client.query.memory.list.queryOptions({ input: { botId: bot.id } })
+  const { data: memories, error: listError } = useQuery(listOptions)
+  const refresh = () => queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
+  const { mutate: add, isPending: adding, error: addError } = useMutation(client.query.memory.add.mutationOptions({ onSuccess() {
+    refresh()
+    setDraft("")
+  } }))
+  const { mutate: forget, isPending: forgetting, error: forgetError } = useMutation(client.query.memory.forget.mutationOptions({ onSuccess: refresh }))
+  const { mutate: clear, isPending: clearing, error: clearError } = useMutation(client.query.memory.clear.mutationOptions({ onSuccess() {
+    refresh()
+    setConfirmingClear(false)
+  } }))
+  const { mutate: update, isPending: toggling, error: toggleError } = useMutation(client.query.bots.update.mutationOptions({ onSuccess(updated) {
+    queryClient.invalidateQueries({ queryKey: client.query.bots.get.queryOptions({ input: { id: updated.id } }).queryKey })
+    queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
+    queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+  } }))
+  const content = draft.trim()
+  const busy = adding || forgetting || clearing || toggling
+  const failure = listError?.message ?? addError?.message ?? forgetError?.message ?? clearError?.message ?? toggleError?.message
+  const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não lê nem anota, nem o que o Líder sabe. Nada foi apagado.`
+
+  function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!content) {
+      return
+    }
+
+    add({ botId: bot.id, content })
+  }
+
+  const toggle = <Switch checked={bot.memoryEnabled} disabled={busy} aria-label="Memória ligada" onChange={(memoryEnabled) => update({ id: bot.id, name: bot.name, function: bot.function, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride, memoryEnabled })} />
+
+  if (!bot.memoryEnabled) {
+    return (
+      <BotSettingsSection title="Memória" action={toggle}>
+        <p className="m-0 text-support text-muted">{state}</p>
+        {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
+      </BotSettingsSection>
+    )
+  }
+
+  return (
+    <BotSettingsSection title="Memória" action={toggle}>
+      <p className="m-0 text-support text-muted">{state}</p>
+      {memories && <MemoryList memories={memories} busy={busy} onForget={(id) => forget({ id })} />}
+      {memories && memories.length > 0 && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
+      <form className="flex items-start gap-2" onSubmit={handleAdd}>
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">Nova Lembrança</span>
+          <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} placeholder="Entrego relatórios em PDF, nunca em planilha" value={draft} disabled={busy || confirmingClear} onChange={(event) => setDraft(event.target.value)} />
+        </label>
+        <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={busy || confirmingClear || !content}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
+      </form>
+      {memories && memories.length > 0 && !confirmingClear && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
+      {memories && confirmingClear && (
+        <div className={`${revealClassName} flex flex-col items-start gap-4`}>
+          <p className="m-0 text-control font-medium text-secondary">{clearNote(bot, memories.length)}</p>
+          <div className="flex gap-2">
+            <Button variant="text" type="button" autoFocus disabled={clearing} onClick={() => setConfirmingClear(false)}>Cancelar</Button>
+            <Button variant="danger" type="button" disabled={clearing} onClick={() => clear({ botId: bot.id })}>{clearing ? "Limpando..." : "Limpar a Memória"}</Button>
+          </div>
+        </div>
+      )}
+      {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
+      {leader && <TeamMemory leader={leader} client={client} />}
+    </BotSettingsSection>
+  )
+}
