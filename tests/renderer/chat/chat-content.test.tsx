@@ -28,7 +28,7 @@ describe("ChatContent", () => {
     expect(markup).not.toContain("<header")
     expect(markup).not.toContain("TypeScript")
     expect(markup).toMatch(/<button[^>]*aria-label="Copiar código"[^>]*>/)
-    expect(markup).toContain('data-tooltip="Copiar código"')
+    expect(markup).toMatch(/<div[^>]*role="tooltip"[^>]*>Copiar código<\/div>/)
     expect(markup).toContain('<span class="hljs-keyword">const</span>')
     expect(markup).toContain('<span class="hljs-number">42</span>')
     expect(markup).toContain("<table")
