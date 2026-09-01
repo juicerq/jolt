@@ -83,6 +83,34 @@
 }
 
 @layer components {
+  .edge-tab-tongue::before,
+  .edge-tab-tongue::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    width: 9px;
+    height: 9px;
+    opacity: var(--edge-tab-open);
+    transition: opacity var(--edge-tab-duration) var(--edge-tab-ease);
+  }
+
+  .edge-tab-tongue::before {
+    bottom: 100%;
+    background: radial-gradient(circle at top left, transparent 7.5px, var(--edge-tab-outline) 8.25px 8.75px, var(--color-surface-raised) 9.5px);
+  }
+
+  .edge-tab-tongue::after {
+    top: 100%;
+    background: radial-gradient(circle at bottom left, transparent 7.5px, var(--edge-tab-outline) 8.25px 8.75px, var(--color-surface-raised) 9.5px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .edge-tab-tongue::before,
+    .edge-tab-tongue::after {
+      transition: none;
+    }
+  }
+
   select.base-select,
   select.base-select::picker(select) {
     appearance: base-select;
