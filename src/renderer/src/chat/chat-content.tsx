@@ -67,3 +67,5 @@ function CopyCodeButton({ content }: { content: string }) {
     </IconButton>
   )
 }
+
+export const chatGuideClassName = "relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-l before:border-y before:border-l before:border-outline"

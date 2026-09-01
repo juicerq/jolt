@@ -20,7 +20,7 @@ import {
   getChatActivityStepDetails,
   splitChatActivitySteps,
 } from "./chat-activity-summary"
-import { ChatContent } from "./chat-content"
+import { ChatContent, chatGuideClassName } from "./chat-content"
 import { formatChatWaitingMessage } from "./chat-waiting-messages"
 
 type PersistedStep = ConversationActivity["steps"][number]
@@ -87,7 +87,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
-        <div className={steps.length === 1 ? "relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-l before:border-y before:border-l before:border-outline mt-1.5 mb-1 ml-[14px] grid py-1 pl-4" : "mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3"}>
+        <div className={steps.length === 1 ? `${chatGuideClassName} mt-1.5 mb-1 ml-[14px] grid py-1 pl-4` : "mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3"}>
           {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode={steps.length === 1 ? "solo" : "history"} />)}
         </div>
       </details>
@@ -123,8 +123,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const { items: details, prose } = step.type === "tool" ? getChatActivityStepDetails(step) : { items: [], prose: false }
   const hasDetailList = details.length > 1
   const detailClassName = prose ? "text-support text-muted" : "font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap"
-  const stageModeClasses = {
-    solo: "",
+  const stageModeClasses: Record<Exclude<StageMode, "solo">, string> = {
     compact: "px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none",
     current: "gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none",
     history: "gap-0.5 px-[7px] py-[5px] before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden",
@@ -143,7 +142,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   if (mode === "solo") {
     return (
       <div className="grid min-w-0">
-        {step.type === "thinking" && <ThinkingTrace content={step.content} mode="solo" />}
+        {step.type === "thinking" && <ThinkingTrace content={step.content} />}
         {step.type === "tool" && (
           <ul className="m-0 grid list-none gap-0 p-0">
             {details.map((detail) => <li className="m-0 block min-w-0 border-0 p-0" key={detail}><ActivityDetail className={detailClassName} prose={prose}>{detail}</ActivityDetail></li>)}
@@ -165,7 +164,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
             </details>
           )
         : <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">{heading}</div>}
-      {mode !== "compact" && step.type === "thinking" && step.content.trim() && <ThinkingTrace content={step.content} mode={mode} />}
+      {mode !== "compact" && step.type === "thinking" && step.content.trim() && <ThinkingTrace className={mode === "history" ? "ml-[23px] pt-0.5" : "ml-[23px] border-l border-outline pl-3"} content={step.content} />}
       {mode !== "compact" && details.length === 1 && <ActivityDetail className={`ml-[23px] block ${detailClassName} ${mode === "history" ? "pt-0.5" : "border-l border-outline py-1 pl-3"}`} prose={prose}>{details[0]}</ActivityDetail>}
     </div>
   )
@@ -179,10 +178,8 @@ function ActivityDetail({ children, className, prose }: { children: string; clas
   return <code className={className}>{children}</code>
 }
 
-function ThinkingTrace({ content, mode }: { content: string; mode: "current" | "history" | "solo" }) {
-  const modeClassName = { current: "ml-[23px] border-l border-outline pl-3", history: "ml-[23px] pt-0.5", solo: "" }
-
-  return <div className={`${modeClassName[mode]} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
+function ThinkingTrace({ className = "", content }: { className?: string; content: string }) {
+  return <div className={`${className} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
 }
 
 function getStepStatus(step: VisibleStep, active: boolean) {
