@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { ChevronDownIcon, FolderIcon, LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { FolderIcon, LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, type KeyboardEvent, useEffect, useState } from "react"
 import type { EngineClient } from "../engine-client"
@@ -7,6 +7,7 @@ import { Button } from "../ui/button"
 import { useDirectoryChooser } from "../ui/directory-picker"
 import { fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
+import { Select } from "../ui/select"
 import { workspaceInput } from "./bot-workspace"
 import { discardDraft, nameDraft, selectBot } from "./bots-store"
 
@@ -118,15 +119,13 @@ export function NewBot({ client }: { client: EngineClient }) {
             <button className={`${settledClassName} text-support text-secondary`} type="button" title="Editar resultado" onClick={() => setStep("outcome")}>{outcome}</button>
             <div className={`${revealClassName} mt-6 flex w-[280px] flex-col gap-2`}>
               {hasWorkspaceOptions && (
-                <label className="relative">
+                <label>
                   <span className="sr-only">Vínculo</span>
-                  <LinkIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-secondary" aria-hidden="true" />
-                  <select className={`${chipClassName} appearance-none pr-8 pl-9`} value={workspace} onChange={(event) => setWorkspace(event.target.value)}>
+                  <Select icon={<LinkIcon />} value={workspace} onChange={(event) => setWorkspace(event.target.value)}>
                     <option value="">Sem projeto</option>
                     {projects.length > 0 && <optgroup label="Projetos">{projects.map((candidate) => <option value={`project:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
                     {leaders.length > 0 && <optgroup label="Líderes">{leaders.map((candidate) => <option value={`leader:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
-                  </select>
-                  <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 size-3.5 -translate-y-1/2 text-secondary" aria-hidden="true" />
+                  </Select>
                 </label>
               )}
               {workingDirectoryOverride

@@ -5,8 +5,9 @@ import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
-import { Field, fieldControlClassName } from "../ui/field"
+import { Field } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
+import { Select } from "../ui/select"
 import { WorkspaceHint } from "./workspace-hint"
 
 const eyebrowClassName = "mb-[1em] text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
@@ -44,7 +45,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
         </section>
         <section className={`${cardClassName} flex flex-col gap-4`}>
           <p className={eyebrowClassName}>Projeto e pasta</p>
-          <Field label="Projeto"><select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></Field>
+          <Field label="Projeto"><Select value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</Select></Field>
           <Field label="Pasta própria" optional as="div">
             <DirectoryPicker value={workingDirectoryOverride} placeholder="Usar outra pasta" onChoose={directory.choose} onClear={() => setWorkingDirectoryOverride("")} />
             <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={workingDirectoryOverride} />
