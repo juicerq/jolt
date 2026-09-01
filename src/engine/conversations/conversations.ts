@@ -6,6 +6,7 @@ import type { createTasks } from "../tasks/tasks"
 import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
+import { voice } from "./voice"
 
 const defaultTools = ["read", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
@@ -82,6 +83,7 @@ export function createConversations(input: {
       `Limits: ${bot.function.limits}`,
       `Delivery: ${bot.function.delivery}`,
       delegation.instructions(bot),
+      voice,
     ].filter(Boolean).join("\n")
     const profile = JSON.stringify({ cwd, tools, instructions })
 
