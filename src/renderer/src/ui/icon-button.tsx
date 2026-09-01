@@ -1,6 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react"
-
-type TooltipPlacement = "top" | "right" | "bottom" | "left"
+import { Tooltip, type TooltipPlacement, useTooltip } from "./tooltip"
 
 type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> & {
   children: ReactNode
@@ -11,13 +10,6 @@ type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label
   size?: 24 | 28 | 30 | 32 | 34
   tone?: "canvas" | "danger" | "ghost" | "primary" | "window-close"
   tooltipPlacement?: TooltipPlacement
-}
-
-const placementClassNames: Record<TooltipPlacement, string> = {
-  top: "after:bottom-[calc(100%+8px)] after:left-1/2 after:-translate-x-1/2 after:translate-y-0.5 hover:after:translate-y-0 focus-visible:after:translate-y-0",
-  right: "after:top-1/2 after:left-[calc(100%+8px)] after:-translate-x-0.5 after:-translate-y-1/2 hover:after:translate-x-0 focus-visible:after:translate-x-0",
-  bottom: "after:top-[calc(100%+8px)] after:left-1/2 after:-translate-x-1/2 after:-translate-y-0.5 hover:after:translate-y-0 focus-visible:after:translate-y-0",
-  left: "after:top-1/2 after:right-[calc(100%+8px)] after:translate-x-0.5 after:-translate-y-1/2 hover:after:translate-x-0 focus-visible:after:translate-x-0",
 }
 
 const iconSizeClassNames = {
@@ -43,9 +35,10 @@ const toneClassNames = {
   "window-close": "border-0 bg-transparent text-muted hover:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] hover:text-status-error focus-visible:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] focus-visible:text-status-error active:bg-surface-active disabled:opacity-40",
 }
 
-const iconButtonClassName = "grid shrink-0 place-items-center p-0 transition-[color,background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none after:pointer-events-none after:absolute after:z-50 after:w-max after:max-w-[220px] after:rounded-lg after:border after:border-outline after:bg-surface-active after:px-2 after:py-1.5 after:text-center after:text-metadata after:font-medium after:text-primary after:opacity-0 after:shadow-[0_8px_24px_rgb(0_0_0/24%)] after:content-[attr(data-tooltip)] after:transition-[opacity,transform] after:delay-0 after:duration-120 after:ease-out after:whitespace-normal hover:after:opacity-100 hover:after:delay-160 focus-visible:after:opacity-100 focus-visible:after:delay-0"
+const iconButtonClassName = "grid shrink-0 place-items-center p-0 transition-[color,background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
 
 export function IconButton({ children, className, iconSize = 17, label, position = "relative", shape = "rounded", size = 32, tone = "ghost", tooltipPlacement = "top", ...props }: IconButtonProps) {
+  const tooltip = useTooltip()
   const classes = [
     iconButtonClassName,
     position,
@@ -53,13 +46,15 @@ export function IconButton({ children, className, iconSize = 17, label, position
     sizeClassNames[size],
     iconSizeClassNames[iconSize],
     toneClassNames[tone],
-    placementClassNames[tooltipPlacement],
     className,
   ].filter(Boolean).join(" ")
 
   return (
-    <button {...props} className={classes} aria-label={label} data-tooltip={label}>
-      {children}
-    </button>
+    <>
+      <button {...props} {...tooltip.anchorProps} className={classes} aria-label={label}>
+        {children}
+      </button>
+      <Tooltip {...tooltip.popoverProps} placement={tooltipPlacement}>{label}</Tooltip>
+    </>
   )
 }

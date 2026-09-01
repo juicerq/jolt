@@ -9,6 +9,7 @@ import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
+import { Tooltip, useTooltip } from "../ui/tooltip"
 
 const chatStatusLabels: Record<ChatStatus, string> = {
   available: "Disponível",
@@ -204,23 +205,21 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status: ChatStatus; teamLeader?: boolean }) {
   const avatarSizeClassName = members?.length ? "h-[34px] w-10.5 min-w-10.5" : teamLeader ? "h-[34px] w-10.5 min-w-10.5 items-center justify-center" : "size-8 min-w-8"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
+  const tooltip = useTooltip()
 
   return (
     <button
       className={`group/row relative mb-[3px] flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
       type="button"
       onClick={() => selectBot(bot.id)}
+      onFocus={tooltip.show}
+      onBlur={tooltip.hide}
     >
-      <span className={`group/avatar relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
+      <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
         <BotAvatar bot={bot} members={members} />
         <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
-        <span
-          className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[100] w-max max-w-55 translate-x-[-50%] translate-y-0.5 rounded-lg border border-outline bg-surface-active px-2 py-1.5 text-center text-metadata font-medium whitespace-normal text-primary opacity-0 shadow-[0_8px_24px_rgb(0_0_0/24%)] transition-[opacity,transform] duration-[120ms] ease-out group-hover/avatar:translate-y-0 group-hover/avatar:opacity-100 group-focus-visible/row:translate-y-0 group-focus-visible/row:opacity-100 motion-reduce:transition-none"
-          aria-hidden="true"
-        >
-          {chatStatusLabels[status]}
-        </span>
       </span>
+      <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>
       <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden text-ellipsis whitespace-nowrap max-[720px]:hidden">
         <strong className="text-control font-semibold text-primary">{bot.name}</strong>
         <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{bot.function.outcome}</small>
