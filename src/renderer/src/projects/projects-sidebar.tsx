@@ -51,10 +51,10 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       <div className="mr-2 mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:mx-0 max-[720px]:self-start max-[720px]:justify-center">
         <BotSearch value={search} onChange={setSearch} />
         <div className="flex gap-1">
-          <IconButton iconSize={16} size={28} type="button" label="Criar projeto" onClick={openCreateProject}>
+          <IconButton iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
             <FolderIcon aria-hidden="true" />
           </IconButton>
-          <IconButton iconSize={16} size={28} type="button" label="Criar bot" onClick={openCreateBot}>
+          <IconButton iconSize={16} size={28} type="button" label="Criar Bot" onClick={openCreateBot}>
             <UserPlusIcon aria-hidden="true" />
           </IconButton>
         </div>
@@ -100,10 +100,8 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 
 function DraftRow({ name }: { name: string }) {
   return (
-    <div className="mr-2 mb-2 flex items-center gap-2.5 rounded-lg border border-dashed border-outline-strong px-2.5 py-2.5 text-secondary max-[720px]:justify-center" aria-current="true">
-      {name
-        ? <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
-        : <span className="size-8 min-w-8 rounded-[10px] border border-dashed border-outline-strong" aria-hidden="true" />}
+    <div className="mr-2 mb-2 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
+      <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
