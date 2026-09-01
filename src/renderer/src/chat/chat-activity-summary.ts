@@ -163,6 +163,22 @@ export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
   return capitalize(group.active(count, formatTargets(step.tools)))
 }
 
+export function splitChatActivitySteps<Step extends ActivitySummaryStep>(steps: Step[]): Step[] {
+  return steps.flatMap((step) => {
+    if (step.type !== "tool") {
+      return [step]
+    }
+
+    const group = toolGroups.find((candidate) => candidate.name === step.name)
+
+    if (!group?.namesTargets) {
+      return [step]
+    }
+
+    return step.tools.map((tool) => ({ ...step, tools: [tool] }))
+  })
+}
+
 export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
   const group = toolGroups.find((candidate) => candidate.name === step.name)
 

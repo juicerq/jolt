@@ -176,6 +176,35 @@ describe("ChatActivity", () => {
     expect(history).not.toContain("<summary")
   })
 
+  test("splits consecutive delegations into one row per member", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{
+        steps: [{
+          type: "tool",
+          name: "delegate",
+          tools: [
+            { callId: "delegate-1", name: "delegate", detail: "Calo", brief: "Escrever os testes do módulo", status: "done" },
+            { callId: "delegate-2", name: "delegate", detail: "Lia", brief: "Revisar a migração", status: "failed" },
+          ],
+        }],
+      }} />,
+    )
+
+    const calo = markup.indexOf("Delegou para Calo", markup.indexOf("</summary>"))
+    const caloBrief = markup.indexOf("Escrever os testes do módulo", calo)
+    const lia = markup.indexOf("Delegação para Lia falhou", caloBrief)
+    const liaBrief = markup.indexOf("Revisar a migração", lia)
+
+    expect(markup).toContain("Delegou para Calo e delegação para Lia falhou")
+    expect(calo).toBeGreaterThan(-1)
+    expect(caloBrief).toBeGreaterThan(calo)
+    expect(lia).toBeGreaterThan(caloBrief)
+    expect(liaBrief).toBeGreaterThan(lia)
+    expect(markup).toContain('aria-label="Atividade de delegação concluída"')
+    expect(markup).toContain('aria-label="Atividade de delegação com falha"')
+    expect(markup.match(/<summary/g)).toHaveLength(1)
+  })
+
   test("shows what each delegation asked for under the member in history", () => {
     const markup = renderToStaticMarkup(
       <ChatActivity activity={{

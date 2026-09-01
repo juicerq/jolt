@@ -18,6 +18,7 @@ import {
   formatChatActivitySummary,
   formatRunningChatActivityStepLabel,
   getChatActivityStepDetails,
+  splitChatActivitySteps,
 } from "./chat-activity-summary"
 import { ChatContent } from "./chat-content"
 import { formatChatWaitingMessage } from "./chat-waiting-messages"
@@ -42,7 +43,8 @@ const activityStageIconStatusClassNames: Record<StageStatus, string> = {
 
 export function ChatActivity({ activity, botName, status, waitingMessage }: { activity: VisibleActivity; botName?: string; status?: ActivityStatus; waitingMessage?: string }) {
   const isPending = status === "running" || status === "aborting"
-  const hasDetails = activity.steps.length > 0
+  const steps = splitChatActivitySteps(activity.steps)
+  const hasDetails = steps.length > 0
 
   if (!hasDetails && !isPending) {
     return null
@@ -60,11 +62,11 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
   }
 
   if (isPending) {
-    return <LiveActivity activity={activity} botName={botName} status={status} />
+    return <LiveActivity steps={steps} botName={botName} status={status} />
   }
 
-  const [onlyStep] = activity.steps
-  const opensNothing = activity.steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).items.length === 0)
+  const [onlyStep] = steps
+  const opensNothing = steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).items.length === 0)
 
   if (opensNothing) {
     return (
@@ -86,20 +88,20 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
         <div className="mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3">
-          {activity.steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode="history" />)}
+          {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode="history" />)}
         </div>
       </details>
     </div>
   )
 }
 
-function LiveActivity({ activity, botName, status }: { activity: VisibleActivity; botName?: string; status: "running" | "aborting" }) {
+function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botName?: string; status: "running" | "aborting" }) {
   const label = status === "aborting" ? "Interrompendo resposta…" : `${botName ?? "O bot"} está trabalhando`
-  const currentIndex = status === "aborting" ? -1 : activity.steps.length - 1
+  const currentIndex = status === "aborting" ? -1 : steps.length - 1
 
   return (
     <div className="mb-3 grid w-[min(620px,100%)] gap-1 text-support text-muted" role="status" aria-label={label}>
-      {activity.steps.map((step, index) => (
+      {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
       {status === "aborting" && (
