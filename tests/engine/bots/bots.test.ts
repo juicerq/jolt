@@ -59,6 +59,28 @@ describe("bots", () => {
     await reopened.observationSystem.observability.flush()
   })
 
+  test("creates a member that inherits the Leader Project and folder unless given its own folder", async () => {
+    const { bots, database, observationSystem, projects } = setup()
+    const projectDirectory = join(directory, crypto.randomUUID())
+    const leaderDirectory = join(directory, crypto.randomUUID())
+    const ownDirectory = join(directory, crypto.randomUUID())
+    await mkdir(projectDirectory)
+    await mkdir(leaderDirectory)
+    await mkdir(ownDirectory)
+    const project = await projects.create({ name: "Jolt", defaultWorkingDirectory: projectDirectory })
+    const leader = await bots.create({ ...input, projectId: project.id, workingDirectoryOverride: leaderDirectory })
+    const inheriting = await bots.create({ ...input, name: "Lia", leaderBotId: leader.id })
+    const own = await bots.create({ ...input, name: "Calo", leaderBotId: leader.id, workingDirectoryOverride: ownDirectory })
+
+    expect(inheriting).toEqual({ ...leader, id: inheriting.id, name: "Lia", leaderBotId: leader.id, createdAt: inheriting.createdAt })
+    expect(own).toMatchObject({ leaderBotId: leader.id, projectId: project.id, workingDirectoryOverride: ownDirectory, effectiveWorkingDirectory: ownDirectory })
+    expect(() => bots.create({ ...input, leaderBotId: inheriting.id })).toThrow("A member cannot lead")
+    expect(() => bots.create({ ...input, leaderBotId: "missing-bot" })).toThrow("Leader not found")
+    expect(await bots.list()).toEqual([leader, inheriting, own])
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
   test("rejects an unavailable provider without writing a bot", async () => {
     const { bots, database, observationSystem } = setup({ providerList: [{ provider: "codex", status: "unauthenticated" }] })
 

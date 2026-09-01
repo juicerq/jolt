@@ -1,6 +1,7 @@
 import { FolderIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
+import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { closeDialog, selectBot } from "./bots-store"
@@ -31,15 +32,19 @@ function CreateBotForm({ client }: { client: EngineClient }) {
   const [limits, setLimits] = useState("")
   const [delivery, setDelivery] = useState("")
   const [projectId, setProjectId] = useState("")
+  const [leaderBotId, setLeaderBotId] = useState("")
   const [workingDirectoryOverride, setWorkingDirectoryOverride] = useState("")
   const [directoryError, setDirectoryError] = useState<string>()
   const { data: providers, error: providersError, isPending: providersPending } = useQuery(client.query.providers.list.queryOptions())
   const { data: projectGroups } = useQuery(client.query.projects.list.queryOptions())
   const availableProviders = providers?.filter((candidate) => candidate.status === "available") ?? []
-  const selectedProject = projectGroups?.projects.find((project) => project.id === projectId)
+  const leaders = [...(projectGroups?.projects.flatMap((project) => project.bots) ?? []), ...(projectGroups?.unassignedBots ?? [])]
+  const selectedLeader = leaders.find((leader) => leader.id === leaderBotId)
+  const selectedProject = projectGroups?.projects.find((project) => project.id === (selectedLeader?.projectId ?? projectId))
   const { mutate, isPending, error } = useMutation(client.query.bots.create.mutationOptions({
     onSuccess(bot) {
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
       selectBot(bot.id)
     },
   }))
@@ -61,7 +66,7 @@ function CreateBotForm({ client }: { client: EngineClient }) {
       name: name.trim(),
       provider: "codex",
       function: { outcome, responsibilities, limits, delivery },
-      ...(projectId ? { projectId } : {}),
+      ...workspaceInput(leaderBotId, projectId),
       ...(workingDirectoryOverride ? { workingDirectoryOverride } : {}),
     })
   }
@@ -90,16 +95,24 @@ function CreateBotForm({ client }: { client: EngineClient }) {
           <>
             <label className={fieldLabelClassName}>Nome<input className={fieldControlClassName} autoFocus required placeholder="Ex: Revisor de código" value={name} onChange={(event) => setName(event.target.value)} /></label>
             <div className="flex flex-col gap-2 text-control font-semibold text-secondary"><span>Executor</span><div className="grid grid-cols-2 gap-2.5 max-[720px]:grid-cols-1">{availableProviders.length > 0 && <div className="flex flex-col items-start gap-0.5 rounded-[10px] border border-focus bg-surface-active px-3.5 py-3 text-left text-control font-medium text-secondary shadow-[inset_0_0_0_1px_var(--color-focus)]"><strong>Pi · Codex</strong><small className="text-metadata font-medium text-muted">Sessão disponível</small></div>}</div></div>
-            <label className={fieldLabelClassName}><span className="flex items-baseline justify-between">Projeto <small className="text-metadata font-medium text-muted">Opcional</small></span>
-              <select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-                <option value="">Sem projeto</option>
-                {projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
+            <label className={fieldLabelClassName}><span className="flex items-baseline justify-between">Líder <small className="text-metadata font-medium text-muted">Opcional</small></span>
+              <select className={fieldControlClassName} value={leaderBotId} onChange={(event) => setLeaderBotId(event.target.value)}>
+                <option value="">Bot independente</option>
+                {leaders.map((leader) => <option value={leader.id} key={leader.id}>Integrante de {leader.name}</option>)}
               </select>
             </label>
+            {!selectedLeader && (
+              <label className={fieldLabelClassName}><span className="flex items-baseline justify-between">Projeto <small className="text-metadata font-medium text-muted">Opcional</small></span>
+                <select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+                  <option value="">Sem projeto</option>
+                  {projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
+                </select>
+              </label>
+            )}
             <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-outline bg-surface p-4">
               <span className="flex items-baseline justify-between text-control font-semibold text-secondary">Pasta própria <small className="text-metadata font-medium text-muted">Opcional</small></span>
               <button className="flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-outline-strong bg-canvas px-3 py-[11px] text-left text-control font-medium text-secondary hover:border-focus hover:bg-surface-hover hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px] [&_svg]:shrink-0" type="button" onClick={handleChooseDirectory}><FolderIcon aria-hidden="true" /><span className="min-w-0 truncate">{workingDirectoryOverride || "Usar outra pasta"}</span></button>
-              <BotDirectoryHelp project={selectedProject} workingDirectoryOverride={workingDirectoryOverride} />
+              <BotDirectoryHelp leader={selectedLeader} project={selectedProject} workingDirectoryOverride={workingDirectoryOverride} />
               {workingDirectoryOverride && <button className={`${textButtonClassName} self-start px-2 py-1.5`} type="button" onClick={() => setWorkingDirectoryOverride("")}>Remover pasta própria</button>}
             </div>
             {directoryError && <p className="text-support text-status-error">Falha ao escolher a pasta: {directoryError}</p>}
@@ -125,9 +138,25 @@ function CreateBotForm({ client }: { client: EngineClient }) {
   )
 }
 
-function BotDirectoryHelp({ project, workingDirectoryOverride }: { project?: { name: string; defaultWorkingDirectory: string }; workingDirectoryOverride: string }) {
+function workspaceInput(leaderBotId: string, projectId: string) {
+  if (leaderBotId) {
+    return { leaderBotId }
+  }
+
+  if (projectId) {
+    return { projectId }
+  }
+
+  return {}
+}
+
+function BotDirectoryHelp({ leader, project, workingDirectoryOverride }: { leader?: Pick<Bot, "name" | "effectiveWorkingDirectory">; project?: { name: string; defaultWorkingDirectory: string }; workingDirectoryOverride: string }) {
   if (workingDirectoryOverride) {
-    return <small className="text-support text-muted">Este Bot usará a pasta própria no lugar da pasta do Projeto.</small>
+    return <small className="text-support text-muted">Este Bot usará a pasta própria no lugar da pasta herdada.</small>
+  }
+
+  if (leader) {
+    return <small className="text-support text-muted">Herdada de {leader.name}: <span className="font-mono [overflow-wrap:anywhere]">{leader.effectiveWorkingDirectory}</span></small>
   }
 
   if (project) {

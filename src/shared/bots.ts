@@ -16,9 +16,11 @@ const storedBot = type({
   createdAt: "string > 0",
 })
 const bot = storedBot.merge({ effectiveWorkingDirectory: workingDirectory })
+const createFields = { "+": "reject", name: "string > 0", provider: providerName, function: botFunction, "workingDirectoryOverride?": workingDirectory } as const
+const createInput = type({ ...createFields, "projectId?": "string > 0" }).or(type({ ...createFields, leaderBotId: "string > 0" }))
 
 export const botSchemas = {
-  createInput: type({ "+": "reject", name: "string > 0", provider: providerName, function: botFunction, "projectId?": "string > 0", "workingDirectoryOverride?": workingDirectory }),
+  createInput,
   idInput: type({ "+": "reject", id: "string > 0" }),
   updateWorkspaceInput: type({ "+": "reject", id: "string > 0", projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null") }),
   storedBot,
@@ -28,4 +30,5 @@ export const botSchemas = {
 }
 
 export type Bot = typeof bot.infer
+export type CreateBotInput = typeof createInput.infer
 export type StoredBot = typeof storedBot.infer

@@ -35,8 +35,9 @@ describe("bot boundary", () => {
     })
   })
 
-  test("rejects a role or leader supplied during creation", () => {
+  test("accepts a member creation input that names its Leader instead of a Project", () => {
+    expect(botSchemas.createInput.assert({ ...input, leaderBotId: "bot-1" })).toEqual({ ...input, leaderBotId: "bot-1" })
     expect(() => botSchemas.createInput.assert({ ...input, role: "leader" })).toThrow()
-    expect(() => botSchemas.createInput.assert({ ...input, leaderBotId: "bot-1" })).toThrow()
+    expect(() => botSchemas.createInput.assert({ ...input, leaderBotId: "bot-1", projectId: "project-1" })).toThrow()
   })
 })

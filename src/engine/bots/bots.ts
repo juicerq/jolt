@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
-import { botSchemas, type Bot, type StoredBot } from "../../shared/bots"
+import { botSchemas, type Bot, type CreateBotInput, type StoredBot } from "../../shared/bots"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
@@ -30,6 +30,28 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     return project.defaultWorkingDirectory
   }
 
+  function workspaceFor(input: CreateBotInput): Pick<StoredBot, "leaderBotId" | "projectId" | "workingDirectoryOverride"> {
+    if ("leaderBotId" in input) {
+      const leader = database.bots.get(input.leaderBotId)
+
+      if (!leader) {
+        throw new Error("Leader not found")
+      }
+
+      if (leader.leaderBotId) {
+        throw new Error("A member cannot lead")
+      }
+
+      return { leaderBotId: leader.id, projectId: leader.projectId, workingDirectoryOverride: input.workingDirectoryOverride ?? leader.workingDirectoryOverride }
+    }
+
+    if (input.projectId) {
+      projectWorkingDirectory(input.projectId)
+    }
+
+    return { leaderBotId: null, projectId: input.projectId ?? null, workingDirectoryOverride: input.workingDirectoryOverride ?? null }
+  }
+
   function withEffectiveWorkingDirectory(storedBot: StoredBot): Bot {
     const effectiveWorkingDirectory = storedBot.workingDirectoryOverride
       ?? projectWorkingDirectory(storedBot.projectId)
@@ -48,9 +70,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         throw new Error(`Provider ${input.provider} is not available`)
       }
 
-      if (input.projectId) {
-        projectWorkingDirectory(input.projectId)
-      }
+      const workspace = workspaceFor(input)
 
       if (input.workingDirectoryOverride) {
         await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
@@ -58,12 +78,10 @@ export function createBots({ database, observability, privateBotsDirectory, prov
 
       const storedBot: StoredBot = {
         id: crypto.randomUUID(),
-        leaderBotId: null,
-        projectId: input.projectId ?? null,
+        ...workspace,
         name: input.name,
         provider: input.provider,
         function: input.function,
-        workingDirectoryOverride: input.workingDirectoryOverride ?? null,
         createdAt: new Date().toISOString(),
       }
       await privateDirectory(storedBot.id)
