@@ -16,9 +16,13 @@ _Evitar_: Orquestrador, bot principal
 Um Bot ligado a um único Líder, com Função, memória e histórico próprios.
 _Evitar_: Subagente, bot secundário, especialista
 
-**Bot temporário**:
-Um Integrante criado para uma única Tarefa. Ele perde seus acessos e sua memória ao encerrar, enquanto seu histórico permanece ligado à Tarefa.
-_Evitar_: Integrante permanente, subprocesso
+**Integrante temporário**:
+Um Integrante que o Líder contrata para uma única Tarefa. Ele herda a pasta e o executor do Líder, não cria Bots e fica encerrado quando a Tarefa termina: não recebe novas mensagens, e seu histórico permanece ligado à Tarefa. Os demais Integrantes são permanentes.
+_Evitar_: Bot temporário, subprocesso
+
+**Encerrado**:
+O estado de um Integrante temporário cuja Tarefa terminou.
+_Evitar_: Removido, arquivado, deletado
 
 **Time**:
 A forma informal de chamar um Líder e seus Integrantes. Time não é uma entidade separada.

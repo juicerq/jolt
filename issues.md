@@ -217,7 +217,7 @@ A pessoa adiciona um Integrante a um Bot, que passa a atuar como Líder, e abre 
 
 ### Acceptance criteria
 
-- [ ] A pessoa cria um Integrante permanente com nome, Função e executor.
+- [x] A pessoa cria um Integrante permanente com nome, Função e executor.
 - [ ] O Integrante pertence a um único Líder.
 - [ ] O primeiro Integrante faz o Bot atuar como Líder sem criar um objeto Time.
 - [ ] O Integrante herda a pasta do Líder e permite que a pessoa a troque ou remova.
@@ -273,20 +273,21 @@ Usar o Skill tool com name `domain-modeling`, o Skill tool com name `code-practi
 
 ### Outcome
 
-A pessoa ou o Líder cria um Integrante temporário para uma Tarefa, recebe sua entrega e encerra o Integrante preservando o histórico.
+O Líder contrata um Integrante temporário para uma Tarefa, recebe sua entrega e o Integrante fica encerrado preservando o histórico.
 
 ### Acceptance criteria
 
-- [ ] A pessoa cria um Integrante temporário com Função, executor e Tarefa.
-- [ ] O Líder cria um Integrante temporário com Função, executor e Tarefa.
-- [ ] O Integrante temporário herda a pasta de quem o criou e permite substituição explícita.
-- [ ] O Integrante temporário não cria outros Bots.
-- [ ] O Integrante temporário conversa com o Líder e os Integrantes do mesmo grupo.
-- [ ] Encerrar a Tarefa encerra o Integrante e seus acessos.
-- [ ] A memória descartável não entra automaticamente na memória de outro Bot.
-- [ ] O histórico permanece ligado à Tarefa.
-- [ ] A interface distingue Integrantes permanentes, temporários ativos e temporários encerrados.
-- [ ] Observations correlacionam criação, execução e encerramento sem registrar conteúdo.
+- [x] O Líder contrata um Integrante temporário com nome, Função e Tarefa em uma única chamada; o executor é o do Líder.
+- [x] O Integrante temporário herda a pasta de quem o criou.
+- [x] O Integrante temporário não cria outros Bots.
+- [x] O Integrante temporário conversa com o Líder e os Integrantes do mesmo grupo.
+- [x] Encerrar a Tarefa encerra o Integrante: o Engine recusa novas mensagens.
+- [x] A memória descartável não entra automaticamente na memória de outro Bot.
+- [x] O histórico permanece ligado à Tarefa.
+- [x] A interface distingue Integrantes permanentes, temporários ativos e temporários encerrados.
+- [x] Observations correlacionam criação, execução e encerramento sem registrar conteúdo.
+
+Fora desta issue: a pessoa cria Integrantes temporários pelo diálogo (ela pede ao Líder); substituição explícita da pasta de um temporário.
 
 ### Blocked by
 
