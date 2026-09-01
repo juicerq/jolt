@@ -1,18 +1,16 @@
-import { FolderIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
+import { Button } from "../ui/button"
+import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
+import { Field, fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
+import { WorkspaceHint } from "./workspace-hint"
 
 const eyebrowClassName = "mb-[1em] text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
 const cardClassName = "rounded-xl border border-outline bg-surface p-5"
-const fieldControlClassName =
-  "w-full rounded-lg border border-outline-strong bg-canvas px-3 py-2.5 text-control font-medium text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-const textButtonClassName =
-  "cursor-pointer rounded-lg bg-transparent text-control font-medium text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active"
-const directoryPickerClassName =
-  "flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-outline-strong bg-canvas px-3 py-[11px] text-left text-control font-medium text-secondary hover:border-focus hover:bg-surface-hover hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active [&_svg]:size-[17px] [&_svg]:shrink-0"
 const functionTermClassName = "mb-1.5 text-metadata font-semibold tracking-[0.08em] text-muted uppercase"
 const functionDescriptionClassName = "m-0 whitespace-pre-wrap text-control font-medium leading-[1.55] text-focus"
 
@@ -20,7 +18,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState(bot.projectId ?? "")
   const [workingDirectoryOverride, setWorkingDirectoryOverride] = useState(bot.workingDirectoryOverride ?? "")
-  const [directoryError, setDirectoryError] = useState<string>()
+  const directory = useDirectoryChooser(setWorkingDirectoryOverride)
   const { data: projectGroups, error: projectsError } = useQuery(client.query.projects.list.queryOptions())
   const selectedProject = projectGroups?.projects.find((project) => project.id === projectId)
   const { mutate, isPending, error } = useMutation(client.query.bots.updateWorkspace.mutationOptions({
@@ -30,18 +28,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
       onClose()
     },
   }))
-
-  async function handleChooseDirectory() {
-    setDirectoryError(undefined)
-    const selected = await window.desktop.chooseWorkingDirectory().catch((selectionError: unknown) => {
-      setDirectoryError(selectionError instanceof Error ? selectionError.message : "Não foi possível abrir a pasta")
-      return null
-    })
-
-    if (selected) {
-      setWorkingDirectoryOverride(selected)
-    }
-  }
+  const failure = directory.error ?? projectsError?.message ?? error?.message
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center justify-items-end bg-overlay p-3 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -57,30 +44,16 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
         </section>
         <section className={`${cardClassName} flex flex-col gap-4`}>
           <p className={eyebrowClassName}>Projeto e pasta</p>
-          <label className="flex flex-col gap-2 text-control font-semibold text-secondary">Projeto<select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>
-          <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-outline bg-surface p-4">
-            <span className="flex items-baseline justify-between text-control font-semibold text-secondary">Pasta própria <small className="text-metadata font-medium text-muted">Opcional</small></span>
-            <button className={directoryPickerClassName} type="button" onClick={handleChooseDirectory}><FolderIcon aria-hidden="true" /><span className="min-w-0 truncate">{workingDirectoryOverride || "Usar outra pasta"}</span></button>
-            {workingDirectoryOverride && <button className={`${textButtonClassName} self-start px-2 py-1.5`} type="button" onClick={() => setWorkingDirectoryOverride("")}>Remover pasta própria</button>}
-          </div>
-          <WorkspaceChoice projectName={selectedProject?.name} workingDirectoryOverride={workingDirectoryOverride} />
+          <Field label="Projeto"><select className={fieldControlClassName} value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Sem projeto</option>{projectGroups?.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></Field>
+          <Field label="Pasta própria" optional as="div">
+            <DirectoryPicker value={workingDirectoryOverride} placeholder="Usar outra pasta" onChoose={directory.choose} onClear={() => setWorkingDirectoryOverride("")} />
+            <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={workingDirectoryOverride} />
+          </Field>
           <div className="flex min-w-0 flex-col gap-1.25 border-t border-outline pt-4"><span className="text-metadata font-semibold tracking-[0.08em] text-muted uppercase">Pasta efetiva atual</span><strong className="font-mono text-support font-medium text-secondary [overflow-wrap:anywhere]">{bot.effectiveWorkingDirectory}</strong></div>
-          {(directoryError || projectsError || error) && <p className="text-support text-status-error">Falha ao alterar o Projeto: {directoryError ?? projectsError?.message ?? error?.message}</p>}
-          <button className="cursor-pointer rounded-lg bg-accent px-3.5 py-2.5 text-control font-semibold text-accent-ink hover:bg-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-focus disabled:cursor-default disabled:bg-surface-active disabled:text-muted disabled:opacity-100" type="button" disabled={isPending} onClick={() => mutate({ id: bot.id, projectId: projectId || null, workingDirectoryOverride: workingDirectoryOverride || null })}>{isPending ? "Salvando..." : "Salvar alterações"}</button>
+          {failure && <p className="text-support text-status-error">Falha ao alterar o Projeto: {failure}</p>}
+          <Button type="button" disabled={isPending} onClick={() => mutate({ id: bot.id, projectId: projectId || null, workingDirectoryOverride: workingDirectoryOverride || null })}>{isPending ? "Salvando..." : "Salvar alterações"}</Button>
         </section>
       </aside>
     </div>
   )
-}
-
-function WorkspaceChoice({ projectName, workingDirectoryOverride }: { projectName?: string; workingDirectoryOverride: string }) {
-  if (workingDirectoryOverride) {
-    return <p className="text-support text-secondary">Ao salvar, o Bot usará a pasta própria.</p>
-  }
-
-  if (projectName) {
-    return <p className="text-support text-secondary">Ao salvar, o Bot herdará a pasta de {projectName}.</p>
-  }
-
-  return <p className="text-support text-secondary">Ao salvar, o Bot usará sua pasta privada.</p>
 }
