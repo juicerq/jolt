@@ -2,26 +2,30 @@ import { Store } from "@tanstack/react-store"
 
 type BotsState = {
   selectedBotId: string | null
-  draft: boolean
+  draft: { name: string } | null
   dialog: "create-project" | null
 }
 
 export const botsStore = new Store<BotsState>({
   selectedBotId: null,
-  draft: false,
+  draft: null,
   dialog: null,
 })
 
 export function selectBot(botId: string) {
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: false, dialog: null }))
+  botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null }))
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: true }))
+  botsStore.setState((state) => ({ ...state, draft: { name: "" } }))
+}
+
+export function nameDraft(name: string) {
+  botsStore.setState((state) => ({ ...state, draft: { name } }))
 }
 
 export function discardDraft() {
-  botsStore.setState((state) => ({ ...state, draft: false }))
+  botsStore.setState((state) => ({ ...state, draft: null }))
 }
 
 export function openCreateProject() {

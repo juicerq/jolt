@@ -38,7 +38,7 @@ const teamAvatarHoverClassNames = [
 
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
-  const selectedBotId = useSelector(botsStore, (state) => (state.draft ? null : state.selectedBotId))
+  const selectedBotId = useSelector(botsStore, (state) => (state.draft === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const [search, setSearch] = useState("")
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -61,7 +61,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       </div>
       {error && <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>}
       {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
-      {draft && <DraftRow />}
+      {draft && <DraftRow name={draft.name} />}
       {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
         <SidebarEmpty title="Nenhum Bot">Crie um Bot ou Projeto para começar.</SidebarEmpty>
       )}
@@ -98,12 +98,14 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   )
 }
 
-function DraftRow() {
+function DraftRow({ name }: { name: string }) {
   return (
     <div className="mr-2 mb-2 flex items-center gap-2.5 rounded-lg border border-dashed border-outline-strong px-2.5 py-2.5 text-secondary max-[720px]:justify-center" aria-current="true">
-      <span className="size-8 min-w-8 rounded-[10px] border border-dashed border-outline-strong" aria-hidden="true" />
+      {name
+        ? <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
+        : <span className="size-8 min-w-8 rounded-[10px] border border-dashed border-outline-strong" aria-hidden="true" />}
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
-        <strong className="text-control font-semibold text-primary">Novo Bot</strong>
+        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
       </span>
     </div>

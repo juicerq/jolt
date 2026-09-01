@@ -1,16 +1,23 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, discardDraft, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botsStore, discardDraft, nameDraft, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
 
 describe("Bot draft", () => {
   beforeEach(() => {
-    botsStore.setState(() => ({ selectedBotId: null, draft: false, dialog: null }))
+    botsStore.setState(() => ({ selectedBotId: null, draft: null, dialog: null }))
   })
 
-  test("creating a Bot opens a draft over the selected Bot without losing it", () => {
+  test("creating a Bot opens an unnamed draft over the selected Bot without losing it", () => {
     selectBot("revisor")
     openCreateBot()
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: true, dialog: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: { name: "" }, dialog: null })
+  })
+
+  test("naming the draft keeps the name for the sidebar", () => {
+    openCreateBot()
+    nameDraft("Testador")
+
+    expect(botsStore.state.draft).toEqual({ name: "Testador" })
   })
 
   test("discarding the draft returns to the selected Bot", () => {
@@ -18,13 +25,13 @@ describe("Bot draft", () => {
     openCreateBot()
     discardDraft()
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: false, dialog: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: null, dialog: null })
   })
 
   test("selecting a Bot drops the draft", () => {
     openCreateBot()
     selectBot("revisor")
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: false, dialog: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: null, dialog: null })
   })
 })
