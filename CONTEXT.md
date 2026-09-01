@@ -68,6 +68,10 @@ _Evitar_: Tempo até a primeira resposta, duração total da execução
 Um trabalho com resultado esperado e um único Bot responsável.
 _Evitar_: Mensagem, atividade
 
+**Resultado da Tarefa**:
+O que o Bot responsável entrega ao concluir uma Tarefa.
+_Evitar_: Resposta, retorno, output
+
 **Conexão por Assinatura**:
 Uma Conexão que usa a sessão oficial já autenticada pela pessoa no Codex ou no Claude Code.
 _Evitar_: BYOK, API key do modelo
