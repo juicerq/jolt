@@ -83,8 +83,8 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
             </section>
           ))}
           {visibleData.unassignedBots.length > 0 && (
-            <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-labelledby="unassigned-bots">
-              <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>
+            <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
+              {visibleData.projects.length > 0 && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
               <ul className="m-0 list-none p-0 max-[720px]:block">
                 {visibleData.unassignedBots.map((bot) => (
                   <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
