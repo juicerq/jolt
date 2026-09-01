@@ -9,11 +9,7 @@ export function groupMembers(members: Bot[]) {
 }
 
 export function describeMember(bot: Bot) {
-  if (bot.closed) {
-    return `Encerrado · ${bot.function.outcome}`
-  }
-
-  if (bot.temporary) {
+  if (bot.temporary && !bot.closed) {
     return `Temporário · ${bot.function.outcome}`
   }
 

@@ -160,6 +160,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   const [expanded, setExpanded] = useState(hasTeam)
   const [closedShown, setClosedShown] = useState(false)
   const memberListId = `team-members-${bot.id}`
+  const closedListId = `team-closed-${bot.id}`
   const groups = groupMembers(bot.members)
   const openMembers = [...groups.permanent, ...groups.active]
   const highlighted = highlightedBotId(bot, selectedBotId, expanded)
@@ -192,21 +193,17 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
         aria-hidden={!expanded}
         inert={!expanded ? true : undefined}
       >
-        <ul className={memberListClassName} aria-label={`Integrantes de ${bot.name}`}>
+        <ul className={memberListClassName} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
           {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
-              <button className="mb-[3px] flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} onClick={() => setClosedShown((current) => !current)}>
+              <button className="mb-[3px] flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
                 <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
                 <span className="max-[720px]:hidden">Encerrados ({groups.closed.length})</span>
               </button>
-              {closedShown && (
-                <ul className={memberListClassName} aria-label={`Integrantes encerrados de ${bot.name}`}>
-                  {groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status="available" />)}
-                </ul>
-              )}
             </li>
           )}
+          {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} />)}
         </ul>
       </div>
     </li>
@@ -216,7 +213,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
 const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden py-0.5 pr-0 pl-2.5 max-[720px]:ml-2"
 const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
 
-function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status: ChatStatus }) {
+function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status?: ChatStatus }) {
   return (
     <li className={`${memberItemClassName}${member.closed ? " opacity-60" : ""}`}>
       <BotRow bot={member} member selected={selected} status={status} />
@@ -224,7 +221,7 @@ function MemberItem({ member, selected, status }: { member: Bot; selected: boole
   )
 }
 
-function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status: ChatStatus; teamLeader?: boolean }) {
+function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
   const avatarSizeClassName = members?.length ? "h-[34px] w-10.5 min-w-10.5" : teamLeader ? "h-[34px] w-10.5 min-w-10.5 items-center justify-center" : "size-8 min-w-8"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
@@ -237,13 +234,19 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       onClick={() => selectBot(bot.id)}
       {...tooltip.focusProps}
     >
-      <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
-        <span className="relative flex shrink-0">
-          <BotAvatar bot={bot} members={members} />
-          <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+      {status ? (
+        <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
+          <span className="relative flex shrink-0">
+            <BotAvatar bot={bot} members={members} />
+            <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+          </span>
         </span>
-      </span>
-      <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>
+      ) : (
+        <span className={`relative z-10 flex shrink-0 ${avatarSizeClassName}`}>
+          <BotAvatar bot={bot} members={members} />
+        </span>
+      )}
+      {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
       <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden text-ellipsis whitespace-nowrap max-[720px]:hidden">
         <strong className="text-control font-semibold text-primary">{bot.name}</strong>
         <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>

@@ -15,7 +15,7 @@ describe("member groups", () => {
   test.each([
     [lia, "Revisão pronta"],
     [revisor, "Temporário · Revisão pronta"],
-    [tradutor, "Encerrado · Revisão pronta"],
+    [tradutor, "Revisão pronta"],
   ])("describes $name by its tenure", (bot, description) => {
     expect(describeMember(bot)).toBe(description)
   })
