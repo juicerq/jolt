@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm"
 import { IconButton } from "../ui/icon-button"
 import { highlightChatCode } from "./chat-code-highlight"
 
-export function ChatContent({ content, streaming = false }: { content: string; streaming?: boolean }) {
+export function ChatContent({ content }: { content: string }) {
   return (
     <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">
       <Markdown
@@ -31,7 +31,6 @@ export function ChatContent({ content, streaming = false }: { content: string; s
       >
         {content}
       </Markdown>
-      {streaming && <span className="ml-[3px] inline-block h-[15px] w-1.5 animate-pulse bg-accent align-text-bottom [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />}
     </div>
   )
 }

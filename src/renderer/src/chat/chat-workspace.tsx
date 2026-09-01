@@ -188,7 +188,7 @@ function ChatRun({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<st
       <article className="w-fit max-w-[720px] self-start">
         <ChatActivity activity={run} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />
         <ChatStamped name={bot.name} time="Agora" anchor="text">
-          {run.responseContent && <ChatContent content={run.responseContent} streaming={run.status !== "failed"} />}
+          {run.responseContent && <ChatContent content={run.responseContent} />}
         </ChatStamped>
         {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
