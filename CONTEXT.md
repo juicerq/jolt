@@ -13,7 +13,7 @@ Um Bot que possui ao menos um Integrante e responde pelo trabalho deles. Remover
 _Evitar_: Orquestrador, bot principal
 
 **Integrante**:
-Um Bot ligado a um único Líder, com Função, memória e histórico próprios.
+Um Bot ligado a um único Líder, com Função, memória e histórico próprios. A pessoa o cria ou o Líder o contrata.
 _Evitar_: Subagente, bot secundário, especialista
 
 **Integrante temporário**:
