@@ -20,10 +20,9 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
     return <p className="p-7 text-muted">Abrindo Bot...</p>
   }
 
-  return (
-    <>
-      <ChatWorkspace bot={data} client={client} onOpenSettings={() => setShowSettings(true)} />
-      {showSettings && <BotSettings bot={data} client={client} onClose={() => setShowSettings(false)} />}
-    </>
-  )
+  if (showSettings) {
+    return <BotSettings bot={data} client={client} onClose={() => setShowSettings(false)} />
+  }
+
+  return <ChatWorkspace bot={data} client={client} onOpenSettings={() => setShowSettings(true)} />
 }

@@ -300,6 +300,17 @@ export function createConversations(input: {
 
       await input.runtime.abort(botId)
     },
+    async close(botId: string) {
+      const current = active.get(botId)
+
+      if (current) {
+        await input.runtime.abort(botId)
+        await current.settled
+      }
+
+      input.runtime.close(botId)
+      sessions.delete(botId)
+    },
     dispose() {
       input.runtime.dispose()
       sessions.clear()

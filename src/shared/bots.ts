@@ -24,7 +24,7 @@ export const botSchemas = {
   createInput,
   hireInput: type({ "+": "reject", name: "string > 0", function: botFunction, permanent: "boolean" }),
   idInput: type({ "+": "reject", id: "string > 0" }),
-  updateWorkspaceInput: type({ "+": "reject", id: "string > 0", projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null") }),
+  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null") }),
   storedBot,
   storedBotList: storedBot.array(),
   bot,

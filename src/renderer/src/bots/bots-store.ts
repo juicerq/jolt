@@ -16,6 +16,10 @@ export function selectBot(botId: string) {
   botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null }))
 }
 
+export function forgetBot(botId: string) {
+  botsStore.setState((state) => (state.selectedBotId === botId ? { ...state, selectedBotId: null } : state))
+}
+
 export function openCreateBot() {
   botsStore.setState((state) => ({ ...state, draft: state.draft ?? { name: "" } }))
 }

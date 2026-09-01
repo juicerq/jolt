@@ -67,7 +67,8 @@ export const engineContract = {
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
-    updateWorkspace: oc.input(botSchemas.updateWorkspaceInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/workspace" }),
+    update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
+    remove: oc.input(botSchemas.idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
   },
   conversations: {
     history: oc.input(conversationSchemas.botInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/bots/{botId}/messages" }),

@@ -74,22 +74,25 @@ export function openDatabase(path: string, observability: Observability) {
           return row ? botSchemas.storedBot.assert(row) : undefined
         })
       },
-      updateWorkspace(id: string, workspace: Pick<StoredBot, "projectId" | "workingDirectoryOverride">) {
-        return observability.span({ name: "database.botworkspaceupdate", context: { botId: id, ...(workspace.projectId ? { projectId: workspace.projectId } : {}) } }, () => {
+      update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride">) {
+        return observability.span({ name: "database.botupdate", context: { botId: id, ...(changes.projectId ? { projectId: changes.projectId } : {}) } }, () => {
           const row = database.transaction((transaction) => {
-            const updated = transaction.update(bots).set(workspace).where(eq(bots.id, id)).returning().get()
+            const updated = transaction.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
 
             if (!updated) {
               return undefined
             }
 
-            transaction.update(bots).set({ projectId: workspace.projectId }).where(eq(bots.leaderBotId, id)).run()
+            transaction.update(bots).set({ projectId: changes.projectId }).where(eq(bots.leaderBotId, id)).run()
 
             return updated
           })
 
           return row ? botSchemas.storedBot.assert(row) : undefined
         })
+      },
+      remove(id: string) {
+        return observability.span({ name: "database.botremove", context: { botId: id } }, () => database.delete(bots).where(eq(bots.id, id)).run().changes)
       },
     },
     conversations: {

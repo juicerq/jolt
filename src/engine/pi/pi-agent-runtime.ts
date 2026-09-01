@@ -118,6 +118,17 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
     decisions() {
       return decisions.map((decision) => ({ ...decision }))
     },
+    close(botId: string) {
+      const entry = sessions.get(botId)
+
+      if (!entry) {
+        return
+      }
+
+      entry.unsubscribe()
+      entry.session.dispose()
+      sessions.delete(botId)
+    },
     dispose() {
       for (const entry of sessions.values()) {
         entry.unsubscribe()

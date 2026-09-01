@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises"
+import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { botSchemas, type Bot, type CreateBotInput, type StoredBot } from "../../shared/bots"
 import type { ProviderAvailability } from "../../shared/providers"
@@ -6,9 +6,15 @@ import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
 
-type BotsDependencies = { database: AppDatabase; observability: Observability; privateBotsDirectory: string; providers: { list(): Promise<ProviderAvailability[]> } }
+type BotsDependencies = {
+  database: AppDatabase
+  observability: Observability
+  privateBotsDirectory: string
+  providers: { list(): Promise<ProviderAvailability[]> }
+  conversations: { close(botId: string): Promise<void> }
+}
 
-export function createBots({ database, observability, privateBotsDirectory, providers }: BotsDependencies) {
+export function createBots({ database, observability, privateBotsDirectory, providers, conversations }: BotsDependencies) {
   async function privateDirectory(botId: string) {
     const path = join(privateBotsDirectory, botId)
     await mkdir(path, { recursive: true })
@@ -123,8 +129,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
 
       return storedBot ? present(storedBot) : undefined
     },
-    async updateWorkspace(rawInput: unknown) {
-      const input = botSchemas.updateWorkspaceInput.assert(rawInput)
+    async update(rawInput: unknown) {
+      const input = botSchemas.updateInput.assert(rawInput)
       const storedBot = database.bots.get(input.id)
 
       if (!storedBot) {
@@ -148,9 +154,11 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       }
 
       return observability.span(
-        { name: "bots.workspaceupdate", context: { botId: storedBot.id, ...(input.projectId ? { projectId: input.projectId } : {}) } },
+        { name: "bots.update", context: { botId: storedBot.id, ...(input.projectId ? { projectId: input.projectId } : {}) } },
         () => {
-          const updated = database.bots.updateWorkspace(storedBot.id, {
+          const updated = database.bots.update(storedBot.id, {
+            name: input.name,
+            function: input.function,
             projectId: input.projectId,
             workingDirectoryOverride: input.workingDirectoryOverride,
           })
@@ -160,6 +168,29 @@ export function createBots({ database, observability, privateBotsDirectory, prov
           }
 
           return present(updated)
+        },
+      )
+    },
+    async remove(rawInput: unknown) {
+      const input = botSchemas.idInput.assert(rawInput)
+      const storedBot = database.bots.get(input.id)
+
+      if (!storedBot) {
+        throw new Error("Bot not found")
+      }
+
+      const members = database.bots.list().filter((candidate) => candidate.leaderBotId === storedBot.id)
+      const team = [storedBot, ...members]
+
+      await observability.span(
+        { name: "bots.remove", context: { botId: storedBot.id }, attributes: { count: team.length } },
+        async () => {
+          for (const bot of team) {
+            await conversations.close(bot.id)
+          }
+
+          database.bots.remove(storedBot.id)
+          await Promise.all(team.map((bot) => rm(join(privateBotsDirectory, bot.id), { recursive: true, force: true })))
         },
       )
     },

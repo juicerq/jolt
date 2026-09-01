@@ -85,7 +85,7 @@ function setup() {
   const observationSystem = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), observationSystem.observability)
   const providers = { list: async () => [{ provider: "codex" as const, status: "available" as const }] }
-  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers })
+  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })

@@ -94,7 +94,13 @@ const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
 const providers = createPiProvider(observationSystem.observability)
-const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: environment.BOT_TEAMS_PRIVATE_BOTS_DIRECTORY, providers })
+const bots = createBots({
+  database,
+  observability: observationSystem.observability,
+  privateBotsDirectory: environment.BOT_TEAMS_PRIVATE_BOTS_DIRECTORY,
+  providers,
+  conversations: { close: (botId) => conversations.close(botId) },
+})
 const projects = createProjects({ database, observability: observationSystem.observability, bots })
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
 const piRuntime = createPiAgentRuntime(createPiSessionFactory({

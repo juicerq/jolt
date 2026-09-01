@@ -28,17 +28,22 @@ describe("bot boundary", () => {
     expect(() => botSchemas.createInput.assert({ ...input, function: { ...input.function, description: "" } })).toThrow()
   })
 
-  test("accepts changing the Project and working directory override together", () => {
-    expect(botSchemas.updateWorkspaceInput.assert({ id: "bot-1", projectId: "project-1", workingDirectoryOverride: "/projects/jolt" })).toEqual({
+  test("accepts changing the name, the Função, the Project and the working directory override together", () => {
+    expect(botSchemas.updateInput.assert({ id: "bot-1", name: "Marina", function: input.function, projectId: "project-1", workingDirectoryOverride: "/projects/jolt" })).toEqual({
       id: "bot-1",
+      name: "Marina",
+      function: input.function,
       projectId: "project-1",
       workingDirectoryOverride: "/projects/jolt",
     })
-    expect(botSchemas.updateWorkspaceInput.assert({ id: "bot-1", projectId: null, workingDirectoryOverride: null })).toEqual({
+    expect(botSchemas.updateInput.assert({ id: "bot-1", name: "Marina", function: { outcome: "Contratos" }, projectId: null, workingDirectoryOverride: null })).toEqual({
       id: "bot-1",
+      name: "Marina",
+      function: { outcome: "Contratos" },
       projectId: null,
       workingDirectoryOverride: null,
     })
+    expect(() => botSchemas.updateInput.assert({ id: "bot-1", name: "", function: input.function, projectId: null, workingDirectoryOverride: null })).toThrow()
   })
 
   test("accepts a member creation input that names its Leader instead of a Project", () => {

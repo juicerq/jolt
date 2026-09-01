@@ -24,6 +24,10 @@ _Evitar_: Bot temporário, subprocesso
 O estado de um Integrante temporário cuja Tarefa terminou.
 _Evitar_: Removido, arquivado, deletado
 
+**Excluir**:
+Apagar um Bot de forma definitiva, junto com sua Conversa, sua Memória e seu Diretório. Excluir um Líder exclui também seus Integrantes. Um Bot que está trabalhando é interrompido antes de ser excluído. Difere de Encerrado, que preserva o histórico.
+_Evitar_: Remover, deletar, encerrar, arquivar
+
 **Time**:
 A forma informal de chamar um Líder e seus Integrantes. Time não é uma entidade separada.
 _Evitar_: Objeto Time, grupo obrigatório

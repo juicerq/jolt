@@ -25,7 +25,7 @@ function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), system.observability)
   const providers = createPiProvider(system.observability, async () => [{ id: "gpt-5.6-luna" }])
-  const bots = createBots({ database, observability: system.observability, privateBotsDirectory: join(directory, "bots"), providers })
+  const bots = createBots({ database, observability: system.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const projects = createProjects({ database, observability: system.observability, bots })
   const tasks = createTasks({ database, observability: system.observability })
   const sessionFactory: PiSessionFactory = {
@@ -68,6 +68,7 @@ describe("engine router", () => {
     const environment = setup()
 
     expect(environment.client.bots.get({ id: "missing" })).rejects.toThrow("Bot not found")
+    expect(environment.client.bots.remove({ id: "missing" })).rejects.toThrow("Bot not found")
     await environment.close()
   })
 

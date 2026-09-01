@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, discardDraft, nameDraft, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botsStore, discardDraft, forgetBot, nameDraft, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
 
 describe("Bot draft", () => {
   beforeEach(() => {
@@ -34,6 +34,20 @@ describe("Bot draft", () => {
     discardDraft()
 
     expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: null, dialog: null })
+  })
+
+  test("forgetting the selected Bot leaves no Bot selected", () => {
+    selectBot("revisor")
+    forgetBot("revisor")
+
+    expect(botsStore.state.selectedBotId).toBeNull()
+  })
+
+  test("forgetting another Bot keeps the selection", () => {
+    selectBot("revisor")
+    forgetBot("testador")
+
+    expect(botsStore.state.selectedBotId).toBe("revisor")
   })
 
   test("selecting a Bot drops the draft", () => {

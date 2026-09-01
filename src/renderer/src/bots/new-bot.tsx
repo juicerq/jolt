@@ -1,23 +1,18 @@
 import { Blobatar } from "@blobatar/react"
-import { FolderIcon, LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type FormEvent, type KeyboardEvent, useEffect, useState } from "react"
+import { type FormEvent, type KeyboardEvent, useState } from "react"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { useDirectoryChooser } from "../ui/directory-picker"
-import { fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
 import { Select } from "../ui/select"
+import { useEscape } from "../ui/use-escape"
+import { FolderChip, hintClassName, lineClassName, revealClassName, settledClassName } from "./bot-form"
 import { workspaceInput } from "./bot-workspace"
 import { discardDraft, nameDraft, selectBot } from "./bots-store"
 
 type Step = "name" | "outcome" | "workspace"
-
-const chipClassName = `${fieldControlClassName} flex cursor-pointer items-center gap-2 text-left hover:border-focus`
-const lineClassName = "w-full border-0 bg-transparent text-center text-primary placeholder:text-muted focus-visible:outline-none"
-const revealClassName = "transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
-const hintClassName = `${revealClassName} text-metadata font-normal text-muted opacity-60`
-const settledClassName = `${revealClassName} cursor-text rounded-md border-0 bg-transparent px-2 py-0 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active`
 
 function onEnter(commit: () => void) {
   return (event: KeyboardEvent<HTMLInputElement>) => {
@@ -56,19 +51,7 @@ export function NewBot({ client }: { client: EngineClient }) {
     },
   }))
 
-  useEffect(() => {
-    function handleKey(event: globalThis.KeyboardEvent) {
-      const inSelect = event.target instanceof HTMLSelectElement
-
-      if (event.key === "Escape" && !inSelect) {
-        discardDraft()
-      }
-    }
-
-    window.addEventListener("keydown", handleKey)
-
-    return () => window.removeEventListener("keydown", handleKey)
-  }, [])
+  useEscape(discardDraft)
 
   function commitName() {
     const trimmed = name.trim()
@@ -102,7 +85,7 @@ export function NewBot({ client }: { client: EngineClient }) {
           ? (
             <>
               <label className="sr-only" htmlFor="new-bot-name">Nome</label>
-              <input className={`${lineClassName} mt-4 mb-1.5 text-title font-semibold placeholder:font-normal`} id="new-bot-name" autoFocus autoComplete="off" placeholder="Nome do Bot" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter(commitName)} />
+              <input className={`${lineClassName} mt-4 mb-1.5 w-full text-title font-semibold text-primary placeholder:font-normal`} id="new-bot-name" autoFocus autoComplete="off" placeholder="Nome do Bot" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter(commitName)} />
               <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
             </>
           )
@@ -110,7 +93,7 @@ export function NewBot({ client }: { client: EngineClient }) {
         {step === "outcome" && (
           <>
             <label className="sr-only" htmlFor="new-bot-outcome">Resultado esperado</label>
-            <input className={`${lineClassName} ${revealClassName} text-support text-secondary`} id="new-bot-outcome" autoFocus autoComplete="off" placeholder="O que ele entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} onKeyDown={onEnter(commitOutcome)} />
+            <input className={`${lineClassName} ${revealClassName} w-full text-support text-secondary`} id="new-bot-outcome" autoFocus autoComplete="off" placeholder="O que ele entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} onKeyDown={onEnter(commitOutcome)} />
             <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
           </>
         )}
@@ -128,9 +111,7 @@ export function NewBot({ client }: { client: EngineClient }) {
                   </Select>
                 </label>
               )}
-              {workingDirectoryOverride
-                ? <span className={`${chipClassName} cursor-default pr-1.5 hover:border-outline-strong`}><FolderIcon className="size-4 shrink-0 text-secondary" aria-hidden="true" /><span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap" title={workingDirectoryOverride}>{workingDirectoryOverride.split("/").filter(Boolean).at(-1)}</span><IconButton iconSize={13} size={24} type="button" label="Remover pasta" onClick={() => setWorkingDirectoryOverride("")}><XMarkIcon aria-hidden="true" /></IconButton></span>
-                : <button className={chipClassName} type="button" onClick={directory.choose}><FolderIcon className="size-4 shrink-0 text-secondary" aria-hidden="true" /><span className="text-muted">Pasta</span></button>}
+              <FolderChip value={workingDirectoryOverride} onChoose={directory.choose} onClear={() => setWorkingDirectoryOverride("")} />
               <Button className="mt-4" type="submit" autoFocus disabled={isPending || !executorAvailable}>{isPending ? "Criando..." : "Criar Bot"}</Button>
             </div>
           </>

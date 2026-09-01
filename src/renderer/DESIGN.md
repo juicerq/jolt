@@ -358,6 +358,25 @@ steps sit flush with the icon column without a branching line. Only a step's
 supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work.
 
+**Bot profile.** Creating and editing a Bot share one anatomy inside the
+conversation plane instead of a dialog: a 64px Blobatar, the name as a
+borderless title line, the outcome as a borderless support line, the optional
+description below it in muted ink, then a 280px column with the link select, the
+folder chip, and the single primary action. Editable lines stay quiet at rest
+and gain the hover surface hugging their text. A ghost close action sits in the
+top-right corner. The destructive action is a ghost text button at the bottom
+that turns error ink on intent. Committing it keeps the identity block in place
+and swaps the column for one sentence naming what disappears, a text cancel,
+and an outlined error-ink confirm.
+
+**Edge tab.** The Bot's actions on the conversation plane hide inside a small
+tab hugging the plane's right edge at mid-height: a raised half-rounded tongue
+with a chevron in muted ink. Pointer hover or keyboard focus unfolds a column of
+ghost icon buttons at the edge, so the first action lands under the pointer,
+while the chevron slides to the left end and turns toward the edge. Settings lives here, and
+future Bot actions join the same column. Nothing sits in the top-right corner
+beside the window controls.
+
 **Prompt.** One line by default, centered near the bottom of the conversation.
 The field is the strongest control on the screen. Its send action is the only
 filled primary action in the normal chat state. Attach, stop, and secondary

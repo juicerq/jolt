@@ -78,7 +78,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const observationSystem = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(databasePath, observationSystem.observability)
   const providers = { list: async () => [{ provider: "codex" as const, status: "available" as const }] }
-  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers })
+  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory: join(directory, "bots"), providers, conversations: { close: (botId) => conversations.close(botId) } })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability })
@@ -199,6 +199,29 @@ describe("conversations", () => {
       { author: "person", content: "Pare depois", ending: null },
       { author: "bot", content: "Resposta ", ending: "aborted" },
     ])
+
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("excluding a working Bot interrupts its turn before it disappears", async () => {
+    const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
+    const bot = await environment.bots.create({
+      name: "Atlas",
+      provider: "codex",
+      function: { outcome: "Answer", description: "Help" },
+    })
+    await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
+    const settled = environment.turnSettled(bot.id)
+
+    await environment.bots.remove({ id: bot.id })
+    await settled
+
+    expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
+    expect(await environment.bots.list()).toEqual([])
+    expect(() => environment.conversations.history({ botId: bot.id })).toThrow("Bot not found")
+    expect(() => environment.conversations.abort({ botId: bot.id })).toThrow("Bot is not working")
 
     environment.conversations.dispose()
     environment.database.close()

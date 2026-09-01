@@ -118,10 +118,16 @@ export function createEngineRouter(
           },
         ),
       ),
-      updateWorkspace: operations.bots.updateWorkspace.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+      update: operations.bots.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
-          { name: "orpc.botworkspaceupdate", context: observationContext(context) },
-          () => bots.updateWorkspace(input),
+          { name: "orpc.botupdate", context: observationContext(context) },
+          () => bots.update(input),
+        ),
+      ),
+      remove: operations.bots.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.botremove", context: observationContext(context) },
+          () => bots.remove(input),
         ),
       ),
     },

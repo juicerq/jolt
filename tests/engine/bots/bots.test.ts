@@ -24,10 +24,12 @@ function setup(options?: { databasePath?: string; providerList?: ProviderAvailab
   const privateBotsDirectory = options?.privateBotsDirectory ?? join(directory, crypto.randomUUID())
   const observationSystem = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, crypto.randomUUID()), development: false })
   const database = openDatabase(databasePath, observationSystem.observability)
-  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory, providers: { list: async () => providerList } })
+  const closedBotIds: string[] = []
+  const conversations = { async close(botId: string) { closedBotIds.push(botId) } }
+  const bots = createBots({ database, observability: observationSystem.observability, privateBotsDirectory, providers: { list: async () => providerList }, conversations })
   const projects = createProjects({ database, observability: observationSystem.observability, bots })
 
-  return { bots, database, observationSystem, privateBotsDirectory, projects }
+  return { bots, closedBotIds, database, observationSystem, privateBotsDirectory, projects }
 }
 
 describe("bots", () => {
@@ -115,19 +117,19 @@ describe("bots", () => {
 
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(chosenDirectory)
     expect((await stat(join(privateBotsDirectory, created.id))).isDirectory()).toBe(true)
-    expect(await bots.updateWorkspace({ id: created.id, projectId: project.id, workingDirectoryOverride: replacementDirectory })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: replacementDirectory })).toEqual({
       ...created,
       workingDirectoryOverride: replacementDirectory,
       effectiveWorkingDirectory: replacementDirectory,
     })
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(replacementDirectory)
-    expect(await bots.updateWorkspace({ id: created.id, projectId: project.id, workingDirectoryOverride: null })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: project.id, workingDirectoryOverride: null })).toEqual({
       ...created,
       workingDirectoryOverride: null,
       effectiveWorkingDirectory: projectDirectory,
     })
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(projectDirectory)
-    expect(await bots.updateWorkspace({ id: created.id, projectId: null, workingDirectoryOverride: null })).toEqual({
+    expect(await bots.update({ id: created.id, name: created.name, function: created.function, projectId: null, workingDirectoryOverride: null })).toEqual({
       ...created,
       projectId: null,
       workingDirectoryOverride: null,
@@ -160,7 +162,7 @@ describe("bots", () => {
     const { bots, database, observationSystem } = setup()
     const created = await bots.create(input)
 
-    expect(() => bots.updateWorkspace({ id: created.id, projectId: "missing-project", workingDirectoryOverride: null })).toThrow("Project not found")
+    expect(() => bots.update({ id: created.id, name: created.name, function: created.function, projectId: "missing-project", workingDirectoryOverride: null })).toThrow("Project not found")
     expect(await bots.get({ id: created.id })).toEqual(created)
     database.close()
     await observationSystem.observability.flush()
@@ -191,8 +193,8 @@ describe("bots", () => {
       createdAt: new Date().toISOString(),
     })
 
-    expect(() => bots.updateWorkspace({ id: member.id, projectId: null, workingDirectoryOverride: null })).toThrow("A member must remain in the Leader Project")
-    expect(await bots.updateWorkspace({ id: leader.id, projectId: nextProject.id, workingDirectoryOverride: leaderOverride })).toEqual({
+    expect(() => bots.update({ id: member.id, name: member.name, function: member.function, projectId: null, workingDirectoryOverride: null })).toThrow("A member must remain in the Leader Project")
+    expect(await bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: nextProject.id, workingDirectoryOverride: leaderOverride })).toEqual({
       ...leader,
       projectId: nextProject.id,
       workingDirectoryOverride: leaderOverride,
@@ -222,4 +224,38 @@ describe("bots", () => {
     expect(observations).not.toContain(input.function.description)
     database.close()
   })
+  test("renames a Bot and rewrites its Função", async () => {
+    const { bots, database, observationSystem } = setup()
+    const created = await bots.create(input)
+
+    expect(await bots.update({ id: created.id, name: "Lia", function: { outcome: "Propostas revisadas" }, projectId: null, workingDirectoryOverride: null })).toEqual({
+      ...created,
+      name: "Lia",
+      function: { outcome: "Propostas revisadas" },
+    })
+    expect(() => bots.update({ id: "missing-bot", name: "Lia", function: input.function, projectId: null, workingDirectoryOverride: null })).toThrow("Bot not found")
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
+  test("excluding a Leader closes and erases the whole team with their private directories", async () => {
+    const { bots, closedBotIds, database, observationSystem, privateBotsDirectory } = setup()
+    const leader = await bots.create(input)
+    const member = await bots.create({ ...input, name: "Lia", leaderBotId: leader.id })
+    const other = await bots.create({ ...input, name: "Calo" })
+    await bots.resolveWorkingDirectory({ id: member.id })
+
+    await bots.remove({ id: leader.id })
+
+    expect(closedBotIds).toEqual([leader.id, member.id])
+    expect(await bots.list()).toEqual([other])
+    expect(await bots.get({ id: member.id })).toBeUndefined()
+    expect(stat(join(privateBotsDirectory, leader.id))).rejects.toThrow()
+    expect(stat(join(privateBotsDirectory, member.id))).rejects.toThrow()
+    expect((await stat(join(privateBotsDirectory, other.id))).isDirectory()).toBe(true)
+    expect(() => bots.remove({ id: leader.id })).toThrow("Bot not found")
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
 })

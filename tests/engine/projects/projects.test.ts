@@ -25,6 +25,7 @@ function setup() {
     observability: observationSystem.observability,
     privateBotsDirectory: join(directory, "bots"),
     providers: { list: async () => [{ provider: "codex" as const, status: "available" as const }] },
+    conversations: { async close() {} },
   })
   const projects = createProjects({ database, observability: observationSystem.observability, bots })
 
