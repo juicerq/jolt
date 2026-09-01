@@ -19,15 +19,11 @@ export function createConversations(input: {
   runtime: ReturnType<typeof createPiAgentRuntime>
   observability: Observability
 }) {
-  const opened = new Set<string>()
+  const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
   const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId) })
 
   async function open(botId: string) {
-    if (opened.has(botId)) {
-      return
-    }
-
     const bot = input.bots.get({ id: botId })
 
     if (!bot) {
@@ -35,23 +31,30 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const sessionFile = input.database.conversations.sessionFile(botId)
     const customTools = delegation.tools(bot)
     const tools = [...defaultTools, ...customTools.map((tool) => tool.name)]
+    const instructions = [
+      `You are ${bot.name}.`,
+      `Expected outcome: ${bot.function.outcome}`,
+      `Responsibilities: ${bot.function.responsibilities}`,
+      `Limits: ${bot.function.limits}`,
+      `Delivery: ${bot.function.delivery}`,
+      delegation.instructions(bot),
+    ].filter(Boolean).join("\n")
+    const profile = JSON.stringify({ cwd, tools, instructions })
+
+    if (sessions.get(botId) === profile) {
+      return
+    }
+
+    const sessionFile = input.database.conversations.sessionFile(botId)
     const result = await input.runtime.open({
       botId,
       cwd,
       tools,
       grants: new Set(tools),
       customTools,
-      instructions: [
-        `You are ${bot.name}.`,
-        `Expected outcome: ${bot.function.outcome}`,
-        `Responsibilities: ${bot.function.responsibilities}`,
-        `Limits: ${bot.function.limits}`,
-        `Delivery: ${bot.function.delivery}`,
-        delegation.instructions(bot),
-      ].filter(Boolean).join("\n"),
+      instructions,
       ...(sessionFile ? { sessionFile } : {}),
     })
 
@@ -59,7 +62,7 @@ export function createConversations(input: {
       input.database.conversations.saveSessionFile(botId, result.sessionFile)
     }
 
-    opened.add(botId)
+    sessions.set(botId, profile)
   }
 
   async function claim(botId: string, message: IncomingMessage) {
@@ -237,7 +240,7 @@ export function createConversations(input: {
     },
     dispose() {
       input.runtime.dispose()
-      opened.clear()
+      sessions.clear()
       active.clear()
     },
   }

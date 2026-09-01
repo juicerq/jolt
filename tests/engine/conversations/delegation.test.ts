@@ -112,7 +112,7 @@ function setup() {
     await observationSystem.observability.flush()
   }
 
-  return { bots, close, collect, conversations, observationSystem, scripts, sessions, tasks, team }
+  return { bots, close, collect, conversations, database, observationSystem, scripts, sessions, tasks, team }
 }
 
 describe("delegation", () => {
@@ -253,6 +253,23 @@ describe("delegation", () => {
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })).toEqual([])
     await environment.conversations.abort({ botId: member.id })
     await memberStream.next()
+    await environment.close()
+  })
+
+  test("a Leader that gains a member after its first turn opens the next turn with the member", async () => {
+    const environment = setup()
+    const leader = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
+    environment.scripts.set(leader.id, async () => "Oi")
+
+    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Oi" }))
+
+    expect(environment.sessions.get(leader.id)?.tools).not.toContain("delegate")
+    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, createdAt: new Date().toISOString() })
+
+    await environment.collect(environment.conversations.send({ botId: leader.id, content: "Delegue" }))
+
+    expect(environment.sessions.get(leader.id)?.tools).toContain("delegate")
+    expect(environment.sessions.get(leader.id)?.instructions).toContain("- Calo: Testes cobertos")
     await environment.close()
   })
 })
