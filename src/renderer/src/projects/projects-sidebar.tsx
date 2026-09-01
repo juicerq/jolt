@@ -199,7 +199,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
             <li className={memberItemClassName}>
               <button className="mb-[3px] flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
                 <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
-                <span className="max-[720px]:hidden">Encerrados ({groups.closed.length})</span>
+                <span className="max-[720px]:hidden">Temporários <span className="font-normal opacity-60">{groups.closed.length}</span></span>
               </button>
             </li>
           )}
