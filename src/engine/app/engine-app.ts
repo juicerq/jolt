@@ -132,6 +132,7 @@ export function createEngineRouter(
           () => conversations.history(input),
         ),
       ),
+      events: operations.conversations.events.handler(() => surfacedStream(conversations.events())),
       send: operations.conversations.send.handler(({ input }: { input: unknown }) => surfacedStream(conversations.send(input))),
       abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(

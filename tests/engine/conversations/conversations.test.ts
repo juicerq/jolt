@@ -169,4 +169,53 @@ describe("conversations", () => {
     environment.database.close()
     await environment.observationSystem.observability.flush()
   })
+
+  test("events carry every turn with its Bot and the incoming message", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({
+      name: "Atlas",
+      provider: "codex",
+      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+    })
+    const events = environment.conversations.events()[Symbol.asyncIterator]()
+    const first = events.next()
+
+    for await (const _event of environment.conversations.send({ botId: bot.id, content: "Olá" })) {
+      continue
+    }
+
+    expect((await first).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Olá" } } })
+    const types = []
+
+    for (let step = await events.next(); step.value?.event.type !== "finished"; step = await events.next()) {
+      types.push(step.value?.event.type)
+    }
+
+    expect(types).toContain("text")
+    await events.return?.(undefined)
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("a new events subscriber receives the turns already in progress", async () => {
+    const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
+    const bot = await environment.bots.create({
+      name: "Atlas",
+      provider: "codex",
+      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+    })
+    const stream = environment.conversations.send({ botId: bot.id, content: "Pare depois" })[Symbol.asyncIterator]()
+    await stream.next()
+
+    const events = environment.conversations.events()[Symbol.asyncIterator]()
+
+    expect((await events.next()).value).toEqual({ botId: bot.id, event: { type: "started", message: { author: "person", authorBotId: null, taskId: null, content: "Pare depois" } } })
+    await environment.conversations.abort({ botId: bot.id })
+    await stream.next()
+    await events.return?.(undefined)
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
 })

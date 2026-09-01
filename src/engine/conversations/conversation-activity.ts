@@ -1,4 +1,4 @@
-import { conversationSchemas, type ConversationActivity, type ConversationEvent } from "../../shared/conversations"
+import { conversationSchemas, type ConversationActivity, type ConversationEvent, type IncomingMessage } from "../../shared/conversations"
 import type { PiRuntimeEvent } from "../pi/pi-agent-runtime"
 
 type ConversationStep = ConversationActivity["steps"][number]
@@ -9,7 +9,7 @@ type ActiveStep =
   | (ThinkingStep & { startedAt?: number })
   | (Omit<ToolStep, "tools"> & { tools: ActiveTool[] })
 
-export function createConversationActivityRecorder() {
+export function createConversationActivityRecorder(message: IncomingMessage) {
   let thinkingStartedAt: number | undefined
   let steps: ActiveStep[] = []
 
@@ -19,7 +19,7 @@ export function createConversationActivityRecorder() {
         thinkingStartedAt = undefined
         steps = []
 
-        return conversationSchemas.event.assert(runtimeEvent)
+        return { type: "started", message }
       }
 
       if (runtimeEvent.type === "thinking-started") {

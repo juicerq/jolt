@@ -3,14 +3,38 @@ import type { Observability } from "../observability/observability"
 import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
-import { conversationSchemas, type ConversationEvent, type ConversationMessage } from "../../shared/conversations"
+import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type IncomingMessage } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 
 const defaultTools = ["read", "bash", "edit", "write"]
 
-type IncomingMessage = Pick<ConversationMessage, "author" | "authorBotId" | "taskId" | "content">
-type ActiveTurn = { author: ConversationMessage["author"]; taskId: string | null; settled: Promise<void> }
+type ActiveTurn = { message: IncomingMessage; settled: Promise<void> }
+
+function createQueue<T>(initial: T[] = []) {
+  const items = initial
+  let wake: (() => void) | undefined
+
+  return {
+    get size() {
+      return items.length
+    },
+    push(item: T) {
+      items.push(item)
+      wake?.()
+      wake = undefined
+    },
+    async next() {
+      if (items.length === 0) {
+        await new Promise<void>((resolve) => {
+          wake = resolve
+        })
+      }
+
+      return items.shift()
+    },
+  }
+}
 
 export function createConversations(input: {
   database: AppDatabase
@@ -21,7 +45,8 @@ export function createConversations(input: {
 }) {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
-  const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId) })
+  const listeners = new Set<(event: BotConversationEvent) => void>()
+  const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId)?.message })
 
   async function open(botId: string) {
     const bot = input.bots.get({ id: botId })
@@ -67,7 +92,7 @@ export function createConversations(input: {
 
   async function claim(botId: string, message: IncomingMessage) {
     const current = active.get(botId)
-    const personOverridesBot = message.author === "person" && current?.author === "bot"
+    const personOverridesBot = message.author === "person" && current?.message.author === "bot"
 
     if (current && !personOverridesBot) {
       throw new Error("Bot is already working")
@@ -82,14 +107,21 @@ export function createConversations(input: {
     const settled = new Promise<void>((resolve) => {
       settle = resolve
     })
-    active.set(botId, { author: message.author, taskId: message.taskId ?? current?.taskId ?? null, settled })
+    const taskId = message.taskId ?? current?.message.taskId ?? null
+    active.set(botId, { message: { ...message, taskId }, settled })
 
     return {
-      taskId: message.taskId ?? current?.taskId ?? null,
+      taskId,
       release() {
         active.delete(botId)
         settle()
       },
+    }
+  }
+
+  function deliver(botId: string, event: ConversationEvent) {
+    for (const listener of listeners) {
+      listener({ botId, event })
     }
   }
 
@@ -106,11 +138,10 @@ export function createConversations(input: {
       throw error
     }
 
-    const queued: ConversationEvent[] = []
-    let wake: (() => void) | undefined
+    const queue = createQueue<ConversationEvent>()
     let finished = false
     let response = ""
-    const activity = createConversationActivityRecorder()
+    const activity = createConversationActivityRecorder(persisted)
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
@@ -165,13 +196,13 @@ export function createConversations(input: {
         unsubscribe()
       }
 
-      queued.push(deliveredEvent)
-      wake?.()
-      wake = undefined
+      queue.push(deliveredEvent)
+      deliver(botId, deliveredEvent)
     })
     void input.runtime.prompt(botId, message.content).catch((error) => {
       if (!finished) {
-        queued.push({ type: "finished", reason: "error" })
+        queue.push({ type: "finished", reason: "error" })
+        deliver(botId, { type: "finished", reason: "error" })
         finished = true
         turn.release()
         unsubscribe()
@@ -181,27 +212,15 @@ export function createConversations(input: {
           context: { botId, provider: "codex" },
           error,
         })
-        wake?.()
-        wake = undefined
       }
     })
 
-    try {
-      while (!finished || queued.length > 0) {
-        if (queued.length === 0) {
-          await new Promise<void>((resolve) => {
-            wake = resolve
-          })
-        }
+    while (!finished || queue.size > 0) {
+      const event = await queue.next()
 
-        const event = queued.shift()
-
-        if (event) {
-          yield event
-        }
+      if (event) {
+        yield event
       }
-    } finally {
-      wake = undefined
     }
   }
 
@@ -224,6 +243,22 @@ export function createConversations(input: {
 
       return input.database.conversations.related(taskId)
     },
+    async *events(): AsyncGenerator<BotConversationEvent> {
+      const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: turn.message } })))
+      listeners.add(queue.push)
+
+      try {
+        while (true) {
+          const event = await queue.next()
+
+          if (event) {
+            yield event
+          }
+        }
+      } finally {
+        listeners.delete(queue.push)
+      }
+    },
     send(rawInput: unknown) {
       const { botId, content } = conversationSchemas.sendInput.assert(rawInput)
 
@@ -242,6 +277,7 @@ export function createConversations(input: {
       input.runtime.dispose()
       sessions.clear()
       active.clear()
+      listeners.clear()
     },
   }
 }

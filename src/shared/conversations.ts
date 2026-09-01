@@ -62,7 +62,8 @@ const message = type({
   activity: compatibleConversationActivity.or("null"),
   createdAt: "string > 0",
 })
-const startedEvent = type({ "+": "reject", type: type.enumerated("started") })
+const incomingMessage = message.pick("author", "authorBotId", "taskId", "content")
+const startedEvent = type({ "+": "reject", type: type.enumerated("started"), message: incomingMessage })
 const textEvent = type({ "+": "reject", type: type.enumerated("text"), text: "string" })
 const thinkingEvent = type({ "+": "reject", type: type.enumerated("thinking"), text: "string" })
 const thinkingStartedEvent = type({ "+": "reject", type: type.enumerated("thinking-started") })
@@ -82,6 +83,8 @@ const toolFinishedEvent = type({
   failed: "boolean",
 })
 const finishedEvent = type({ "+": "reject", type: type.enumerated("finished"), reason: type.enumerated("stop", "aborted", "error") })
+const event = startedEvent.or(textEvent).or(thinkingStartedEvent).or(thinkingEvent).or(thinkingFinishedEvent).or(toolStartedEvent).or(toolFinishedEvent).or(finishedEvent)
+const botEvent = type({ "+": "reject", botId: "string > 0", event })
 
 export const conversationSchemas = {
   botInput: type({ "+": "reject", botId: "string > 0" }),
@@ -89,9 +92,12 @@ export const conversationSchemas = {
   taskInput: type({ "+": "reject", taskId: "string > 0" }),
   message,
   messageList: message.array(),
-  event: startedEvent.or(textEvent).or(thinkingStartedEvent).or(thinkingEvent).or(thinkingFinishedEvent).or(toolStartedEvent).or(toolFinishedEvent).or(finishedEvent),
+  event,
+  botEvent,
 }
 
 export type ConversationMessage = typeof message.infer
-export type ConversationEvent = typeof conversationSchemas.event.infer
+export type ConversationEvent = typeof event.infer
+export type BotConversationEvent = typeof botEvent.infer
+export type IncomingMessage = typeof incomingMessage.infer
 export type ConversationActivity = typeof conversationActivity.infer
