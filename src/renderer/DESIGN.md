@@ -330,8 +330,18 @@ a 160ms height transition with a shorter opacity fade and becomes immediate
 when reduced motion is requested.
 
 **Conversation.** Bot messages read as plain content on the conversation plane.
-User messages use a compact raised bubble aligned right. Message author and time
-sit above the content in metadata type. Thinking and tool calls share one
+User messages use a compact raised bubble aligned right. Messages sit 24px
+apart, measured from text to text, and inside a Bot message the activity line
+sits 16px above the content. Every block is its own hover target: the activity
+line, the Rotina call, the Integrante's result, the Bot's text and the user
+bubble. Hovering one shows its author and time in metadata type, stacked with
+the name over the time just past the right edge of that block, level with its
+last line, or at the left of a user bubble, and they take no space. A block
+that opens keeps its stamp beside the chip, not beside the opened body, with
+the time sitting on the bottom edge of the hover pill. Activity
+lines, the Rotina call and the Integrante's result keep no padding of their
+own; the ones that open draw their hover pill outside the box. Their icon
+aligns with the left edge of the text. Thinking and tool calls share one
 activity history. While a response runs, reasoning and every tool call remain
 visible as a progressive stack. The newest activity stays open with its detail;
 each earlier activity becomes a compact status line but remains visible. New

@@ -18,6 +18,7 @@ import {
   type ChatRun as ChatRunState,
 } from "./chat-store"
 import { ChatScroller } from "./chat-scroller"
+import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 import { ChatMemberResult } from "./chat-member-result"
@@ -143,25 +144,34 @@ function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message:
     return <ChatRoutineCall botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
   }
 
-  const authorName = message.author === "person" ? "Você" : bot.name
-  const personClasses = message.author === "person"
-    ? "max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3"
-    : ""
+  const time = formatMessageTime(message.createdAt)
+
+  if (message.author === "person") {
+    return <PersonBubble time={time} content={message.content} />
+  }
 
   return (
-    <article className={`group relative max-w-[720px] ${personClasses}`}>
-      <div className="pointer-events-none absolute -top-5 left-0 flex items-center justify-start gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{authorName}</strong><time>{formatMessageTime(message.createdAt)}</time></div>
-      {message.author === "bot" && message.activity && <ChatActivity activity={message.activity} />}
-      {message.author === "bot" && message.content && <ChatContent content={message.content} />}
-      {message.author === "person" && <p className="m-0 whitespace-pre-wrap text-body text-primary">{message.content}</p>}
-      {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} />}
+    <article className="w-fit max-w-[720px] self-start">
+      {message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
+      <ChatStamped name={bot.name} time={time} anchor="text">
+        {message.content && <ChatContent content={message.content} />}
+        {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} />}
+      </ChatStamped>
     </article>
+  )
+}
+
+function PersonBubble({ time, content }: { time: string; content: string }) {
+  return (
+    <ChatStamped className="max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" name="Você" time={time} side="left" anchor="bubble">
+      <p className="m-0 whitespace-pre-wrap text-body text-primary">{content}</p>
+    </ChatStamped>
   )
 }
 
 function ChatRunMessage({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
   if (run.message.author === "person") {
-    return <article className="group relative max-w-[min(640px,84%)] self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3"><div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">Você</strong><span>Agora</span></div><p className="m-0 whitespace-pre-wrap text-body text-primary">{run.message.content}</p></article>
+    return <PersonBubble time="Agora" content={run.message.content} />
   }
 
   if (run.message.author === "routine") {
@@ -175,10 +185,11 @@ function ChatRun({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<st
   return (
     <>
       <ChatRunMessage bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
-      <article className="group relative max-w-[720px]">
-        <div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-3 text-metadata text-muted opacity-0 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"><strong className="font-semibold text-secondary">{bot.name}</strong><span>Agora</span></div>
-        <ChatActivity activity={run} botName={bot.name} status={run.status} waitingMessage={run.waitingMessage} />
-        {run.responseContent && <ChatContent content={run.responseContent} streaming={run.status !== "failed"} />}
+      <article className="w-fit max-w-[720px] self-start">
+        <ChatActivity activity={run} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />
+        <ChatStamped name={bot.name} time="Agora" anchor="text">
+          {run.responseContent && <ChatContent content={run.responseContent} streaming={run.status !== "failed"} />}
+        </ChatStamped>
         {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>

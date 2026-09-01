@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import {
   ChevronDownIcon,
   ClockIcon,
@@ -23,7 +24,8 @@ import {
   getChatActivityStepDetails,
   splitChatActivitySteps,
 } from "./chat-activity-summary"
-import { ChatContent, chatGuideClassName } from "./chat-content"
+import { ChatContent, chatChipClassName, chatGuideClassName } from "./chat-content"
+import { ChatStamp, ChatStamped } from "./chat-stamp"
 import { formatChatWaitingMessage } from "./chat-waiting-messages"
 
 type PersistedStep = ConversationActivity["steps"][number]
@@ -44,7 +46,11 @@ const activityStageIconStatusClassNames: Record<StageStatus, string> = {
   failed: "text-status-error",
 }
 
-export function ChatActivity({ activity, botName, status, waitingMessage }: { activity: VisibleActivity; botName?: string; status?: ActivityStatus; waitingMessage?: string }) {
+function ActivityBlock({ botName, time, children }: { botName: string; time: string; children: ReactNode }) {
+  return <ChatStamped className="mb-4 w-fit text-support text-muted" name={botName} time={time} anchor="line">{children}</ChatStamped>
+}
+
+export function ChatActivity({ activity, botName, time, status, waitingMessage }: { activity: VisibleActivity; botName: string; time: string; status?: ActivityStatus; waitingMessage?: string }) {
   const isPending = status === "running" || status === "aborting"
   const steps = splitChatActivitySteps(activity.steps)
   const hasDetails = steps.length > 0
@@ -55,12 +61,12 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
 
   if (!hasDetails) {
     return (
-      <div className="mb-3 grid gap-1.5 text-support text-muted">
-        <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px] rounded-lg px-[7px] py-[5px]" role="status">
+      <ActivityBlock botName={botName} time={time}>
+        <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px]" role="status">
           <span className="mt-px size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" aria-hidden="true" />
           <span>{getActivityLabel(activity, botName, status, waitingMessage)}</span>
         </div>
-      </div>
+      </ActivityBlock>
     )
   }
 
@@ -73,22 +79,23 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
 
   if (opensNothing) {
     return (
-      <div className="mb-3 grid gap-1.5 text-support text-muted">
-        <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px] rounded-lg px-[7px] py-[5px] [&_svg]:stroke-[1.75]">
+      <ActivityBlock botName={botName} time={time}>
+        <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px] [&_svg]:stroke-[1.75]">
           <SparklesIcon className="size-4" aria-hidden="true" />
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
         </div>
-      </div>
+      </ActivityBlock>
     )
   }
 
   return (
-    <div className="mb-3 grid gap-1.5 text-support text-muted">
+    <div className="group mb-4 w-fit text-support text-muted">
       <details onClick={blurMouseClick} className="group/activity max-w-[620px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
-        <summary className="grid w-fit cursor-pointer list-none grid-cols-[16px_auto_14px] items-center gap-[7px] rounded-lg px-[7px] py-[5px] hover:bg-surface-hover hover:text-secondary focus-visible:bg-surface-hover focus-visible:text-secondary focus-visible:outline-none [&::-webkit-details-marker]:hidden [&_svg]:stroke-[1.75]">
+        <summary className={chatChipClassName}>
           <SparklesIcon className="size-4" aria-hidden="true" />
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+          <ChatStamp name={botName} time={time} />
         </summary>
         <div className={steps.length === 1 ? `${chatGuideClassName} mt-1.5 mb-1 ml-[14px] grid py-1 pl-4` : "mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3"}>
           {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode={steps.length === 1 ? "solo" : "history"} />)}
@@ -98,12 +105,12 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
   )
 }
 
-function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botName?: string; status: "running" | "aborting" }) {
+function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botName: string; status: "running" | "aborting" }) {
   const label = status === "aborting" ? "Interrompendo resposta…" : `${botName ?? "O bot"} está trabalhando`
   const currentIndex = status === "aborting" ? -1 : steps.length - 1
 
   return (
-    <div className="mb-3 grid w-[min(620px,100%)] gap-1 text-support text-muted" role="status" aria-label={label}>
+    <div className="-mx-[7px] -mt-[5px] mb-[11px] grid w-[min(620px,100%)] gap-1 text-support text-muted" role="status" aria-label={label}>
       {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}

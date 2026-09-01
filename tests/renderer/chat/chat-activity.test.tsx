@@ -5,7 +5,7 @@ import { ChatActivity } from "@src/renderer/src/chat/chat-activity"
 describe("ChatActivity", () => {
   test("groups reasoning and actions under one summary", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [
           { type: "thinking", content: "**Planejando**\n\n- Ler o arquivo", durationMs: 3_200 },
           { type: "tool", name: "read", tools: [{ callId: "read-1", name: "read", detail: "README.md", status: "done" }] },
@@ -25,7 +25,7 @@ describe("ChatActivity", () => {
 
   test("opens a single thought to show what was thought", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "thinking", content: "Escolhendo a validação", durationMs: 2_000 }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "thinking", content: "Escolhendo a validação", durationMs: 2_000 }] }} />,
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
@@ -35,7 +35,7 @@ describe("ChatActivity", () => {
 
   test("shows a single step as a flat line when opening it adds nothing", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "thinking", content: "", durationMs: 1_000 }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "thinking", content: "", durationMs: 1_000 }] }} />,
     )
 
     expect(markup).not.toContain("<summary")
@@ -44,7 +44,7 @@ describe("ChatActivity", () => {
 
   test("keeps a single step expandable when its detail is only visible open", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "tool", name: "read", tools: [{ callId: "read-1", name: "read", detail: "README.md", status: "done" }] }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "tool", name: "read", tools: [{ callId: "read-1", name: "read", detail: "README.md", status: "done" }] }] }} />,
     )
 
     expect(markup.match(/<summary/g)).toHaveLength(1)
@@ -57,7 +57,7 @@ describe("ChatActivity", () => {
     [72_000, "1min 12s"],
   ])("formats a %i millisecond reasoning duration as %s", (thinkingDurationMs, label) => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: thinkingDurationMs }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: thinkingDurationMs }] }} />,
     )
 
     expect(markup).toContain(`Pensou por ${label}`)
@@ -65,7 +65,7 @@ describe("ChatActivity", () => {
 
   test("restores the chronological steps when the completed summary opens", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [
           { type: "thinking", content: "Primeira análise", durationMs: 5_000 },
           { type: "tool", name: "read", tools: [{ callId: "read-1", name: "read", detail: "README.md", status: "done" }] },
@@ -86,7 +86,7 @@ describe("ChatActivity", () => {
 
   test("lists the files of a lone read step straight under the summary", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [{
           type: "tool",
           name: "read",
@@ -106,8 +106,7 @@ describe("ChatActivity", () => {
 
   test("renders a pending run without a second thinking label", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity
-        activity={{ steps: [] }}
+      <ChatActivity time="16:02" activity={{ steps: [] }}
         botName="Nina"
         status="running"
         waitingMessage="Contatando Nina…"
@@ -123,8 +122,7 @@ describe("ChatActivity", () => {
 
   test("keeps earlier live activities compact and the latest activity open", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity
-        activity={{
+      <ChatActivity time="16:02" activity={{
           steps: [
             { type: "thinking", content: "Analisando o projeto", durationMs: 5_000, status: "done" },
             {
@@ -170,14 +168,13 @@ describe("ChatActivity", () => {
 
   test("shows a live delegation as waiting for the member and a finished one as delegated", () => {
     const live = renderToStaticMarkup(
-      <ChatActivity
-        activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "running" }] }] }}
+      <ChatActivity time="16:02" activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "running" }] }] }}
         botName="Dora"
         status="running"
       />,
     )
     const history = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "done" }] }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Iara", status: "done" }] }] }} />,
     )
 
     expect(live).toContain("Aguardando Iara")
@@ -189,14 +186,13 @@ describe("ChatActivity", () => {
 
   test("shows a hire as waiting for the new member live and as hired in history", () => {
     const live = renderToStaticMarkup(
-      <ChatActivity
-        activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", brief: "Resumo do clima hoje em SP", status: "running" }] }] }}
+      <ChatActivity time="16:02" activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", brief: "Resumo do clima hoje em SP", status: "running" }] }] }}
         botName="Marina"
         status="running"
       />,
     )
     const history = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [
           { type: "thinking", content: "", durationMs: 4_000 },
           { type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", brief: "Resumo do clima hoje em SP", status: "done" }] },
@@ -204,7 +200,7 @@ describe("ChatActivity", () => {
       }} />,
     )
     const failed = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", status: "failed" }] }] }} />,
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [{ type: "tool", name: "hire", tools: [{ callId: "hire-1", name: "hire", detail: "Clima SP", status: "failed" }] }] }} />,
     )
 
     expect(live).toContain("Aguardando Clima SP")
@@ -221,7 +217,7 @@ describe("ChatActivity", () => {
 
   test("shows why a Rotina tool failed", () => {
     const failed = renderToStaticMarkup(
-      <ChatActivity activity={{ steps: [
+      <ChatActivity botName="Revisor" time="16:02" activity={{ steps: [
         { type: "thinking", content: "", durationMs: 3_000 },
         { type: "tool", name: "routine", tools: [{ callId: "routine-1", name: "routine", brief: "Lembre o usuário de tomar café", status: "failed", error: "Validation failed for tool \"routine\":\n  - id: must have required properties id" }] },
       ] }} />,
@@ -237,7 +233,7 @@ describe("ChatActivity", () => {
 
   test("splits consecutive delegations into one row per member", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [{
           type: "tool",
           name: "delegate",
@@ -266,7 +262,7 @@ describe("ChatActivity", () => {
 
   test("shows what each delegation asked for under the member in history", () => {
     const markup = renderToStaticMarkup(
-      <ChatActivity activity={{
+      <ChatActivity botName="Revisor" time="16:02" activity={{
         steps: [
           { type: "tool", name: "delegate", tools: [{ callId: "delegate-1", name: "delegate", detail: "Calo", brief: "Escrever os testes do módulo", status: "failed" }] },
           { type: "tool", name: "delegate", tools: [{ callId: "delegate-2", name: "delegate", detail: "Lia", brief: "Revisar a migração", status: "failed" }] },

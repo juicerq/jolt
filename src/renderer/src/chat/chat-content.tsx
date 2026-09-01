@@ -68,4 +68,6 @@ function CopyCodeButton({ content }: { content: string }) {
   )
 }
 
+export const chatChipClassName = "relative isolate grid w-fit cursor-pointer list-none grid-cols-[16px_auto_14px] items-center gap-[7px] before:absolute before:-inset-x-[7px] before:-inset-y-[5px] before:-z-10 before:rounded-lg hover:text-secondary hover:before:bg-surface-hover focus-visible:text-secondary focus-visible:outline-none focus-visible:before:bg-surface-hover [&::-webkit-details-marker]:hidden [&_svg]:stroke-[1.75]"
+
 export const chatGuideClassName = "relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline"
