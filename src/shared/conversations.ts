@@ -25,32 +25,6 @@ const conversationActivity = type({
   "+": "reject",
   steps: thinkingActivityStep.or(toolActivityStep).array(),
 })
-const legacyConversationActivityInput = type({
-  "+": "reject",
-  thinkingContent: "string",
-  "thinkingDurationMs?": "number.integer > 0",
-  tools: conversationTool.array(),
-})
-const legacyConversationActivity = legacyConversationActivityInput.pipe((activity) => {
-  const steps: (typeof conversationActivity.infer)["steps"] = []
-
-  if (activity.thinkingContent || activity.thinkingDurationMs) {
-    steps.push({ type: "thinking", content: activity.thinkingContent, ...(activity.thinkingDurationMs ? { durationMs: activity.thinkingDurationMs } : {}) })
-  }
-
-  for (const tool of activity.tools) {
-    const lastStep = steps.at(-1)
-
-    if (lastStep?.type === "tool" && lastStep.name === tool.name) {
-      lastStep.tools.push(tool)
-    } else {
-      steps.push({ type: "tool", name: tool.name, tools: [tool] })
-    }
-  }
-
-  return conversationActivity.assert({ steps })
-})
-const compatibleConversationActivity = conversationActivity.or(legacyConversationActivity)
 const message = type({
   "+": "reject",
   id: "string > 0",
@@ -59,7 +33,7 @@ const message = type({
   authorBotId: optionalId,
   taskId: optionalId,
   content: "string > 0",
-  activity: compatibleConversationActivity.or("null"),
+  activity: conversationActivity.or("null"),
   createdAt: "string > 0",
 })
 const incomingMessage = message.pick("author", "authorBotId", "taskId", "content")
