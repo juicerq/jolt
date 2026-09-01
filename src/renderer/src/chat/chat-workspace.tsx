@@ -101,7 +101,7 @@ export function ChatWorkspace({ bot, client, onOpenSettings }: { bot: Bot; clien
         {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
         {run
           ? <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
-          : <ChatMissingReply bot={bot} messages={messages ?? []} />}
+          : <ChatMissingReply botId={bot.id} messages={messages ?? []} />}
       </ChatScroller>
       <div className={`z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border self-end justify-self-center grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] focus-within:border-muted max-[700px]:w-[calc(100%-28px)] ${composerExpanded ? "grid-rows-[auto_auto] gap-y-1 rounded-[18px]" : "rounded-full"}`}>
         <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>

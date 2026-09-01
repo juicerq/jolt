@@ -312,7 +312,7 @@ Fechar e abrir o aplicativo preserva Bots, relações, configurações e convers
 - [x] Tarefas em andamento no encerramento reaparecem como interrompidas.
 - [x] Nenhuma execução interrompida retoma automaticamente.
 - [x] Sessão perdida produz diagnóstico e uma sessão nova sem corromper o banco.
-- [x] Quando a última mensagem não é do Bot e não há execução ativa, o chat mostra "<Bot> não respondeu" como linha de atividade.
+- [x] Quando a última mensagem não é do Bot e não há execução ativa, o chat mostra "Resposta interrompida" como linha de atividade.
 - [x] O log registra quantas Tarefas o boot interrompeu.
 
 ### Blocked by
