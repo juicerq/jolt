@@ -20,6 +20,14 @@ describe("Bot draft", () => {
     expect(botsStore.state.draft).toEqual({ name: "Testador" })
   })
 
+  test("creating a Bot again keeps the draft in progress", () => {
+    openCreateBot()
+    nameDraft("Testador")
+    openCreateBot()
+
+    expect(botsStore.state.draft).toEqual({ name: "Testador" })
+  })
+
   test("discarding the draft returns to the selected Bot", () => {
     selectBot("revisor")
     openCreateBot()

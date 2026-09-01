@@ -14,6 +14,7 @@ type Step = "name" | "outcome" | "workspace"
 const chipClassName = "flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-outline-strong bg-transparent px-3 text-left text-support font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 const lineClassName = "w-full border-0 bg-transparent text-center text-primary placeholder:text-muted focus-visible:outline-none"
 const revealClassName = "transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
+const hintClassName = `${revealClassName} text-metadata font-medium text-muted`
 const settledClassName = `${revealClassName} cursor-text rounded-md border-0 bg-transparent px-2 py-0 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`
 
 function onEnter(commit: () => void) {
@@ -55,7 +56,9 @@ export function NewBot({ client }: { client: EngineClient }) {
 
   useEffect(() => {
     function handleKey(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape") {
+      const inSelect = event.target instanceof HTMLSelectElement
+
+      if (event.key === "Escape" && !inSelect) {
         discardDraft()
       }
     }
@@ -98,6 +101,7 @@ export function NewBot({ client }: { client: EngineClient }) {
             <>
               <label className="sr-only" htmlFor="new-bot-name">Nome</label>
               <input className={`${lineClassName} mt-4 text-title font-semibold`} id="new-bot-name" autoFocus autoComplete="off" placeholder="Nome do Bot" value={name} onChange={(event) => setName(event.target.value)} onKeyDown={onEnter(commitName)} />
+              <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
             </>
           )
           : <button className={`${settledClassName} mt-4 text-title font-semibold text-primary`} type="button" title="Editar nome" onClick={() => setStep("name")}>{name}</button>}
@@ -105,6 +109,7 @@ export function NewBot({ client }: { client: EngineClient }) {
           <>
             <label className="sr-only" htmlFor="new-bot-outcome">Resultado esperado</label>
             <input className={`${lineClassName} ${revealClassName} text-support text-secondary`} id="new-bot-outcome" autoFocus autoComplete="off" placeholder="O que ele entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} onKeyDown={onEnter(commitOutcome)} />
+            <small className={`${hintClassName} mt-2`}>Enter para continuar</small>
           </>
         )}
         {step === "workspace" && (
@@ -114,7 +119,7 @@ export function NewBot({ client }: { client: EngineClient }) {
               {hasWorkspaceOptions && (
                 <label className="relative">
                   <span className="sr-only">Vínculo</span>
-                  <select className={`${chipClassName} appearance-none pr-8`} autoFocus value={workspace} onChange={(event) => setWorkspace(event.target.value)}>
+                  <select className={`${chipClassName} appearance-none pr-8`} value={workspace} onChange={(event) => setWorkspace(event.target.value)}>
                     <option value="">Sem projeto</option>
                     {projects.length > 0 && <optgroup label="Projetos">{projects.map((candidate) => <option value={`project:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
                     {leaders.length > 0 && <optgroup label="Líderes">{leaders.map((candidate) => <option value={`leader:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
@@ -125,7 +130,7 @@ export function NewBot({ client }: { client: EngineClient }) {
               {workingDirectoryOverride
                 ? <span className={`${chipClassName} cursor-default pr-1.5 text-primary`}><FolderIcon className="size-4 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap" title={workingDirectoryOverride}>{workingDirectoryOverride.split("/").filter(Boolean).at(-1)}</span><IconButton iconSize={13} size={24} type="button" label="Remover pasta" onClick={() => setWorkingDirectoryOverride("")}><XMarkIcon aria-hidden="true" /></IconButton></span>
                 : <button className={chipClassName} type="button" onClick={directory.choose}><FolderIcon className="size-4 shrink-0" aria-hidden="true" />Pasta</button>}
-              <Button className="mt-4" type="submit" disabled={isPending || !executorAvailable}>{isPending ? "Criando..." : "Criar Bot"}</Button>
+              <Button className="mt-4" type="submit" autoFocus disabled={isPending || !executorAvailable}>{isPending ? "Criando..." : "Criar Bot"}</Button>
             </div>
           </>
         )}

@@ -17,7 +17,7 @@ export function selectBot(botId: string) {
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: { name: "" } }))
+  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { name: "" } }))
 }
 
 export function nameDraft(name: string) {
