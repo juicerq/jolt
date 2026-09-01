@@ -5,12 +5,12 @@ import { EngineProcess } from "@src/main/engine-process/engine-process"
 import { observation } from "@src/shared/observability/observation"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-main-engine-")
+const directory = testDirectory("jolt-main-engine-")
 
 describe("EngineProcess", () => {
   test("starts and stops the compiled engine without leaving a child process", async () => {
     const engine = new EngineProcess({
-      executable: join(process.cwd(), "dist-engine", "bot-teams-engine"),
+      executable: join(process.cwd(), "dist-engine", "jolt-engine"),
       databasePath: join(directory, "test.sqlite"),
       privateBotsDirectory: join(directory, "bots"),
     })
@@ -44,7 +44,7 @@ describe("EngineProcess", () => {
       resolveExit = resolve
     })
     const engine = new EngineProcess({
-      executable: join(process.cwd(), "dist-engine", "bot-teams-engine"),
+      executable: join(process.cwd(), "dist-engine", "jolt-engine"),
       databasePath: join(directory, "test.sqlite"),
       privateBotsDirectory: join(directory, "bots"),
       onUnexpectedExit: resolveExit,

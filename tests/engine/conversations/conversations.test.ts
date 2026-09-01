@@ -7,7 +7,7 @@ import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from
 import { openDatabase } from "@src/engine/persistence/database"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-conversations-")
+const directory = testDirectory("jolt-conversations-")
 
 function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), completePrompt = true) {
   const prompts: string[] = []

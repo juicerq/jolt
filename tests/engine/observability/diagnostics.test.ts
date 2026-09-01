@@ -4,7 +4,7 @@ import { createDiagnostics } from "@src/engine/observability/diagnostics"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-diagnostics-")
+const directory = testDirectory("jolt-diagnostics-")
 
 describe("Diagnostics", () => {
   test("derives failures, percentiles and slow operations from spans", async () => {

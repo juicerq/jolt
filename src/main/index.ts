@@ -7,11 +7,11 @@ import { loopbackHttpUrl } from "../shared/engine-contract"
 import { EngineProcess } from "./engine-process/engine-process"
 
 const executable = app.isPackaged
-  ? join(process.resourcesPath, "engine", "bot-teams-engine")
-  : join(app.getAppPath(), "dist-engine", "bot-teams-engine")
+  ? join(process.resourcesPath, "engine", "jolt-engine")
+  : join(app.getAppPath(), "dist-engine", "jolt-engine")
 const engine = new EngineProcess({
   executable,
-  databasePath: join(app.getPath("userData"), "bot-teams.sqlite"),
+  databasePath: join(app.getPath("userData"), "jolt.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,

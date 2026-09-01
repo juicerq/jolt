@@ -4,7 +4,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 import { join } from "node:path"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-pi-provider-")
+const directory = testDirectory("jolt-pi-provider-")
 
 describe("Pi provider", () => {
   test("reports the configured Codex model from the Pi session", async () => {

@@ -2,7 +2,7 @@
 
 Leia este arquivo antes de criar ou alterar código no Renderer.
 
-Leia `DESIGN.md` antes de criar, alterar ou revisar a interface. Ele define os tokens, a hierarquia visual e a anatomia dos componentes do Jots.
+Leia `DESIGN.md` antes de criar, alterar ou revisar a interface. Ele define os tokens, a hierarquia visual e a anatomia dos componentes do Jolt.
 
 ## React
 

@@ -151,7 +151,7 @@ function EmptyChat({ bot, onDraftChange }: { bot: PrototypeBot; onDraftChange: (
 }
 
 function BotAvatar({ bot, large = false }: { bot: PrototypeBot; large?: boolean }) {
-  return <Blobatar data-avatar className={`grid flex-none place-items-center border border-outline-strong bg-surface-raised ${large ? "size-10 rounded-xl" : "size-8 rounded-[10px]"}`} name={`jots:${bot.id}:${bot.name}`} size={large ? 40 : 32} alt="" />
+  return <Blobatar data-avatar className={`grid flex-none place-items-center border border-outline-strong bg-surface-raised ${large ? "size-10 rounded-xl" : "size-8 rounded-[10px]"}`} name={`jolt:${bot.id}:${bot.name}`} size={large ? 40 : 32} alt="" />
 }
 
 function Message({ message, onOpenBot }: { message: PrototypeMessage; onOpenBot: (id: string) => void }) {

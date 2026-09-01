@@ -1,4 +1,4 @@
-# V1 do Jots
+# V1 do Jolt
 
 ## Objetivo
 

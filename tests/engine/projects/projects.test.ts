@@ -7,7 +7,7 @@ import { openDatabase } from "@src/engine/persistence/database"
 import { createProjects } from "@src/engine/projects/projects"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-projects-")
+const directory = testDirectory("jolt-projects-")
 const botInput = {
   name: "Marina",
   provider: "codex" as const,
@@ -38,9 +38,9 @@ describe("projects", () => {
     const { database, observationSystem, projects } = setup()
     const defaultWorkingDirectory = join(directory, crypto.randomUUID())
     await mkdir(defaultWorkingDirectory)
-    const project = await projects.create({ name: "Jots", defaultWorkingDirectory })
+    const project = await projects.create({ name: "Jolt", defaultWorkingDirectory })
 
-    expect(project).toEqual({ id: expect.any(String), name: "Jots", defaultWorkingDirectory, createdAt: expect.any(String) })
+    expect(project).toEqual({ id: expect.any(String), name: "Jolt", defaultWorkingDirectory, createdAt: expect.any(String) })
     expect(await projects.list()).toEqual({ projects: [{ ...project, bots: [] }], unassignedBots: [] })
     database.close()
     await observationSystem.observability.flush()
@@ -50,7 +50,7 @@ describe("projects", () => {
     const { bots, database, observationSystem, projects } = setup()
     const defaultWorkingDirectory = join(directory, crypto.randomUUID())
     await mkdir(defaultWorkingDirectory)
-    const project = await projects.create({ name: "Jots", defaultWorkingDirectory })
+    const project = await projects.create({ name: "Jolt", defaultWorkingDirectory })
     const assigned = await bots.create({ ...botInput, projectId: project.id })
     const unassigned = await bots.create(botInput)
     const member = database.bots.create({
@@ -76,7 +76,7 @@ describe("projects", () => {
     const { database, observationSystem, projects } = setup()
     const missingDirectory = join(directory, crypto.randomUUID(), "missing")
 
-    expect(() => projects.create({ name: "Jots", defaultWorkingDirectory: missingDirectory })).toThrow("Working directory is not accessible")
+    expect(() => projects.create({ name: "Jolt", defaultWorkingDirectory: missingDirectory })).toThrow("Working directory is not accessible")
     expect(await projects.list()).toEqual({ projects: [], unassignedBots: [] })
     database.close()
     await observationSystem.observability.flush()

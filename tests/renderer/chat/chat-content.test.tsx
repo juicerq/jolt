@@ -17,7 +17,7 @@ describe("ChatContent", () => {
         "",
         "| Nome | Estado |",
         "| --- | --- |",
-        "| Jots | pronto |",
+        "| Jolt | pronto |",
       ].join("\n")} />,
     )
 

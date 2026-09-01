@@ -1,6 +1,6 @@
 ---
 version: alpha
-name: Jots
+name: Jolt
 description: A calm desktop workspace where Bots feel like capable collaborators and the conversation owns the screen.
 colors:
   primary: "#f5f3f1"
@@ -162,11 +162,11 @@ components:
     backgroundColor: "{colors.overlay}"
 ---
 
-# Jots
+# Jolt
 
 ## Overview
 
-Jots is a quiet workspace for working with Bots. It should feel closer to a
+Jolt is a quiet workspace for working with Bots. It should feel closer to a
 private conversation with capable collaborators than to a dashboard for
 configuring automation.
 
@@ -228,7 +228,7 @@ creates an unnamed focus level and weakens the hierarchy.
 
 ## Typography
 
-Jots uses the operating system's sans-serif face. The app should feel native on
+Jolt uses the operating system's sans-serif face. The app should feel native on
 the computer where it runs, and long conversations need a familiar reading
 face. A monospace face is reserved for paths, commands, hashes, and code inside
 messages.
@@ -402,4 +402,4 @@ state does not repeat it as a second button.
   a feature. Extend this file and the shared component when the product needs a
   new role.
 - Don't copy a Beautiful UI component's styling. Copy its useful interaction
-  anatomy, then render it with Jots tokens and hierarchy.
+  anatomy, then render it with Jolt tokens and hierarchy.

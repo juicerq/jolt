@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-observability-")
+const directory = testDirectory("jolt-observability-")
 
 describe("Observability", () => {
   test("exposes only event, span and flush", () => {

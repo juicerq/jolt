@@ -74,7 +74,7 @@ export function CreateProjectDialog({ client }: { client: EngineClient }) {
                 className="box-border w-full rounded-lg border border-outline-strong bg-canvas px-3 py-2.5 text-control font-medium text-primary placeholder:text-muted focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                 autoFocus
                 required
-                placeholder="Ex: Jots"
+                placeholder="Ex: Jolt"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />

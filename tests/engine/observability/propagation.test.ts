@@ -10,7 +10,7 @@ import { runObservedSubprocess } from "@src/engine/observability/observed-subpro
 import { openDatabase } from "@src/engine/persistence/database"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-propagation-")
+const directory = testDirectory("jolt-propagation-")
 
 describe("observation context", () => {
   test("keeps one Renderer trace through HTTP, oRPC, Drizzle and a subprocess", async () => {

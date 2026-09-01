@@ -5,7 +5,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 import { openDatabase } from "@src/engine/persistence/database"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-database-")
+const directory = testDirectory("jolt-database-")
 
 describe("database", () => {
   test("opens a new database with Bots, conversations, and the migration journal", async () => {

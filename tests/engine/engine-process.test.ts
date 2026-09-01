@@ -7,7 +7,7 @@ import { engineReadyMessage } from "@src/shared/engine-contract"
 import { observation } from "@src/shared/observability/observation"
 import { testDirectory } from "../support/test-directory"
 
-const directory = testDirectory("jots-engine-")
+const directory = testDirectory("jolt-engine-")
 
 describe("compiled Bun Engine", () => {
   test("requires its token, migrates its database, and exits on SIGTERM", async () => {
@@ -16,7 +16,7 @@ describe("compiled Bun Engine", () => {
     const ready = new Promise<typeof engineReadyMessage.infer>((resolve) => {
       resolveReady = resolve
     })
-    const child = Bun.spawn([join(process.cwd(), "dist-engine", "bot-teams-engine")], {
+    const child = Bun.spawn([join(process.cwd(), "dist-engine", "jolt-engine")], {
       env: {
         BOT_TEAMS_ENGINE_TOKEN: "test-token",
         BOT_TEAMS_DATABASE_PATH: databasePath,

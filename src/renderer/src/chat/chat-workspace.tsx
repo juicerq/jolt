@@ -222,7 +222,7 @@ function ChatRun({ bot, run }: { bot: Bot; run: ChatRunState }) {
 function EmptyChat({ bot }: { bot: Bot }) {
   return (
     <div className="m-auto flex max-w-[520px] flex-col items-center text-center text-support text-secondary">
-      <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jots:${bot.id}:${bot.name}`} size={64} alt="" />
+      <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jolt:${bot.id}:${bot.name}`} size={64} alt="" />
       <h2 className="mt-4 mb-1.5 text-title font-semibold text-primary">Converse com {bot.name}</h2>
       <p className="m-0 max-w-[48ch] leading-[1.6]">{bot.function.outcome}</p>
     </div>

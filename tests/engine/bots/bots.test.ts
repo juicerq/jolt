@@ -8,7 +8,7 @@ import { createProjects } from "@src/engine/projects/projects"
 import type { ProviderAvailability } from "@src/shared/providers"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-bots-")
+const directory = testDirectory("jolt-bots-")
 const input = {
   name: "Marina",
   provider: "codex" as const,
@@ -88,7 +88,7 @@ describe("bots", () => {
     await mkdir(projectDirectory)
     await mkdir(chosenDirectory)
     await mkdir(replacementDirectory)
-    const project = await projects.create({ name: "Jots", defaultWorkingDirectory: projectDirectory })
+    const project = await projects.create({ name: "Jolt", defaultWorkingDirectory: projectDirectory })
     const created = await bots.create({ ...input, projectId: project.id, workingDirectoryOverride: chosenDirectory })
 
     expect(await bots.resolveWorkingDirectory({ id: created.id })).toBe(chosenDirectory)
@@ -154,7 +154,7 @@ describe("bots", () => {
     await mkdir(nextProjectDirectory)
     await mkdir(leaderOverride)
     await mkdir(memberOverride)
-    const firstProject = await projects.create({ name: "Jots", defaultWorkingDirectory: firstProjectDirectory })
+    const firstProject = await projects.create({ name: "Jolt", defaultWorkingDirectory: firstProjectDirectory })
     const nextProject = await projects.create({ name: "Dogama", defaultWorkingDirectory: nextProjectDirectory })
     const leader = await bots.create({ ...input, projectId: firstProject.id })
     const member = database.bots.create({

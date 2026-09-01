@@ -1,5 +1,5 @@
 {
-  "name": "bot-teams",
+  "name": "jolt",
   "version": "0.0.0",
   "private": true,
   "packageManager": "bun@1.4.0",
@@ -15,7 +15,7 @@
     "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
     "test:stress": "bun run build:engine && bun test tests --no-orphans --parallel=4 --randomize --rerun-each=3",
     "typecheck": "tsc --noEmit",
-    "build:engine": "bun build --compile --outfile dist-engine/bot-teams-engine src/engine/index.ts",
+    "build:engine": "bun build --compile --outfile dist-engine/jolt-engine src/engine/index.ts",
     "build:electron": "electron-vite build",
     "build": "bun run build:engine && bun run build:electron"
   },

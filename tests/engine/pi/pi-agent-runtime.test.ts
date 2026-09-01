@@ -6,7 +6,7 @@ import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from
 import { authorizeToolCall, pathIsInside } from "@src/engine/pi/pi-permissions"
 import { testDirectory } from "../../support/test-directory"
 
-const directory = testDirectory("jots-pi-runtime-")
+const directory = testDirectory("jolt-pi-runtime-")
 
 function setup() {
   const sessions = new Map<string, { tools: string[]; listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; disposed: boolean }>()

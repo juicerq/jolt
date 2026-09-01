@@ -1,12 +1,12 @@
-# Jots
+# Jolt
 
-Jots é um aplicativo para criar Bots que trabalham no seu computador.
+Jolt é um aplicativo para criar Bots que trabalham no seu computador.
 
 Um Bot pode trabalhar sozinho em uma pasta escolhida por você ou numa pasta privada. Quando um trabalho precisa de mais pessoas, você adiciona Integrantes e o Bot passa a atuar como Líder.
 
 ## Para que serve
 
-Jots ajuda você a conversar com Bots, separar responsabilidades e manter o histórico do trabalho.
+Jolt ajuda você a conversar com Bots, separar responsabilidades e manter o histórico do trabalho.
 
 Por exemplo, você pode criar:
 
@@ -19,7 +19,7 @@ Cada Bot tem sua própria função, instruções e histórico. Todas as conversa
 
 ## Como é usado
 
-1. O Jots encontra o Codex já conectado no seu computador.
+1. O Jolt encontra o Codex já conectado no seu computador.
 2. Você cria um Bot, define sua função e escolhe uma pasta se precisar.
 3. Você conversa diretamente com o Bot.
 4. Você adiciona Integrantes quando quiser dividir o trabalho.

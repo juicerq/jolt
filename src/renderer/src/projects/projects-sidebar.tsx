@@ -234,7 +234,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
     return (
       <Blobatar
         className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus"
-        name={`jots:${bot.id}:${bot.name}`}
+        name={`jolt:${bot.id}:${bot.name}`}
         size={32}
         alt=""
       />
@@ -248,7 +248,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
       {avatars.map((avatar, index) => (
         <Blobatar
           className={`absolute size-6 shrink-0 rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
-          name={`jots:${avatar.id}:${avatar.name}`}
+          name={`jolt:${avatar.id}:${avatar.name}`}
           size={24}
           alt=""
           key={avatar.id}

@@ -134,7 +134,7 @@ function BotDirectoryHelp({ project, workingDirectoryOverride }: { project?: { n
     return <small className="text-support text-muted">Herdada de {project.name}: <span className="font-mono [overflow-wrap:anywhere]">{project.defaultWorkingDirectory}</span></small>
   }
 
-  return <small className="text-support text-muted">O Jots criará uma pasta privada para este Bot.</small>
+  return <small className="text-support text-muted">O Jolt criará uma pasta privada para este Bot.</small>
 }
 
 function getPrimaryActionLabel(step: 1 | 2, isPending: boolean) {
