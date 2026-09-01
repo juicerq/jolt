@@ -9,7 +9,7 @@ describe("ChatMemberResult", () => {
     expect(markup.match(/<summary/g)).toHaveLength(1)
     expect(markup).not.toMatch(/<details[^>]*\sopen/)
     expect(markup).toContain("Calo")
-    expect(markup).toContain("Resultado")
+    expect(markup).toContain("Calo entregou o Resultado")
     expect(markup).toContain("São Paulo: 21 °C")
   })
 
@@ -19,7 +19,7 @@ describe("ChatMemberResult", () => {
   ] as const)("labels a %s Tarefa as not concluded", (status) => {
     const markup = renderToStaticMarkup(<ChatMemberResult name="Lia" status={status} time="22:35" content="Lia failed before finishing." />)
 
-    expect(markup).toContain("Tarefa não concluída")
+    expect(markup).toContain("Lia não concluiu a Tarefa")
     expect(markup).not.toContain("Resultado")
   })
 
