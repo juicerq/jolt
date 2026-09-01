@@ -433,6 +433,15 @@ the menu stays open, so the person can set both before clicking away or
 pressing Escape. The chip stays disabled while the Bot
 responds; the next turn already uses the new choice.
 
+A draft that starts with `/` opens the Comando menu instead of sending. It
+shares the anatomy of the Modelo and Esforço menu and sits above the prompt,
+left-aligned: one section per Comando under its own label, `/modelo`,
+`/esforco`, `/lembrar`, split by dividers, with rows filtered by what follows
+the slash. Arrow keys move the highlighted row, Enter runs it, Escape hides
+the menu until the text changes, and running a Comando clears the prompt.
+Rows without a runnable action, such as `/lembrar` before any text, read as
+disabled and explain what is missing in muted metadata type.
+
 **Dialog.** A fixed header names the task and offers one ghost close action. A
 thin progress indicator appears only for a real multi-step flow. The body groups
 fields by the decision they ask the user to make. The footer places back or
