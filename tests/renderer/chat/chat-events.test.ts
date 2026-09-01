@@ -91,7 +91,7 @@ test("a turn streamed by the Engine drives the chat store from start to completi
   const environment = setup()
   const queryClient = new QueryClient()
   const stop = subscribeChatEvents({ client: environment.client, queryClient })
-  const bot = await environment.bots.create({ name: "Marina", provider: "codex", function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" } })
+  const bot = await environment.bots.create({ name: "Marina", provider: "codex", function: { outcome: "Answer", description: "Help" } })
   const seen: string[] = []
   const subscription = chatStore.subscribe(() => {
     const response = chatStore.state.runs[bot.id]?.responseContent

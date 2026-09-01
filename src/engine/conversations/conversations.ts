@@ -79,9 +79,7 @@ export function createConversations(input: {
     const instructions = [
       `You are ${bot.name}.`,
       `Expected outcome: ${bot.function.outcome}`,
-      `Responsibilities: ${bot.function.responsibilities}`,
-      `Limits: ${bot.function.limits}`,
-      `Delivery: ${bot.function.delivery}`,
+      bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
       delegation.instructions(bot),
       voice,
     ].filter(Boolean).join("\n")

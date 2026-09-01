@@ -10,7 +10,7 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-delegation-")
-const botFunction = { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" }
+const botFunction = { outcome: "Answer", description: "Help" }
 
 type Script = (message: string, call: (tool: string, params: Record<string, string>) => Promise<string>) => Promise<string>
 
@@ -330,7 +330,7 @@ describe("delegation", () => {
   test("a Leader hires a temporary member for one Tarefa and the member closes with it", async () => {
     const environment = setup()
     const { leader } = await environment.team()
-    const hireParams = { name: "Revisor", outcome: "Revisão pronta", responsibilities: "Revisar arquivos", limits: "Só esta Tarefa", delivery: "Lista de achados", instructions: "Leia os 5 arquivos" }
+    const hireParams = { name: "Revisor", role: "Revisão de código", description: "Revisar arquivos", permanent: "no", outcome: "Revisão pronta", instructions: "Leia os 5 arquivos" }
     environment.scripts.set(leader.id, async (message, call) => {
       if (message === "Delegue de novo") {
         return `Falhou: ${await call("delegate", { member: "Revisor", outcome: "Outra", instructions: "Mais" })}`
@@ -344,7 +344,7 @@ describe("delegation", () => {
     const hired = environment.bots.list().find((bot) => bot.name === "Revisor")
     const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
 
-    expect(hired).toMatchObject({ leaderBotId: leader.id, temporary: true, closed: true, provider: "codex", function: { outcome: "Revisão pronta", responsibilities: "Revisar arquivos", limits: "Só esta Tarefa", delivery: "Lista de achados" } })
+    expect(hired).toMatchObject({ leaderBotId: leader.id, temporary: true, closed: true, provider: "codex", function: { outcome: "Revisão de código", description: "Revisar arquivos" } })
     expect(task).toMatchObject({ assigneeBotId: hired?.id, outcome: "Revisão pronta", status: "done" })
     expect(environment.sessions.get(hired?.id ?? "")?.customTools.map((tool) => tool.name)).toEqual(["transfer"])
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("Revisor")

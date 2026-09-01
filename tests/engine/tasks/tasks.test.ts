@@ -6,7 +6,7 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-tasks-")
-const botFunction = { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" }
+const botFunction = { outcome: "Answer", description: "Help" }
 
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })

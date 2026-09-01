@@ -6,9 +6,7 @@ const input = {
   provider: "codex" as const,
   function: {
     outcome: "Contratos prontos",
-    responsibilities: "Preparar propostas",
-    limits: "Não altera preços",
-    delivery: "Proposta para revisão",
+    description: "Preparar propostas",
   },
 }
 
@@ -20,6 +18,14 @@ describe("bot boundary", () => {
       projectId: "project-1",
       workingDirectoryOverride: "/projects/jolt",
     })
+  })
+
+  test("accepts a Função without a description and rejects the old four fields", () => {
+    const outcomeOnly = { ...input, function: { outcome: "Contratos prontos" } }
+
+    expect(botSchemas.createInput.assert(outcomeOnly)).toEqual(outcomeOnly)
+    expect(() => botSchemas.createInput.assert({ ...input, function: { ...input.function, responsibilities: "Preparar propostas" } })).toThrow()
+    expect(() => botSchemas.createInput.assert({ ...input, function: { ...input.function, description: "" } })).toThrow()
   })
 
   test("accepts changing the Project and working directory override together", () => {

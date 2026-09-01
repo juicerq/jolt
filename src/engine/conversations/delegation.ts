@@ -144,16 +144,16 @@ export function createDelegation(input: {
         name: "hire",
         description: "Create a temporary member for one Tarefa and delegate it in the same call. The member inherits your folder and executor, cannot create Bots, and closes when the Tarefa ends. Use it when no permanent member fits the Tarefa.",
         parameters: {
-          name: "Name of the temporary member",
+          name: "Name of the member",
+          role: "The member's Função: what it delivers, in one line",
+          description: "Optional. Responsibilities, limits and how the member presents its work",
+          permanent: "\"yes\" to keep the member on your team for future Tarefas. \"no\" for a temporary member that closes when this Tarefa ends.",
           outcome: "Expected result of the Tarefa",
-          responsibilities: "What the member takes care of",
-          limits: "What the member must not do",
-          delivery: "How the member presents the result",
           instructions: "Instructions for the member",
           wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
         },
         async execute(params) {
-          const to = await input.bots.hire(bot, { name: params.name, function: { outcome: params.outcome, responsibilities: params.responsibilities, limits: params.limits, delivery: params.delivery } })
+          const to = await input.bots.hire(bot, { name: params.name, function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
 
           return assign(bot, to, params)
         },

@@ -13,9 +13,7 @@ const botInput = {
   provider: "codex" as const,
   function: {
     outcome: "Contratos prontos",
-    responsibilities: "Preparar propostas",
-    limits: "Não altera preços",
-    delivery: "Proposta para revisão",
+    description: "Preparar propostas",
   },
 }
 

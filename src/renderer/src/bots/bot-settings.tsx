@@ -52,9 +52,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
           <p className={eyebrowClassName}>Função</p>
           <dl className="mt-5 grid grid-cols-1 gap-[18px]">
             <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Resultado</dt><dd className={functionDescriptionClassName}>{bot.function.outcome}</dd></div>
-            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Responsabilidades</dt><dd className={functionDescriptionClassName}>{bot.function.responsibilities}</dd></div>
-            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Limites</dt><dd className={functionDescriptionClassName}>{bot.function.limits}</dd></div>
-            <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Entrega</dt><dd className={functionDescriptionClassName}>{bot.function.delivery}</dd></div>
+            {bot.function.description && <div className="block border-b border-outline py-[15px]"><dt className={functionTermClassName}>Descrição</dt><dd className={`${functionDescriptionClassName} whitespace-pre-line`}>{bot.function.description}</dd></div>}
           </dl>
         </section>
         <section className={`${cardClassName} flex flex-col gap-4`}>

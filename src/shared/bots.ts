@@ -1,7 +1,7 @@
 import { type } from "arktype"
 import { providerName } from "./providers"
 
-const botFunction = type({ "+": "reject", outcome: "string > 0", responsibilities: "string > 0", limits: "string > 0", delivery: "string > 0" })
+const botFunction = type({ "+": "reject", outcome: "string > 0", "description?": "string > 0" })
 export const workingDirectory = type("string > 0")
 const optionalId = type("string > 0").or("null")
 const storedBot = type({

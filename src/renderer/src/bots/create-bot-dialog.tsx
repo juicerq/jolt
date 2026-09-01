@@ -28,9 +28,7 @@ function CreateBotForm({ client }: { client: EngineClient }) {
   const [step, setStep] = useState<1 | 2>(1)
   const [name, setName] = useState("")
   const [outcome, setOutcome] = useState("")
-  const [responsibilities, setResponsibilities] = useState("")
-  const [limits, setLimits] = useState("")
-  const [delivery, setDelivery] = useState("")
+  const [description, setDescription] = useState("")
   const [projectId, setProjectId] = useState("")
   const [leaderBotId, setLeaderBotId] = useState("")
   const [workingDirectoryOverride, setWorkingDirectoryOverride] = useState("")
@@ -65,7 +63,7 @@ function CreateBotForm({ client }: { client: EngineClient }) {
     mutate({
       name: name.trim(),
       provider: "codex",
-      function: { outcome, responsibilities, limits, delivery },
+      function: { outcome, ...(description.trim() ? { description: description.trim() } : {}) },
       ...workspaceInput(leaderBotId, projectId),
       ...(workingDirectoryOverride ? { workingDirectoryOverride } : {}),
     })
@@ -121,11 +119,9 @@ function CreateBotForm({ client }: { client: EngineClient }) {
             {providersError && <p className="text-support text-status-error">Falha ao verificar executores: {providersError.message}</p>}
           </>
         ) : (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-[18px] max-[720px]:grid-cols-1">
-            <label className={fieldLabelClassName}>Resultado esperado<textarea className={`${fieldControlClassName} min-h-[88px] resize-none`} autoFocus required rows={3} placeholder="O que este Bot deve alcançar?" value={outcome} onChange={(event) => setOutcome(event.target.value)} /></label>
-            <label className={fieldLabelClassName}>Responsabilidades<textarea className={`${fieldControlClassName} min-h-[88px] resize-none`} required rows={3} placeholder="O que fica por conta dele?" value={responsibilities} onChange={(event) => setResponsibilities(event.target.value)} /></label>
-            <label className={fieldLabelClassName}>Limites<textarea className={`${fieldControlClassName} min-h-[88px] resize-none`} required rows={3} placeholder="O que ele não deve fazer?" value={limits} onChange={(event) => setLimits(event.target.value)} /></label>
-            <label className={fieldLabelClassName}>Forma de entrega<textarea className={`${fieldControlClassName} min-h-[88px] resize-none`} required rows={3} placeholder="Como deve apresentar o resultado?" value={delivery} onChange={(event) => setDelivery(event.target.value)} /></label>
+          <div className="flex flex-col gap-[18px]">
+            <label className={fieldLabelClassName}>Resultado esperado<input className={fieldControlClassName} autoFocus required placeholder="O que este Bot entrega?" value={outcome} onChange={(event) => setOutcome(event.target.value)} /></label>
+            <label className={fieldLabelClassName}><span className="flex items-baseline justify-between">Descrição <small className="text-metadata font-medium text-muted">Opcional</small></span><textarea className={`${fieldControlClassName} min-h-[132px] resize-none`} rows={5} placeholder="Responsabilidades, limites e forma de entrega" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
           </div>
         )}
         {error && <p className="text-support text-status-error">Falha ao criar o Bot: {error.message}</p>}

@@ -14,9 +14,7 @@ const input = {
   provider: "codex" as const,
   function: {
     outcome: "Contratos prontos",
-    responsibilities: "Preparar propostas",
-    limits: "Não altera preços",
-    delivery: "Proposta para revisão",
+    description: "Preparar propostas",
   },
 }
 
@@ -221,7 +219,7 @@ describe("bots", () => {
 
     expect(observations).toContain(created.id)
     expect(observations).not.toContain(input.function.outcome)
-    expect(observations).not.toContain(input.function.responsibilities)
+    expect(observations).not.toContain(input.function.description)
     database.close()
   })
 })

@@ -126,7 +126,7 @@ describe("conversations", () => {
     const bot = await first.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     const events = await first.turn(bot.id, "Olá")
 
@@ -148,7 +148,7 @@ describe("conversations", () => {
     ])
     expect(events.filter((event) => event.type === "thinking-finished").every((event) => event.durationMs > 0)).toBe(true)
     expect(first.prompts).toEqual(["Olá"])
-    expect(first.instructions[0]).toStartWith("You are Atlas.\nExpected outcome: Answer\nResponsibilities: Help\nLimits: Be safe\nDelivery: Text\nUse the hire tool")
+    expect(first.instructions[0]).toStartWith("You are Atlas.\nExpected outcome: Answer\nResponsibilities, limits and delivery: Help\nUse the hire tool")
     expect(first.instructions[0]).toEndWith(voice)
     expect(first.conversations.history({ botId: bot.id }).map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
@@ -189,7 +189,7 @@ describe("conversations", () => {
     const bot = await environment.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
     await environment.conversations.abort({ botId: bot.id })
@@ -210,7 +210,7 @@ describe("conversations", () => {
     const bot = await environment.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     await environment.conversations.send({ botId: bot.id, content: "Quebre" })
     environment.sessions.get(bot.id)?.fail()
@@ -228,7 +228,7 @@ describe("conversations", () => {
     const bot = await first.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     first.database.conversations.append({ id: crypto.randomUUID(), botId: bot.id, author: "person", authorBotId: null, taskId: null, content: "Sem resposta", activity: null, ending: null, createdAt: new Date().toISOString() })
     first.conversations.dispose()
@@ -258,7 +258,7 @@ describe("conversations", () => {
     const bot = await environment.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     const events = environment.conversations.events()[Symbol.asyncIterator]()
     await environment.conversations.send({ botId: bot.id, content: "Olá" })
@@ -282,7 +282,7 @@ describe("conversations", () => {
     const bot = await environment.bots.create({
       name: "Atlas",
       provider: "codex",
-      function: { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" },
+      function: { outcome: "Answer", description: "Help" },
     })
     await environment.conversations.send({ botId: bot.id, content: "Pare depois" })
 

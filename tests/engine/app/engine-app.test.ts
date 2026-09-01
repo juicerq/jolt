@@ -19,7 +19,7 @@ import { engineContract } from "@src/shared/engine-contract"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-engine-app-")
-const botFunction = { outcome: "Answer", responsibilities: "Help", limits: "Be safe", delivery: "Text" }
+const botFunction = { outcome: "Answer", description: "Help" }
 
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
