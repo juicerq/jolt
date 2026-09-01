@@ -115,7 +115,7 @@ export function NewBot({ client }: { client: EngineClient }) {
                 <label className="relative">
                   <span className="sr-only">Vínculo</span>
                   <select className={`${chipClassName} appearance-none pr-8`} autoFocus value={workspace} onChange={(event) => setWorkspace(event.target.value)}>
-                    <option value="">Bot independente</option>
+                    <option value="">Sem projeto</option>
                     {projects.length > 0 && <optgroup label="Projetos">{projects.map((candidate) => <option value={`project:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
                     {leaders.length > 0 && <optgroup label="Líderes">{leaders.map((candidate) => <option value={`leader:${candidate.id}`} key={candidate.id}>{candidate.name}</option>)}</optgroup>}
                   </select>
