@@ -18,7 +18,7 @@ export function ChatMemberResult({ name, status = "done", time, content, open = 
         <span>{labels[status](name)}</span>
         <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
       </summary>
-      <div className="mt-2 mb-1 ml-[30px] border-l border-outline pl-3 text-secondary [&_*]:text-support">
+      <div className="relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-l before:border-y before:border-l before:border-outline mt-2 mb-1 ml-[14px] py-1 pl-4 text-secondary [&_*]:text-support">
         <ChatContent content={content} />
       </div>
     </details>
