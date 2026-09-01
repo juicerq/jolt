@@ -22,6 +22,24 @@ describe("ChatActivity", () => {
     expect(markup).not.toContain("**Planejando**")
   })
 
+  test("shows a single step as a flat line when opening it adds nothing", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [{ type: "thinking", content: "Analisando", durationMs: 1_000 }] }} />,
+    )
+
+    expect(markup).not.toContain("<summary")
+    expect(markup.match(/Pensou por 1s/g)).toHaveLength(1)
+  })
+
+  test("keeps a single step expandable when its detail is only visible open", () => {
+    const markup = renderToStaticMarkup(
+      <ChatActivity activity={{ steps: [{ type: "tool", name: "read", tools: [{ callId: "read-1", name: "read", detail: "README.md", status: "done" }] }] }} />,
+    )
+
+    expect(markup.match(/<summary/g)).toHaveLength(1)
+    expect(markup).toContain("README.md")
+  })
+
   test.each([
     [450, "menos de 1s"],
     [72_000, "1min 12s"],
@@ -155,6 +173,6 @@ describe("ChatActivity", () => {
     expect(live).toContain('aria-label="Atividade de delegação em andamento"')
     expect(live).not.toContain("Usando delegate")
     expect(history).toContain("Delegou para Iara")
-    expect(history).toContain('aria-label="Atividade de delegação concluída"')
+    expect(history).not.toContain("<summary")
   })
 })

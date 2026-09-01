@@ -63,6 +63,20 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
     return <LiveActivity activity={activity} botName={botName} status={status} />
   }
 
+  const [onlyStep] = activity.steps
+  const opensNothing = activity.steps.length === 1 && (onlyStep.type === "thinking" || getChatActivityStepDetails(onlyStep).length === 0)
+
+  if (opensNothing) {
+    return (
+      <div className="mb-3 grid gap-1.5 text-support text-muted">
+        <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px] rounded-lg px-[7px] py-[5px] [&_svg]:stroke-[1.75]">
+          <SparklesIcon className="size-4" aria-hidden="true" />
+          <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mb-3 grid gap-1.5 text-support text-muted">
       <details className="group/activity max-w-[620px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
