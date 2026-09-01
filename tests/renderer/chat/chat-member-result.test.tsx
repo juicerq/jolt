@@ -9,7 +9,7 @@ describe("ChatMemberResult", () => {
     expect(markup.match(/<summary/g)).toHaveLength(1)
     expect(markup).not.toMatch(/<details[^>]*\sopen/)
     expect(markup).toContain("Calo")
-    expect(markup).toContain("Calo entregou o Resultado")
+    expect(markup).toContain("Calo retornou")
     expect(markup).toContain("São Paulo: 21 °C")
   })
 
