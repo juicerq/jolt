@@ -87,7 +87,7 @@ export function ChatActivity({ activity, botName, status, waitingMessage }: { ac
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
-        <div className={steps.length === 1 ? "relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-l before:border-y before:border-l before:border-outline mt-1.5 mb-1 ml-[14px] grid py-1 pl-4" : "mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3"}>
+        <div className={steps.length === 1 ? "relative before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-2.5 before:rounded-l-[2px] before:border-y before:border-l before:border-outline mt-1.5 mb-1 ml-[14px] grid py-1 pl-4" : "mt-2 mr-0 mb-1 ml-[30px] grid gap-0.5 pl-3"}>
           {steps.map((step, index) => <ActivityStage key={`${step.type}-${index}`} step={step} mode={steps.length === 1 ? "solo" : "history"} />)}
         </div>
       </details>
