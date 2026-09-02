@@ -14,7 +14,7 @@ export function ChatModelEffort({ bot, client, disabled }: { bot: Bot; client: E
   const id = useId()
   const popoverId = `model-effort-${id.replace(/[^a-zA-Z0-9-]/g, "")}`
   const anchorName = `--${popoverId}`
-  const { data: providerModels } = useQuery(client.query.providers.models.queryOptions())
+  const { data: providerModels } = useQuery({ ...client.query.providers.models.queryOptions(), staleTime: Infinity })
   const catalog = providerModels?.find((entry) => entry.provider === bot.provider)
   const currentModelId = bot.model ?? catalog?.default
   const currentModel = catalog?.models.find((model) => model.id === currentModelId)

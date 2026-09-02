@@ -46,7 +46,6 @@ export function NewBot({ client }: { client: EngineClient }) {
   const { mutate, isPending, error } = useMutation(client.query.bots.create.mutationOptions({
     onSuccess(bot) {
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
-      queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
       selectBot(bot.id)
     },
   }))

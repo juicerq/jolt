@@ -94,9 +94,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
     refresh()
     setConfirmingClear(false)
   } }))
-  const { mutate: update, isPending: toggling, error: toggleError } = useMutation(client.query.bots.update.mutationOptions({ onSuccess(updated) {
-    queryClient.invalidateQueries({ queryKey: client.query.bots.get.queryOptions({ input: { id: updated.id } }).queryKey })
-    queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
+  const { mutate: update, isPending: toggling, error: toggleError } = useMutation(client.query.bots.update.mutationOptions({ onSuccess() {
     queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
   } }))
   const content = draft.trim()

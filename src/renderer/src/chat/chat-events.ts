@@ -66,7 +66,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: client.query.conversations.key() }),
+      queryClient.invalidateQueries({ queryKey: client.query.conversations.history.queryOptions({ input: { botId } }).queryKey }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       invalidateTeam(),
     ])
@@ -74,10 +74,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   }
 
   async function invalidateTeam() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: client.query.bots.key() }),
-      queryClient.invalidateQueries({ queryKey: client.query.projects.key() }),
-    ])
+    await queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
   }
 
   async function consume(events: AsyncIterable<BotConversationEvent>) {

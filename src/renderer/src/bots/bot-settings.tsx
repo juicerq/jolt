@@ -3,7 +3,6 @@ import { LinkIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "../../../shared/bots"
-import type { projectSchemas } from "../../../shared/projects"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
@@ -15,9 +14,8 @@ import { BotMemory } from "./bot-memory"
 import { BotRoutines } from "./bot-routines"
 import { BotSettingsSection } from "./bot-settings-section"
 import { forgetBot } from "./bots-store"
+import { teamOf } from "./team"
 import { WorkspaceHint } from "./workspace-hint"
-
-type ProjectGroups = typeof projectSchemas.groupedList.infer
 
 export type SettingsDraft = { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
 
@@ -56,14 +54,6 @@ export function settingsChange(bot: Bot, draft: SettingsDraft) {
   }
 }
 
-function teamOf(groups: ProjectGroups | undefined, bot: Bot) {
-  const leaders = groups ? [...groups.projects.flatMap((project) => project.bots), ...groups.unassignedBots] : []
-  const leader = bot.leaderBotId ? leaders.find((candidate) => candidate.id === bot.leaderBotId) : undefined
-  const members = leaders.find((candidate) => candidate.id === bot.id)?.members.filter((member) => !member.closed) ?? []
-
-  return { leader, members }
-}
-
 export function BotSettings({ bot, client, onClose }: { bot: Bot; client: EngineClient; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(() => draftOf(bot))
@@ -75,17 +65,13 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const selectedProject = projects.find((project) => project.id === draft.projectId)
   const { leader, members } = teamOf(projectGroups, bot)
   const { mutate: save, isPending: saving, error: saveError } = useMutation(client.query.bots.update.mutationOptions({
-    onSuccess(updated) {
-      queryClient.invalidateQueries({ queryKey: client.query.bots.get.queryOptions({ input: { id: updated.id } }).queryKey })
-      queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
+    onSuccess() {
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
       onClose()
     },
   }))
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.bots.remove.mutationOptions({
     onSuccess() {
-      queryClient.removeQueries({ queryKey: client.query.bots.get.queryKey({ input: { id: bot.id } }) })
-      queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
       forgetBot(bot.id)
     },

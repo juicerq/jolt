@@ -5,9 +5,7 @@ import type { EngineClient } from "../engine-client"
 export function useUpdateBot(bot: Bot, client: EngineClient) {
   const queryClient = useQueryClient()
   const { mutate, isPending } = useMutation(client.query.bots.update.mutationOptions({
-    onSuccess(updated) {
-      queryClient.invalidateQueries({ queryKey: client.query.bots.get.queryOptions({ input: { id: updated.id } }).queryKey })
-      queryClient.invalidateQueries({ queryKey: client.query.bots.list.queryOptions().queryKey })
+    onSuccess() {
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
     },
   }))

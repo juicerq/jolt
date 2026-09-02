@@ -6,6 +6,7 @@ import type { Bot } from "../../../shared/bots"
 import type { ConversationMessage, MessageImage } from "../../../shared/conversations"
 import type { TaskStatus } from "../../../shared/tasks"
 import type { EngineClient } from "../engine-client"
+import { teamNames } from "../bots/team"
 import { Button } from "../ui/button"
 import {
   type ChatDraft,
@@ -34,9 +35,9 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const [shown, setShown] = useState(recentMessageLimit)
   const historyOptions = client.query.conversations.history.queryOptions({ input: { botId: bot.id } })
   const { data: messages, error, isPending, isFetchedAfterMount } = useQuery(historyOptions)
-  const { data: allBots } = useQuery(client.query.bots.list.queryOptions())
+  const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const { data: tasks } = useQuery(client.query.tasks.listForLeader.queryOptions({ input: { leaderBotId: bot.id } }))
-  const names = Object.fromEntries((allBots ?? []).map((entry) => [entry.id, entry.name]))
+  const names = teamNames(groups)
   const taskStatuses = Object.fromEntries((tasks ?? []).map((task) => [task.id, task.status]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
   const { visible, hidden } = windowHistory(messages ?? [], shown)

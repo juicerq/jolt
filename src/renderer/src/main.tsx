@@ -6,7 +6,7 @@ import { createEngineClient } from "./engine-client"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./styles.css"
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
 const root = document.getElementById("root")
 
 if (!root) {
