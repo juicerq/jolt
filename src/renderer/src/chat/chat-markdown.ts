@@ -2,7 +2,6 @@ import type { Nodes } from "hast"
 import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime"
 import { createElement, type ReactElement } from "react"
 import { Fragment, jsx, jsxs } from "react/jsx-runtime"
-import { defaultUrlTransform } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
@@ -10,7 +9,22 @@ import { unified } from "unified"
 import { visit } from "unist-util-visit"
 
 const urlProperties = ["href", "src"] as const
+const urlDelimiters = ["/", "?", "#"]
+const safeProtocol = /^(https?|ircs?|mailto|xmpp)$/i
 const fenceLine = /^(`{3,}|~{3,})/gm
+
+function safeUrl(value: string) {
+  const colon = value.indexOf(":")
+  const firstDelimiter = Math.min(...urlDelimiters.map((mark) => value.indexOf(mark)).filter((index) => index !== -1))
+  const relative = colon === -1 || colon > firstDelimiter
+  const allowed = safeProtocol.test(value.slice(0, colon))
+
+  if (relative || allowed) {
+    return value
+  }
+
+  return ""
+}
 
 export function stableLength(content: string) {
   let boundary = content.lastIndexOf("\n\n")
@@ -47,7 +61,7 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
       if (node.type === "element") {
         for (const property of urlProperties) {
           if (Object.hasOwn(node.properties, property)) {
-            node.properties[property] = defaultUrlTransform(String(node.properties[property] ?? ""))
+            node.properties[property] = safeUrl(String(node.properties[property] ?? ""))
           }
         }
       }

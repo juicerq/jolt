@@ -28,6 +28,16 @@ describe("Markdown renderer", () => {
     expect(html).toContain("https://a.b")
     expect(html).not.toContain("javascript:")
   })
+
+  test("keeps relative, mailto, and query links with a colon after the path", () => {
+    const { render } = createMarkdownRenderer({ components: {}, cacheBytes: 1_000 })
+    const html = JSON.stringify(render("[a](docs/guia.md) [b](mailto:eu@x.y) [c](/busca?q=a:b) [d](data:text/html,x)"))
+
+    expect(html).toContain("docs/guia.md")
+    expect(html).toContain("mailto:eu@x.y")
+    expect(html).toContain("/busca?q=a:b")
+    expect(html).not.toContain("data:")
+  })
 })
 
 describe("streaming Markdown", () => {
