@@ -1,49 +1,43 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { observation } from "./observation"
 
-export const processState = type.enumerated("unknown", "starting", "ready", "stopping", "stopped", "failed")
-const authenticationState = type.enumerated("unknown", "authenticated", "unauthenticated")
+export const processState = z.enum(["unknown", "starting", "ready", "stopping", "stopped", "failed"])
+const authenticationState = z.enum(["unknown", "authenticated", "unauthenticated"])
 
-export const diagnosticsReport = type({
-  "+": "reject",
-  generatedAt: "string",
-  logPath: "string",
-  processes: {
-    "+": "reject",
+export const diagnosticsReport = z.strictObject({
+  generatedAt: z.string(),
+  logPath: z.string(),
+  processes: z.strictObject({
     engine: processState,
     main: processState,
-  },
-  versions: {
-    "+": "reject",
-    app: "string",
-    bun: "string",
-    electron: "string",
-  },
-  authentication: {
-    "+": "reject",
+  }),
+  versions: z.strictObject({
+    app: z.string(),
+    bun: z.string(),
+    electron: z.string(),
+  }),
+  authentication: z.strictObject({
     codex: authenticationState,
-  },
-  failures: observation.array(),
-  operations: type({
-    "+": "reject",
-    name: "string",
-    count: "number",
-    p50Ms: "number",
-    p95Ms: "number",
-    maximumMs: "number",
-  }).array(),
-  slowOperations: type({
-    "+": "reject",
-    name: "string",
-    durationMs: "number",
-    timestamp: "string",
-    "traceId?": "string",
-  }).array(),
+  }),
+  failures: z.array(observation),
+  operations: z.array(z.strictObject({
+    name: z.string(),
+    count: z.number(),
+    p50Ms: z.number(),
+    p95Ms: z.number(),
+    maximumMs: z.number(),
+  })),
+  slowOperations: z.array(z.strictObject({
+    name: z.string(),
+    durationMs: z.number(),
+    timestamp: z.string(),
+    traceId: z.string().optional(),
+  })),
 })
 
-export const diagnosticExportResult = type({
-  "+": "reject",
-  path: "string",
+export const diagnosticExportResult = z.strictObject({
+  path: z.string(),
 })
 
-export type DiagnosticsReport = typeof diagnosticsReport.infer
+export type DiagnosticsReport = z.infer<typeof diagnosticsReport>
+export type ProcessState = z.infer<typeof processState>

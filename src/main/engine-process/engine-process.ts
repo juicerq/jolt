@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcess } from "node:child_process"
-import { engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "../../shared/engine-ipc"
+import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "../../shared/engine-ipc"
+import { parse } from "../../shared/parse"
 
 type EngineProcessOptions = {
   executable: string
@@ -72,9 +73,9 @@ export class EngineProcess {
     this.stopping = false
     this.ready = false
 
-    const ready = await new Promise<typeof engineReadyMessage.infer>((resolve, reject) => {
+    const ready = await new Promise<EngineReadyMessage>((resolve, reject) => {
       let settled = false
-      const finish = (result: { ready: typeof engineReadyMessage.infer } | { error: unknown }) => {
+      const finish = (result: { ready: EngineReadyMessage } | { error: unknown }) => {
         if (settled) {
           return
         }
@@ -96,7 +97,7 @@ export class EngineProcess {
       const onExit = (code: number | null) => finish({ error: new Error(`Bun Engine exited before readiness with code ${code}`) })
       const onMessage = (message: unknown) => {
         try {
-          finish({ ready: engineReadyMessage.assert(message) })
+          finish({ ready: parse(engineReadyMessage, message) })
         } catch (error) {
           finish({ error })
         }
@@ -113,7 +114,7 @@ export class EngineProcess {
     })
 
     this.ready = true
-    await this.send(forwardedObservation.assert({
+    await this.send(parse(forwardedObservation, {
       type: "span",
       span: {
         name: "main.startup",
@@ -126,7 +127,7 @@ export class EngineProcess {
       },
     }))
 
-    return engineConnection.assert({ url: `http://127.0.0.1:${ready.port}/rpc`, token })
+    return parse(engineConnection, { url: `http://127.0.0.1:${ready.port}/rpc`, token })
   }
 
   async stop() {
@@ -142,11 +143,11 @@ export class EngineProcess {
     this.ready = false
   }
 
-  event(input: Omit<typeof forwardedObservationEvent.infer, "type">) {
-    return this.send(forwardedObservationEvent.assert({ type: "observation", ...input }))
+  event(input: Omit<ForwardedObservationEvent, "type">) {
+    return this.send(parse(forwardedObservationEvent, { type: "observation", ...input }))
   }
 
-  private send(message: typeof forwardedObservation.infer) {
+  private send(message: ForwardedObservation) {
     const child = this.child
 
     if (!child?.connected) {

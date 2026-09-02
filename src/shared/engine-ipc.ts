@@ -1,12 +1,12 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { externalObservationSpan, observationAttributes, observationContext, observationName } from "./observability/observation"
 
-export const engineReadyMessage = type({
-  type: type.enumerated("ready"),
-  port: "number.integer > 0",
+export const engineReadyMessage = z.object({
+  type: z.literal("ready"),
+  port: z.int().min(1),
 })
 
-export const loopbackHttpUrl = type("string").narrow((value) => {
+export const loopbackHttpUrl = z.string().refine((value) => {
   try {
     const url = new URL(value)
 
@@ -16,23 +16,26 @@ export const loopbackHttpUrl = type("string").narrow((value) => {
   }
 })
 
-export const engineConnection = type({
+export const engineConnection = z.object({
   url: loopbackHttpUrl,
-  token: "string > 0",
+  token: z.string().min(1),
 })
 
-export const forwardedObservationEvent = type({
-  "+": "reject",
-  type: type.enumerated("observation"),
+export const forwardedObservationEvent = z.strictObject({
+  type: z.literal("observation"),
   name: observationName,
-  "attributes?": observationAttributes,
-  "context?": observationContext,
+  attributes: observationAttributes.optional(),
+  context: observationContext.optional(),
 })
 
-export const forwardedObservationSpan = type({
-  "+": "reject",
-  type: type.enumerated("span"),
+export const forwardedObservationSpan = z.strictObject({
+  type: z.literal("span"),
   span: externalObservationSpan,
 })
 
-export const forwardedObservation = forwardedObservationEvent.or(forwardedObservationSpan)
+export const forwardedObservation = z.discriminatedUnion("type", [forwardedObservationEvent, forwardedObservationSpan])
+
+export type EngineReadyMessage = z.infer<typeof engineReadyMessage>
+export type EngineConnection = z.infer<typeof engineConnection>
+export type ForwardedObservationEvent = z.infer<typeof forwardedObservationEvent>
+export type ForwardedObservation = z.infer<typeof forwardedObservation>

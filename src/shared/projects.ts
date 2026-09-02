@@ -1,21 +1,23 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { botSchemas, workingDirectory } from "./bots"
 
-const project = type({
-  "+": "reject",
-  id: "string > 0",
-  name: "string > 0",
+const id = z.string().min(1)
+const project = z.strictObject({
+  id,
+  name: id,
   defaultWorkingDirectory: workingDirectory,
-  createdAt: "string > 0",
+  createdAt: id,
 })
-const botWithMembers = botSchemas.bot.merge({ members: botSchemas.bot.array() })
-const projectWithBots = project.merge({ bots: botWithMembers.array() })
+const botWithMembers = botSchemas.bot.extend({ members: z.array(botSchemas.bot) })
+const projectWithBots = project.extend({ bots: z.array(botWithMembers) })
+const groupedList = z.strictObject({ projects: z.array(projectWithBots), unassignedBots: z.array(botWithMembers) })
 
 export const projectSchemas = {
-  createInput: type({ "+": "reject", name: "string > 0", defaultWorkingDirectory: workingDirectory }),
+  createInput: z.strictObject({ name: id, defaultWorkingDirectory: workingDirectory }),
   project,
-  projectList: project.array(),
-  groupedList: type({ "+": "reject", projects: projectWithBots.array(), unassignedBots: botWithMembers.array() }),
+  projectList: z.array(project),
+  groupedList,
 }
 
-export type Project = typeof project.infer
+export type Project = z.infer<typeof project>
+export type ProjectGroups = z.infer<typeof groupedList>

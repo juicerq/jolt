@@ -12,6 +12,7 @@ import {
   type ObservationAttributes,
   type ObservationContext,
 } from "../../shared/observability/observation"
+import { parse } from "../../shared/parse"
 
 type EventInput = {
   name: string
@@ -94,7 +95,7 @@ function sanitizeAttributes(input?: Record<string, unknown>) {
       return undefined
     }
 
-    return observationAttributes.assert(candidate)
+    return parse(observationAttributes, candidate)
   } catch {
     process.stderr.write("Observation attributes could not be sanitized\n")
 
@@ -122,12 +123,12 @@ function normalizeError(error: unknown): NormalizedObservationError {
         ...(typeof stack === "string" ? { stack: redactText(stack) } : {}),
       }
 
-      return normalizedObservationError.assert(candidate)
+      return parse(normalizedObservationError, candidate)
     }
 
-    return normalizedObservationError.assert({ type: "UnknownError", message: redactText(safeString(error)) })
+    return parse(normalizedObservationError, { type: "UnknownError", message: redactText(safeString(error)) })
   } catch {
-    return normalizedObservationError.assert({ type: "UnknownError", message: "Unrepresentable error" })
+    return parse(normalizedObservationError, { type: "UnknownError", message: "Unrepresentable error" })
   }
 }
 
@@ -239,13 +240,13 @@ export function createObservationSystem(options: ObservationSystemOptions) {
   function contextFor(input?: ObservationContext) {
     const current = storage.getStore()
 
-    return observationContext.assert({ appSessionId: options.appSessionId, ...current, ...input })
+    return parse(observationContext, { appSessionId: options.appSessionId, ...current, ...input })
   }
 
   function event(input: EventInput) {
     const context = contextFor(input.context)
     const attributes = sanitizeAttributes(input.attributes)
-    const item = observation.assert({
+    const item = parse(observation, {
       kind: "event",
       name: input.name,
       timestamp: new Date().toISOString(),
@@ -261,7 +262,7 @@ export function createObservationSystem(options: ObservationSystemOptions) {
     const parent = contextFor(input.context)
     const attributes = sanitizeAttributes(input.attributes)
     const spanId = crypto.randomUUID()
-    const spanContext = observationContext.assert({
+    const spanContext = parse(observationContext, {
       ...parent,
       traceId: parent.traceId ?? crypto.randomUUID(),
       spanId,
@@ -270,7 +271,7 @@ export function createObservationSystem(options: ObservationSystemOptions) {
     const startedAt = performance.now()
 
     const finish = (failed: boolean, error?: unknown) => {
-      const item = observation.assert({
+      const item = parse(observation, {
         kind: "span",
         name: input.name,
         timestamp: new Date().toISOString(),
@@ -325,7 +326,7 @@ export function createObservationSystem(options: ObservationSystemOptions) {
 
   const receiver: ObservationReceiver = {
     span(input) {
-      write(observation.assert({
+      write(parse(observation, {
         kind: "span",
         level: input.outcome === "error" ? "error" : "info",
         appSessionId: options.appSessionId,

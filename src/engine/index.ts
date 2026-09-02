@@ -1,9 +1,10 @@
 import { RPCHandler } from "@orpc/server/fetch"
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
-import { type } from "arktype"
+import { z } from "zod"
 import { dirname, join } from "node:path"
 import { forwardedObservation } from "../shared/engine-ipc"
-import type { processState } from "../shared/observability/diagnostics"
+import type { ProcessState } from "../shared/observability/diagnostics"
+import { parse } from "../shared/parse"
 import { createEngineRouter } from "./app/engine-app"
 import { createDiagnostics } from "./observability/diagnostics"
 import { createObservationSystem } from "./observability/observability"
@@ -20,28 +21,29 @@ import { createTasks } from "./tasks/tasks"
 
 registerBunOAuthFlows()
 
-const environment = type({
-  BOT_TEAMS_ENGINE_TOKEN: "string > 0",
-  BOT_TEAMS_DATABASE_PATH: "string > 0",
-  BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: "string > 0",
-  "BOT_TEAMS_DEVELOPMENT?": type.enumerated("true", "false"),
-  "BOT_TEAMS_LOAD_PROVIDER?": type.enumerated("true", "false"),
-  "BOT_TEAMS_APP_VERSION?": "string > 0",
-  "BOT_TEAMS_ELECTRON_VERSION?": "string > 0",
-}).assert(process.env)
+const environmentSchema = z.object({
+  BOT_TEAMS_ENGINE_TOKEN: z.string().min(1),
+  BOT_TEAMS_DATABASE_PATH: z.string().min(1),
+  BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: z.string().min(1),
+  BOT_TEAMS_DEVELOPMENT: z.enum(["true", "false"]).optional(),
+  BOT_TEAMS_LOAD_PROVIDER: z.enum(["true", "false"]).optional(),
+  BOT_TEAMS_APP_VERSION: z.string().min(1).optional(),
+  BOT_TEAMS_ELECTRON_VERSION: z.string().min(1).optional(),
+})
+const environment = parse(environmentSchema, process.env)
 const startedAt = new Date().toISOString()
 const observationSystem = createObservationSystem({
   appSessionId: crypto.randomUUID(),
   logDirectory: join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "logs"),
   development: environment.BOT_TEAMS_DEVELOPMENT === "true",
 })
-let engineState: typeof processState.infer = "starting"
-let mainState: typeof processState.infer = "unknown"
+let engineState: ProcessState = "starting"
+let mainState: ProcessState = "unknown"
 let mainShutdown: { timestamp: string; startedAt: number } | undefined
 
 process.on("message", (message) => {
   try {
-    const input = forwardedObservation.assert(message)
+    const input = parse(forwardedObservation, message)
 
     if (input.type === "observation") {
       observationSystem.observability.event(input)

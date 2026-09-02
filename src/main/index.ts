@@ -2,8 +2,9 @@ import { access, stat } from "node:fs/promises"
 import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain } from "electron"
-import { type } from "arktype"
+import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
+import { parse } from "../shared/parse"
 import { EngineProcess } from "./engine-process/engine-process"
 
 if (process.env.JOLT_USER_DATA) {
@@ -53,7 +54,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
   ipcMain.handle("window:close", () => window.close())
   ipcMain.handle("working-directory:choose", async () => {
-    const selection = type({ "+": "delete", canceled: "boolean", filePaths: "string[]" }).assert(await dialog.showOpenDialog(window, {
+    const selection = parse(z.object({ canceled: z.boolean(), filePaths: z.array(z.string()) }), await dialog.showOpenDialog(window, {
       properties: ["openDirectory", "createDirectory"],
     }))
 
@@ -74,7 +75,7 @@ app.whenReady().then(async () => {
   })
 
   const loading = !app.isPackaged && process.env.ELECTRON_RENDERER_URL
-    ? window.loadURL(loopbackHttpUrl.assert(process.env.ELECTRON_RENDERER_URL))
+    ? window.loadURL(parse(loopbackHttpUrl, process.env.ELECTRON_RENDERER_URL))
     : window.loadFile(join(__dirname, "../renderer/index.html"))
 
   await starting

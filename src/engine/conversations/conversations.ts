@@ -8,6 +8,7 @@ import { conversationSchemas, type BotConversationEvent, type ConversationEvent,
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
+import { parse } from "../../shared/parse"
 
 const defaultTools = ["read", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
@@ -272,7 +273,7 @@ export function createConversations(input: {
 
   return {
     history(rawInput: unknown) {
-      const { botId, ...page } = conversationSchemas.historyInput.assert(rawInput)
+      const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
 
       if (!input.bots.get({ id: botId })) {
         throw new Error("Bot not found")
@@ -281,7 +282,7 @@ export function createConversations(input: {
       return input.database.conversations.history(botId, page)
     },
     related(rawInput: unknown) {
-      const { taskId } = conversationSchemas.taskInput.assert(rawInput)
+      const { taskId } = parse(conversationSchemas.taskInput, rawInput)
 
       if (!input.tasks.get(taskId)) {
         throw new Error("Tarefa not found")
@@ -313,7 +314,7 @@ export function createConversations(input: {
       return active.get(botId)?.message
     },
     async send(rawInput: unknown) {
-      const { botId, content, images } = conversationSchemas.sendInput.assert(rawInput)
+      const { botId, content, images } = parse(conversationSchemas.sendInput, rawInput)
       const empty = content.length === 0 && images.length === 0
 
       if (empty) {
@@ -326,7 +327,7 @@ export function createConversations(input: {
       await start(botId, { author: "routine", authorBotId: null, taskId: null, content, images: [] })
     },
     async abort(rawInput: unknown) {
-      const { botId } = conversationSchemas.botInput.assert(rawInput)
+      const { botId } = parse(conversationSchemas.botInput, rawInput)
 
       if (!active.has(botId)) {
         throw new Error("Bot is not working")

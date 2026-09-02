@@ -5,6 +5,7 @@ import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
+import { parse } from "../../shared/parse"
 
 type BotsDependencies = {
   database: AppDatabase
@@ -64,7 +65,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       ?? join(privateBotsDirectory, storedBot.id)
     const closed = storedBot.temporary && !workingAssigneeIds.has(storedBot.id)
 
-    return botSchemas.bot.assert({ ...storedBot, effectiveWorkingDirectory, closed })
+    return parse(botSchemas.bot, { ...storedBot, effectiveWorkingDirectory, closed })
   }
 
   async function store(storedBot: StoredBot) {
@@ -78,7 +79,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
 
   return {
     async create(rawInput: unknown) {
-      const input = botSchemas.createInput.assert(rawInput)
+      const input = parse(botSchemas.createInput, rawInput)
       const availableProviders = await providers.list()
       const selectedProvider = availableProviders.find((provider) => provider.provider === input.provider)
 
@@ -106,7 +107,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       })
     },
     hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
-      const details = botSchemas.hireInput.assert(rawDetails)
+      const details = parse(botSchemas.hireInput, rawDetails)
 
       return store({
         id: crypto.randomUUID(),
@@ -127,16 +128,16 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       const workingAssigneeIds = database.tasks.workingAssigneeIds()
       const listedBots = database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds))
 
-      return botSchemas.botList.assert(listedBots)
+      return parse(botSchemas.botList, listedBots)
     },
     get(rawInput: unknown) {
-      const input = botSchemas.idInput.assert(rawInput)
+      const input = parse(botSchemas.idInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
       return storedBot ? present(storedBot) : undefined
     },
     async update(rawInput: unknown) {
-      const input = botSchemas.updateInput.assert(rawInput)
+      const input = parse(botSchemas.updateInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
       if (!storedBot) {
@@ -181,7 +182,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       )
     },
     async remove(rawInput: unknown) {
-      const input = botSchemas.idInput.assert(rawInput)
+      const input = parse(botSchemas.idInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
       if (!storedBot) {
@@ -204,7 +205,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       )
     },
     async directory(rawInput: unknown) {
-      const input = botSchemas.idInput.assert(rawInput)
+      const input = parse(botSchemas.idInput, rawInput)
 
       if (!database.bots.get(input.id)) {
         throw new Error("Bot not found")
@@ -213,7 +214,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       return privateDirectory(input.id)
     },
     async resolveWorkingDirectory(rawInput: unknown) {
-      const input = botSchemas.idInput.assert(rawInput)
+      const input = parse(botSchemas.idInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
       if (!storedBot) {

@@ -1,91 +1,96 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { messageImageMimeTypes } from "./message-images"
 
-export const messageAuthor = type.enumerated("person", "bot", "routine")
-const optionalId = type("string > 0").or("null")
-const messageImage = type({ "+": "reject", data: "string > 0", mimeType: type.enumerated(...messageImageMimeTypes) })
-const conversationTool = type({
-  "+": "reject",
-  callId: "string > 0",
-  name: "string > 0",
-  "detail?": "string > 0",
-  "brief?": "string > 0",
-  status: type.enumerated("done", "failed"),
-  "error?": "string > 0",
+const id = z.string().min(1)
+export const messageAuthor = z.enum(["person", "bot", "routine"])
+const optionalId = id.nullable()
+const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMimeTypes) })
+const conversationTool = z.strictObject({
+  callId: id,
+  name: id,
+  detail: id.optional(),
+  brief: id.optional(),
+  status: z.enum(["done", "failed"]),
+  error: id.optional(),
 })
-const thinkingActivityStep = type({
-  "+": "reject",
-  type: type.enumerated("thinking"),
-  content: "string",
-  "durationMs?": "number.integer > 0",
+const thinkingActivityStep = z.strictObject({
+  type: z.literal("thinking"),
+  content: z.string(),
+  durationMs: z.int().positive().optional(),
 })
-const toolActivityStep = type({
-  "+": "reject",
-  type: type.enumerated("tool"),
-  name: "string > 0",
-  tools: conversationTool.array(),
+const toolActivityStep = z.strictObject({
+  type: z.literal("tool"),
+  name: id,
+  tools: z.array(conversationTool),
 })
-const conversationActivity = type({
-  "+": "reject",
-  steps: thinkingActivityStep.or(toolActivityStep).array(),
+const conversationActivity = z.strictObject({
+  steps: z.array(z.discriminatedUnion("type", [thinkingActivityStep, toolActivityStep])),
 })
-const turnEnding = type.enumerated("aborted", "failed", "closed")
-const message = type({
-  "+": "reject",
-  id: "string > 0",
-  botId: "string > 0",
+const turnEnding = z.enum(["aborted", "failed", "closed"])
+const message = z.strictObject({
+  id,
+  botId: id,
   author: messageAuthor,
   authorBotId: optionalId,
   taskId: optionalId,
-  content: "string",
-  images: messageImage.array(),
-  activity: conversationActivity.or("null"),
-  ending: turnEnding.or("null"),
-  createdAt: "string > 0",
+  content: z.string(),
+  images: z.array(messageImage),
+  activity: conversationActivity.nullable(),
+  ending: turnEnding.nullable(),
+  createdAt: id,
 })
-const incomingMessage = message.pick("author", "authorBotId", "taskId", "content", "images")
-const startedEvent = type({ "+": "reject", type: type.enumerated("started"), message: incomingMessage })
-const textEvent = type({ "+": "reject", type: type.enumerated("text"), text: "string" })
-const thinkingEvent = type({ "+": "reject", type: type.enumerated("thinking"), text: "string" })
-const thinkingStartedEvent = type({ "+": "reject", type: type.enumerated("thinking-started") })
-const thinkingFinishedEvent = type({ "+": "reject", type: type.enumerated("thinking-finished"), durationMs: "number.integer > 0" })
-const toolStartedEvent = type({
-  "+": "reject",
-  type: type.enumerated("tool-started"),
-  callId: "string > 0",
-  tool: "string > 0",
-  "detail?": "string > 0",
-  "brief?": "string > 0",
+const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, content: true, images: true })
+const startedEvent = z.strictObject({ type: z.literal("started"), message: incomingMessage })
+const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
+const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
+const thinkingStartedEvent = z.strictObject({ type: z.literal("thinking-started") })
+const thinkingFinishedEvent = z.strictObject({ type: z.literal("thinking-finished"), durationMs: z.int().positive() })
+const toolStartedEvent = z.strictObject({
+  type: z.literal("tool-started"),
+  callId: id,
+  tool: id,
+  detail: id.optional(),
+  brief: id.optional(),
 })
-const toolFinishedEvent = type({
-  "+": "reject",
-  type: type.enumerated("tool-finished"),
-  callId: "string > 0",
-  tool: "string > 0",
-  failed: "boolean",
-  "error?": "string > 0",
+const toolFinishedEvent = z.strictObject({
+  type: z.literal("tool-finished"),
+  callId: id,
+  tool: id,
+  failed: z.boolean(),
+  error: id.optional(),
 })
-const finishedEvent = type({ "+": "reject", type: type.enumerated("finished"), reason: type.enumerated("stop", "aborted", "error") })
-const event = startedEvent.or(textEvent).or(thinkingStartedEvent).or(thinkingEvent).or(thinkingFinishedEvent).or(toolStartedEvent).or(toolFinishedEvent).or(finishedEvent)
-const botEvent = type({ "+": "reject", botId: "string > 0", event })
+const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]) })
+const event = z.discriminatedUnion("type", [
+  startedEvent,
+  textEvent,
+  thinkingStartedEvent,
+  thinkingEvent,
+  thinkingFinishedEvent,
+  toolStartedEvent,
+  toolFinishedEvent,
+  finishedEvent,
+])
+const botEvent = z.strictObject({ botId: id, event })
+const history = z.strictObject({ messages: z.array(message), earlier: z.int().nonnegative() })
 
 export const conversationSchemas = {
-  botInput: type({ "+": "reject", botId: "string > 0" }),
-  historyInput: type({ "+": "reject", botId: "string > 0", "before?": "string > 0", limit: "1 <= number.integer <= 500" }),
-  history: type({ "+": "reject", messages: message.array(), earlier: "number.integer >= 0" }),
-  sendInput: type({ "+": "reject", botId: "string > 0", content: "string", images: messageImage.array() }),
-  taskInput: type({ "+": "reject", taskId: "string > 0" }),
+  botInput: z.strictObject({ botId: id }),
+  historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
+  history,
+  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage) }),
+  taskInput: z.strictObject({ taskId: id }),
   message,
-  messageList: message.array(),
+  messageList: z.array(message),
   event,
   botEvent,
 }
 
-export type ConversationMessage = typeof message.infer
-export type MessageImage = typeof messageImage.infer
-export type TurnEnding = typeof turnEnding.infer
-export type ConversationEvent = typeof event.infer
-export type FinishReason = typeof finishedEvent.infer["reason"]
-export type BotConversationEvent = typeof botEvent.infer
-export type IncomingMessage = typeof incomingMessage.infer
-export type ConversationActivity = typeof conversationActivity.infer
+export type ConversationMessage = z.infer<typeof message>
+export type MessageImage = z.infer<typeof messageImage>
+export type TurnEnding = z.infer<typeof turnEnding>
+export type ConversationEvent = z.infer<typeof event>
+export type FinishReason = z.infer<typeof finishedEvent>["reason"]
+export type BotConversationEvent = z.infer<typeof botEvent>
+export type IncomingMessage = z.infer<typeof incomingMessage>
+export type ConversationActivity = z.infer<typeof conversationActivity>
+export type HistoryPage = z.infer<typeof conversationSchemas.history>

@@ -3,7 +3,7 @@ import { providerAvailability } from "@src/shared/providers"
 
 describe("provider availability boundary", () => {
   test("rejects session data outside provider and status", () => {
-    expect(() => providerAvailability.assert({
+    expect(() => providerAvailability.parse({
       provider: "codex",
       status: "available",
       version: "0.151.0",

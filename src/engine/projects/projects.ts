@@ -3,6 +3,7 @@ import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { createBots } from "../bots/bots"
 import { assertAccessibleWorkingDirectory } from "./working-directory"
+import { parse } from "../../shared/parse"
 
 type ProjectsDependencies = {
   database: AppDatabase
@@ -19,7 +20,7 @@ export function createProjects({ database, observability, bots }: ProjectsDepend
 
   return {
     async create(rawInput: unknown) {
-      const input = projectSchemas.createInput.assert(rawInput)
+      const input = parse(projectSchemas.createInput, rawInput)
       await assertAccessibleWorkingDirectory(input.defaultWorkingDirectory)
       const project: Project = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() }
 
@@ -29,7 +30,7 @@ export function createProjects({ database, observability, bots }: ProjectsDepend
       )
     },
     list() {
-      const projects = projectSchemas.projectList.assert(database.projects.list())
+      const projects = parse(projectSchemas.projectList, database.projects.list())
       const allBots = bots.list()
       const output = {
         projects: projects.map((project) => ({
@@ -39,7 +40,7 @@ export function createProjects({ database, observability, bots }: ProjectsDepend
         unassignedBots: nestMembers(allBots.filter((bot) => bot.projectId === null)),
       }
 
-      return projectSchemas.groupedList.assert(output)
+      return parse(projectSchemas.groupedList, output)
     },
   }
 }

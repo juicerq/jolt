@@ -1,5 +1,6 @@
 import { conversationSchemas, type ConversationActivity, type ConversationEvent, type IncomingMessage } from "../../shared/conversations"
 import type { PiRuntimeEvent } from "../pi/pi-agent-runtime"
+import { parse } from "../../shared/parse"
 
 type ConversationStep = ConversationActivity["steps"][number]
 type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
@@ -38,7 +39,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           steps.push({ type: "thinking", content: runtimeEvent.text })
         }
 
-        return conversationSchemas.event.assert(runtimeEvent)
+        return parse(conversationSchemas.event, runtimeEvent)
       }
 
       if (runtimeEvent.type === "thinking-finished") {
@@ -57,7 +58,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           steps.push({ type: "tool", name: runtimeEvent.tool, tools: [tool] })
         }
 
-        return conversationSchemas.event.assert(runtimeEvent)
+        return parse(conversationSchemas.event, runtimeEvent)
       }
 
       if (runtimeEvent.type === "tool-finished") {
@@ -70,14 +71,14 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
             }
           : step)
 
-        return conversationSchemas.event.assert(runtimeEvent)
+        return parse(conversationSchemas.event, runtimeEvent)
       }
 
       if (runtimeEvent.type === "finished" && thinkingStartedAt !== undefined) {
         finishThinking()
       }
 
-      return conversationSchemas.event.assert(runtimeEvent)
+      return parse(conversationSchemas.event, runtimeEvent)
     },
     snapshot(): ConversationActivity {
       return {

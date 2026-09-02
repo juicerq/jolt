@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron"
-import type { engineConnection } from "../shared/engine-ipc"
+import type { EngineConnection } from "../shared/engine-ipc"
 
 contextBridge.exposeInMainWorld("desktop", {
-  getEngineConnection: (): Promise<typeof engineConnection.infer> => ipcRenderer.invoke("engine:get-connection"),
+  getEngineConnection: (): Promise<EngineConnection> => ipcRenderer.invoke("engine:get-connection"),
   chooseWorkingDirectory: (): Promise<string | null> => ipcRenderer.invoke("working-directory:choose"),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),

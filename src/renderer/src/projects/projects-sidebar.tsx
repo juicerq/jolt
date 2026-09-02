@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
-import type { projectSchemas } from "../../../shared/projects"
+import type { ProjectGroups } from "../../../shared/projects"
 import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -145,7 +145,7 @@ function BotSearch({ value, onChange }: { value: string; onChange: (value: strin
   )
 }
 
-function filterProjects(data: typeof projectSchemas.groupedList.infer, query: string) {
+function filterProjects(data: ProjectGroups, query: string) {
   const filterBots = (bots: (Bot & { members: Bot[] })[]) => bots.flatMap((bot) => {
     const leaderMatches = matchesSearch(bot, query)
     const matchingMembers = bot.members.filter((member) => matchesSearch(member, query))

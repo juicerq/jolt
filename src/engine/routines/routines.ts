@@ -5,6 +5,7 @@ import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
+import { parse } from "../../shared/parse"
 
 const minute = 60_000
 const longestWait = 60 * minute
@@ -79,19 +80,19 @@ function parseAt(text: string, now: Date) {
 
 function frequencyFrom(params: Record<string, string>, current?: Routine) {
   if (params.everyMinutes) {
-    return routineSchemas.frequency.assert({ form: "interval", everyMinutes: Number(params.everyMinutes) })
+    return parse(routineSchemas.frequency, { form: "interval", everyMinutes: Number(params.everyMinutes) })
   }
 
   if (params.inMinutes) {
-    return routineSchemas.frequency.assert({ form: "once", at: new Date(Date.now() + Number(params.inMinutes) * minute).toISOString() })
+    return parse(routineSchemas.frequency, { form: "once", at: new Date(Date.now() + Number(params.inMinutes) * minute).toISOString() })
   }
 
   if (params.at) {
-    return routineSchemas.frequency.assert({ form: "once", at: parseAt(params.at, new Date()).toISOString() })
+    return parse(routineSchemas.frequency, { form: "once", at: parseAt(params.at, new Date()).toISOString() })
   }
 
   if (params.days || params.time) {
-    return routineSchemas.frequency.assert({ form: "fixed-time", days: (params.days ?? "").split(",").map((day) => day.trim().toLowerCase()).filter(Boolean), time: params.time ?? "" })
+    return parse(routineSchemas.frequency, { form: "fixed-time", days: (params.days ?? "").split(",").map((day) => day.trim().toLowerCase()).filter(Boolean), time: params.time ?? "" })
   }
 
   if (current) {
@@ -170,7 +171,7 @@ export function createRoutines(input: {
   }
 
   function create(rawInput: unknown) {
-    const details = routineSchemas.createInput.assert(rawInput)
+    const details = parse(routineSchemas.createInput, rawInput)
     const bot = owner(details.botId)
     const now = new Date()
     const routine: Routine = { id: crypto.randomUUID(), ...details, enabled: true, nextCallAt: nextCall(details.frequency, now).toISOString(), createdAt: now.toISOString() }
@@ -184,7 +185,7 @@ export function createRoutines(input: {
   }
 
   function update(rawInput: unknown) {
-    const { id, ...changes } = routineSchemas.updateInput.assert(rawInput)
+    const { id, ...changes } = parse(routineSchemas.updateInput, rawInput)
     const routine = existing(id)
 
     return input.observability.span({ name: "routines.update", context: { botId: routine.botId } }, () => {
@@ -201,7 +202,7 @@ export function createRoutines(input: {
   }
 
   function remove(rawInput: unknown) {
-    const { id } = routineSchemas.idInput.assert(rawInput)
+    const { id } = parse(routineSchemas.idInput, rawInput)
     const routine = existing(id)
 
     input.observability.span({ name: "routines.remove", context: { botId: routine.botId } }, () => {
@@ -217,7 +218,7 @@ export function createRoutines(input: {
     update,
     remove,
     list(rawInput: unknown) {
-      const { botId } = routineSchemas.botInput.assert(rawInput)
+      const { botId } = parse(routineSchemas.botInput, rawInput)
 
       return input.database.routines.listForBot(botId)
     },

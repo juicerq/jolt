@@ -166,8 +166,8 @@ describe("memory", () => {
     await environment.send(bot.id, "x".repeat(memoryLimits.note + 1))
 
     expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages.filter((message) => message.author === "bot").map((message) => message.content)).toEqual([
-      expect.stringMatching(/^Error: .*must be non-empty/),
-      expect.stringMatching(new RegExp(`^Error: .*at most length ${memoryLimits.note}`)),
+      expect.stringMatching(/^Error: .*>=1 characters/),
+      expect.stringMatching(new RegExp(`^Error: .*<=${memoryLimits.note} characters`)),
     ])
     expect(environment.database.notes.listPending(bot.id)).toEqual([])
     await environment.close()

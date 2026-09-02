@@ -7,6 +7,7 @@ import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
 import { createCuration } from "./curation"
+import { parse } from "../../shared/parse"
 
 const defaultCurationWait = 5 * 60_000
 
@@ -148,7 +149,7 @@ export function createMemory(input: {
             throw new Error("You have no active turn")
           }
 
-          const note = memorySchemas.note.assert({ id: crypto.randomUUID(), botId: bot.id, content: params.content?.trim() ?? "", turnAuthor: turn.author, taskId: turn.taskId, messageId: turn.id, createdAt: new Date().toISOString(), curatedAt: null })
+          const note = parse(memorySchemas.note, { id: crypto.randomUUID(), botId: bot.id, content: params.content?.trim() ?? "", turnAuthor: turn.author, taskId: turn.taskId, messageId: turn.id, createdAt: new Date().toISOString(), curatedAt: null })
           input.observability.span({ name: "memory.note", context: { botId: bot.id, ...(turn.taskId ? { taskId: turn.taskId } : {}) } }, () => input.database.notes.create(note))
 
           return "Nota saved."
@@ -174,7 +175,7 @@ export function createMemory(input: {
       ].filter(Boolean).join("\n")
     },
     list(rawInput: unknown) {
-      const { botId } = memorySchemas.botInput.assert(rawInput)
+      const { botId } = parse(memorySchemas.botInput, rawInput)
 
       if (!input.bots.get({ id: botId })) {
         throw new Error("Bot not found")
@@ -183,7 +184,7 @@ export function createMemory(input: {
       return input.database.memories.listForBot(botId)
     },
     add(rawInput: unknown) {
-      const { botId, content } = memorySchemas.addInput.assert(rawInput)
+      const { botId, content } = parse(memorySchemas.addInput, rawInput)
       const bot = owner(botId)
 
       return input.observability.span({ name: "memory.add", context: { botId: bot.id } }, () => {
@@ -192,11 +193,11 @@ export function createMemory(input: {
         const createdAt = new Date().toISOString()
         input.database.memories.create({ id, botId: bot.id, content, origin: "person", noteId: null, createdAt })
 
-        return memorySchemas.memory.assert({ id, botId: bot.id, content, origin: "person", turnAuthor: null, createdAt })
+        return parse(memorySchemas.memory, { id, botId: bot.id, content, origin: "person", turnAuthor: null, createdAt })
       })
     },
     forget(rawInput: unknown) {
-      const { id } = memorySchemas.idInput.assert(rawInput)
+      const { id } = parse(memorySchemas.idInput, rawInput)
       const memory = input.database.memories.get(id)
 
       if (!memory) {
@@ -208,7 +209,7 @@ export function createMemory(input: {
       })
     },
     clear(rawInput: unknown) {
-      const { botId } = memorySchemas.botInput.assert(rawInput)
+      const { botId } = parse(memorySchemas.botInput, rawInput)
       const bot = owner(botId)
 
       input.observability.span({ name: "memory.clear", context: { botId: bot.id } }, () => {

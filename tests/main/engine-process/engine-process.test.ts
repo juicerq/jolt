@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { EngineProcess } from "@src/main/engine-process/engine-process"
 import { observation } from "@src/shared/observability/observation"
 import { testDirectory } from "../../support/test-directory"
+import { parse } from "@src/shared/parse"
 
 const directory = testDirectory("jolt-main-engine-")
 
@@ -32,7 +33,7 @@ describe("EngineProcess", () => {
     const observations = readFileSync(join(directory, "logs", logFile!), "utf8")
       .trim()
       .split("\n")
-      .map((line) => observation.assert(JSON.parse(line)))
+      .map((line) => parse(observation, JSON.parse(line)))
 
     expect(observations.some((item) => item.name === "main.startup" && item.kind === "span" && item.durationMs > 0)).toBe(true)
     expect(observations.some((item) => item.name === "main.shutdown" && item.kind === "span" && item.durationMs >= 0)).toBe(true)

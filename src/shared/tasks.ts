@@ -1,22 +1,22 @@
-import { type } from "arktype"
+import { z } from "zod"
 
-const taskStatus = type.enumerated("working", "done", "interrupted", "failed")
-const task = type({
-  "+": "reject",
-  id: "string > 0",
-  leaderBotId: "string > 0",
-  assigneeBotId: "string > 0",
-  outcome: "string > 0",
+const id = z.string().min(1)
+const taskStatus = z.enum(["working", "done", "interrupted", "failed"])
+const task = z.strictObject({
+  id,
+  leaderBotId: id,
+  assigneeBotId: id,
+  outcome: id,
   status: taskStatus,
-  createdAt: "string > 0",
-  finishedAt: type("string > 0").or("null"),
+  createdAt: id,
+  finishedAt: id.nullable(),
 })
 
 export const taskSchemas = {
-  leaderInput: type({ "+": "reject", leaderBotId: "string > 0" }),
+  leaderInput: z.strictObject({ leaderBotId: id }),
   task,
-  taskList: task.array(),
+  taskList: z.array(task),
 }
 
-export type Task = typeof task.infer
-export type TaskStatus = typeof taskStatus.infer
+export type Task = z.infer<typeof task>
+export type TaskStatus = z.infer<typeof taskStatus>

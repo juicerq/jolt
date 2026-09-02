@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util"
 import { join } from "node:path"
-import { observation } from "../src/shared/observability/observation"
+import { observation, type Observation } from "../src/shared/observability/observation"
+import { parse } from "../src/shared/parse"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, rounds: { type: "string", default: "5" }, "settle-ms": { type: "string", default: "7000" } } })
 const userData = join(process.cwd(), values["user-data"])
@@ -8,12 +9,12 @@ const logPath = join(userData, "logs", "observations.jsonl")
 const rounds = Number(values.rounds)
 const settleMs = Number(values["settle-ms"])
 
-type Span = Extract<typeof observation.infer, { kind: "span" }>
+type Span = Extract<Observation, { kind: "span" }>
 
 async function spansAfter(offset: number) {
   const text = await Bun.file(logPath).text()
 
-  return text.slice(offset).split("\n").filter(Boolean).map((line) => observation.assert(JSON.parse(line))).filter((item): item is Span => item.kind === "span")
+  return text.slice(offset).split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line))).filter((item): item is Span => item.kind === "span")
 }
 
 function firstSpan(spans: Span[], name: string) {

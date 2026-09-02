@@ -1,91 +1,88 @@
-import { type } from "arktype"
+import { z } from "zod"
 
-export const observationName = type("string").narrow((value) => /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/.test(value))
-const provider = type.enumerated("codex")
-const outcome = type.enumerated("ok", "error")
-const level = type.enumerated("info", "error")
+const id = z.string().min(1)
 
-export const observationAttributes = type({
-  "+": "reject",
-  "bytes?": "number",
-  "code?": "string",
-  "count?": "number",
-  "method?": "string",
-  "port?": "number",
-  "process?": "string",
-  "runtime?": "string",
-  "state?": "string",
-  "status?": "string",
-  "version?": "string",
+export const observationName = z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/)
+const provider = z.literal("codex")
+const outcome = z.enum(["ok", "error"])
+const level = z.enum(["info", "error"])
+
+export const observationAttributes = z.strictObject({
+  bytes: z.number().optional(),
+  code: z.string().optional(),
+  count: z.number().optional(),
+  method: z.string().optional(),
+  port: z.number().optional(),
+  process: z.string().optional(),
+  runtime: z.string().optional(),
+  state: z.string().optional(),
+  status: z.string().optional(),
+  version: z.string().optional(),
 })
 
-export const observationContext = type({
-  "+": "reject",
-  "appSessionId?": "string > 0",
-  "traceId?": "string > 0",
-  "spanId?": "string > 0",
-  "parentSpanId?": "string > 0",
-  "leaderBotId?": "string > 0",
-  "botId?": "string > 0",
-  "projectId?": "string > 0",
-  "taskId?": "string > 0",
-  "provider?": provider,
+export const observationContext = z.strictObject({
+  appSessionId: id.optional(),
+  traceId: id.optional(),
+  spanId: id.optional(),
+  parentSpanId: id.optional(),
+  leaderBotId: id.optional(),
+  botId: id.optional(),
+  projectId: id.optional(),
+  taskId: id.optional(),
+  provider: provider.optional(),
 })
 
-export const normalizedObservationError = type({
-  "+": "reject",
-  type: "string",
-  message: "string",
-  "code?": "string",
-  "stack?": "string",
+export const normalizedObservationError = z.strictObject({
+  type: z.string(),
+  message: z.string(),
+  code: z.string().optional(),
+  stack: z.string().optional(),
 })
 
 const baseObservation = {
-  "+": "reject" as const,
   name: observationName,
-  timestamp: "string" as const,
+  timestamp: z.string(),
   level,
-  "attributes?": observationAttributes,
-  "error?": normalizedObservationError,
-  "appSessionId?": "string > 0" as const,
-  "traceId?": "string > 0" as const,
-  "spanId?": "string > 0" as const,
-  "parentSpanId?": "string > 0" as const,
-  "leaderBotId?": "string > 0" as const,
-  "botId?": "string > 0" as const,
-  "projectId?": "string > 0" as const,
-  "taskId?": "string > 0" as const,
-  "provider?": provider,
+  attributes: observationAttributes.optional(),
+  error: normalizedObservationError.optional(),
+  appSessionId: id.optional(),
+  traceId: id.optional(),
+  spanId: id.optional(),
+  parentSpanId: id.optional(),
+  leaderBotId: id.optional(),
+  botId: id.optional(),
+  projectId: id.optional(),
+  taskId: id.optional(),
+  provider: provider.optional(),
 }
 
-const eventObservation = type({
+const eventObservation = z.strictObject({
   ...baseObservation,
-  kind: type.enumerated("event"),
+  kind: z.literal("event"),
 })
-const spanObservation = type({
+const spanObservation = z.strictObject({
   ...baseObservation,
-  kind: type.enumerated("span"),
-  durationMs: "number",
+  kind: z.literal("span"),
+  durationMs: z.number(),
   outcome,
 })
 
-export const observation = eventObservation.or(spanObservation)
+export const observation = z.discriminatedUnion("kind", [eventObservation, spanObservation])
 
-export const externalObservationSpan = type({
-  "+": "reject",
+export const externalObservationSpan = z.strictObject({
   name: observationName,
-  timestamp: "string",
-  durationMs: "number",
+  timestamp: z.string(),
+  durationMs: z.number(),
   outcome,
-  traceId: "string > 0",
-  spanId: "string > 0",
-  "parentSpanId?": "string > 0",
-  "attributes?": observationAttributes,
-  "error?": normalizedObservationError,
+  traceId: id,
+  spanId: id,
+  parentSpanId: id.optional(),
+  attributes: observationAttributes.optional(),
+  error: normalizedObservationError.optional(),
 })
 
-export type Observation = typeof observation.infer
-export type ObservationContext = typeof observationContext.infer
-export type ObservationAttributes = typeof observationAttributes.infer
-export type NormalizedObservationError = typeof normalizedObservationError.infer
-export type ExternalObservationSpan = typeof externalObservationSpan.infer
+export type Observation = z.infer<typeof observation>
+export type ObservationContext = z.infer<typeof observationContext>
+export type ObservationAttributes = z.infer<typeof observationAttributes>
+export type NormalizedObservationError = z.infer<typeof normalizedObservationError>
+export type ExternalObservationSpan = z.infer<typeof externalObservationSpan>

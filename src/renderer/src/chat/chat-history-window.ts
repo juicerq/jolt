@@ -1,6 +1,5 @@
-import type { conversationSchemas } from "../../../shared/conversations"
+import type { HistoryPage } from "../../../shared/conversations"
 
-type HistoryPage = typeof conversationSchemas.history.infer
 
 export const recentMessageLimit = 60
 export const earlierMessageBatch = 200

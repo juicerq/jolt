@@ -1,14 +1,15 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { diagnosticsReport, type processState } from "../../shared/observability/diagnostics"
+import { diagnosticsReport, type ProcessState } from "../../shared/observability/diagnostics"
 import type { Observation } from "../../shared/observability/observation"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { ObservationDiagnostics } from "./observability"
+import { parse } from "../../shared/parse"
 
 type DiagnosticsOptions = {
   source: ObservationDiagnostics
   versions: { app: string; bun: string; electron: string }
-  processState(): { engine: typeof processState.infer; main: typeof processState.infer }
+  processState(): { engine: ProcessState; main: ProcessState }
   migrationState(): string[]
   exportDirectory: string
   providerState?(): ProviderAvailability[]
@@ -79,7 +80,7 @@ export function createDiagnostics(options: DiagnosticsOptions) {
         ...(item.traceId ? { traceId: item.traceId } : {}),
       }))
 
-    return diagnosticsReport.assert({
+    return parse(diagnosticsReport, {
       generatedAt: new Date().toISOString(),
       logPath: options.source.logPath(),
       processes: options.processState(),

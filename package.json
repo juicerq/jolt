@@ -33,7 +33,6 @@
     "@orpc/tanstack-query": "1.15.0",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-store": "0.11.1",
-    "arktype": "2.2.3",
     "blobatar": "^2.7.0",
     "drizzle-orm": "1.0.0-rc.4",
     "hast-util-to-jsx-runtime": "2.3.6",
@@ -45,7 +44,8 @@
     "remark-parse": "11.0.0",
     "remark-rehype": "11.1.2",
     "unified": "11.0.5",
-    "unist-util-visit": "5.1.0"
+    "unist-util-visit": "5.1.0",
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4",

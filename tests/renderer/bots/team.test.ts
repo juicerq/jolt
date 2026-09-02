@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { findTeamBot, type ProjectGroups, teamNames, teamOf } from "@src/renderer/src/bots/team"
+import { findTeamBot, teamNames, teamOf } from "@src/renderer/src/bots/team"
+import type { ProjectGroups } from "@src/shared/projects"
 import type { Bot } from "@src/shared/bots"
 
 function bot(id: string, name: string, leaderBotId: string | null = null, closed = false): Bot {

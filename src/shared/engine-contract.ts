@@ -1,5 +1,5 @@
 import { eventIterator, oc } from "@orpc/contract"
-import { type } from "arktype"
+import { z } from "zod"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan } from "./observability/observation"
 import { providerAvailabilityList, providerModelsList } from "./providers"
@@ -10,10 +10,10 @@ import { projectSchemas } from "./projects"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
 
-const healthOutput = type({
-  status: type.enumerated("ready"),
-  runtime: "string",
-  startedAt: "string",
+const healthOutput = z.object({
+  status: z.literal("ready"),
+  runtime: z.string(),
+  startedAt: z.string(),
 })
 
 export const engineContract = {

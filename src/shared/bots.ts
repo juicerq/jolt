@@ -1,42 +1,45 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { botEfforts } from "./bot-efforts"
 import { providerName } from "./providers"
 
-const botFunction = type({ "+": "reject", outcome: "string > 0", "description?": "string > 0" })
-const botEffort = type.enumerated(...botEfforts)
-export const workingDirectory = type("string > 0")
-const optionalId = type("string > 0").or("null")
-const storedBot = type({
-  "+": "reject",
-  id: "string > 0",
+const id = z.string().min(1)
+const botFunction = z.strictObject({ outcome: id, description: id.optional() })
+const botEffort = z.enum(botEfforts)
+export const workingDirectory = z.string().min(1)
+const optionalId = id.nullable()
+const storedBot = z.strictObject({
+  id,
   leaderBotId: optionalId,
   projectId: optionalId,
-  name: "string > 0",
+  name: id,
   provider: providerName,
   function: botFunction,
-  workingDirectoryOverride: workingDirectory.or("null"),
-  temporary: "boolean",
-  memoryEnabled: "boolean",
+  workingDirectoryOverride: workingDirectory.nullable(),
+  temporary: z.boolean(),
+  memoryEnabled: z.boolean(),
   effort: botEffort,
   model: optionalId,
-  createdAt: "string > 0",
+  createdAt: id,
 })
-const bot = storedBot.merge({ effectiveWorkingDirectory: workingDirectory, closed: "boolean" })
-const createFields = { "+": "reject", name: "string > 0", provider: providerName, function: botFunction, "workingDirectoryOverride?": workingDirectory } as const
-const createInput = type({ ...createFields, "projectId?": "string > 0" }).or(type({ ...createFields, leaderBotId: "string > 0" }))
+const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean() })
+const createFields = { name: id, provider: providerName, function: botFunction, workingDirectoryOverride: workingDirectory.optional() }
+const createInput = z.union([
+  z.strictObject({ ...createFields, projectId: id.optional() }),
+  z.strictObject({ ...createFields, leaderBotId: id }),
+])
 
 export const botSchemas = {
   createInput,
-  hireInput: type({ "+": "reject", name: "string > 0", function: botFunction, permanent: "boolean" }),
-  idInput: type({ "+": "reject", id: "string > 0" }),
-  updateInput: type({ "+": "reject", id: "string > 0", name: "string > 0", function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.or("null"), memoryEnabled: "boolean", effort: botEffort, model: optionalId }),
+  hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean() }),
+  idInput: z.strictObject({ id }),
+  updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId }),
   storedBot,
-  storedBotList: storedBot.array(),
+  storedBotList: z.array(storedBot),
   bot,
-  botList: bot.array(),
+  botList: z.array(bot),
 }
 
-export type Bot = typeof bot.infer
-export type CreateBotInput = typeof createInput.infer
-export type StoredBot = typeof storedBot.infer
-export type BotEffort = typeof botEffort.infer
+export type Bot = z.infer<typeof bot>
+export type CreateBotInput = z.infer<typeof createInput>
+export type StoredBot = z.infer<typeof storedBot>
+export type BotEffort = z.infer<typeof botEffort>

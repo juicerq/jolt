@@ -1,42 +1,41 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { messageAuthor } from "./conversations"
 import { memoryLimits } from "./memory-limits"
 
-const optionalId = type("string > 0").or("null")
-const memoryContent = type("string > 0").atMostLength(memoryLimits.memory)
-const note = type({
-  "+": "reject",
-  id: "string > 0",
-  botId: "string > 0",
-  content: type("string > 0").atMostLength(memoryLimits.note),
+const id = z.string().min(1)
+const optionalId = id.nullable()
+const memoryContent = id.max(memoryLimits.memory)
+const note = z.strictObject({
+  id,
+  botId: id,
+  content: id.max(memoryLimits.note),
   turnAuthor: messageAuthor,
   taskId: optionalId,
   messageId: optionalId,
-  createdAt: "string > 0",
-  curatedAt: type("string > 0").or("null"),
+  createdAt: id,
+  curatedAt: id.nullable(),
 })
-const storedMemory = type({
-  "+": "reject",
-  id: "string > 0",
-  botId: "string > 0",
+const storedMemory = z.strictObject({
+  id,
+  botId: id,
   content: memoryContent,
-  origin: type.enumerated("person", "bot"),
+  origin: z.enum(["person", "bot"]),
   noteId: optionalId,
-  createdAt: "string > 0",
+  createdAt: id,
 })
-const memory = storedMemory.omit("noteId").merge({ turnAuthor: messageAuthor.or("null") })
+const memory = storedMemory.omit({ noteId: true }).extend({ turnAuthor: messageAuthor.nullable() })
 
 export const memorySchemas = {
-  botInput: type({ "+": "reject", botId: "string > 0" }),
-  idInput: type({ "+": "reject", id: "string > 0" }),
-  addInput: type({ "+": "reject", botId: "string > 0", content: memoryContent }),
+  botInput: z.strictObject({ botId: id }),
+  idInput: z.strictObject({ id }),
+  addInput: z.strictObject({ botId: id, content: memoryContent }),
   note,
-  noteList: note.array(),
+  noteList: z.array(note),
   storedMemory,
   memory,
-  memoryList: memory.array(),
+  memoryList: z.array(memory),
 }
 
-export type Note = typeof note.infer
-export type StoredMemory = typeof storedMemory.infer
-export type Memory = typeof memory.infer
+export type Note = z.infer<typeof note>
+export type StoredMemory = z.infer<typeof storedMemory>
+export type Memory = z.infer<typeof memory>

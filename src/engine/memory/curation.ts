@@ -4,6 +4,7 @@ import { memoryLimits, memoryUsage } from "../../shared/memory-limits"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
+import { parse } from "../../shared/parse"
 
 const rules = [
   "You curate the Memória of a Bot: you decide which Notas become Lembranças, which Lembranças change and which are forgotten. You have the remember, replace and forget tools and nothing else. Do not answer questions.",
@@ -72,7 +73,7 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
             throw new Error("Nota not found")
           }
 
-          const memory = memorySchemas.storedMemory.assert({ id: crypto.randomUUID(), botId, content: params.content?.trim() ?? "", origin: "bot", noteId: note.id, createdAt: new Date().toISOString() })
+          const memory = parse(memorySchemas.storedMemory, { id: crypto.randomUUID(), botId, content: params.content?.trim() ?? "", origin: "bot", noteId: note.id, createdAt: new Date().toISOString() })
           assertRoom(botId, memory.content)
           input.database.memories.create(memory)
 
@@ -85,7 +86,7 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
         parameters: { id: "Id of the Lembrança.", content: "The new text, as one self-contained sentence." },
         async execute(params) {
           const memory = existing(botId, params.id ?? "")
-          const updated = memorySchemas.storedMemory.assert({ ...memory, content: params.content?.trim() ?? "" })
+          const updated = parse(memorySchemas.storedMemory, { ...memory, content: params.content?.trim() ?? "" })
           assertRoom(botId, updated.content, memory.id)
           input.database.memories.update(memory.id, { content: updated.content })
 

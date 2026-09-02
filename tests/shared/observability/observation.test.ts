@@ -3,7 +3,7 @@ import { observation } from "@src/shared/observability/observation"
 
 describe("Observation envelope", () => {
   test("rejects undeclared fields", () => {
-    expect(() => observation.assert({
+    expect(() => observation.parse({
       kind: "event",
       name: "engine.started",
       timestamp: new Date().toISOString(),

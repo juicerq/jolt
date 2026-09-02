@@ -1,7 +1,5 @@
 import type { Bot } from "../../../shared/bots"
-import type { projectSchemas } from "../../../shared/projects"
-
-export type ProjectGroups = typeof projectSchemas.groupedList.infer
+import type { ProjectGroups } from "../../../shared/projects"
 
 export function teamLeaders(groups: ProjectGroups | undefined) {
   if (!groups) {

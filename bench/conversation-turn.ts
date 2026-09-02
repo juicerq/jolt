@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util"
 import { join } from "node:path"
 import { observation } from "../src/shared/observability/observation"
+import { parse } from "../src/shared/parse"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/jolt-turn.cpuprofile" } } })
 const logPath = join(process.cwd(), values["user-data"], "logs", "observations.jsonl")
@@ -18,7 +19,7 @@ function browser(...args: string[]) {
 async function finishedTurns() {
   const text = await Bun.file(logPath).text()
 
-  return text.split("\n").filter(Boolean).map((line) => observation.assert(JSON.parse(line))).filter((item) => item.kind === "event" && item.name === "conversation.finished")
+  return text.split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line))).filter((item) => item.kind === "event" && item.name === "conversation.finished")
 }
 
 async function waitForTurn(previous: number) {

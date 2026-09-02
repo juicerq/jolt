@@ -3,17 +3,18 @@ import { QueryClient } from "@tanstack/react-query"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { createEngineClient } from "@src/renderer/src/engine-client"
-import { engineReadyMessage } from "@src/shared/engine-ipc"
+import { type EngineReadyMessage, engineReadyMessage } from "@src/shared/engine-ipc"
 import { observation } from "@src/shared/observability/observation"
 import { testDirectory } from "../support/test-directory"
+import { parse } from "@src/shared/parse"
 
 const directory = testDirectory("jolt-engine-")
 
 describe("compiled Bun Engine", () => {
   test("requires its token, migrates its database, and exits on SIGTERM", async () => {
     const databasePath = join(directory, "test.sqlite")
-    let resolveReady: (message: typeof engineReadyMessage.infer) => void = () => undefined
-    const ready = new Promise<typeof engineReadyMessage.infer>((resolve) => {
+    let resolveReady: (message: EngineReadyMessage) => void = () => undefined
+    const ready = new Promise<EngineReadyMessage>((resolve) => {
       resolveReady = resolve
     })
     const child = Bun.spawn([join(process.cwd(), "dist-engine", "jolt-engine")], {
@@ -26,7 +27,7 @@ describe("compiled Bun Engine", () => {
       stdout: "pipe",
       stderr: "pipe",
       ipc(message) {
-        resolveReady(engineReadyMessage.assert(message))
+        resolveReady(parse(engineReadyMessage, message))
       },
     })
     const message = await ready
@@ -95,7 +96,7 @@ describe("compiled Bun Engine", () => {
     const observations = readFileSync(join(directory, "logs", logFile!), "utf8")
       .trim()
       .split("\n")
-      .map((line) => observation.assert(JSON.parse(line)))
+      .map((line) => parse(observation, JSON.parse(line)))
 
     expect(observations.some((item) => item.name === "orpc.health" && item.traceId === "renderer-trace")).toBe(true)
     const rendererSpan = observations.find((item) => item.name === "renderer.rpc")

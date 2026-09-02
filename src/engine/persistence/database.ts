@@ -18,6 +18,7 @@ import { routineSchemas } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 import { taskSchemas } from "../../shared/tasks"
 import { bots, conversations, memories, messages, notes, projects, routines, tasks } from "./schema"
+import { parse } from "../../shared/parse"
 
 function insertion(table: SQLiteTable) {
   return asc(sql`${table}.rowid`)
@@ -57,14 +58,14 @@ export function openDatabase(path: string, observability: Observability) {
       list() {
         return observability.span(
           { name: "database.projectlist" },
-          () => projectSchemas.projectList.assert(database.select().from(projects).orderBy(asc(projects.createdAt), insertion(projects)).all()),
+          () => parse(projectSchemas.projectList, database.select().from(projects).orderBy(asc(projects.createdAt), insertion(projects)).all()),
         )
       },
       get(id: string) {
         return observability.span({ name: "database.projectget", context: { projectId: id } }, () => {
           const row = database.select().from(projects).where(eq(projects.id, id)).get()
 
-          return row ? projectSchemas.project.assert(row) : undefined
+          return row ? parse(projectSchemas.project, row) : undefined
         })
       },
     },
@@ -76,12 +77,12 @@ export function openDatabase(path: string, observability: Observability) {
         })
       },
       list() {
-        return observability.span({ name: "database.botlist" }, () => botSchemas.storedBotList.assert(database.select().from(bots).orderBy(asc(bots.createdAt), insertion(bots)).all()))
+        return observability.span({ name: "database.botlist" }, () => parse(botSchemas.storedBotList, database.select().from(bots).orderBy(asc(bots.createdAt), insertion(bots)).all()))
       },
       get(id: string) {
         return observability.span({ name: "database.botget", context: { botId: id } }, () => {
           const row = database.select().from(bots).where(eq(bots.id, id)).get()
-          return row ? botSchemas.storedBot.assert(row) : undefined
+          return row ? parse(botSchemas.storedBot, row) : undefined
         })
       },
       update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled" | "effort" | "model">) {
@@ -98,7 +99,7 @@ export function openDatabase(path: string, observability: Observability) {
             return updated
           })
 
-          return row ? botSchemas.storedBot.assert(row) : undefined
+          return row ? parse(botSchemas.storedBot, row) : undefined
         })
       },
       remove(id: string) {
@@ -119,11 +120,11 @@ export function openDatabase(path: string, observability: Observability) {
           const oldest = rows.at(0)
           const earlier = oldest ? database.select({ value: count() }).from(messages).where(and(eq(messages.botId, botId), lt(messages.position, oldest.position))).get()?.value ?? 0 : 0
 
-          return conversationSchemas.history.assert({ messages: rows.map(({ position: _position, ...row }) => row), earlier })
+          return parse(conversationSchemas.history, { messages: rows.map(({ position: _position, ...row }) => row), earlier })
         })
       },
       related(taskId: string) {
-        return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => conversationSchemas.messageList.assert(
+        return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => parse(conversationSchemas.messageList, 
           database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(insertion(messages)).all(),
         ))
       },
@@ -131,7 +132,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.conversationlast" }, () => {
           const lastPositions = database.select({ botId: messages.botId, position: max(messages.position).as("position") }).from(messages).groupBy(messages.botId).as("last")
 
-          return conversationSchemas.messageList.assert(
+          return parse(conversationSchemas.messageList, 
             database.select(messageColumns).from(messages).innerJoin(lastPositions, and(eq(messages.botId, lastPositions.botId), eq(messages.position, lastPositions.position))).all(),
           )
         })
@@ -165,14 +166,14 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.taskget", context: { taskId: id } }, () => {
           const row = database.select().from(tasks).where(eq(tasks.id, id)).get()
 
-          return row ? taskSchemas.task.assert(row) : undefined
+          return row ? parse(taskSchemas.task, row) : undefined
         })
       },
       update(id: string, changes: Partial<Pick<Task, "assigneeBotId" | "status" | "finishedAt">>) {
         return observability.span({ name: "database.taskupdate", context: { taskId: id } }, () => {
           const row = database.update(tasks).set(changes).where(eq(tasks.id, id)).returning().get()
 
-          return row ? taskSchemas.task.assert(row) : undefined
+          return row ? parse(taskSchemas.task, row) : undefined
         })
       },
       interruptWorking(finishedAt: string) {
@@ -186,7 +187,7 @@ export function openDatabase(path: string, observability: Observability) {
         ))
       },
       listForLeader(leaderBotId: string) {
-        return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => taskSchemas.taskList.assert(
+        return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => parse(taskSchemas.taskList, 
           database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), insertion(tasks)).all(),
         ))
       },
@@ -203,16 +204,16 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.routineget" }, () => {
           const row = database.select().from(routines).where(eq(routines.id, id)).get()
 
-          return row ? routineSchemas.routine.assert(row) : undefined
+          return row ? parse(routineSchemas.routine, row) : undefined
         })
       },
       listForBot(botId: string) {
-        return observability.span({ name: "database.routinelist", context: { botId } }, () => routineSchemas.routineList.assert(
+        return observability.span({ name: "database.routinelist", context: { botId } }, () => parse(routineSchemas.routineList, 
           database.select().from(routines).where(eq(routines.botId, botId)).orderBy(asc(routines.createdAt), insertion(routines)).all(),
         ))
       },
       listEnabled() {
-        return observability.span({ name: "database.routinelistenabled" }, () => routineSchemas.routineList.assert(
+        return observability.span({ name: "database.routinelistenabled" }, () => parse(routineSchemas.routineList, 
           database.select().from(routines).where(eq(routines.enabled, true)).orderBy(asc(routines.nextCallAt), insertion(routines)).all(),
         ))
       },
@@ -220,7 +221,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.routineupdate" }, () => {
           const row = database.update(routines).set(changes).where(eq(routines.id, id)).returning().get()
 
-          return row ? routineSchemas.routine.assert(row) : undefined
+          return row ? parse(routineSchemas.routine, row) : undefined
         })
       },
       remove(id: string) {
@@ -236,7 +237,7 @@ export function openDatabase(path: string, observability: Observability) {
         })
       },
       listPending(botId: string) {
-        return observability.span({ name: "database.notelistpending", context: { botId } }, () => memorySchemas.noteList.assert(
+        return observability.span({ name: "database.notelistpending", context: { botId } }, () => parse(memorySchemas.noteList, 
           database.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt))).orderBy(asc(notes.createdAt), insertion(notes)).all(),
         ))
       },
@@ -268,11 +269,11 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.memoryget" }, () => {
           const row = database.select().from(memories).where(eq(memories.id, id)).get()
 
-          return row ? memorySchemas.storedMemory.assert(row) : undefined
+          return row ? parse(memorySchemas.storedMemory, row) : undefined
         })
       },
       listForBot(botId: string) {
-        return observability.span({ name: "database.memorylist", context: { botId } }, () => memorySchemas.memoryList.assert(
+        return observability.span({ name: "database.memorylist", context: { botId } }, () => parse(memorySchemas.memoryList, 
           database
             .select({ id: memories.id, botId: memories.botId, content: memories.content, origin: memories.origin, createdAt: memories.createdAt, turnAuthor: notes.turnAuthor })
             .from(memories)
@@ -286,7 +287,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.memoryupdate" }, () => {
           const row = database.update(memories).set(changes).where(eq(memories.id, id)).returning().get()
 
-          return row ? memorySchemas.storedMemory.assert(row) : undefined
+          return row ? parse(memorySchemas.storedMemory, row) : undefined
         })
       },
       remove(id: string) {

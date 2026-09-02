@@ -41,7 +41,7 @@ test("does not report a cancelled request as a failed RPC", async () => {
   }
 })
 
-test("bundles the Renderer's shared imports without arktype", async () => {
+test("bundles the Renderer's shared imports without schemas", async () => {
   const build = await Bun.build({
     entrypoints: [
       "src/renderer/src/engine-client.ts",
@@ -55,5 +55,5 @@ test("bundles the Renderer's shared imports without arktype", async () => {
   const sources = await Promise.all(build.outputs.map((output) => output.text()))
 
   expect(build.success).toBe(true)
-  expect(sources.some((source) => source.includes("ArkErrors"))).toBe(false)
+  expect(sources.some((source) => source.includes("unrecognized_keys"))).toBe(false)
 })

@@ -5,7 +5,7 @@ describe("project boundary", () => {
   test("accepts a name and default working directory", () => {
     const input = { name: "Jolt", defaultWorkingDirectory: "/projects/jolt" }
 
-    expect(projectSchemas.createInput.assert(input)).toEqual(input)
-    expect(() => projectSchemas.createInput.assert({ name: "Jolt" })).toThrow()
+    expect(projectSchemas.createInput.parse(input)).toEqual(input)
+    expect(() => projectSchemas.createInput.parse({ name: "Jolt" })).toThrow()
   })
 })

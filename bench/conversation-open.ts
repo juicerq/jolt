@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util"
 import { join } from "node:path"
 import { observation } from "../src/shared/observability/observation"
+import { parse } from "../src/shared/parse"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, rounds: { type: "string", default: "3" }, port: { type: "string", default: "9222" } } })
 const logPath = join(process.cwd(), values["user-data"], "logs", "observations.jsonl")
@@ -20,7 +21,7 @@ async function browser(...args: string[]) {
 async function openSpans() {
   const text = await Bun.file(logPath).text()
 
-  return text.split("\n").filter(Boolean).map((line) => observation.assert(JSON.parse(line))).filter((item) => item.kind === "span" && item.name === "renderer.conversationopen")
+  return text.split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line))).filter((item) => item.kind === "span" && item.name === "renderer.conversationopen")
 }
 
 async function waitForSpan(previous: number) {

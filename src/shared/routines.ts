@@ -1,32 +1,32 @@
-import { type } from "arktype"
+import { z } from "zod"
 import { weekdays } from "./weekdays"
 
-const weekday = type.enumerated(...weekdays)
-const interval = type({ "+": "reject", form: type.enumerated("interval"), everyMinutes: "number.integer >= 1" })
-const fixedTime = type({ "+": "reject", form: type.enumerated("fixed-time"), days: weekday.array().atLeastLength(1), time: /^([01]\d|2[0-3]):[0-5]\d$/ })
-const once = type({ "+": "reject", form: type.enumerated("once"), at: "string > 0" })
-const frequency = interval.or(fixedTime).or(once)
-const routine = type({
-  "+": "reject",
-  id: "string > 0",
-  botId: "string > 0",
-  content: "string > 0",
+const id = z.string().min(1)
+const weekday = z.enum(weekdays)
+const interval = z.strictObject({ form: z.literal("interval"), everyMinutes: z.int().min(1) })
+const fixedTime = z.strictObject({ form: z.literal("fixed-time"), days: z.array(weekday).min(1), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) })
+const once = z.strictObject({ form: z.literal("once"), at: id })
+const frequency = z.discriminatedUnion("form", [interval, fixedTime, once])
+const routine = z.strictObject({
+  id,
+  botId: id,
+  content: id,
   frequency,
-  enabled: "boolean",
-  nextCallAt: "string > 0",
-  createdAt: "string > 0",
+  enabled: z.boolean(),
+  nextCallAt: id,
+  createdAt: id,
 })
 
 export const routineSchemas = {
-  createInput: routine.pick("botId", "content", "frequency").merge({ "+": "reject" }),
-  updateInput: routine.pick("id", "content", "frequency", "enabled").merge({ "+": "reject" }),
-  idInput: type({ "+": "reject", id: "string > 0" }),
-  botInput: type({ "+": "reject", botId: "string > 0" }),
+  createInput: routine.pick({ botId: true, content: true, frequency: true }),
+  updateInput: routine.pick({ id: true, content: true, frequency: true, enabled: true }),
+  idInput: z.strictObject({ id }),
+  botInput: z.strictObject({ botId: id }),
   frequency,
   routine,
-  routineList: routine.array(),
+  routineList: z.array(routine),
 }
 
-export type Routine = typeof routine.infer
-export type Frequency = typeof frequency.infer
-export type Weekday = typeof weekday.infer
+export type Routine = z.infer<typeof routine>
+export type Frequency = z.infer<typeof frequency>
+export type Weekday = z.infer<typeof weekday>

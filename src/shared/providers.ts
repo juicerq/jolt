@@ -1,18 +1,19 @@
-import { type } from "arktype"
+import { z } from "zod"
 
-export const providerName = type.enumerated("codex")
-export const providerStatus = type.enumerated("available", "unauthenticated", "incompatible")
+const id = z.string().min(1)
 
-export const providerAvailability = type({
-  "+": "reject",
+export const providerName = z.enum(["codex"])
+export const providerStatus = z.enum(["available", "unauthenticated", "incompatible"])
+
+export const providerAvailability = z.strictObject({
   provider: providerName,
   status: providerStatus,
 })
 
-export const providerAvailabilityList = providerAvailability.array()
-const providerModel = type({ "+": "reject", id: "string > 0", name: "string > 0" })
-export const providerModels = type({ "+": "reject", provider: providerName, default: "string > 0", models: providerModel.array() })
-export const providerModelsList = providerModels.array()
+export const providerAvailabilityList = z.array(providerAvailability)
+const providerModel = z.strictObject({ id, name: id })
+export const providerModels = z.strictObject({ provider: providerName, default: id, models: z.array(providerModel) })
+export const providerModelsList = z.array(providerModels)
 
-export type ProviderAvailability = typeof providerAvailability.infer
-export type ProviderModels = typeof providerModels.infer
+export type ProviderAvailability = z.infer<typeof providerAvailability>
+export type ProviderModels = z.infer<typeof providerModels>
