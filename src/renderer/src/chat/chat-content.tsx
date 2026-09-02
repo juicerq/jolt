@@ -39,9 +39,9 @@ function ChatCodeBlock({ children }: { children?: ReactNode }) {
     : <code className={code?.props.className}>{content}</code>
 
   return (
-    <div className="relative my-4 rounded-xl border border-outline bg-canvas [&_.hljs-addition]:text-syntax-string [&_.hljs-attr]:text-syntax-string [&_.hljs-attribute]:text-syntax-string [&_.hljs-built_in]:text-syntax-keyword [&_.hljs-bullet]:text-syntax-number [&_.hljs-comment]:text-muted [&_.hljs-comment]:italic [&_.hljs-function]:text-syntax-title [&_.hljs-keyword]:text-syntax-keyword [&_.hljs-link]:text-primary [&_.hljs-literal]:text-syntax-number [&_.hljs-meta]:text-muted [&_.hljs-meta]:italic [&_.hljs-name]:text-syntax-title [&_.hljs-number]:text-syntax-number [&_.hljs-quote]:text-muted [&_.hljs-quote]:italic [&_.hljs-regexp]:text-primary [&_.hljs-section]:text-syntax-title [&_.hljs-selector-tag]:text-syntax-keyword [&_.hljs-string]:text-syntax-string [&_.hljs-symbol]:text-syntax-number [&_.hljs-template-variable]:text-primary [&_.hljs-title]:text-syntax-title [&_.hljs-type]:text-syntax-keyword [&_.hljs-variable]:text-primary">
+    <div className="chat-code relative my-4 rounded-xl border border-outline bg-canvas">
       <CopyCodeButton content={content} />
-      <pre className="m-0 overflow-x-auto rounded-[inherit] py-4 pr-12 pl-4"><span className="[&_code]:font-mono [&_code]:text-control [&_code]:leading-[1.65] [&_code]:font-normal [&_code]:whitespace-pre [&_code]:text-secondary">{codeContent}</span></pre>
+      <pre className="m-0 overflow-x-auto rounded-[inherit] py-4 pr-12 pl-4">{codeContent}</pre>
     </div>
   )
 }

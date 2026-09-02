@@ -95,6 +95,57 @@
 }
 
 @layer components {
+  .chat-code code {
+    font-family: var(--font-mono);
+    font-size: var(--text-control);
+    line-height: 1.65;
+    font-weight: 400;
+    white-space: pre;
+    color: var(--color-secondary);
+  }
+
+  .chat-code .hljs-addition,
+  .chat-code .hljs-attr,
+  .chat-code .hljs-attribute,
+  .chat-code .hljs-string {
+    color: var(--color-syntax-string);
+  }
+
+  .chat-code .hljs-built_in,
+  .chat-code .hljs-keyword,
+  .chat-code .hljs-selector-tag,
+  .chat-code .hljs-type {
+    color: var(--color-syntax-keyword);
+  }
+
+  .chat-code .hljs-bullet,
+  .chat-code .hljs-literal,
+  .chat-code .hljs-number,
+  .chat-code .hljs-symbol {
+    color: var(--color-syntax-number);
+  }
+
+  .chat-code .hljs-function,
+  .chat-code .hljs-name,
+  .chat-code .hljs-section,
+  .chat-code .hljs-title {
+    color: var(--color-syntax-title);
+  }
+
+  .chat-code .hljs-link,
+  .chat-code .hljs-regexp,
+  .chat-code .hljs-template-variable,
+  .chat-code .hljs-variable {
+    color: var(--color-primary);
+  }
+
+  .chat-code .hljs-comment,
+  .chat-code .hljs-meta,
+  .chat-code .hljs-quote {
+    font-style: italic;
+    color: var(--color-muted);
+  }
+
   .edge-tab-tongue::before,
   .edge-tab-tongue::after {
     content: "";

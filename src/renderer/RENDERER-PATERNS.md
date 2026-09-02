@@ -24,3 +24,7 @@ O Renderer não valida dados: o Bun Engine já validou tudo que envia. Importe d
 ## Scroll da conversa
 
 `ChatScroller` revela mensagens anteriores com `startTransition` e deixa a ancoragem de scroll do Chromium manter as mensagens em vista no lugar. A ancoragem não age com `scrollTop` em 0, por isso `revealAbove` garante 1 px antes de revelar, e o botão de revelar usa `overflow-anchor: none` para não virar a âncora.
+
+## Classes repetidas em massa
+
+Um `className` longo repetido em centenas de elementos custa na abertura da conversa: o Chromium tokeniza o atributo `class` de cada elemento criado. Estilo para descendentes de um elemento repetido, como as cores `hljs-*` dos blocos de código, fica numa classe própria em `styles.css` dentro de `@layer components`, hoje `.chat-code`. Uma variante arbitrária do Tailwind troca `_` por espaço, então `[&_.hljs-built_in]` nunca casa; a regra CSS não tem esse problema.
