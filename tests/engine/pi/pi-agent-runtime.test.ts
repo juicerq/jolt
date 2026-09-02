@@ -125,4 +125,20 @@ describe("deferred session factory", () => {
     expect(loads).toBe(1)
     expect(opened).toEqual(["a", "b", "c"])
   })
+
+  test("warms the deferred factory once before the first open", async () => {
+    let loads = 0
+    const factory = deferPiSessionFactory(async () => {
+      loads += 1
+
+      return { async open() {
+        return { prompt: async () => undefined, abort: async () => undefined, setTools() {}, subscribe: () => () => undefined, dispose() {} }
+      } }
+    })
+
+    await factory.warm()
+    await factory.open({ botId: "a", cwd: directory, tools: [], effort: "medium", model: null, policy: { botId: "a", allowedRoot: directory, grants: new Set<string>() }, decisions: [] })
+
+    expect(loads).toBe(1)
+  })
 })

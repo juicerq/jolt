@@ -95,6 +95,7 @@ function withCors(response: Response, origin: string | null | undefined) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
+const piWarmDelayMs = 1_000
 const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
@@ -108,9 +109,9 @@ const bots = createBots({
 })
 const projects = createProjects({ database, observability: observationSystem.observability, bots })
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
-const piSessionFactory = environment.BOT_TEAMS_LOAD_PROVIDER === "true"
-  ? createPiLoadSessionFactory()
-  : deferPiSessionFactory(async () => {
+const loadProvider = environment.BOT_TEAMS_LOAD_PROVIDER === "true"
+const deferredPiSessionFactory = deferPiSessionFactory(() =>
+  observationSystem.observability.span({ name: "pi.sdkload", context: { provider: "codex" } }, async () => {
     const { createPiSessionFactory } = await import("./pi/pi-session-adapter")
 
     return createPiSessionFactory({
@@ -118,7 +119,8 @@ const piSessionFactory = environment.BOT_TEAMS_LOAD_PROVIDER === "true"
       sessionsDirectory: join(piDirectory, "sessions"),
       modelId: codexDefaultModelId,
     })
-  })
+  }))
+const piSessionFactory = loadProvider ? createPiLoadSessionFactory() : deferredPiSessionFactory
 const piRuntime = createPiAgentRuntime(piSessionFactory, observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })
 const conversations = createConversations({
@@ -208,6 +210,12 @@ observationSystem.receiver.span({
 })
 
 process.send?.({ type: "ready", port: server.port })
+
+if (!loadProvider) {
+  setTimeout(() => {
+    deferredPiSessionFactory.warm().catch(() => undefined)
+  }, piWarmDelayMs)
+}
 
 let stopping = false
 

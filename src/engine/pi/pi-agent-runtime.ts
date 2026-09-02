@@ -45,13 +45,19 @@ export type PiSessionFactory = {
   }): Promise<PiSession>
 }
 
-export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): PiSessionFactory {
+export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): PiSessionFactory & { warm(): Promise<PiSessionFactory> } {
   let loading: Promise<PiSessionFactory> | undefined
 
+  function warm() {
+    loading ??= load()
+
+    return loading
+  }
+
   return {
+    warm,
     async open(input) {
-      loading ??= load()
-      const factory = await loading
+      const factory = await warm()
 
       return factory.open(input)
     },
