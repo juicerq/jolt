@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import { ChatWorkspace } from "../chat/chat-workspace"
 import type { EngineClient } from "../engine-client"
+import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
 import { BotSettings } from "./bot-settings"
 
@@ -12,7 +13,7 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   const { data, error, isPending } = useQuery(client.query.bots.get.queryOptions({ input: botId ? { id: botId } : skipToken }))
 
   if (!botId) {
-    return <div className="flex min-h-[460px] flex-col items-center justify-center gap-1.5 text-center text-support text-secondary max-[700px]:min-h-60"><strong className="text-section font-semibold text-primary">Escolha um Bot</strong><p>Abra um Bot da lista ou crie um novo.</p></div>
+    return <EmptyState title="Escolha um Bot" description="Abra um da lista ou crie um novo." />
   }
 
   if (error) {
