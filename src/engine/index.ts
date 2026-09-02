@@ -13,6 +13,7 @@ import { createConversations } from "./conversations/conversations"
 import { createMemory } from "./memory/memory"
 import { createPiAgentRuntime } from "./pi/pi-agent-runtime"
 import { createPiSessionFactory } from "./pi/pi-session-adapter"
+import { createPiLoadSessionFactory } from "./pi/pi-load-session"
 import { codexDefaultModelId, createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
 import { createRoutines } from "./routines/routines"
@@ -25,6 +26,7 @@ const environment = type({
   BOT_TEAMS_DATABASE_PATH: "string > 0",
   BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: "string > 0",
   "BOT_TEAMS_DEVELOPMENT?": type.enumerated("true", "false"),
+  "BOT_TEAMS_LOAD_PROVIDER?": type.enumerated("true", "false"),
   "BOT_TEAMS_APP_VERSION?": "string > 0",
   "BOT_TEAMS_ELECTRON_VERSION?": "string > 0",
 }).assert(process.env)
@@ -105,11 +107,13 @@ const bots = createBots({
 })
 const projects = createProjects({ database, observability: observationSystem.observability, bots })
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
-const piSessionFactory = createPiSessionFactory({
-  agentDirectory: join(piDirectory, "agent"),
-  sessionsDirectory: join(piDirectory, "sessions"),
-  modelId: codexDefaultModelId,
-})
+const piSessionFactory = environment.BOT_TEAMS_LOAD_PROVIDER === "true"
+  ? createPiLoadSessionFactory()
+  : createPiSessionFactory({
+    agentDirectory: join(piDirectory, "agent"),
+    sessionsDirectory: join(piDirectory, "sessions"),
+    modelId: codexDefaultModelId,
+  })
 const piRuntime = createPiAgentRuntime(piSessionFactory, observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })
 const conversations = createConversations({

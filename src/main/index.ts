@@ -20,6 +20,7 @@ const engine = new EngineProcess({
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
+  loadProvider: !app.isPackaged && process.env.JOLT_LOAD_PROVIDER === "true",
   onUnexpectedExit(error) {
     console.error(error)
     app.quit()

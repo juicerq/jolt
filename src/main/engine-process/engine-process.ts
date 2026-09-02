@@ -9,6 +9,7 @@ type EngineProcessOptions = {
   appVersion?: string
   electronVersion?: string
   development?: boolean
+  loadProvider?: boolean
   onUnexpectedExit?: (error: Error) => void
 }
 
@@ -48,6 +49,7 @@ export class EngineProcess {
         BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
         BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
         BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",
+        BOT_TEAMS_LOAD_PROVIDER: this.options.loadProvider ? "true" : "false",
       },
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     })
