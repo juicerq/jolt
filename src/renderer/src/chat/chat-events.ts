@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query"
 import type { BotConversationEvent, FinishReason } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
+import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
   appendChatText,
   appendChatThinking,
@@ -13,25 +14,34 @@ import {
 } from "./chat-store"
 
 const reconnectDelayMs = 1_000
+const chunkFlushDelayMs = 100
 const settledStatuses: Record<FinishReason, "available" | "completed" | "error"> = { stop: "completed", aborted: "available", error: "error" }
 
 export function subscribeChatEvents({ client, queryClient }: { client: Pick<EngineClient, "query" | "raw">; queryClient: QueryClient }) {
   const controller = new AbortController()
+  const chunks = createChatStreamBuffer({
+    delayMs: chunkFlushDelayMs,
+    flush(botId, kind, content) {
+      if (kind === "text") {
+        appendChatText(botId, content)
+        return
+      }
+
+      appendChatThinking(botId, content)
+    },
+  })
 
   async function handle({ botId, event }: BotConversationEvent) {
+    if (event.type === "text" || event.type === "thinking") {
+      chunks.push(botId, event.type, event.text)
+      return
+    }
+
+    chunks.drain(botId)
+
     if (event.type === "started") {
       startChatRun(botId, event.message)
-      await invalidateTeam()
-      return
-    }
-
-    if (event.type === "text") {
-      appendChatText(botId, event.text)
-      return
-    }
-
-    if (event.type === "thinking") {
-      appendChatThinking(botId, event.text)
+      void invalidateTeam().catch(() => undefined)
       return
     }
 
@@ -71,8 +81,12 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   }
 
   async function consume(events: AsyncIterable<BotConversationEvent>) {
-    for await (const entry of events) {
-      await handle(entry)
+    try {
+      for await (const entry of events) {
+        await handle(entry)
+      }
+    } finally {
+      chunks.drainAll()
     }
   }
 
