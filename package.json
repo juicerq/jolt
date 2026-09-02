@@ -16,6 +16,7 @@
     "bench:boot": "bun bench/boot.ts",
     "bench:typing": "bun bench/typing.ts",
     "bench:scroll": "bun bench/scroll.ts",
+    "bench:memory": "bun bench/memory.ts",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
