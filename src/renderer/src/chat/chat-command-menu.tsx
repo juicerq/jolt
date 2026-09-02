@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
-import { MenuLabel, MenuOption, menuCardClassName } from "../ui/menu"
+import { MenuOption, menuCardClassName } from "../ui/menu"
 import { type ChatCommandSuggestion, suggestChatCommands } from "./chat-commands"
 
 export function useChatCommands(bot: Bot, client: EngineClient, content: string) {
@@ -37,7 +37,6 @@ type ChatCommandMenuProps = {
 export function ChatCommandMenu({ id, suggestions, highlighted, onHighlight, onPick }: ChatCommandMenuProps) {
   return (
     <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-h-72 max-w-full overflow-y-auto`} id={id} role="listbox" aria-label="Comandos">
-      <MenuLabel id={`${id}-lembrar`}>/lembrar</MenuLabel>
       {suggestions.map((suggestion, index) => (
         <MenuOption key={suggestion.command} label={suggestion.label} detail={suggestion.detail} selected={index === highlighted} disabled={suggestion.content === null} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
       ))}

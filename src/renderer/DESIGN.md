@@ -435,10 +435,11 @@ responds; the next turn already uses the new choice.
 
 A draft that starts with `/` opens the Comando menu instead of sending. It
 shares the anatomy of the Modelo and Esforço menu and sits above the prompt,
-left-aligned: one section per Comando under its own label, such as
-`/lembrar`, split by dividers, with rows filtered by what follows the slash.
-Arrow keys move the highlighted row, Enter runs it, Escape hides
-the menu until the text changes, and running a Comando clears the prompt.
+left-aligned: one row per Comando that matches what follows the slash, the
+Comando itself as the row text and what it will do in muted metadata beside
+it. Arrow keys move the highlighted row, Tab completes the Comando in the
+prompt followed by one space, Enter runs it, Escape hides the menu until the
+text changes, and running a Comando clears the prompt.
 Rows without a runnable action, such as `/lembrar` before any text, read as
 disabled and explain what is missing in muted metadata type.
 

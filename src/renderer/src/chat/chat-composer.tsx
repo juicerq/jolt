@@ -6,6 +6,7 @@ import type { MessageImage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
+import { completeChatCommand } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
 import { ChatModelEffort } from "./chat-model-effort"
 import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftContent } from "./chat-store"
@@ -90,6 +91,19 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     if (event.key === "Escape") {
       event.preventDefault()
       setDismissedContent(draft.content)
+
+      return
+    }
+
+    if (event.key === "Tab") {
+      const suggestion = suggestions[active]
+
+      if (!suggestion) {
+        return
+      }
+
+      event.preventDefault()
+      setChatDraftContent(bot.id, completeChatCommand(suggestion))
 
       return
     }

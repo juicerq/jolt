@@ -25,8 +25,12 @@ export function suggestChatCommands(content: string, context: { memoryEnabled: b
 
   return [{
     command: "lembrar",
-    label: "Lembrar",
-    detail: rememberContent || "Escreva a Lembrança depois de /lembrar",
+    label: "/lembrar",
+    detail: rememberContent || "Escreva a Lembrança depois do comando",
     content: rememberContent || null,
   }]
+}
+
+export function completeChatCommand(suggestion: ChatCommandSuggestion) {
+  return `/${suggestion.command} ${suggestion.content ?? ""}`
 }
