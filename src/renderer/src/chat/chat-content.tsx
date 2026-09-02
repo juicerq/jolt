@@ -1,38 +1,33 @@
 import { CheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline"
 import { isValidElement, type ReactNode, useState } from "react"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { IconButton } from "../ui/icon-button"
 import { highlightChatCode } from "./chat-code-highlight"
+import { createMarkdownRenderer } from "./chat-markdown"
+
+const renderMarkdown = createMarkdownRenderer({
+  cacheBytes: 4_000_000,
+  components: {
+    a: ({ children, ...props }) => <a className="text-primary underline decoration-outline-strong underline-offset-3 hover:decoration-primary" {...props} target="_blank" rel="noreferrer">{children}</a>,
+    blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-outline-strong pl-4 text-secondary">{children}</blockquote>,
+    code: ({ children, className }) => <code className={`${className ?? ""} font-mono text-[0.88em] font-semibold text-inline-code`}>{children}</code>,
+    h1: ({ children }) => <h1 className="mt-6 mb-2 text-title font-semibold leading-[1.35] text-primary">{children}</h1>,
+    h2: ({ children }) => <h2 className="mt-6 mb-2 text-[17px] font-semibold leading-[1.35] text-primary">{children}</h2>,
+    h3: ({ children }) => <h3 className="mt-6 mb-2 text-section font-semibold leading-[1.35] text-primary">{children}</h3>,
+    h4: ({ children }) => <h4 className="mt-6 mb-2 text-section font-semibold leading-[1.35] text-primary">{children}</h4>,
+    hr: () => <hr className="my-6 h-px border-0 bg-outline" />,
+    li: ({ children }) => <li className="my-1 p-0 marker:text-muted">{children}</li>,
+    ol: ({ children }) => <ol className="my-2 mb-4 list-decimal pl-6">{children}</ol>,
+    p: ({ children }) => <p className="mt-0 mb-3 whitespace-normal">{children}</p>,
+    pre: ({ children }) => <ChatCodeBlock>{children}</ChatCodeBlock>,
+    table: ({ children }) => <div className="my-4 max-w-full overflow-x-auto rounded-xl border border-outline"><table className="w-full border-collapse text-control">{children}</table></div>,
+    td: ({ children }) => <td className="border-b border-outline px-3 py-[9px] text-left whitespace-nowrap [tr:last-child_&]:border-b-0">{children}</td>,
+    th: ({ children }) => <th className="border-b border-outline bg-surface-raised px-3 py-[9px] text-left font-semibold whitespace-nowrap text-secondary">{children}</th>,
+    ul: ({ children }) => <ul className="my-2 mb-4 list-disc pl-6">{children}</ul>,
+  },
+})
 
 export function ChatContent({ content }: { content: string }) {
-  return (
-    <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ children, ...props }) => <a className="text-primary underline decoration-outline-strong underline-offset-3 hover:decoration-primary" {...props} target="_blank" rel="noreferrer">{children}</a>,
-          blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-outline-strong pl-4 text-secondary">{children}</blockquote>,
-          code: ({ children, className }) => <code className={`${className ?? ""} font-mono text-[0.88em] font-semibold text-inline-code`}>{children}</code>,
-          h1: ({ children }) => <h1 className="mt-6 mb-2 text-title font-semibold leading-[1.35] text-primary">{children}</h1>,
-          h2: ({ children }) => <h2 className="mt-6 mb-2 text-[17px] font-semibold leading-[1.35] text-primary">{children}</h2>,
-          h3: ({ children }) => <h3 className="mt-6 mb-2 text-section font-semibold leading-[1.35] text-primary">{children}</h3>,
-          h4: ({ children }) => <h4 className="mt-6 mb-2 text-section font-semibold leading-[1.35] text-primary">{children}</h4>,
-          hr: () => <hr className="my-6 h-px border-0 bg-outline" />,
-          li: ({ children }) => <li className="my-1 p-0 marker:text-muted">{children}</li>,
-          ol: ({ children }) => <ol className="my-2 mb-4 list-decimal pl-6">{children}</ol>,
-          p: ({ children }) => <p className="mt-0 mb-3 whitespace-normal">{children}</p>,
-          pre: ({ children }) => <ChatCodeBlock>{children}</ChatCodeBlock>,
-          table: ({ children }) => <div className="my-4 max-w-full overflow-x-auto rounded-xl border border-outline"><table className="w-full border-collapse text-control">{children}</table></div>,
-          td: ({ children }) => <td className="border-b border-outline px-3 py-[9px] text-left whitespace-nowrap [tr:last-child_&]:border-b-0">{children}</td>,
-          th: ({ children }) => <th className="border-b border-outline bg-surface-raised px-3 py-[9px] text-left font-semibold whitespace-nowrap text-secondary">{children}</th>,
-          ul: ({ children }) => <ul className="my-2 mb-4 list-disc pl-6">{children}</ul>,
-        }}
-      >
-        {content}
-      </Markdown>
-    </div>
-  )
+  return <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">{renderMarkdown(content)}</div>
 }
 
 function ChatCodeBlock({ children }: { children?: ReactNode }) {
