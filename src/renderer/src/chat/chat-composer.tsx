@@ -25,7 +25,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
-  const { suggestions, run: runCommand } = useChatCommands(bot, client, draft.content)
+  const { suggestions, command, run: runCommand } = useChatCommands(bot, client, draft.content)
   const menuOpen = suggestions.length > 0 && draft.content !== dismissedContent && !run
   const active = Math.min(highlighted, suggestions.length - 1)
   const empty = draft.content.trim().length === 0 && draft.images.length === 0
@@ -43,6 +43,16 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   function handleSend() {
     if (empty || run) {
+      return
+    }
+
+    if (command) {
+      const ran = runCommand(command)
+
+      if (ran) {
+        setChatDraftContent(bot.id, "")
+      }
+
       return
     }
 
@@ -66,11 +76,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
-    const ran = runCommand(suggestion)
-
-    if (ran) {
-      setChatDraftContent(bot.id, "")
-    }
+    setChatDraftContent(bot.id, completeChatCommand(suggestion))
   }
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -95,20 +101,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
-    if (event.key === "Tab") {
-      const suggestion = suggestions[active]
-
-      if (!suggestion) {
-        return
-      }
-
-      event.preventDefault()
-      setChatDraftContent(bot.id, completeChatCommand(suggestion))
-
-      return
-    }
-
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
       event.preventDefault()
       pickCommand(active)
     }

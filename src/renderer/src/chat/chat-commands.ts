@@ -1,36 +1,41 @@
 export type ChatCommandSuggestion = {
   command: "lembrar"
-  label: string
   detail: string
-  content: string | null
 }
 
-export function isChatCommand(content: string) {
-  return content.startsWith("/") && !content.includes("\n")
+export type ChatCommand = {
+  command: "lembrar"
+  content: string
 }
 
-export function suggestChatCommands(content: string, context: { memoryEnabled: boolean }): ChatCommandSuggestion[] {
-  if (!isChatCommand(content) || !context.memoryEnabled) {
+type ChatCommandContext = { memoryEnabled: boolean }
+
+export function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {
+  const word = /^\/(\S*)$/.exec(content)?.[1]
+
+  if (word === undefined || !context.memoryEnabled) {
     return []
   }
 
-  const [name = ""] = content.slice(1).split(/\s+/)
-  const commandMatches = "lembrar".startsWith(name.toLowerCase())
+  const commandMatches = "lembrar".startsWith(word.toLowerCase())
 
   if (!commandMatches) {
     return []
   }
 
-  const rememberContent = content.slice(1).replace(/^\S*\s*/, "").trim()
-
-  return [{
-    command: "lembrar",
-    label: "/lembrar",
-    detail: rememberContent || "Escreva a Lembrança depois do comando",
-    content: rememberContent || null,
-  }]
+  return [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }]
 }
 
 export function completeChatCommand(suggestion: ChatCommandSuggestion) {
-  return `/${suggestion.command} ${suggestion.content ?? ""}`
+  return `/${suggestion.command} `
+}
+
+export function parseChatCommand(content: string, context: ChatCommandContext): ChatCommand | null {
+  const match = /^\/lembrar(?:\s+([\s\S]*))?$/i.exec(content)
+
+  if (!match || !context.memoryEnabled) {
+    return null
+  }
+
+  return { command: "lembrar", content: (match[1] ?? "").trim() }
 }

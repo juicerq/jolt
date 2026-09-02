@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 import { MenuOption, menuCardClassName } from "../ui/menu"
-import { type ChatCommandSuggestion, suggestChatCommands } from "./chat-commands"
+import { type ChatCommand, type ChatCommandSuggestion, parseChatCommand, suggestChatCommands } from "./chat-commands"
 
 export function useChatCommands(bot: Bot, client: EngineClient, content: string) {
   const queryClient = useQueryClient()
@@ -11,19 +11,21 @@ export function useChatCommands(bot: Bot, client: EngineClient, content: string)
       queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
     },
   }))
-  const suggestions = suggestChatCommands(content, { memoryEnabled: bot.memoryEnabled })
+  const context = { memoryEnabled: bot.memoryEnabled }
+  const suggestions = suggestChatCommands(content, context)
+  const command = parseChatCommand(content, context)
 
-  function run(suggestion: ChatCommandSuggestion) {
-    if (suggestion.content === null) {
+  function run(target: ChatCommand) {
+    if (target.content === "") {
       return false
     }
 
-    remember({ botId: bot.id, content: suggestion.content })
+    remember({ botId: bot.id, content: target.content })
 
     return true
   }
 
-  return { suggestions, run }
+  return { suggestions, command, run }
 }
 
 type ChatCommandMenuProps = {
@@ -38,7 +40,7 @@ export function ChatCommandMenu({ id, suggestions, highlighted, onHighlight, onP
   return (
     <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-h-72 max-w-full overflow-y-auto`} id={id} role="listbox" aria-label="Comandos">
       {suggestions.map((suggestion, index) => (
-        <MenuOption key={suggestion.command} label={suggestion.label} detail={suggestion.detail} selected={index === highlighted} disabled={suggestion.content === null} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
+        <MenuOption key={suggestion.command} label={`/${suggestion.command}`} detail={suggestion.detail} selected={index === highlighted} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
       ))}
     </div>
   )

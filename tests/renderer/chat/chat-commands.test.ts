@@ -1,33 +1,37 @@
 import { expect, test } from "bun:test"
-import { completeChatCommand, suggestChatCommands } from "@src/renderer/src/chat/chat-commands"
+import { completeChatCommand, parseChatCommand, suggestChatCommands } from "@src/renderer/src/chat/chat-commands"
 
-test.each(["/", "/l", "/LEM", "/lembrar"])("%s offers Lembrar without a Lembrança yet", (content) => {
-  const suggestions = suggestChatCommands(content, { memoryEnabled: true })
+const enabled = { memoryEnabled: true }
 
-  expect(suggestions).toEqual([{ command: "lembrar", label: "/lembrar", detail: "Escreva a Lembrança depois do comando", content: null }])
+test.each(["/", "/l", "/LEM", "/lembrar"])("%s offers /lembrar while the Comando word is being typed", (content) => {
+  expect(suggestChatCommands(content, enabled)).toEqual([{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }])
 })
 
-test("/lembrar carries the rest of the line as the Lembrança", () => {
-  const [suggestion] = suggestChatCommands("/lembrar  Prefere respostas curtas ", { memoryEnabled: true })
-
-  expect(suggestion?.content).toBe("Prefere respostas curtas")
-  expect(suggestion?.detail).toBe("Prefere respostas curtas")
+test.each(["/lembrar ", "/lembrar algo", "olá", "/x", "/lembrar\n"])("%s shows no menu", (content) => {
+  expect(suggestChatCommands(content, enabled)).toEqual([])
 })
 
-test("Lembrar is absent when the Bot's Memória is off", () => {
+test("the menu is absent when the Bot's Memória is off", () => {
   expect(suggestChatCommands("/lem", { memoryEnabled: false })).toEqual([])
 })
 
-test.each(["olá", "/x", "/modelo", "/lembrar\nalgo"])("%s is not a Comando", (content) => {
-  expect(suggestChatCommands(content, { memoryEnabled: true })).toEqual([])
+test("completing a suggestion writes the Comando and one space", () => {
+  expect(completeChatCommand({ command: "lembrar", detail: "" })).toBe("/lembrar ")
 })
 
 test.each([
-  ["/lem", "/lembrar "],
-  ["/lembrar", "/lembrar "],
-  ["/lem Prefere respostas curtas", "/lembrar Prefere respostas curtas"],
-])("Tab completes %s to %s", (content, completed) => {
-  const [suggestion] = suggestChatCommands(content, { memoryEnabled: true })
+  ["/lembrar  Prefere respostas curtas ", "Prefere respostas curtas"],
+  ["/lembrar", ""],
+  ["/lembrar ", ""],
+  ["/LEMBRAR duas\nlinhas", "duas\nlinhas"],
+])("%s parses as a /lembrar Comando", (content, remembered) => {
+  expect(parseChatCommand(content, enabled)).toEqual({ command: "lembrar", content: remembered })
+})
 
-  expect(completeChatCommand(suggestion!)).toBe(completed)
+test.each(["olá", "/lem", "/lembrarx algo", " /lembrar algo"])("%s is not a Comando", (content) => {
+  expect(parseChatCommand(content, enabled)).toBeNull()
+})
+
+test("a Comando is plain text when the Bot's Memória is off", () => {
+  expect(parseChatCommand("/lembrar algo", { memoryEnabled: false })).toBeNull()
 })
