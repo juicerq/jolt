@@ -24,7 +24,7 @@ export function MenuOption({ label, detail, selected, standard = false, disabled
   const tone = selected ? "bg-surface-active text-primary" : "bg-transparent text-secondary hover:bg-surface-hover hover:text-primary"
 
   return (
-    <button className={`flex w-full min-w-0 items-center gap-2 rounded-lg border-0 px-2 py-1.5 text-left text-control font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50 motion-reduce:transition-none ${tone}`} type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect} onMouseEnter={onHover}>
+    <button className={`mb-px flex w-full min-w-0 items-center gap-2 rounded-lg border-0 px-2 py-1.5 text-left text-control font-medium transition-colors duration-150 last:mb-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50 motion-reduce:transition-none ${tone}`} type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect} onMouseEnter={onHover}>
       <span className="shrink-0 first-letter:uppercase">{label}</span>
       {detail && <span className="min-w-0 truncate text-metadata font-normal text-muted">{detail}</span>}
       {standard && <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-px text-metadata font-medium text-muted">Padrão</span>}
