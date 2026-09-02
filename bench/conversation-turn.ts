@@ -1,41 +1,13 @@
 import { parseArgs } from "node:util"
-import { join } from "node:path"
-import { observation } from "../src/shared/observability/observation"
-import { parse } from "../src/shared/parse"
+import type { Observation } from "../src/shared/observability/observation"
+import { browser } from "./browser"
+import { observationLog, observations, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/jolt-turn.cpuprofile" } } })
-const logPath = join(process.cwd(), values["user-data"], "logs", "observations.jsonl")
+const logPath = observationLog(values["user-data"])
 
-function browser(...args: string[]) {
-  const result = Bun.spawnSync(["agent-browser", ...args])
-
-  if (result.exitCode !== 0) {
-    throw new Error(`agent-browser ${args.join(" ")} failed: ${result.stderr.toString()}`)
-  }
-
-  return result.stdout.toString()
-}
-
-async function finishedTurns() {
-  const text = await Bun.file(logPath).text()
-
-  return text.split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line))).filter((item) => item.kind === "event" && item.name === "conversation.finished")
-}
-
-async function waitForTurn(previous: number) {
-  const deadline = performance.now() + 60_000
-
-  while (performance.now() < deadline) {
-    const turns = await finishedTurns()
-
-    if (turns.length > previous) {
-      return turns.at(-1)
-    }
-
-    await Bun.sleep(100)
-  }
-
-  throw new Error("No turn finished in 60s")
+function isFinishedTurn(item: Observation) {
+  return item.kind === "event" && item.name === "conversation.finished"
 }
 
 type ProfileNode = { id: number; callFrame: { functionName: string } }
@@ -80,12 +52,12 @@ browser("connect", values.port)
 browser("find", "role", "button", "click", "--name", "de Leve com")
 await Bun.sleep(1_000)
 
-const before = (await finishedTurns()).length
+const before = (await observations(logPath)).filter(isFinishedTurn).length
 browser("profiler", "start")
 browser("find", "role", "combobox", "fill", "Revise o módulo de cobrança e liste o que precisa mudar.")
 browser("press", "Enter")
 
-const turn = await waitForTurn(before)
+const turn = (await waitForObservations(logPath, isFinishedTurn, before, 60_000)).at(-1)
 await Bun.sleep(500)
 browser("profiler", "stop", values.profile)
 
