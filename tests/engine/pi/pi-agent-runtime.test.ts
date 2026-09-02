@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdir, symlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { createObservationSystem } from "@src/engine/observability/observability"
-import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
+import { createPiAgentRuntime, deferPiSessionFactory, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { authorizeToolCall, pathIsInside } from "@src/engine/pi/pi-permissions"
 import { testDirectory } from "../../support/test-directory"
 
@@ -101,5 +101,28 @@ describe("Pi agent runtime", () => {
     expect(await authorizeToolCall(policy, "write", { path: "inside.txt" })).toEqual({ allowed: false, reason: "missing_permission" })
     expect(await authorizeToolCall(policy, "read", { path: "../outside.txt" })).toEqual({ allowed: false, reason: "path_outside_root" })
     expect(await authorizeToolCall(policy, "read", { path: "inside.txt" })).toEqual({ allowed: true })
+  })
+})
+
+describe("deferred session factory", () => {
+  test("loads the real factory once, on the first open", async () => {
+    let loads = 0
+    const opened: string[] = []
+    const factory = deferPiSessionFactory(async () => {
+      loads += 1
+
+      return { async open(input) {
+        opened.push(input.botId)
+
+        return { prompt: async () => undefined, abort: async () => undefined, setTools() {}, subscribe: () => () => undefined, dispose() {} }
+      } }
+    })
+    const input = { cwd: directory, tools: [], effort: "medium" as const, model: null, policy: { botId: "a", allowedRoot: directory, grants: new Set<string>() }, decisions: [] }
+
+    expect(loads).toBe(0)
+    await Promise.all([factory.open({ ...input, botId: "a" }), factory.open({ ...input, botId: "b" })])
+    await factory.open({ ...input, botId: "c" })
+    expect(loads).toBe(1)
+    expect(opened).toEqual(["a", "b", "c"])
   })
 })

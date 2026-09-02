@@ -1,4 +1,3 @@
-import { ModelRuntime } from "@earendil-works/pi-coding-agent"
 import type { ProviderAvailability, ProviderModels } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 
@@ -9,6 +8,7 @@ export const codexDefaultModelId = "gpt-5.6-luna"
 export function createPiProvider(
   observability: Observability,
   findAvailableModels = async (): Promise<readonly AvailableModel[]> => {
+    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent")
     const runtime = await ModelRuntime.create({ signal: AbortSignal.timeout(15_000) })
 
     return runtime.getAvailable("openai-codex")

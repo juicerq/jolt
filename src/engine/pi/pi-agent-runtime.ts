@@ -45,6 +45,19 @@ export type PiSessionFactory = {
   }): Promise<PiSession>
 }
 
+export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): PiSessionFactory {
+  let loading: Promise<PiSessionFactory> | undefined
+
+  return {
+    async open(input) {
+      loading ??= load()
+      const factory = await loading
+
+      return factory.open(input)
+    },
+  }
+}
+
 export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observability: Observability) {
   const sessions = new Map<string, { session: PiSession; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
   const decisions: PiPermissionDecision[] = []
