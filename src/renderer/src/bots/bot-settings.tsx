@@ -11,6 +11,7 @@ import { Select } from "../ui/select"
 import { useEscape } from "../ui/use-escape"
 import { lineClassName, revealClassName } from "./bot-form"
 import { BotMemory } from "./bot-memory"
+import { BotPlugins } from "./bot-plugins"
 import { BotRoutines } from "./bot-routines"
 import { BotSettingsSection } from "./bot-settings-section"
 import { forgetBot } from "./bots-store"
@@ -74,6 +75,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.bots.remove.mutationOptions({
     onSuccess() {
       queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
       forgetBot(bot.id)
     },
   }))
@@ -134,6 +136,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
         </form>
         {!bot.temporary && <BotRoutines bot={bot} client={client} />}
         <BotMemory bot={bot} client={client} {...(leader ? { leader } : {})} />
+        <BotPlugins bot={bot} client={client} />
         <section className="flex flex-col items-start gap-4 border-t border-outline pt-6" aria-label="Excluir Bot">
           {confirmingRemoval
             ? <BotRemoval bot={bot} members={members} removing={removing} failure={removeError?.message} onCancel={() => setConfirmingRemoval(false)} onConfirm={() => remove({ id: bot.id })} />

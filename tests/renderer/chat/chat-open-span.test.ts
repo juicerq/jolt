@@ -17,7 +17,7 @@ function recorder() {
 
 describe("conversation open span", () => {
   beforeEach(() => {
-    botsStore.setState(() => ({ selectedBotId: null, draft: null, dialog: null }))
+    botsStore.setState(() => ({ selectedBotId: null, draft: null, dialog: null, screen: null }))
   })
 
   test("reports one span from the click until the conversation is on screen", () => {

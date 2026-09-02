@@ -3,10 +3,12 @@ import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
 import type { BotPermissionMode } from "../../shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
+import { connectPluginTool } from "../../shared/plugins"
 
 type PiPermissionPolicyBase = {
   botId: string
   allowedRoot: string
+  labels?: Record<string, string>
 }
 
 export type PiPermissionPolicy =
@@ -69,11 +71,17 @@ function readDetail(input: unknown, field?: string) {
   return value
 }
 
-export function describeToolCall(id: string, tool: string, input: unknown): PermissionRequest {
+export function describeToolCall(id: string, tool: string, input: unknown, label?: string, cwd?: string): PermissionRequest {
+  if (label) {
+    const values = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {}
+
+    return { id, tool, label, arguments: values }
+  }
+
   const detail = readDetail(input, detailFields[tool] ?? "path")
   const brief = readDetail(input, briefFields[tool])
 
-  return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}) }
+  return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
 }
 
 export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
@@ -93,31 +101,57 @@ export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string
     return { allowed: false as const, reason: observes ? "path_outside_root" as const : "missing_permission" as const }
   }
 
-  const decision = await policy.request(describeToolCall(callId, tool, input))
+  if (tool === connectPluginTool) {
+    return { allowed: true as const }
+  }
+
+  const decision = await policy.request(describeToolCall(callId, tool, input, policy.labels?.[tool], policy.allowedRoot))
 
   if (decision === "denied") {
     return { allowed: false as const, reason: "person_denied" as const }
   }
 
-  return { allowed: true as const }
+  return { allowed: true as const, asked: true as const }
+}
+
+export const blockReasons = {
+  missing_permission: "Your permission mode does not allow this tool. Tell the person what you could not do; they can change the mode in your settings.",
+  path_outside_root: "The path is outside your working directory. In this mode you can only read inside it.",
+  person_denied: "The person denied this action. That is their decision, not an error. Do not retry it and do not do the same thing another way. Tell the person in one line what you did not do and ask how they want to continue.",
 }
 
 export function createPermissionExtension(policy: PiPermissionPolicy): InlineExtension {
   return {
     name: `permissions-${policy.botId}`,
     factory(pi: ExtensionAPI) {
+      const asked = new Set<string>()
+
       pi.on("tool_call", async (event) => {
         const authorization = await authorizeToolCall(policy, event.toolName, event.input, event.toolCallId)
 
         if (!authorization.allowed) {
-          const reasons = {
-            missing_permission: "This permission mode does not allow the tool",
-            path_outside_root: "The path is outside the working directory",
-            person_denied: "The person denied this tool call",
-          }
-
-          return { block: true, reason: reasons[authorization.reason] }
+          return { block: true, reason: blockReasons[authorization.reason] }
         }
+
+        if (authorization.asked) {
+          asked.add(event.toolCallId)
+        }
+      })
+
+      pi.on("tool_result", (event) => {
+        const decided = asked.delete(event.toolCallId)
+
+        if (!decided || event.isError) {
+          return
+        }
+
+        const [first, ...rest] = event.content
+
+        if (first?.type === "text") {
+          return { content: [{ type: "text", text: `The person allowed this action.\n\n${first.text}` }, ...rest] }
+        }
+
+        return { content: [{ type: "text", text: "The person allowed this action." }, ...event.content] }
       })
     },
   }

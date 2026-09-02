@@ -13,11 +13,13 @@ import type { ConversationMessage } from "../../shared/conversations"
 import { conversationSchemas } from "../../shared/conversations"
 import type { Note, StoredMemory } from "../../shared/memory"
 import { memorySchemas } from "../../shared/memory"
+import type { PluginAccess, StoredAccount, StoredPlugin } from "../../shared/plugins"
+import { pluginSchemas } from "../../shared/plugins"
 import type { Routine } from "../../shared/routines"
 import { routineSchemas } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 import { taskSchemas } from "../../shared/tasks"
-import { bots, conversations, memories, messages, notes, projects, routines, tasks } from "./schema"
+import { accesses, accounts, bots, conversations, memories, messages, notes, plugins, projects, routines, tasks } from "./schema"
 import { parse } from "../../shared/parse"
 
 function insertion(table: SQLiteTable) {
@@ -302,6 +304,79 @@ export function openDatabase(path: string, observability: Observability) {
       },
       removeForBot(botId: string) {
         return observability.span({ name: "database.memoryremoveforbot", context: { botId } }, () => database.delete(memories).where(eq(memories.botId, botId)).run().changes)
+      },
+    },
+    plugins: {
+      create(plugin: StoredPlugin) {
+        return observability.span({ name: "database.plugincreate", context: { pluginId: plugin.id } }, () => {
+          database.insert(plugins).values(plugin).run()
+
+          return plugin
+        })
+      },
+      list() {
+        return observability.span({ name: "database.pluginlist" }, () => parse(pluginSchemas.storedPluginList, database.select().from(plugins).orderBy(asc(plugins.createdAt), insertion(plugins)).all()))
+      },
+      get(id: string) {
+        return observability.span({ name: "database.pluginget", context: { pluginId: id } }, () => {
+          const row = database.select().from(plugins).where(eq(plugins.id, id)).get()
+
+          return row ? parse(pluginSchemas.storedPlugin, row) : undefined
+        })
+      },
+      remove(id: string) {
+        return observability.span({ name: "database.pluginremove", context: { pluginId: id } }, () => database.transaction((transaction) => {
+          transaction.delete(accounts).where(eq(accounts.pluginId, id)).run()
+
+          return transaction.delete(plugins).where(eq(plugins.id, id)).run().changes
+        }))
+      },
+    },
+    accounts: {
+      create(account: StoredAccount) {
+        return observability.span({ name: "database.accountcreate", context: { pluginId: account.pluginId } }, () => {
+          database.insert(accounts).values(account).run()
+
+          return account
+        })
+      },
+      list() {
+        return observability.span({ name: "database.accountlist" }, () => parse(pluginSchemas.storedAccountList, database.select().from(accounts).orderBy(asc(accounts.checkedAt), insertion(accounts)).all()))
+      },
+      get(id: string) {
+        return observability.span({ name: "database.accountget" }, () => {
+          const row = database.select().from(accounts).where(eq(accounts.id, id)).get()
+
+          return row ? parse(pluginSchemas.storedAccount, row) : undefined
+        })
+      },
+      update(id: string, changes: Partial<Pick<StoredAccount, "label" | "state" | "secret" | "tools" | "checkedAt">>) {
+        return observability.span({ name: "database.accountupdate" }, () => {
+          const row = database.update(accounts).set(changes).where(eq(accounts.id, id)).returning().get()
+
+          return row ? parse(pluginSchemas.storedAccount, row) : undefined
+        })
+      },
+      remove(id: string) {
+        return observability.span({ name: "database.accountremove" }, () => database.delete(accounts).where(eq(accounts.id, id)).run().changes)
+      },
+    },
+    accesses: {
+      list() {
+        return observability.span({ name: "database.accesslist" }, () => parse(pluginSchemas.accessList, database.select().from(accesses).all()))
+      },
+      listForBot(botId: string) {
+        return observability.span({ name: "database.accesslistforbot", context: { botId } }, () => parse(pluginSchemas.accessList, database.select().from(accesses).where(eq(accesses.botId, botId)).all()))
+      },
+      set(access: PluginAccess) {
+        return observability.span({ name: "database.accessset", context: { botId: access.botId, pluginId: access.pluginId } }, () => {
+          database.insert(accesses).values(access).onConflictDoUpdate({ target: [accesses.botId, accesses.pluginId], set: { accountId: access.accountId } }).run()
+
+          return access
+        })
+      },
+      remove(botId: string, pluginId: string) {
+        return observability.span({ name: "database.accessremove", context: { botId, pluginId } }, () => database.delete(accesses).where(and(eq(accesses.botId, botId), eq(accesses.pluginId, pluginId))).run().changes)
       },
     },
     migrationState() {

@@ -1,12 +1,13 @@
 import { Store } from "@tanstack/react-store"
 import type { ConversationActivity, IncomingMessage } from "../../../shared/conversations"
 import type { PermissionRequest } from "../../../shared/permissions"
+import type { PluginRequest } from "../../../shared/plugins"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
 type ConversationStep = ConversationActivity["steps"][number]
 type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
 type ToolStep = Extract<ConversationStep, { type: "tool" }>
-type ToolActivity = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" }
+type ToolActivity = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
 
 export type ChatActivityStep =
   | (ThinkingStep & { status: "running" | "done" })
@@ -19,6 +20,7 @@ export type ChatRun = {
   waitingMessage: string
   status: "running" | "aborting" | "failed"
   permissionRequests: PermissionRequest[]
+  pluginRequests: PluginRequest[]
   error?: string
 }
 
@@ -53,7 +55,7 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, responseContent: "", steps: [], permissionRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
+      [botId]: { message, responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -88,9 +90,9 @@ export function finishChatThinking(botId: string, durationMs: number) {
   }))
 }
 
-export function startChatTool(botId: string, { callId, tool: name, detail, brief }: { callId: string; tool: string; detail?: string; brief?: string }) {
+export function startChatTool(botId: string, { callId, tool: name, label, detail, brief }: { callId: string; tool: string; label?: string; detail?: string; brief?: string }) {
   updateRun(botId, (run) => {
-    const tool = { callId, name, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), status: "running" as const }
+    const tool = { callId, name, ...(label ? { label } : {}), ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), status: "running" as const }
     const lastStep = run.steps.at(-1)
 
     if (lastStep?.type === "tool" && lastStep.name === name) {
@@ -101,14 +103,14 @@ export function startChatTool(botId: string, { callId, tool: name, detail, brief
   })
 }
 
-export function finishChatTool(botId: string, callId: string, failed: boolean, error?: string) {
+export function finishChatTool(botId: string, callId: string, failed: boolean, error?: string, denied?: boolean) {
   updateRun(botId, (run) => ({
     ...run,
     steps: run.steps.map((step) => step.type === "tool"
       ? {
           ...step,
           tools: step.tools.map((tool) => tool.callId === callId
-            ? { ...tool, status: failed ? "failed" as const : "done" as const, ...(error ? { error } : {}) }
+            ? { ...tool, status: denied ? "denied" as const : failed ? "failed" as const : "done" as const, ...(error ? { error } : {}) }
             : tool),
         }
       : step),
@@ -124,7 +126,24 @@ export function resolveChatPermission(botId: string, requestId: string) {
   const permissionRequests = chatStore.state.runs[botId]?.permissionRequests.filter((request) => request.id !== requestId) ?? []
 
   updateRun(botId, (run) => ({ ...run, permissionRequests }))
-  setChatStatus(botId, permissionRequests.length === 0 ? "working" : "awaiting-decision")
+  settleDecision(botId)
+}
+
+export function requestChatPlugin(botId: string, request: PluginRequest) {
+  updateRun(botId, (run) => ({ ...run, pluginRequests: [...run.pluginRequests.filter((pending) => pending.id !== request.id), request] }))
+  setChatStatus(botId, "awaiting-decision")
+}
+
+export function resolveChatPlugin(botId: string, requestId: string) {
+  updateRun(botId, (run) => ({ ...run, pluginRequests: run.pluginRequests.filter((request) => request.id !== requestId) }))
+  settleDecision(botId)
+}
+
+function settleDecision(botId: string) {
+  const run = chatStore.state.runs[botId]
+  const pending = (run?.permissionRequests.length ?? 0) + (run?.pluginRequests.length ?? 0)
+
+  setChatStatus(botId, pending === 0 ? "working" : "awaiting-decision")
 }
 
 export function markChatAborting(botId: string) {

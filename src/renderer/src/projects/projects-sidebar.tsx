@@ -1,11 +1,11 @@
 import { Blobatar } from "@blobatar/react"
-import { ChevronDownIcon, FolderIcon, MagnifyingGlassIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ChevronDownIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
-import { botsStore, openCreateBot, openCreateProject, selectBot } from "../bots/bots-store"
+import { botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
@@ -40,7 +40,8 @@ const teamAvatarHoverClassNames = [
 
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
-  const selectedBotId = useSelector(botsStore, (state) => (state.draft === null ? state.selectedBotId : null))
+  const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
+  const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const [search, setSearch] = useState("")
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -58,6 +59,9 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
           </IconButton>
           <IconButton iconSize={16} size={28} type="button" label="Criar Bot" onClick={openCreateBot}>
             <UserPlusIcon aria-hidden="true" />
+          </IconButton>
+          <IconButton className={pluginsOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
+            <PuzzlePieceIcon aria-hidden="true" />
           </IconButton>
         </div>
       </div>

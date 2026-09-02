@@ -5,7 +5,7 @@ import { parse } from "../../shared/parse"
 type ConversationStep = ConversationActivity["steps"][number]
 type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
 type ToolStep = Extract<ConversationStep, { type: "tool" }>
-type ActiveTool = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" }
+type ActiveTool = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
 type ActiveStep =
   | (ThinkingStep & { startedAt?: number })
   | (Omit<ToolStep, "tools"> & { tools: ActiveTool[] })
@@ -49,7 +49,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
       }
 
       if (runtimeEvent.type === "tool-started") {
-        const tool = { callId: runtimeEvent.callId, name: runtimeEvent.tool, ...(runtimeEvent.detail ? { detail: runtimeEvent.detail } : {}), ...(runtimeEvent.brief ? { brief: runtimeEvent.brief } : {}), status: "running" as const }
+        const tool = { callId: runtimeEvent.callId, name: runtimeEvent.tool, ...(runtimeEvent.label ? { label: runtimeEvent.label } : {}), ...(runtimeEvent.detail ? { detail: runtimeEvent.detail } : {}), ...(runtimeEvent.brief ? { brief: runtimeEvent.brief } : {}), status: "running" as const }
         const lastStep = steps.at(-1)
 
         if (lastStep?.type === "tool" && lastStep.name === runtimeEvent.tool) {
@@ -66,7 +66,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           ? {
               ...step,
               tools: step.tools.map((tool) => tool.callId === runtimeEvent.callId
-                ? { ...tool, status: runtimeEvent.failed ? "failed" as const : "done" as const, ...(runtimeEvent.error ? { error: runtimeEvent.error } : {}) }
+                ? { ...tool, status: finishedStatus(runtimeEvent), ...(runtimeEvent.error ? { error: runtimeEvent.error } : {}) }
                 : tool),
             }
           : step)
@@ -110,4 +110,12 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
 
     return durationMs
   }
+}
+
+function finishedStatus(event: { failed: boolean; denied?: boolean }) {
+  if (event.denied) {
+    return "denied" as const
+  }
+
+  return event.failed ? "failed" as const : "done" as const
 }

@@ -6,6 +6,8 @@ import { createEngineRouter } from "@src/engine/app/engine-app"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
 import { createMemory } from "@src/engine/memory/memory"
+import { createPlugins } from "@src/engine/plugins/plugins"
+import { createSecrets } from "@src/engine/plugins/secrets"
 import { createDiagnostics } from "@src/engine/observability/diagnostics"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { openDatabase } from "@src/engine/persistence/database"
@@ -18,6 +20,7 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { subscribeChatEvents } from "@src/renderer/src/chat/chat-events"
 import { chatStore } from "@src/renderer/src/chat/chat-store"
 import { createEngineClient } from "@src/renderer/src/engine-client"
+import { fakePluginAdapter } from "../../support/fake-plugin-adapter"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-chat-events-")
@@ -60,6 +63,14 @@ function setup() {
   const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }, { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) }] })
   const routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
   const memory = createMemory({ database, bots, observability: system.observability, sessionFactory, conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() } })
+  const plugins = createPlugins({
+    database,
+    bots,
+    observability: system.observability,
+    secrets: createSecrets("00".repeat(32)),
+    adapters: { gmail: fakePluginAdapter("gmail").adapter, mcp: fakePluginAdapter("mcp").adapter },
+    conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
+  })
   const diagnostics = createDiagnostics({
     source: system.diagnostics,
     versions: { app: "0.0.0", bun: Bun.version, electron: "test" },
@@ -67,7 +78,7 @@ function setup() {
     migrationState: database.migrationState,
     exportDirectory: join(directory, "diagnostics"),
   })
-  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory, { decide: (decision) => runtime.resolvePermission(decision) }))
+  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory, { decide: (decision) => runtime.resolvePermission(decision) }, plugins))
   const server = Bun.serve({
     port: 0,
     async fetch(request) {

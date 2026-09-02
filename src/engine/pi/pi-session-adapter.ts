@@ -6,37 +6,75 @@ import {
   ModelRuntime,
   SessionManager,
   type AgentSessionEvent,
+  type ExtensionAPI,
+  type InlineExtension,
 } from "@earendil-works/pi-coding-agent"
+import type { TSchema } from "@earendil-works/pi-ai"
 import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
-import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
+import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name", note: "content" }
 const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions", routine: "content" }
 
-export function toPiTool(tool: PiCustomTool) {
+function toolSchema(tool: PiTool): TSchema {
+  if ("inputSchema" in tool) {
+    return tool.inputSchema as TSchema
+  }
+
+  return Type.Object(Object.fromEntries(Object.entries(tool.parameters).map(([name, description]) => name.endsWith("?")
+    ? [name.slice(0, -1), Type.Optional(Type.String({ description }))]
+    : [name, Type.String({ description })])))
+}
+
+export function toPiTool(tool: PiTool) {
   return defineTool({
     name: tool.name,
-    label: tool.name,
+    label: tool.label ?? tool.name,
     description: tool.description,
-    parameters: Type.Object(Object.fromEntries(Object.entries(tool.parameters).map(([name, description]) => name.endsWith("?")
-      ? [name.slice(0, -1), Type.Optional(Type.String({ description }))]
-      : [name, Type.String({ description })]))),
-    async execute(_toolCallId, params) {
-      const text = await tool.execute(params)
+    parameters: toolSchema(tool),
+    async execute(_toolCallId, params, signal) {
+      const text = "inputSchema" in tool ? await tool.execute(params as Record<string, unknown>, signal) : await tool.execute(params as Record<string, string>, signal)
 
       return { content: [{ type: "text", text }], details: {} }
     },
   })
 }
 
-function createEventNormalizer() {
-  let lastReason: "stop" | "aborted" | "error" = "error"
+function createToolRegistrar(botId: string) {
+  let api: ExtensionAPI | undefined
+  const extension: InlineExtension = {
+    name: `tools-${botId}`,
+    factory(pi: ExtensionAPI) {
+      api = pi
+    },
+  }
 
-  return (event: AgentSessionEvent): PiRuntimeEvent | undefined => {
+  return {
+    extension,
+    add(tools: PiTool[]) {
+      if (!api) {
+        throw new Error("Pi session is not loaded")
+      }
+
+      for (const tool of tools) {
+        api.registerTool(toPiTool(tool))
+      }
+
+      api.setActiveTools([...new Set([...api.getActiveTools(), ...tools.map((tool) => tool.name)])])
+    },
+  }
+}
+
+export function createEventNormalizer() {
+  let lastReason: "stop" | "aborted" | "error" = "error"
+  let interrupted = false
+
+  function normalize(event: AgentSessionEvent): PiRuntimeEvent | undefined {
     if (event.type === "agent_start") {
       lastReason = "error"
+      interrupted = false
 
       return { type: "started" }
     }
@@ -77,10 +115,19 @@ function createEventNormalizer() {
     }
 
     if (event.type === "agent_settled") {
-      return { type: "finished", reason: lastReason }
+      const reason = interrupted && lastReason !== "stop" ? "aborted" : lastReason
+
+      return { type: "finished", reason }
     }
 
     return undefined
+  }
+
+  return {
+    normalize,
+    abort() {
+      interrupted = true
+    },
   }
 }
 
@@ -157,15 +204,16 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         throw new Error(`Pi did not find the Codex model ${modelId}`)
       }
 
+      const registrar = createToolRegistrar(input.botId)
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy)],
+        extensionFactories: [createPermissionExtension(input.policy), registrar.extension],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,
         noContextFiles: true,
-        ...(input.instructions ? { appendSystemPrompt: [input.instructions] } : {}),
+        ...(input.instructions ? { systemPrompt: input.instructions } : {}),
       })
       await loader.reload()
       const sessionManager = openSessionManager(options.sessionsDirectory, input.cwd, input.sessionFile, input.ephemeral)
@@ -176,18 +224,23 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         thinkingLevel: input.effort,
         resourceLoader: loader,
         sessionManager,
-        tools: input.tools,
         customTools: (input.customTools ?? []).map(toPiTool),
       })
-      const normalizeEvent = createEventNormalizer()
+      result.session.setActiveToolsByName(input.tools)
+      const normalizer = createEventNormalizer()
 
       return {
         sessionFile: result.session.sessionFile ? basename(result.session.sessionFile) : undefined,
         prompt: (content, images = []) => result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) }),
-        abort: () => result.session.abort(),
+        abort() {
+          normalizer.abort()
+
+          return result.session.abort()
+        },
+        addTools: (tools) => registrar.add(tools),
         subscribe(listener) {
           return result.session.subscribe((event) => {
-            const normalized = normalizeEvent(event)
+            const normalized = normalizer.normalize(event)
 
             if (normalized) {
               listener(normalized)

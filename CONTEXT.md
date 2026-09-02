@@ -159,3 +159,19 @@ _Evitar_: Cron, expressão, agenda, schedule
 **Chamada**:
 Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Jolt estava fechado acontece uma única vez ao abrir.
 _Evitar_: Tick, execução, disparo, mensagem da pessoa
+
+**Plugin**:
+Um serviço externo que o Jolt sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.
+_Evitar_: Integração, conector, extensão, MCP como sinônimo de Plugin
+
+**Conta**:
+Uma credencial conectada a um Plugin, guardada cifrada no computador da pessoa, como um endereço do Gmail ou as variáveis de um servidor MCP. Um Plugin pode ter várias Contas; um servidor MCP tem exatamente uma, criada ao adicionar o Plugin. Uma Conta pode Precisar autenticar de novo sem perder os Acessos.
+_Evitar_: Conexão, credencial, login, token
+
+**Acesso**:
+A ligação entre um Bot e uma Conta: o Bot usa uma Conta por Plugin. A pessoa concede nas configurações do Bot, ou na Conversa quando o Bot pede pelo Pedido de Plugin. A Permissão do Bot vale para as ferramentas do Plugin como para as demais. Um Integrante temporário recebe só os Acessos que o Líder passa ao contratar.
+_Evitar_: Grant, vínculo, permissão do Plugin
+
+**Pedido de Plugin**:
+Uma solicitação feita durante a Conversa quando o Bot precisa de um Plugin sem Acesso ou quando a Conta precisa autenticar de novo. A pessoa escolhe uma Conta, conecta uma nova no navegador ou cancela; o Bot continua na mesma Conversa com as ferramentas prontas. Ele não passa por Pedido de permissão: pedir o Plugin já é a pergunta.
+_Evitar_: Pedido de permissão, autorização, OAuth

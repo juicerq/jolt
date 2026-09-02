@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { messageImageMimeTypes } from "./message-images"
 import { permissionSchemas } from "./permissions"
+import { pluginSchemas } from "./plugins"
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine"])
@@ -9,9 +10,10 @@ const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMim
 const conversationTool = z.strictObject({
   callId: id,
   name: id,
+  label: id.optional(),
   detail: id.optional(),
   brief: id.optional(),
-  status: z.enum(["done", "failed"]),
+  status: z.enum(["done", "failed", "denied"]),
   error: id.optional(),
 })
 const thinkingActivityStep = z.strictObject({
@@ -50,6 +52,7 @@ const toolStartedEvent = z.strictObject({
   type: z.literal("tool-started"),
   callId: id,
   tool: id,
+  label: id.optional(),
   detail: id.optional(),
   brief: id.optional(),
 })
@@ -58,10 +61,13 @@ const toolFinishedEvent = z.strictObject({
   callId: id,
   tool: id,
   failed: z.boolean(),
+  denied: z.boolean().optional(),
   error: id.optional(),
 })
 const permissionRequestedEvent = z.strictObject({ type: z.literal("permission-requested"), request: permissionSchemas.request })
 const permissionResolvedEvent = z.strictObject({ type: z.literal("permission-resolved"), requestId: id })
+const pluginRequestedEvent = z.strictObject({ type: z.literal("plugin-requested"), request: pluginSchemas.request })
+const pluginResolvedEvent = z.strictObject({ type: z.literal("plugin-resolved"), requestId: id })
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]) })
 const event = z.discriminatedUnion("type", [
   startedEvent,
@@ -73,6 +79,8 @@ const event = z.discriminatedUnion("type", [
   toolFinishedEvent,
   permissionRequestedEvent,
   permissionResolvedEvent,
+  pluginRequestedEvent,
+  pluginResolvedEvent,
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })

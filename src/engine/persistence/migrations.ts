@@ -6,6 +6,7 @@ import messageImages from "../../../drizzle/20260901224322_message-images/migrat
 import botEffort from "../../../drizzle/20260901225418_bot-effort/migration.sql" with { type: "text" }
 import botModel from "../../../drizzle/20260901225922_bot-model/migration.sql" with { type: "text" }
 import botPermission from "../../../drizzle/20260902153823_bot-permission/migration.sql" with { type: "text" }
+import plugins from "../../../drizzle/20260902190240_plugins/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -15,4 +16,5 @@ export const migrations = [
   { name: "20260901225418_bot-effort", timestamp: 1788303258000, sql: botEffort },
   { name: "20260901225922_bot-model", timestamp: 1788303562000, sql: botModel },
   { name: "20260902153823_bot-permission", timestamp: 1788374303000, sql: botPermission },
+  { name: "20260902190240_plugins", timestamp: 1788375760000, sql: plugins },
 ] satisfies MigrationsJournal

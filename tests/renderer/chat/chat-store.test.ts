@@ -12,7 +12,9 @@ import {
   startChatThinking,
   startChatTool,
   requestChatPermission,
+  requestChatPlugin,
   resolveChatPermission,
+  resolveChatPlugin,
 } from "@src/renderer/src/chat/chat-store"
 
 test("live chat groups consecutive tools without merging separate reasoning periods", () => {
@@ -74,4 +76,22 @@ test("permission decisions remove only their own pending request", () => {
   expect(chatStore.state.statuses[botId]).toBe("awaiting-decision")
 
   dismissChatRun(botId)
+})
+
+test("a plugin request holds the Bot in awaiting-decision until every request is resolved", () => {
+  const botId = crypto.randomUUID()
+  const request = { id: "r1", pluginId: "gmail", pluginName: "Gmail", accounts: [], connectable: true }
+
+  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Conecta o gmail", images: [] })
+  requestChatPlugin(botId, request)
+  requestChatPermission(botId, { id: "p1", tool: "bash", detail: "ls" })
+  expect(chatStore.state.statuses[botId]).toBe("awaiting-decision")
+  expect(chatStore.state.runs[botId]?.pluginRequests).toEqual([request])
+
+  resolveChatPermission(botId, "p1")
+  expect(chatStore.state.statuses[botId]).toBe("awaiting-decision")
+
+  resolveChatPlugin(botId, "r1")
+  expect(chatStore.state.runs[botId]?.pluginRequests).toEqual([])
+  expect(chatStore.state.statuses[botId]).toBe("working")
 })

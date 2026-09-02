@@ -3,7 +3,8 @@ import { mkdir, symlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { createPiAgentRuntime, deferPiSessionFactory, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
-import { authorizeToolCall, describeToolCall, pathIsInside } from "@src/engine/pi/pi-permissions"
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
+import { authorizeToolCall, createPermissionExtension, describeToolCall, pathIsInside } from "@src/engine/pi/pi-permissions"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-pi-runtime-")
@@ -99,8 +100,10 @@ describe("Pi agent runtime", () => {
     expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "read-only" }, "write", { path: "inside.txt" }, "write-1")).toEqual({ allowed: false, reason: "missing_permission" })
     expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "read-only" }, "read", { path: "../outside.txt" }, "read-1")).toEqual({ allowed: false, reason: "path_outside_root" })
     expect(await authorizeToolCall(ask, "read", { path: "inside.txt" }, "read-2")).toEqual({ allowed: true })
-    expect(await authorizeToolCall(ask, "read", { path: "../outside.txt" }, "read-3")).toEqual({ allowed: true })
-    expect(await authorizeToolCall(ask, "note", { content: "Prefere PDF" }, "note-1")).toEqual({ allowed: true })
+    expect(await authorizeToolCall(ask, "read", { path: "../outside.txt" }, "read-3")).toEqual({ allowed: true, asked: true })
+    expect(await authorizeToolCall(ask, "note", { content: "Prefere PDF" }, "note-1")).toEqual({ allowed: true, asked: true })
+    expect(await authorizeToolCall(ask, "connect_plugin", { plugin: "gmail" }, "connect-1")).toEqual({ allowed: true })
+    expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "read-only" }, "connect_plugin", { plugin: "gmail" }, "connect-2")).toEqual({ allowed: false, reason: "missing_permission" })
     expect(await authorizeToolCall({ ...ask, request: async () => "denied" }, "bash", { command: "bun test" }, "bash-1")).toEqual({ allowed: false, reason: "person_denied" })
     expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "full" }, "remember", { content: "Prefere PDF" }, "remember-1")).toEqual({ allowed: true })
     expect(requests).toEqual(["read", "note"])
@@ -126,7 +129,7 @@ describe("Pi agent runtime", () => {
     expect(events).toEqual([{ type: "permission-requested", request: { id: "note-1", tool: "note", detail: "Prefere PDF" } }])
     expect(() => runtime.resolvePermission({ botId: "beacon", requestId: "note-1", decision: "allowed" })).toThrow("Permission request not found")
     runtime.resolvePermission({ botId: "atlas", requestId: "note-1", decision: "allowed" })
-    expect(await authorization).toEqual({ allowed: true })
+    expect(await authorization).toEqual({ allowed: true, asked: true })
     expect(events.at(-1)).toEqual({ type: "permission-resolved", requestId: "note-1" })
 
     const interrupted = authorizeToolCall(policy!, "bash", { command: "bun test" }, "bash-1")
@@ -140,10 +143,82 @@ describe("Pi agent runtime", () => {
     await observations.observability.flush()
   })
 
-  test("shows the complete command before the person decides", () => {
+  test("tells the Bot that a denial is a decision and that an allowed action was seen by the person", async () => {
+    const handlers = new Map<string, (event: unknown) => Promise<unknown>>()
+    const api = { on: (event: string, handler: (event: unknown) => Promise<unknown>) => handlers.set(event, handler) } as unknown as ExtensionAPI
+    const decisions: Record<string, "allowed" | "denied"> = { "bash-1": "denied", "bash-2": "allowed" }
+    const extension = createPermissionExtension({ botId: "atlas", allowedRoot: directory, mode: "ask", request: async ({ id }) => decisions[id] ?? "denied" })
+
+    if (typeof extension === "function") {
+      throw new Error("Expected a named extension")
+    }
+
+    await extension.factory(api)
+    const toolCall = handlers.get("tool_call")
+    const toolResult = handlers.get("tool_result")
+
+    const blocked = await toolCall?.({ type: "tool_call", toolCallId: "bash-1", toolName: "bash", input: { command: "rm -rf dist" } })
+
+    expect(blocked).toMatchObject({ block: true })
+    expect(String((blocked as { reason: string }).reason)).toContain("The person denied this action")
+    expect(String((blocked as { reason: string }).reason)).toContain("Do not retry it")
+    expect(await toolCall?.({ type: "tool_call", toolCallId: "bash-2", toolName: "bash", input: { command: "ls" } })).toBeUndefined()
+    expect(await toolResult?.({ type: "tool_result", toolCallId: "bash-2", toolName: "bash", input: { command: "ls" }, content: [{ type: "text", text: "dist\n" }], isError: false })).toEqual({
+      content: [{ type: "text", text: "The person allowed this action.\n\ndist\n" }],
+    })
+    expect(await toolResult?.({ type: "tool_result", toolCallId: "read-9", toolName: "read", input: { path: "a" }, content: [{ type: "text", text: "a" }], isError: false })).toBeUndefined()
+  })
+
+  test("shows the complete command and the folder it runs in before the person decides", () => {
     const command = `printf '%s' '${"a".repeat(180)}'; rm -rf /tmp/example`
 
-    expect(describeToolCall("bash-1", "bash", { command })).toEqual({ id: "bash-1", tool: "bash", detail: command })
+    expect(describeToolCall("bash-1", "bash", { command }, undefined, "/home/ana/projeto")).toEqual({ id: "bash-1", tool: "bash", detail: command, cwd: "/home/ana/projeto" })
+  })
+
+  test("marks the tool call the person denied when it finishes", async () => {
+    const { runtime, sessions, observations } = setup()
+    let policy: Parameters<PiSessionFactory["open"]>[0]["policy"] | undefined
+    const events: PiRuntimeEvent[] = []
+    const runtimeWithPolicy = createPiAgentRuntime({
+      async open(input) {
+        policy = input.policy
+
+        return {
+          prompt: async () => undefined,
+          abort: async () => undefined,
+          subscribe(listener) {
+            sessions.set("atlas", { listeners: new Set([listener]), aborted: false, disposed: false, tools: input.tools })
+            return () => undefined
+          },
+          dispose() {},
+        }
+      },
+    }, observations.observability)
+    await runtimeWithPolicy.open({ botId: "atlas", cwd: directory, tools: ["bash"], effort: "medium", model: null, permissionMode: "ask" })
+    runtimeWithPolicy.subscribe("atlas", (event) => events.push(event))
+    const emit = (event: PiRuntimeEvent) => {
+      for (const listener of sessions.get("atlas")?.listeners ?? []) {
+        listener(event)
+      }
+    }
+
+    emit({ type: "tool-started", callId: "bash-1", tool: "bash", detail: "rm -rf dist" })
+    const authorization = authorizeToolCall(policy!, "bash", { command: "rm -rf dist" }, "bash-1")
+    await Bun.sleep(0)
+    runtimeWithPolicy.resolvePermission({ botId: "atlas", requestId: "bash-1", decision: "denied" })
+    expect(await authorization).toEqual({ allowed: false, reason: "person_denied" })
+    emit({ type: "tool-finished", callId: "bash-1", tool: "bash", failed: true, error: "The person denied this tool call" })
+    emit({ type: "tool-started", callId: "bash-2", tool: "bash", detail: "bun test" })
+    emit({ type: "tool-finished", callId: "bash-2", tool: "bash", failed: true, error: "exit 1" })
+
+    expect(events.filter((event) => event.type === "tool-finished")).toEqual([
+      { type: "tool-finished", callId: "bash-1", tool: "bash", failed: true, denied: true, error: "The person denied this tool call" },
+      { type: "tool-finished", callId: "bash-2", tool: "bash", failed: true, error: "exit 1" },
+    ])
+
+    runtime.dispose()
+    runtimeWithPolicy.dispose()
+    await observations.observability.flush()
   })
 })
 

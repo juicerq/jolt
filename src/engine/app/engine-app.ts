@@ -6,6 +6,7 @@ import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
 import type { createConversations } from "../conversations/conversations"
 import type { createMemory } from "../memory/memory"
+import type { createPlugins } from "../plugins/plugins"
 import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
@@ -49,6 +50,7 @@ export function createEngineRouter(
   routines: ReturnType<typeof createRoutines>,
   memory: ReturnType<typeof createMemory>,
   permissions: { decide(input: PermissionDecisionInput): void },
+  plugins: ReturnType<typeof createPlugins>,
 ) {
   const operations = implement(engineContract).use(async ({ next }) => {
     try {
@@ -241,6 +243,56 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.memoryclear", context: observationContext(context) },
           () => memory.clear(input),
+        ),
+      ),
+    },
+    plugins: {
+      list: operations.plugins.list.handler(({ context }: { context: EngineContext }) =>
+        observability.span(
+          { name: "orpc.pluginlist", context: observationContext(context) },
+          () => plugins.list(),
+        ),
+      ),
+      addCustom: operations.plugins.addCustom.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.pluginaddcustom", context: observationContext(context) },
+          () => plugins.addCustom(input),
+        ),
+      ),
+      remove: operations.plugins.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.pluginremove", context: observationContext(context) },
+          () => plugins.remove(input),
+        ),
+      ),
+      connect: operations.plugins.connect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.pluginconnect", context: observationContext(context) },
+          () => plugins.connect(input),
+        ),
+      ),
+      awaitConnection: operations.plugins.awaitConnection.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.pluginawaitconnection", context: observationContext(context) },
+          () => plugins.awaitConnection(input),
+        ),
+      ),
+      disconnect: operations.plugins.disconnect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.plugindisconnect", context: observationContext(context) },
+          () => plugins.disconnect(input),
+        ),
+      ),
+      grant: operations.plugins.grant.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.plugingrant", context: observationContext(context) },
+          () => plugins.grant(input),
+        ),
+      ),
+      decide: operations.plugins.decide.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.plugindecide", context: observationContext(context) },
+          () => plugins.decide(input),
         ),
       ),
     },

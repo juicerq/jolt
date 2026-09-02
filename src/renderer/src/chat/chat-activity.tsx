@@ -23,6 +23,7 @@ import {
   formatRunningChatActivityStepLabel,
   getChatActivityStepDetails,
   splitChatActivitySteps,
+  unknownToolName,
 } from "./chat-activity-summary"
 import { ChatContent, chatChipClassName, chatGuideClassName } from "./chat-content"
 import { ChatStamp, ChatStamped } from "./chat-stamp"
@@ -31,19 +32,20 @@ import { formatChatWaitingMessage } from "./chat-waiting-messages"
 type PersistedStep = ConversationActivity["steps"][number]
 type PersistedThinkingStep = Extract<PersistedStep, { type: "thinking" }>
 type PersistedToolStep = Extract<PersistedStep, { type: "tool" }>
-type VisibleTool = Omit<PersistedToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" }
+type VisibleTool = Omit<PersistedToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
 type VisibleStep =
   | (PersistedThinkingStep & { status?: "running" | "done" })
   | (Omit<PersistedToolStep, "tools"> & { tools: VisibleTool[] })
 type VisibleActivity = { steps: VisibleStep[] }
 type ActivityStatus = "running" | "aborting" | "failed"
 type StageMode = "compact" | "current" | "history" | "solo"
-type StageStatus = "running" | "done" | "failed"
+type StageStatus = "running" | "done" | "failed" | "denied"
 
 const activityStageIconStatusClassNames: Record<StageStatus, string> = {
   running: "animate-pulse text-secondary [animation-duration:1200ms] motion-reduce:animate-none",
   done: "text-muted",
   failed: "text-status-error",
+  denied: "text-muted",
 }
 
 function ActivityBlock({ botName, time, children }: { botName: string; time: string; children: ReactNode }) {
@@ -110,7 +112,7 @@ function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botNam
   const currentIndex = status === "aborting" ? -1 : steps.length - 1
 
   return (
-    <div className="-mx-[7px] -mt-[5px] mb-[11px] grid w-[min(620px,100%)] gap-1 text-support text-muted" role="status" aria-label={label}>
+    <div className="-mx-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[620px] gap-1 text-support text-muted" role="status" aria-label={label}>
       {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
@@ -201,7 +203,11 @@ function getStepStatus(step: VisibleStep, active: boolean) {
     return active ? "running" : "failed"
   }
 
-  return step.tools.some((tool) => tool.status === "failed") ? "failed" : "done"
+  if (step.tools.some((tool) => tool.status === "failed")) {
+    return "failed"
+  }
+
+  return step.tools.some((tool) => tool.status === "denied") ? "denied" : "done"
 }
 
 function getActivityLabel(activity: VisibleActivity, botName?: string, status?: ActivityStatus, waitingMessage?: string) {
@@ -221,6 +227,7 @@ function ActivityStageIcon({ step, status }: { step: VisibleStep; status: StageS
     running: "em andamento",
     done: "concluída",
     failed: "com falha",
+    denied: "negada",
   }
   const { icon, label } = getActivityStageIcon(step)
 
@@ -278,5 +285,5 @@ function getActivityStageIcon(step: VisibleStep) {
     return { label: "Rotina", icon: <ClockIcon {...iconProps} /> }
   }
 
-  return { label: step.name, icon: <WrenchScrewdriverIcon {...iconProps} /> }
+  return { label: unknownToolName(step.tools, step.name), icon: <WrenchScrewdriverIcon {...iconProps} /> }
 }

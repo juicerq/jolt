@@ -1,14 +1,21 @@
 import { access, stat } from "node:fs/promises"
-import { constants } from "node:fs"
+import { constants, existsSync } from "node:fs"
 import { join } from "node:path"
-import { app, BrowserWindow, dialog, ipcMain } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
 import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
 import { parse } from "../shared/parse"
 import { EngineProcess } from "./engine-process/engine-process"
+import { loadSecretKey } from "./secret-key"
 
 if (process.env.JOLT_USER_DATA) {
   app.setPath("userData", process.env.JOLT_USER_DATA)
+}
+
+const environmentFile = join(app.getAppPath(), ".env")
+
+if (!app.isPackaged && existsSync(environmentFile)) {
+  process.loadEnvFile(environmentFile)
 }
 
 const executable = app.isPackaged
@@ -18,6 +25,8 @@ const engine = new EngineProcess({
   executable,
   databasePath: join(app.getPath("userData"), "jolt.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
+  secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
+  ...(process.env.JOLT_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.JOLT_GOOGLE_CLIENT_ID, ...(process.env.JOLT_GOOGLE_CLIENT_SECRET ? { secret: process.env.JOLT_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
@@ -53,6 +62,11 @@ app.whenReady().then(async () => {
   ipcMain.handle("window:minimize", () => window.minimize())
   ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
   ipcMain.handle("window:close", () => window.close())
+  ipcMain.handle("browser:open", async (_event, rawUrl: unknown) => {
+    const url = parse(z.url({ protocol: /^https$/ }), rawUrl)
+
+    await shell.openExternal(url)
+  })
   ipcMain.handle("working-directory:choose", async () => {
     const selection = parse(z.object({ canceled: z.boolean(), filePaths: z.array(z.string()) }), await dialog.showOpenDialog(window, {
       properties: ["openDirectory", "createDirectory"],

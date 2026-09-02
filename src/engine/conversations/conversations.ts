@@ -1,7 +1,7 @@
 import type { Bot } from "../../shared/bots"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
-import type { createPiAgentRuntime, PiCustomTool } from "../pi/pi-agent-runtime"
+import type { createPiAgentRuntime, PiTool } from "../pi/pi-agent-runtime"
 import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
@@ -12,11 +12,25 @@ import { voice } from "./voice"
 import { parse } from "../../shared/parse"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
+const workingDirectory = "Your working directory is your own folder on the person's computer, and it starts empty. read, grep, find, ls, bash, edit and write act there. Files you write go there. It is not the person's project, mailbox or anything else they own; those come through Plugins or through what the person tells you."
+const decisionRules: Record<Bot["permissionMode"], string> = {
+  ask: [
+    "The person reviews each action before it runs. Every tool call except reads inside your working directory appears in the chat as a request, and the person chooses Permitir or Negar.",
+    "A denied call answers \"The person denied this action\". That is their decision, not an error. Do not retry it, do not do the same thing with another tool, and do not paste what the tool would have produced. Say in one line what you did not do and ask how they want to continue.",
+    "Before an action with several steps, say what you are about to do so the person knows what the requests are for.",
+  ].join("\n"),
+  "read-only": "You can only read, search and list inside your working directory. Other tools are not available. When the person asks for something that needs them, say so plainly instead of working around it.",
+  full: "Your tools run without asking. Act, then report what you did.",
+}
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
 
+export type BotInheritance = { apply(member: Pick<Bot, "id">): void }
+
 export type BotExtension = {
-  tools(bot: Bot): PiCustomTool[]
+  tools(bot: Bot): PiTool[]
   instructions(bot: Bot): string
+  pending?(botId: string): ConversationEvent[]
+  inheritance?(leader: Bot, references: string | undefined): BotInheritance
 }
 
 type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
@@ -66,8 +80,15 @@ export function createConversations(input: {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
-  const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId)?.message })
-  const extensions = [delegation, ...input.extensions]
+  const delegation = createDelegation({
+    bots: input.bots,
+    tasks: input.tasks,
+    observability: input.observability,
+    runTurn,
+    active: (botId) => active.get(botId)?.message,
+    inheritance: (leader, references) => input.extensions.flatMap((extension) => extension.inheritance ? [extension.inheritance(leader, references)] : []),
+  })
+  const extensions: BotExtension[] = [delegation, ...input.extensions]
 
   closeUnanswered()
 
@@ -96,9 +117,11 @@ export function createConversations(input: {
     const customTools = extensions.flatMap((extension) => extension.tools(bot))
     const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
     const instructions = [
-      `You are ${bot.name}.`,
+      `You are ${bot.name}, a Bot inside Jolt.`,
       `Expected outcome: ${bot.function.outcome}`,
       bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
+      workingDirectory,
+      decisionRules[bot.permissionMode],
       ...extensions.map((extension) => extension.instructions(bot)),
       voice,
     ].filter(Boolean).join("\n")
@@ -304,6 +327,7 @@ export function createConversations(input: {
       const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
         { botId, event: { type: "started", message: incoming(turn.message) } },
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
+        ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])
       const queue = createQueue<BotConversationEvent>(initial)
       streams.add(queue)
@@ -322,6 +346,12 @@ export function createConversations(input: {
     },
     active(botId: string) {
       return active.get(botId)?.message
+    },
+    notify(botId: string, event: ConversationEvent) {
+      deliver(botId, event)
+    },
+    addTools(botId: string, tools: PiTool[]) {
+      input.runtime.addTools(botId, tools)
     },
     async send(rawInput: unknown) {
       const { botId, content, images } = parse(conversationSchemas.sendInput, rawInput)

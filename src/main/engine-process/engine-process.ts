@@ -7,6 +7,8 @@ type EngineProcessOptions = {
   executable: string
   databasePath: string
   privateBotsDirectory: string
+  secretKey(): Promise<string>
+  googleClient?: { id: string; secret?: string }
   appVersion?: string
   electronVersion?: string
   development?: boolean
@@ -20,6 +22,11 @@ type ChildExit = {
 }
 
 const readinessTimeoutMs = 10_000
+const inheritedNames = ["PATH", "HOME", "USER", "TMPDIR", "LANG"]
+
+function inheritedEnvironment() {
+  return Object.fromEntries(inheritedNames.flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
+}
 const shutdownTimeoutMs = 5_000
 
 export class EngineProcess {
@@ -42,11 +49,16 @@ export class EngineProcess {
     const startedAt = new Date().toISOString()
     const started = performance.now()
     const token = randomBytes(32).toString("hex")
+    const secretKey = await this.options.secretKey()
     const child = spawn(this.options.executable, [], {
       env: {
+        ...inheritedEnvironment(),
         BOT_TEAMS_ENGINE_TOKEN: token,
         BOT_TEAMS_DATABASE_PATH: this.options.databasePath,
         BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: this.options.privateBotsDirectory,
+        BOT_TEAMS_SECRET_KEY: secretKey,
+        ...(this.options.googleClient ? { BOT_TEAMS_GOOGLE_CLIENT_ID: this.options.googleClient.id } : {}),
+        ...(this.options.googleClient?.secret ? { BOT_TEAMS_GOOGLE_CLIENT_SECRET: this.options.googleClient.secret } : {}),
         BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
         BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
         BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",

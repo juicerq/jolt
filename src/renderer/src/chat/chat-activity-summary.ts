@@ -3,7 +3,7 @@ import type { ConversationActivity } from "../../../shared/conversations"
 type ActivityStep = ConversationActivity["steps"][number]
 type ActivityToolStep = Extract<ActivityStep, { type: "tool" }>
 type ActivityTool = Omit<ActivityToolStep["tools"][number], "status"> & {
-  status: "running" | "done" | "failed"
+  status: "running" | "done" | "failed" | "denied"
 }
 
 type ActivitySummaryStep =
@@ -22,6 +22,7 @@ type ToolGroup = {
   active: (count: number, targets: string) => string
   done: (count: number, targets: string) => string
   failed: (count: number, targets: string) => string
+  denied: (count: number, targets: string) => string
   running: (count: number, targets: string) => string
 }
 
@@ -32,6 +33,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "lendo arquivo" : `lendo ${count} arquivos`,
     done: (count) => `leu ${formatCount(count, "arquivo", "arquivos")}`,
     failed: (count) => `falhou ao ler ${formatCount(count, "arquivo", "arquivos")}`,
+    denied: (count) => `você negou a leitura de ${formatCount(count, "arquivo", "arquivos")}`,
     running: (count) => `deixou ${formatCount(count, "leitura", "leituras")} sem concluir`,
   },
   {
@@ -39,6 +41,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "buscando no código" : `fazendo ${count} buscas no código`,
     done: (count) => count === 1 ? "buscou no código" : `fez ${count} buscas no código`,
     failed: (count) => count === 1 ? "falhou ao buscar no código" : `falhou em ${count} buscas no código`,
+    denied: (count) => count === 1 ? "você negou uma busca no código" : `você negou ${count} buscas no código`,
     running: (count) => `deixou ${formatCount(count, "busca no código", "buscas no código")} sem concluir`,
   },
   {
@@ -46,6 +49,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "procurando arquivos" : `fazendo ${count} buscas por arquivos`,
     done: (count) => count === 1 ? "procurou arquivos" : `fez ${count} buscas por arquivos`,
     failed: (count) => count === 1 ? "falhou ao procurar arquivos" : `falhou em ${count} buscas por arquivos`,
+    denied: (count) => count === 1 ? "você negou uma busca por arquivos" : `você negou ${count} buscas por arquivos`,
     running: (count) => `deixou ${formatCount(count, "busca por arquivos", "buscas por arquivos")} sem concluir`,
   },
   {
@@ -54,6 +58,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "listando pasta" : `listando ${count} pastas`,
     done: (count) => `listou ${formatCount(count, "pasta", "pastas")}`,
     failed: (count) => `falhou ao listar ${formatCount(count, "pasta", "pastas")}`,
+    denied: (count) => `você negou a listagem de ${formatCount(count, "pasta", "pastas")}`,
     running: (count) => `deixou ${formatCount(count, "listagem", "listagens")} sem concluir`,
   },
   {
@@ -62,6 +67,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "editando arquivo" : `editando ${count} arquivos`,
     done: (count) => `editou ${formatCount(count, "arquivo", "arquivos")}`,
     failed: (count) => `falhou ao editar ${formatCount(count, "arquivo", "arquivos")}`,
+    denied: (count) => `você negou a edição de ${formatCount(count, "arquivo", "arquivos")}`,
     running: (count) => `deixou ${formatCount(count, "edição", "edições")} sem concluir`,
   },
   {
@@ -70,6 +76,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "criando arquivo" : `criando ${count} arquivos`,
     done: (count) => `criou ${formatCount(count, "arquivo", "arquivos")}`,
     failed: (count) => `falhou ao criar ${formatCount(count, "arquivo", "arquivos")}`,
+    denied: (count) => `você negou a criação de ${formatCount(count, "arquivo", "arquivos")}`,
     running: (count) => `deixou ${formatCount(count, "gravação", "gravações")} sem concluir`,
   },
   {
@@ -77,6 +84,7 @@ const toolGroups: ToolGroup[] = [
     active: (count) => count === 1 ? "executando comando" : `executando ${count} comandos`,
     done: (count) => `executou ${formatCount(count, "comando", "comandos")}`,
     failed: (count) => `${formatCount(count, "comando falhou", "comandos falharam")}`,
+    denied: (count) => `você negou ${formatCount(count, "comando", "comandos")}`,
     running: (count) => `deixou ${formatCount(count, "comando", "comandos")} sem concluir`,
   },
   {
@@ -87,6 +95,7 @@ const toolGroups: ToolGroup[] = [
     active: (_count, targets) => `aguardando ${targets}`,
     done: (_count, targets) => `delegou para ${targets}`,
     failed: (count, targets) => `${count === 1 ? "delegação" : "delegações"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    denied: (_count, targets) => `você negou a delegação para ${targets}`,
     running: (_count, targets) => `deixou ${targets} sem resposta`,
   },
   {
@@ -97,6 +106,7 @@ const toolGroups: ToolGroup[] = [
     active: (_count, targets) => `aguardando ${targets}`,
     done: (_count, targets) => `contratou ${targets}`,
     failed: (count, targets) => `${count === 1 ? "contratação" : "contratações"} de ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    denied: (_count, targets) => `você negou a contratação de ${targets}`,
     running: (_count, targets) => `deixou ${targets} sem resposta`,
   },
   {
@@ -107,6 +117,7 @@ const toolGroups: ToolGroup[] = [
     active: (_count, targets) => `transferindo para ${targets}`,
     done: (_count, targets) => `transferiu para ${targets}`,
     failed: (count, targets) => `${count === 1 ? "transferência" : "transferências"} para ${targets} ${count === 1 ? "falhou" : "falharam"}`,
+    denied: (_count, targets) => `você negou a transferência para ${targets}`,
     running: (_count, targets) => `deixou a transferência para ${targets} sem concluir`,
   },
   {
@@ -115,6 +126,7 @@ const toolGroups: ToolGroup[] = [
     active: () => "ajustando uma Rotina",
     done: (count) => count === 1 ? "ajustou uma Rotina" : `ajustou ${count} Rotinas`,
     failed: (count) => count === 1 ? "não conseguiu ajustar a Rotina" : `não conseguiu ajustar ${count} Rotinas`,
+    denied: (count) => count === 1 ? "você negou o ajuste da Rotina" : `você negou o ajuste de ${count} Rotinas`,
     running: () => "deixou a Rotina sem ajustar",
   },
   {
@@ -123,6 +135,7 @@ const toolGroups: ToolGroup[] = [
     active: () => "removendo uma Rotina",
     done: (count) => count === 1 ? "removeu uma Rotina" : `removeu ${count} Rotinas`,
     failed: (count) => count === 1 ? "não conseguiu remover a Rotina" : `não conseguiu remover ${count} Rotinas`,
+    denied: (count) => count === 1 ? "você negou a remoção da Rotina" : `você negou a remoção de ${count} Rotinas`,
     running: () => "deixou a Rotina sem remover",
   },
 ]
@@ -184,7 +197,7 @@ export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
   const group = toolGroups.find((candidate) => candidate.name === step.name)
 
   if (!group) {
-    return `Usando ${step.name}`
+    return `Usando ${unknownToolName(step.tools, step.name)}`
   }
 
   const count = group.countTargets ? countTargets(step.tools) : step.tools.length
@@ -210,7 +223,7 @@ export function splitChatActivitySteps<Step extends ActivitySummaryStep>(steps: 
 
 export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
   const group = toolGroups.find((candidate) => candidate.name === step.name)
-  const errors = step.tools.flatMap((tool) => tool.error ? [tool.error] : [])
+  const errors = step.tools.flatMap((tool) => tool.error && tool.status !== "denied" ? [tool.error] : [])
 
   if (group?.prose) {
     return { prose: true, items: [...new Set([...step.tools.flatMap((tool) => tool.brief ? [tool.brief] : []), ...errors])] }
@@ -223,7 +236,7 @@ function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {
   const matchingTools = tools.filter((tool) => tool.name === group.name)
   const clauses: string[] = []
 
-  for (const status of ["done", "failed", "running"] as const) {
+  for (const status of ["done", "failed", "denied", "running"] as const) {
     const toolsWithStatus = matchingTools.filter((tool) => tool.status === status)
 
     if (toolsWithStatus.length === 0) {
@@ -237,11 +250,23 @@ function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {
   return clauses
 }
 
-function formatUnknownTool(tools: ActivityTool[], name: string) {
-  const matchingTools = tools.filter((tool) => tool.name === name)
+export function unknownToolName(tools: ActivityTool[], name: string) {
+  const label = tools.find((tool) => tool.name === name && tool.label)?.label
+
+  if (!label) {
+    return name
+  }
+
+  return `${label.charAt(0).toLowerCase()}${label.slice(1)}`
+}
+
+function formatUnknownTool(tools: ActivityTool[], toolName: string) {
+  const matchingTools = tools.filter((tool) => tool.name === toolName)
+  const name = unknownToolName(tools, toolName)
   const clauses: string[] = []
   const doneCount = matchingTools.filter((tool) => tool.status === "done").length
   const failedCount = matchingTools.filter((tool) => tool.status === "failed").length
+  const deniedCount = matchingTools.filter((tool) => tool.status === "denied").length
   const runningCount = matchingTools.filter((tool) => tool.status === "running").length
 
   if (doneCount > 0) {
@@ -250,6 +275,10 @@ function formatUnknownTool(tools: ActivityTool[], name: string) {
 
   if (failedCount > 0) {
     clauses.push(failedCount === 1 ? `${name} falhou` : `${name} falhou ${failedCount} vezes`)
+  }
+
+  if (deniedCount > 0) {
+    clauses.push(deniedCount === 1 ? `negou ${name}` : `negou ${name} ${deniedCount} vezes`)
   }
 
   if (runningCount > 0) {

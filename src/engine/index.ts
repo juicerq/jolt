@@ -12,6 +12,10 @@ import { openDatabase } from "./persistence/database"
 import { createBots } from "./bots/bots"
 import { createConversations } from "./conversations/conversations"
 import { createMemory } from "./memory/memory"
+import { createGmailAdapter } from "./plugins/gmail/gmail"
+import { createMcpAdapter } from "./plugins/mcp/mcp"
+import { createPlugins } from "./plugins/plugins"
+import { createSecrets } from "./plugins/secrets"
 import { createPiAgentRuntime, deferPiSessionFactory } from "./pi/pi-agent-runtime"
 import { createPiLoadSessionFactory } from "./pi/pi-load-session"
 import { codexDefaultModelId, createPiProvider } from "./pi/pi-provider"
@@ -29,6 +33,9 @@ const environmentSchema = z.object({
   BOT_TEAMS_LOAD_PROVIDER: z.enum(["true", "false"]).optional(),
   BOT_TEAMS_APP_VERSION: z.string().min(1).optional(),
   BOT_TEAMS_ELECTRON_VERSION: z.string().min(1).optional(),
+  BOT_TEAMS_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/),
+  BOT_TEAMS_GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  BOT_TEAMS_GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
 })
 const environment = parse(environmentSchema, process.env)
 const startedAt = new Date().toISOString()
@@ -132,7 +139,27 @@ const conversations = createConversations({
   extensions: [
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
+    {
+      tools: (bot) => plugins.tools(bot),
+      instructions: (bot) => plugins.instructions(bot),
+      pending: (botId) => plugins.pending(botId),
+      inheritance: (leader, references) => plugins.inheritance(leader, references),
+    },
   ],
+})
+const plugins = createPlugins({
+  database,
+  bots,
+  observability: observationSystem.observability,
+  secrets: createSecrets(environment.BOT_TEAMS_SECRET_KEY),
+  adapters: {
+    gmail: createGmailAdapter({
+      observability: observationSystem.observability,
+      ...(environment.BOT_TEAMS_GOOGLE_CLIENT_ID ? { client: { id: environment.BOT_TEAMS_GOOGLE_CLIENT_ID, ...(environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET ? { secret: environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
+    }),
+    mcp: createMcpAdapter({ observability: observationSystem.observability }),
+  },
+  conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
 })
 const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
 const memory = createMemory({
@@ -157,7 +184,7 @@ const diagnostics = createDiagnostics({
 const handler = new RPCHandler(
   createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, memory, {
     decide: (decision) => piRuntime.resolvePermission(decision),
-  }),
+  }, plugins),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -243,6 +270,7 @@ async function shutdown() {
       memory.dispose()
       routines.dispose()
       conversations.dispose()
+      await plugins.dispose()
       await drainRequests()
       await server.stop(true).catch(() => {
         process.stderr.write("Bun Engine forced shutdown failed\n")

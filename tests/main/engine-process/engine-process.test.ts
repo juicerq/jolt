@@ -14,6 +14,7 @@ describe("EngineProcess", () => {
       executable: join(process.cwd(), "dist-engine", "jolt-engine"),
       databasePath: join(directory, "test.sqlite"),
       privateBotsDirectory: join(directory, "bots"),
+      secretKey: async () => "00".repeat(32),
     })
     const connection = await engine.start()
 
@@ -48,6 +49,7 @@ describe("EngineProcess", () => {
       executable: join(process.cwd(), "dist-engine", "jolt-engine"),
       databasePath: join(directory, "test.sqlite"),
       privateBotsDirectory: join(directory, "bots"),
+      secretKey: async () => "00".repeat(32),
       onUnexpectedExit: resolveExit,
     })
     await engine.start()
@@ -66,6 +68,7 @@ describe("EngineProcess", () => {
       executable: join(directory, "missing-engine"),
       databasePath: join(directory, "test.sqlite"),
       privateBotsDirectory: join(directory, "bots"),
+      secretKey: async () => "00".repeat(32),
     })
 
     await expect(engine.start()).rejects.toThrow()

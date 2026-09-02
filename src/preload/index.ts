@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld("desktop", {
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),
   closeWindow: (): Promise<void> => ipcRenderer.invoke("window:close"),
+  openInBrowser: (url: string): Promise<void> => ipcRenderer.invoke("browser:open", url),
 })

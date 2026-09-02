@@ -157,7 +157,10 @@ describe("conversations", () => {
     ])
     expect(events.filter((event) => event.type === "thinking-finished").every((event) => event.durationMs > 0)).toBe(true)
     expect(first.prompts).toEqual(["Olá"])
-    expect(first.instructions[0]).toStartWith("You are Atlas.\nExpected outcome: Answer\nResponsibilities, limits and delivery: Help\nUse the hire tool")
+    expect(first.instructions[0]).toStartWith("You are Atlas, a Bot inside Jolt.\nExpected outcome: Answer\nResponsibilities, limits and delivery: Help\n")
+    expect(first.instructions[0]).toContain("Your working directory is your own folder")
+    expect(first.instructions[0]).toContain("The person reviews each action before it runs")
+    expect(first.instructions[0]).toContain("Use the hire tool")
     expect(first.instructions[0]).toEndWith(voice)
     expect(first.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
@@ -330,6 +333,8 @@ describe("conversations", () => {
     expect(environment.permissionModes).toEqual(["ask", "ask", "ask", "read-only"])
     expect(environment.openedTools.every((tools) => ["read", "grep", "find", "ls"].every((tool) => tools.includes(tool)))).toBe(true)
     expect(environment.openedTools.at(-1)).toEqual(["read", "grep", "find", "ls"])
+    expect(environment.instructions.at(-1)).toContain("You can only read, search and list inside your working directory")
+    expect(environment.instructions.at(-1)).not.toContain("The person reviews each action")
     environment.conversations.dispose()
     await environment.observationSystem.observability.flush()
   })

@@ -4,6 +4,7 @@ import type { Task } from "../../shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
+import type { BotInheritance } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
 
 type Outcome = { reason: "stop" | "aborted" | "error"; response: string }
@@ -14,6 +15,7 @@ export function createDelegation(input: {
   observability: Observability
   runTurn(botId: string, message: IncomingMessage): AsyncGenerator<ConversationEvent>
   active(botId: string): { taskId: string | null } | undefined
+  inheritance(leader: Bot, references: string | undefined): BotInheritance[]
 }) {
   function members(leader: Pick<Bot, "id">) {
     return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
@@ -151,9 +153,15 @@ export function createDelegation(input: {
           outcome: "Expected result of the Tarefa",
           instructions: "Instructions for the member",
           wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
+          "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
         },
         async execute(params) {
+          const inherited = input.inheritance(bot, params.plugins)
           const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
+
+          for (const inheritance of inherited) {
+            inheritance.apply(to)
+          }
 
           return assign(bot, to, params)
         },

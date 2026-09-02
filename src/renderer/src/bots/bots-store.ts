@@ -5,12 +5,14 @@ type BotsState = {
   selectedBotId: string | null
   draft: { name: string } | null
   dialog: "create-project" | null
+  screen: "plugins" | null
 }
 
 export const botsStore = new Store<BotsState>({
   selectedBotId: null,
   draft: null,
   dialog: null,
+  screen: null,
 })
 
 export function selectBot(botId: string) {
@@ -18,7 +20,15 @@ export function selectBot(botId: string) {
     beginConversationOpen(botId)
   }
 
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null }))
+  botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null, screen: null }))
+}
+
+export function openPlugins() {
+  botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
+}
+
+export function closePlugins() {
+  botsStore.setState((state) => ({ ...state, screen: null }))
 }
 
 export function forgetBot(botId: string) {
@@ -26,7 +36,7 @@ export function forgetBot(botId: string) {
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { name: "" } }))
+  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { name: "" }, screen: null }))
 }
 
 export function nameDraft(name: string) {

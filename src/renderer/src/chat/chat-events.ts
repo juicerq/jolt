@@ -8,7 +8,9 @@ import {
   finishChatThinking,
   finishChatTool,
   requestChatPermission,
+  requestChatPlugin,
   resolveChatPermission,
+  resolveChatPlugin,
   settleChatRun,
   startChatRun,
   startChatThinking,
@@ -63,7 +65,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     if (event.type === "tool-finished") {
-      finishChatTool(botId, event.callId, event.failed, event.error)
+      finishChatTool(botId, event.callId, event.failed, event.error, event.denied)
       return
     }
 
@@ -74,6 +76,17 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "permission-resolved") {
       resolveChatPermission(botId, event.requestId)
+      return
+    }
+
+    if (event.type === "plugin-requested") {
+      requestChatPlugin(botId, event.request)
+      return
+    }
+
+    if (event.type === "plugin-resolved") {
+      resolveChatPlugin(botId, event.requestId)
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() }).catch(() => undefined)
       return
     }
 

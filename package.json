@@ -30,6 +30,7 @@
     "@blobatar/react": "^2.7.0",
     "@earendil-works/pi-coding-agent": "0.84.4",
     "@heroicons/react": "^2.2.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@orpc/client": "1.15.0",
     "@orpc/contract": "1.15.0",
     "@orpc/server": "1.15.0",

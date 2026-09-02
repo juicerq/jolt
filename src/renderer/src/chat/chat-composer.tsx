@@ -9,7 +9,8 @@ import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
 import { completeChatCommand } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
 import { ChatModelEffort } from "./chat-model-effort"
-import { ChatPermission, ChatPermissionRequest } from "./chat-permission"
+import { ChatPermission } from "./chat-permission"
+import { ChatPluginRequest } from "./chat-plugin-request"
 import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftContent } from "./chat-store"
 
 type ChatComposerProps = {
@@ -31,7 +32,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const active = Math.min(highlighted, suggestions.length - 1)
   const empty = draft.content.trim().length === 0 && draft.images.length === 0
   const aborting = run?.status === "aborting"
-  const permissionRequest = run?.permissionRequests[0]
+  const pluginRequest = run?.pluginRequests[0]
 
   async function attachFiles(files: Iterable<File>) {
     const images = await readMessageImages(files)
@@ -164,7 +165,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDrop={handleDrop}
     >
       {menuOpen && <ChatCommandMenu id={menuId} suggestions={suggestions} highlighted={active} onHighlight={setHighlighted} onPick={pickCommand} />}
-      {permissionRequest && <ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={(run?.permissionRequests.length ?? 1) - 1} />}
+      {pluginRequest && <ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={!!run} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />

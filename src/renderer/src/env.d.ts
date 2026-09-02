@@ -8,6 +8,7 @@ declare global {
       minimizeWindow(): Promise<void>
       toggleMaximizeWindow(): Promise<void>
       closeWindow(): Promise<void>
+      openInBrowser(url: string): Promise<void>
     }
   }
 }

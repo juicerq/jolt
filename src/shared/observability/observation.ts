@@ -29,6 +29,7 @@ export const observationContext = z.strictObject({
   botId: id.optional(),
   projectId: id.optional(),
   taskId: id.optional(),
+  pluginId: id.optional(),
   provider: provider.optional(),
 })
 
@@ -53,6 +54,7 @@ const baseObservation = {
   botId: id.optional(),
   projectId: id.optional(),
   taskId: id.optional(),
+  pluginId: id.optional(),
   provider: provider.optional(),
 }
 

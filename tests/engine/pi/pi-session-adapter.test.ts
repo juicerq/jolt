@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { toPiTool } from "@src/engine/pi/pi-session-adapter"
+import { createEventNormalizer, toPiTool } from "@src/engine/pi/pi-session-adapter"
 
 describe("pi session adapter", () => {
   test("a parameter named with a trailing ? is optional for the model", () => {
@@ -12,5 +12,15 @@ describe("pi session adapter", () => {
 
     expect(tool.parameters.required).toEqual(["content"])
     expect(Object.keys(tool.parameters.properties)).toEqual(["id", "content"])
+  })
+
+  test("a turn interrupted while a tool runs ends as aborted, not as an error", () => {
+    const normalizer = createEventNormalizer()
+
+    normalizer.normalize({ type: "agent_start" })
+    normalizer.normalize({ type: "tool_execution_start", toolCallId: "bash-1", toolName: "bash", args: { command: "bun test" } })
+    normalizer.abort()
+
+    expect(normalizer.normalize({ type: "agent_settled" })).toEqual({ type: "finished", reason: "aborted" })
   })
 })

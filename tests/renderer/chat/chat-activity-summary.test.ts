@@ -1,7 +1,25 @@
 import { describe, expect, test } from "bun:test"
-import { formatChatActivitySummary } from "@src/renderer/src/chat/chat-activity-summary"
+import { formatChatActivityStepLabel, formatChatActivitySummary, formatRunningChatActivityStepLabel, getChatActivityStepDetails } from "@src/renderer/src/chat/chat-activity-summary"
 
 describe("formatChatActivitySummary", () => {
+  test("names a Plugin tool by its label instead of its name", () => {
+    const step = { type: "tool" as const, name: "gmail_search", tools: [{ callId: "gmail-1", name: "gmail_search", label: "Pesquisa no Gmail", status: "done" as const }] }
+
+    expect(formatChatActivitySummary({ steps: [step] })).toBe("Usou pesquisa no Gmail")
+    expect(formatRunningChatActivityStepLabel({ ...step, tools: [{ ...step.tools[0]!, status: "running" }] })).toBe("Usando pesquisa no Gmail")
+  })
+
+  test("says the person denied a tool instead of calling it a failure", () => {
+    const steps = [
+      { type: "tool" as const, name: "bash", tools: [{ callId: "bash-1", name: "bash", detail: "rm -rf dist", status: "denied" as const, error: "The person denied this tool call" }] },
+      { type: "tool" as const, name: "gmail_send", tools: [{ callId: "gmail-1", name: "gmail_send", label: "Envio de email pelo Gmail", status: "denied" as const }] },
+    ]
+
+    expect(formatChatActivitySummary({ steps })).toBe("Você negou 1 comando e negou envio de email pelo Gmail")
+    expect(formatChatActivityStepLabel(steps[0]!)).toBe("Você negou 1 comando")
+    expect(getChatActivityStepDetails(steps[0]!)).toEqual({ prose: false, items: ["rm -rf dist"] })
+  })
+
   test("describes reasoning, files read and commands without a generic action count", () => {
     const summary = formatChatActivitySummary({
       steps: [

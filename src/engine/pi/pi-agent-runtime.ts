@@ -11,25 +11,48 @@ export type PiRuntimeEvent =
   | { type: "thinking-started" }
   | { type: "thinking"; text: string }
   | { type: "thinking-finished" }
-  | { type: "tool-started"; callId: string; tool: string; detail?: string; brief?: string }
-  | { type: "tool-finished"; callId: string; tool: string; failed: boolean; error?: string }
+  | { type: "tool-started"; callId: string; tool: string; label?: string; detail?: string; brief?: string }
+  | { type: "tool-finished"; callId: string; tool: string; failed: boolean; denied?: boolean; error?: string }
   | { type: "permission-requested"; request: PermissionRequest }
   | { type: "permission-resolved"; requestId: string }
   | { type: "finished"; reason: "stop" | "aborted" | "error" }
 
+export type ToolInputSchema = {
+  type: "object"
+  properties: Record<string, unknown>
+  required?: string[]
+  additionalProperties?: boolean
+}
+
 export type PiCustomTool = {
   name: string
   description: string
+  label?: string
   parameters: Record<string, string>
-  execute(params: Record<string, string>): Promise<string>
+  execute(params: Record<string, string>, signal?: AbortSignal): Promise<string>
 }
+
+export type PiSchemaTool = {
+  name: string
+  description: string
+  label?: string
+  inputSchema: ToolInputSchema
+  execute(params: Record<string, unknown>, signal?: AbortSignal): Promise<string>
+}
+
+export type PiTool = PiCustomTool | PiSchemaTool
 
 export type PiSession = {
   sessionFile?: string
   prompt(content: string, images?: MessageImage[]): Promise<void>
   abort(): Promise<void>
+  addTools?(tools: PiTool[]): void
   subscribe(listener: (event: PiRuntimeEvent) => void): () => void
   dispose(): void
+}
+
+export function toolLabels(tools: PiTool[]) {
+  return Object.fromEntries(tools.flatMap((tool) => tool.label ? [[tool.name, tool.label]] : []))
 }
 
 export type PiSessionFactory = {
@@ -40,7 +63,7 @@ export type PiSessionFactory = {
     effort: BotEffort
     model: string | null
     policy: PiPermissionPolicy
-    customTools?: PiCustomTool[]
+    customTools?: PiTool[]
     sessionFile?: string
     instructions?: string
     ephemeral?: boolean
@@ -67,11 +90,26 @@ export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): Pi
 }
 
 export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observability: Observability) {
-  const sessions = new Map<string, { session: PiSession; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
+  const sessions = new Map<string, { session: PiSession; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
   const pending = new Map<string, { botId: string; request: PermissionRequest; resolve(decision: PermissionDecision): void }>()
+  const denied = new Set<string>()
 
   function pendingKey(botId: string, requestId: string) {
     return `${botId}:${requestId}`
+  }
+
+  function annotate(botId: string, policy: PiPermissionPolicy, event: PiRuntimeEvent): PiRuntimeEvent {
+    if (event.type === "tool-started") {
+      const label = policy.labels?.[event.tool]
+
+      return label ? { ...event, label } : event
+    }
+
+    if (event.type === "tool-finished" && denied.delete(pendingKey(botId, event.callId))) {
+      return { ...event, denied: true }
+    }
+
+    return event
   }
 
   function deliver(botId: string, event: PiRuntimeEvent) {
@@ -84,6 +122,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
     for (const [key, request] of pending) {
       if (request.botId === botId) {
         pending.delete(key)
+        denied.add(key)
         request.resolve("denied")
       }
     }
@@ -103,12 +142,13 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   }
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; permissionMode: BotPermissionMode; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
+    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; permissionMode: BotPermissionMode; customTools?: PiTool[]; sessionFile?: string; instructions?: string }) {
       close(input.botId)
       const policy: PiPermissionPolicy = {
         botId: input.botId,
         allowedRoot: input.cwd,
         mode: input.permissionMode,
+        labels: toolLabels(input.customTools ?? []),
         request: (request) => new Promise<PermissionDecision>((resolve) => {
           const key = pendingKey(input.botId, request.id)
 
@@ -134,10 +174,10 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         }
 
         for (const listener of listeners) {
-          listener(event)
+          listener(annotate(input.botId, policy, event))
         }
       })
-      sessions.set(input.botId, { session, unsubscribe, listeners })
+      sessions.set(input.botId, { session, policy, unsubscribe, listeners })
 
       return { sessionFile: session.sessionFile }
     },
@@ -161,6 +201,20 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
 
       return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(message.content, message.images))
     },
+    addTools(botId: string, tools: PiTool[]) {
+      const entry = sessions.get(botId)
+
+      if (!entry) {
+        throw new Error("Pi session not found")
+      }
+
+      if (!entry.session.addTools) {
+        throw new Error("Pi session cannot add tools")
+      }
+
+      entry.policy.labels = { ...entry.policy.labels, ...toolLabels(tools) }
+      entry.session.addTools(tools)
+    },
     async abort(botId: string) {
       const entry = sessions.get(botId)
 
@@ -181,6 +235,11 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       }
 
       pending.delete(key)
+
+      if (decision === "denied") {
+        denied.add(key)
+      }
+
       request.resolve(decision)
       deliver(botId, { type: "permission-resolved", requestId })
     },

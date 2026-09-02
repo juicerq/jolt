@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm"
-import { index, integer, snakeCase, text } from "drizzle-orm/sqlite-core"
+import { index, integer, primaryKey, snakeCase, text } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "../../shared/bots"
 import type { ConversationMessage } from "../../shared/conversations"
 import type { Note, StoredMemory } from "../../shared/memory"
+import type { StoredAccount, StoredPlugin } from "../../shared/plugins"
 import type { Routine } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 
@@ -94,3 +95,29 @@ export const memories = snakeCase.table("memories", {
   noteId: text().references(() => notes.id, { onDelete: "set null" }),
   createdAt: text().notNull(),
 }, (table) => [index("memories_bot_id").on(table.botId)])
+
+export const plugins = snakeCase.table("plugins", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  config: text({ mode: "json" }).$type<StoredPlugin["config"]>().notNull(),
+  createdAt: text().notNull(),
+})
+
+export const accounts = snakeCase.table("accounts", {
+  id: text().primaryKey(),
+  pluginId: text().notNull(),
+  label: text().notNull(),
+  state: text({ enum: ["connected", "needs-auth", "failed"] }).$type<StoredAccount["state"]>().notNull(),
+  secret: text(),
+  tools: text({ mode: "json" }).$type<StoredAccount["tools"]>().notNull().default(sql`'[]'`),
+  checkedAt: text().notNull(),
+}, (table) => [index("accounts_plugin_id").on(table.pluginId)])
+
+export const accesses = snakeCase.table("accesses", {
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  pluginId: text().notNull(),
+  accountId: text().notNull().references(() => accounts.id, { onDelete: "cascade" }),
+}, (table) => [
+  primaryKey({ columns: [table.botId, table.pluginId] }),
+  index("accesses_account_id").on(table.accountId),
+])

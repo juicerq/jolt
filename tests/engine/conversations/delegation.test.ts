@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
 import { createObservationSystem } from "@src/engine/observability/observability"
-import { createPiAgentRuntime, type PiCustomTool, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
+import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory, type PiTool } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
 import { createRoutines } from "@src/engine/routines/routines"
 import { createTasks } from "@src/engine/tasks/tasks"
@@ -17,7 +17,7 @@ type Script = (message: string, call: (tool: string, params: Record<string, stri
 
 function setup() {
   const scripts = new Map<string, Script>()
-  const sessions = new Map<string, { tools: string[]; customTools: PiCustomTool[]; instructions: string }>()
+  const sessions = new Map<string, { tools: string[]; customTools: PiTool[]; instructions: string }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
       const listeners = new Set<(event: PiRuntimeEvent) => void>()

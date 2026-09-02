@@ -25,6 +25,7 @@ import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 import { earlierMessageBatch, flattenHistory, historyPageInput, olderHistoryPage, recentMessageLimit, windowHistory } from "./chat-history-window"
 import { ChatMemberResult } from "./chat-member-result"
+import { ChatPermissionRequest } from "./chat-permission-request"
 import { finishConversationOpen } from "./chat-open-span"
 import { ChatRoutineCall } from "./chat-routine-call"
 import { ChatTurnEnding } from "./chat-turn-ending"
@@ -89,7 +90,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {error && <ChatError message={error.message} />}
         {hidden + earlier > 0 && <ChatEarlierMessages hidden={hidden + earlier} loading={isFetchingNextPage} onShow={handleShowEarlier} />}
         {visible.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
-        {messages && <ChatRunSlot bot={bot} names={names} taskStatuses={taskStatuses} empty={messages.length === 0} />}
+        {messages && <ChatRunSlot bot={bot} client={client} names={names} taskStatuses={taskStatuses} empty={messages.length === 0} />}
       </ChatScroller>
       {bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />}
     </section>
@@ -106,11 +107,11 @@ function ChatEarlierMessages({ hidden, loading, onShow }: { hidden: number; load
   )
 }
 
-function ChatRunSlot({ bot, names, taskStatuses, empty }: { bot: Bot; names: Record<string, string>; taskStatuses: Record<string, TaskStatus>; empty: boolean }) {
+function ChatRunSlot({ bot, client, names, taskStatuses, empty }: { bot: Bot; client: EngineClient; names: Record<string, string>; taskStatuses: Record<string, TaskStatus>; empty: boolean }) {
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
 
   if (run) {
-    return <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
+    return <ChatRun bot={bot} client={client} names={names} run={run} taskStatuses={taskStatuses} />
   }
 
   if (empty) {
@@ -181,12 +182,15 @@ function ChatRunMessage({ bot, names, run, taskStatuses }: { bot: Bot; names: Re
   return <ChatMemberResult kind={memberMessageKind(bot, run.message)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[run.message.taskId ?? ""]} time="Agora" content={run.message.content} open />
 }
 
-function ChatRun({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
+function ChatRun({ bot, client, names, run, taskStatuses }: { bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
+  const request = run.permissionRequests[0]
+
   return (
     <>
       <ChatRunMessage bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
       <article className="w-fit max-w-[720px] self-start">
-        <ChatActivity activity={run} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />
+        <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />
+        {request && <ChatPermissionRequest botId={bot.id} client={client} request={request} remaining={run.permissionRequests.length - 1} />}
         <ChatStamped name={bot.name} time="Agora" anchor="text">
           {run.responseContent && <ChatContent content={run.responseContent} streaming />}
         </ChatStamped>
@@ -230,4 +234,19 @@ function formatMessageTime(createdAt: string) {
   }
 
   return timeFormat.format(timestamp)
+}
+
+function withoutRequestedDetails(run: ChatRunState) {
+  const requested = new Set(run.permissionRequests.map((request) => request.id))
+
+  if (requested.size === 0) {
+    return run
+  }
+
+  return {
+    ...run,
+    steps: run.steps.map((step) => step.type === "tool"
+      ? { ...step, tools: step.tools.map(({ detail, ...tool }) => requested.has(tool.callId) || detail === undefined ? tool : { ...tool, detail }) }
+      : step),
+  }
 }
