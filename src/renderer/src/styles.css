@@ -172,9 +172,30 @@
     display: none;
   }
 
+  .chat-control-popover {
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 100ms ease-in, transform 100ms ease-in, display 100ms allow-discrete, overlay 100ms allow-discrete;
+  }
+
+  .chat-control-popover:popover-open {
+    opacity: 1;
+    transform: translateY(0);
+    transition-duration: 120ms;
+    transition-timing-function: ease-out;
+  }
+
+  @starting-style {
+    .chat-control-popover:popover-open {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .edge-tab-tongue::before,
-    .edge-tab-tongue::after {
+    .edge-tab-tongue::after,
+    .chat-control-popover {
       transition: none;
     }
   }
