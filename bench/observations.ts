@@ -8,8 +8,9 @@ export function observationLog(userData: string) {
 
 export async function observations(logPath: string, offset = 0) {
   const text = await Bun.file(logPath).text()
+  const complete = text.slice(offset, text.lastIndexOf("\n") + 1)
 
-  return text.slice(offset).split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line)))
+  return complete.split("\n").filter(Boolean).map((line) => parse(observation, JSON.parse(line)))
 }
 
 export async function waitForObservations(logPath: string, matches: (item: Observation) => boolean, previous: number, timeoutMs: number) {
