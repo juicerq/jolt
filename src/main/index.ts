@@ -6,6 +6,10 @@ import { type } from "arktype"
 import { loopbackHttpUrl } from "../shared/engine-contract"
 import { EngineProcess } from "./engine-process/engine-process"
 
+if (process.env.JOLT_USER_DATA) {
+  app.setPath("userData", process.env.JOLT_USER_DATA)
+}
+
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", "jolt-engine")
   : join(app.getAppPath(), "dist-engine", "jolt-engine")

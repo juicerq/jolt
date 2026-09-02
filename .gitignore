@@ -10,3 +10,4 @@ dist-engine/
 logs/
 *.log
 .DS_Store
+.jolt-load/
