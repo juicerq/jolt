@@ -73,7 +73,6 @@ function setup() {
           emit({ type: "finished", reason: "aborted" })
           pending?.()
         },
-        setTools() {},
         subscribe(listener) {
           listeners.add(listener)
 
@@ -94,8 +93,8 @@ function setup() {
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
@@ -283,7 +282,7 @@ describe("delegation", () => {
     await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("- Calo")
-    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, createdAt: new Date().toISOString() })
+    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 

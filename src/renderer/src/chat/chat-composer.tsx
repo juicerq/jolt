@@ -9,6 +9,7 @@ import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
 import { completeChatCommand } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
 import { ChatModelEffort } from "./chat-model-effort"
+import { ChatPermission, ChatPermissionRequest } from "./chat-permission"
 import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftContent } from "./chat-store"
 
 type ChatComposerProps = {
@@ -30,6 +31,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const active = Math.min(highlighted, suggestions.length - 1)
   const empty = draft.content.trim().length === 0 && draft.images.length === 0
   const aborting = run?.status === "aborting"
+  const permissionRequest = run?.permissionRequests[0]
 
   async function attachFiles(files: Iterable<File>) {
     const images = await readMessageImages(files)
@@ -156,12 +158,13 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   return (
     <form
-      className="relative z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 self-end justify-self-center border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted max-[700px]:w-[calc(100%-28px)]"
+      className="relative z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 self-end justify-self-center border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted max-[700px]:w-[calc(100%-28px)]"
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       {menuOpen && <ChatCommandMenu id={menuId} suggestions={suggestions} highlighted={active} onHighlight={setHighlighted} onPick={pickCommand} />}
+      {permissionRequest && <ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={(run?.permissionRequests.length ?? 1) - 1} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={!!run} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
@@ -182,9 +185,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
         onPaste={handlePaste}
       />
       <ChatModelEffort bot={bot} client={client} disabled={!!run} />
+      <ChatPermission bot={bot} client={client} disabled={!!run} />
       {run
-        ? <IconButton className="col-start-4" iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="col-start-4 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        ? <IconButton className="col-start-5" iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
+        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </form>
   )
 }

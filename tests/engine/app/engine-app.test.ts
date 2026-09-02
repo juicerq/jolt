@@ -46,7 +46,7 @@ function setup() {
     migrationState: database.migrationState,
     exportDirectory: join(directory, "diagnostics"),
   })
-  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory))
+  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory, { decide() {} }))
   const server = Bun.serve({
     port: 0,
     async fetch(request) {

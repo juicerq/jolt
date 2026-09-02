@@ -26,6 +26,7 @@ export const bots = snakeCase.table("bots", {
   memoryEnabled: integer({ mode: "boolean" }).notNull().default(true),
   effort: text({ enum: ["low", "medium", "high", "xhigh", "max"] }).$type<StoredBot["effort"]>().notNull().default("medium"),
   model: text(),
+  permissionMode: text({ enum: ["read-only", "ask", "full"] }).$type<StoredBot["permissionMode"]>().notNull().default("ask"),
   createdAt: text().notNull(),
 }, (table) => [
   index("bots_leader_bot_id").on(table.leaderBotId),

@@ -3,7 +3,7 @@ import { createPiLoadSessionFactory } from "@src/engine/pi/pi-load-session"
 import type { PiRuntimeEvent } from "@src/engine/pi/pi-agent-runtime"
 
 test("streams a scripted Markdown turn in small chunks and finishes", async () => {
-  const session = await createPiLoadSessionFactory().open({ botId: "leve", cwd: "/tmp", tools: [], effort: "medium", model: null, policy: { botId: "leve", allowedRoot: "/tmp", grants: new Set() }, decisions: [] })
+  const session = await createPiLoadSessionFactory().open({ botId: "leve", cwd: "/tmp", tools: [], effort: "medium", model: null, policy: { botId: "leve", allowedRoot: "/tmp", mode: "full" } })
   const events: PiRuntimeEvent[] = []
   session.subscribe((event) => events.push(event))
 

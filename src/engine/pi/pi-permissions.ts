@@ -1,20 +1,29 @@
 import { realpath } from "node:fs/promises"
 import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
+import type { BotPermissionMode } from "../../shared/bot-permissions"
+import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
 
-export type PiPermissionPolicy = {
+type PiPermissionPolicyBase = {
   botId: string
   allowedRoot: string
-  grants: Set<string>
 }
 
-export type PiPermissionDecision = {
-  botId: string
-  tool: string
-  decision: "allowed" | "denied"
-  reason?: "missing_permission" | "path_outside_root"
-  durationMs?: number
-  failed?: boolean
+export type PiPermissionPolicy =
+  | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "ask">; request(request: PermissionRequest): Promise<PermissionDecision> })
+  | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "read-only"> })
+  | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
+
+const observationTools = new Set(["read", "grep", "find", "ls"])
+const detailFields: Record<string, string> = { bash: "command", delegate: "member", hire: "name", note: "content", remove_routine: "id", routine: "content", transfer: "member" }
+const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", routine: "frequency", transfer: "instructions" }
+
+export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[]) {
+  if (mode !== "read-only") {
+    return tools
+  }
+
+  return tools.filter((tool) => observationTools.has(tool))
 }
 
 export async function pathIsInside(root: string, path: unknown) {
@@ -42,52 +51,73 @@ export async function pathIsInside(root: string, path: unknown) {
   return canonicalDistance !== ".." && !canonicalDistance.startsWith(`..${sep}`) && !isAbsolute(canonicalDistance)
 }
 
-export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown) {
-  if (!policy.grants.has(tool)) {
-    return { allowed: false as const, reason: "missing_permission" as const }
+function readDetail(input: unknown, field?: string) {
+  if (!field || !input || typeof input !== "object" || Array.isArray(input)) {
+    return undefined
   }
 
-  const path = typeof input === "object" && input !== null ? Reflect.get(input, "path") : undefined
+  const value = Reflect.get(input, field)
 
-  if (path !== undefined && !(await pathIsInside(policy.allowedRoot, path))) {
-    return { allowed: false as const, reason: "path_outside_root" as const }
+  if (typeof value !== "string") {
+    return undefined
+  }
+
+  if (!value.trim()) {
+    return undefined
+  }
+
+  return value
+}
+
+export function describeToolCall(id: string, tool: string, input: unknown): PermissionRequest {
+  const detail = readDetail(input, detailFields[tool] ?? "path")
+  const brief = readDetail(input, briefFields[tool])
+
+  return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}) }
+}
+
+export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
+  if (policy.mode === "full") {
+    return { allowed: true as const }
+  }
+
+  const observes = observationTools.has(tool)
+  const path = observes && typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
+  const inside = observes && await pathIsInside(policy.allowedRoot, path)
+
+  if (inside) {
+    return { allowed: true as const }
+  }
+
+  if (policy.mode === "read-only") {
+    return { allowed: false as const, reason: observes ? "path_outside_root" as const : "missing_permission" as const }
+  }
+
+  const decision = await policy.request(describeToolCall(callId, tool, input))
+
+  if (decision === "denied") {
+    return { allowed: false as const, reason: "person_denied" as const }
   }
 
   return { allowed: true as const }
 }
 
-export function createPermissionExtension(policy: PiPermissionPolicy, decisions: PiPermissionDecision[]): InlineExtension {
+export function createPermissionExtension(policy: PiPermissionPolicy): InlineExtension {
   return {
     name: `permissions-${policy.botId}`,
     factory(pi: ExtensionAPI) {
-      const startedAt = new Map<string, number>()
-
       pi.on("tool_call", async (event) => {
-        const authorization = await authorizeToolCall(policy, event.toolName, event.input)
+        const authorization = await authorizeToolCall(policy, event.toolName, event.input, event.toolCallId)
 
         if (!authorization.allowed) {
-          decisions.push({ botId: policy.botId, tool: event.toolName, decision: "denied", reason: authorization.reason })
+          const reasons = {
+            missing_permission: "This permission mode does not allow the tool",
+            path_outside_root: "The path is outside the working directory",
+            person_denied: "The person denied this tool call",
+          }
 
-          return { block: true, reason: authorization.reason === "missing_permission" ? "Tool permission denied" : "Path is outside the allowed working directory" }
+          return { block: true, reason: reasons[authorization.reason] }
         }
-
-        startedAt.set(event.toolCallId, performance.now())
-      })
-      pi.on("tool_execution_end", (event) => {
-        const start = startedAt.get(event.toolCallId)
-
-        if (start === undefined) {
-          return
-        }
-
-        decisions.push({
-          botId: policy.botId,
-          tool: event.toolName,
-          decision: "allowed",
-          durationMs: Math.round(performance.now() - start),
-          failed: event.isError,
-        })
-        startedAt.delete(event.toolCallId)
       })
     },
   }

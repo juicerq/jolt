@@ -155,7 +155,9 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, memory),
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, memory, {
+    decide: (decision) => piRuntime.resolvePermission(decision),
+  }),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",

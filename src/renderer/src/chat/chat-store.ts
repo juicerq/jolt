@@ -1,5 +1,6 @@
 import { Store } from "@tanstack/react-store"
 import type { ConversationActivity, IncomingMessage } from "../../../shared/conversations"
+import type { PermissionRequest } from "../../../shared/permissions"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
 type ConversationStep = ConversationActivity["steps"][number]
@@ -17,6 +18,7 @@ export type ChatRun = {
   steps: ChatActivityStep[]
   waitingMessage: string
   status: "running" | "aborting" | "failed"
+  permissionRequests: PermissionRequest[]
   error?: string
 }
 
@@ -28,7 +30,7 @@ type ChatState = {
   statuses: Record<string, ChatStatus | undefined>
 }
 
-export type ChatStatus = "available" | "working" | "waiting" | "completed" | "error"
+export type ChatStatus = "available" | "working" | "awaiting-decision" | "waiting" | "completed" | "error"
 
 export const emptyChatDraft: ChatDraft = { content: "", images: [] }
 
@@ -51,7 +53,7 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, responseContent: "", steps: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
+      [botId]: { message, responseContent: "", steps: [], permissionRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -111,6 +113,18 @@ export function finishChatTool(botId: string, callId: string, failed: boolean, e
         }
       : step),
   }))
+}
+
+export function requestChatPermission(botId: string, request: PermissionRequest) {
+  updateRun(botId, (run) => ({ ...run, permissionRequests: [...run.permissionRequests.filter((pending) => pending.id !== request.id), request] }))
+  setChatStatus(botId, "awaiting-decision")
+}
+
+export function resolveChatPermission(botId: string, requestId: string) {
+  const permissionRequests = chatStore.state.runs[botId]?.permissionRequests.filter((request) => request.id !== requestId) ?? []
+
+  updateRun(botId, (run) => ({ ...run, permissionRequests }))
+  setChatStatus(botId, permissionRequests.length === 0 ? "working" : "awaiting-decision")
 }
 
 export function markChatAborting(botId: string) {

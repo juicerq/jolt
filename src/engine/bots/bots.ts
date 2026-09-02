@@ -1,6 +1,6 @@
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
-import { botSchemas, type Bot, type CreateBotInput, type StoredBot } from "../../shared/bots"
+import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "../../shared/bots"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
@@ -13,6 +13,18 @@ type BotsDependencies = {
   privateBotsDirectory: string
   providers: { list(): Promise<ProviderAvailability[]> }
   conversations: { close(botId: string): Promise<void> }
+}
+
+function executionChange(input: BotExecutionSettingInput) {
+  if (input.setting === "effort") {
+    return { effort: input.value }
+  }
+
+  if (input.setting === "model") {
+    return { model: input.value }
+  }
+
+  return { permissionMode: input.value }
 }
 
 export function createBots({ database, observability, privateBotsDirectory, providers, conversations }: BotsDependencies) {
@@ -103,6 +115,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         memoryEnabled: true,
         effort: "medium",
         model: null,
+        permissionMode: "ask",
         createdAt: new Date().toISOString(),
       })
     },
@@ -121,6 +134,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         memoryEnabled: true,
         effort: "medium",
         model: null,
+        permissionMode: "ask",
         createdAt: new Date().toISOString(),
       })
     },
@@ -171,6 +185,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
             memoryEnabled: input.memoryEnabled,
             effort: input.effort,
             model: input.model,
+            permissionMode: input.permissionMode,
           })
 
           if (!updated) {
@@ -180,6 +195,16 @@ export function createBots({ database, observability, privateBotsDirectory, prov
           return present(updated)
         },
       )
+    },
+    updateExecution(rawInput: unknown) {
+      const input = parse(botSchemas.updateExecutionInput, rawInput)
+      const updated = database.bots.updateExecution(input.id, executionChange(input))
+
+      if (!updated) {
+        throw new Error("Bot not found")
+      }
+
+      return present(updated)
     },
     async remove(rawInput: unknown) {
       const input = parse(botSchemas.idInput, rawInput)

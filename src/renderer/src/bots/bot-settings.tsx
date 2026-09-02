@@ -50,6 +50,7 @@ export function settingsChange(bot: Bot, draft: SettingsDraft) {
       memoryEnabled: bot.memoryEnabled,
       effort: bot.effort,
       model: bot.model,
+      permissionMode: bot.permissionMode,
     },
   }
 }

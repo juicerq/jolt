@@ -420,8 +420,8 @@ right. The layout never changes with the text length; the field grows
 downward until it scrolls. Send stays
 disabled until the draft holds text or an image. The user bubble shows its
 images above the text, up to 240px tall, with the same 8px radius. Between the
-text and the send action sits one quiet chip in metadata type and muted ink
-that names the Bot's Modelo and Esforço, such as `GPT-5.6 Luna · médio`. It
+text and the send action sit two quiet chips in metadata type and muted ink.
+The first names the Bot's Modelo and Esforço, such as `GPT-5.6 Luna · médio`. It
 ends in a small chevron and opens a menu above itself. The menu is a raised
 12px card with two sections split by one divider, each under a short label in
 metadata type: the Modelos the Fornecedor offers, then the five Esforço
@@ -431,7 +431,15 @@ surface with primary ink for the current choice. The Fornecedor default and
 the médio Esforço carry a quiet `Padrão` badge. Choosing one saves at once and
 the menu stays open, so the person can set both before clicking away or
 pressing Escape. The chip stays disabled while the Bot
-responds; the next turn already uses the new choice.
+responds; the next turn already uses the new choice. The Permissões chip
+follows it and uses the same height, type, chevron, menu anatomy, save behavior,
+and disabled state. It shows `Somente leitura`, `Perguntar`, or `Acesso total`;
+`Perguntar` carries the quiet `Padrão` badge. When a Bot awaits a decision, a
+low-emphasis status card spans the prompt above the draft. It names the
+requested action, shows the complete target or command without changing its
+whitespace, and ends with the text action `Negar` and the primary action
+`Permitir`. Long content scrolls inside the card instead of being shortened.
+Further requests remain queued and the card states how many are waiting.
 
 While the draft is a single word that starts with `/`, the Comando menu sits
 above the prompt, left-aligned, sharing the anatomy of the Modelo and Esforço

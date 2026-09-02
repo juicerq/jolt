@@ -10,6 +10,7 @@ import { createDiagnostics } from "@src/engine/observability/diagnostics"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { openDatabase } from "@src/engine/persistence/database"
 import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
+import { authorizeToolCall } from "@src/engine/pi/pi-permissions"
 import { createPiProvider } from "@src/engine/pi/pi-provider"
 import { createProjects } from "@src/engine/projects/projects"
 import { createRoutines } from "@src/engine/routines/routines"
@@ -29,19 +30,23 @@ function setup() {
   const projects = createProjects({ database, observability: system.observability, bots })
   const tasks = createTasks({ database, observability: system.observability })
   const sessionFactory: PiSessionFactory = {
-    async open() {
+    async open(input) {
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
 
       return {
         async prompt() {
           for (const listener of listeners) {
             listener({ type: "started" })
-            listener({ type: "text", text: "Resposta pronta" })
+          }
+
+          const authorization = await authorizeToolCall(input.policy, "note", { content: "Prefere PDF" }, "note-1")
+
+          for (const listener of listeners) {
+            listener({ type: "text", text: authorization.allowed ? "Resposta pronta" : "Pedido negado" })
             listener({ type: "finished", reason: "stop" })
           }
         },
         async abort() {},
-        setTools() {},
         subscribe(listener) {
           listeners.add(listener)
 
@@ -62,7 +67,7 @@ function setup() {
     migrationState: database.migrationState,
     exportDirectory: join(directory, "diagnostics"),
   })
-  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory))
+  const handler = new RPCHandler(createEngineRouter(new Date().toISOString(), system.observability, diagnostics, system.receiver, providers, bots, projects, conversations, tasks, routines, memory, { decide: (decision) => runtime.resolvePermission(decision) }))
   const server = Bun.serve({
     port: 0,
     async fetch(request) {
@@ -108,6 +113,10 @@ test("a turn streamed by the Engine drives the chat store from start to completi
   })
 
   await environment.client.raw.conversations.send({ botId: bot.id, content: "Olá", images: [] })
+  await until(() => chatStore.state.statuses[bot.id] === "awaiting-decision")
+
+  expect(chatStore.state.runs[bot.id]?.permissionRequests).toEqual([{ id: "note-1", tool: "note", detail: "Prefere PDF" }])
+  await environment.client.raw.permissions.decide({ botId: bot.id, requestId: "note-1", decision: "allowed" })
   await until(() => chatStore.state.statuses[bot.id] === "completed")
 
   expect(seen).toContain("Resposta pronta")

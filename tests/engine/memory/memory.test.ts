@@ -63,7 +63,6 @@ function setup(options?: { databasePath?: string; curationWait?: number }) {
           emit({ type: "finished", reason: "stop" })
         },
         async abort() {},
-        setTools() {},
         subscribe(listener) {
           listeners.add(listener)
 
@@ -196,7 +195,7 @@ describe("memory", () => {
     const environment = setup()
     const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
     environment.memory.add({ botId: bot.id, content: "Run typecheck before delivering" })
-    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null })
+    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask" })
 
     await environment.send(bot.id, "Olá")
 
@@ -226,13 +225,13 @@ describe("memory", () => {
     expect(environment.memory.instructions(helper)).toBe(team)
     expect(environment.memory.instructions(leader)).not.toContain("What your Leader")
 
-    await environment.bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null })
+    await environment.bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask" })
 
     expect(environment.memory.instructions(member)).not.toContain("What your Leader")
     expect(environment.memory.instructions(helper)).toBe("")
 
-    await environment.bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null })
-    await environment.bots.update({ id: member.id, name: member.name, function: member.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null })
+    await environment.bots.update({ id: leader.id, name: leader.name, function: leader.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask" })
+    await environment.bots.update({ id: member.id, name: member.name, function: member.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask" })
 
     expect(environment.memory.instructions(environment.bots.get({ id: member.id }) ?? member)).toBe("")
     expect(environment.memory.instructions(helper)).toBe(team)
@@ -296,7 +295,7 @@ describe("memory", () => {
     await environment.memory.curate(bot.id)
 
     const [curation] = environment.curations
-    expect(curation?.input).toMatchObject({ botId: bot.id, cwd: join(directory, "bots", bot.id), tools: ["remember", "replace", "forget"], ephemeral: true })
+    expect(curation?.input).toMatchObject({ botId: bot.id, cwd: join(directory, "bots", bot.id), tools: ["remember", "replace", "forget"], ephemeral: true, policy: { mode: "full" } })
     expect(curation?.input.sessionFile).toBeUndefined()
     expect(curation?.input.instructions).toContain("A Nota from a person turn is a request from the person")
     expect(curation?.message).toContain("Bot: Atlas. Função: Answer.\nResponsibilities, limits and delivery: Help\nThe Memória is empty.\nNotas pendentes:\n")

@@ -116,6 +116,18 @@ _Evitar_: Nível de pensamento, reasoning, raciocínio, modelo
 A variante do Fornecedor do Bot que executa o trabalho, como um modelo específico dentro do Codex. A pessoa escolhe por Bot; sem escolha, o Bot usa o padrão do Fornecedor.
 _Evitar_: Fornecedor, Conexão, versão
 
+**Permissão do Bot**:
+O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede.
+_Evitar_: Sandbox, acesso ao computador, autonomia
+
+**Pedido de permissão**:
+Uma solicitação feita durante a Conversa antes de o Bot usar uma ferramenta sujeita à Permissão do Bot. Cada Pedido autoriza ou nega uma única chamada; a Nota também pede, mas a Curadoria não.
+_Evitar_: Confirmação, consentimento permanente, aprovação da Curadoria
+
+**Decisão**:
+A resposta da pessoa a um Pedido de permissão: Permitir ou Negar.
+_Evitar_: Grant, autorização permanente
+
 **Comando**:
 Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem. Hoje existe `/lembrar`, que cria uma Lembrança. Executar um Comando limpa o que foi digitado.
 _Evitar_: Atalho, slash command, ação rápida

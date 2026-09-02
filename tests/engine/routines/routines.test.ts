@@ -46,7 +46,6 @@ function setup() {
         async abort() {
           releasePrompt()
         },
-        setTools() {},
         subscribe(listener) {
           listeners.add(listener)
 

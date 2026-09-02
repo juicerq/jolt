@@ -12,7 +12,7 @@ import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import type { PiCustomTool, PiRuntimeEvent, PiSessionFactory } from "./pi-agent-runtime"
 
-const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name" }
+const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "member", transfer: "member", hire: "name", note: "content" }
 const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions", routine: "content" }
 
 export function toPiTool(tool: PiCustomTool) {
@@ -160,7 +160,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy, input.decisions)],
+        extensionFactories: [createPermissionExtension(input.policy)],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,
@@ -185,7 +185,6 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         sessionFile: result.session.sessionFile ? basename(result.session.sessionFile) : undefined,
         prompt: (content, images = []) => result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) }),
         abort: () => result.session.abort(),
-        setTools: (tools) => result.session.setActiveToolsByName(tools),
         subscribe(listener) {
           return result.session.subscribe((event) => {
             const normalized = normalizeEvent(event)

@@ -7,6 +7,7 @@ import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
 import { projectSchemas } from "./projects"
+import { permissionSchemas } from "./permissions"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
 
@@ -35,6 +36,7 @@ export const engineContract = {
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
+    updateExecution: oc.input(botSchemas.updateExecutionInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/execution" }),
     remove: oc.input(botSchemas.idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
   },
   conversations: {
@@ -43,6 +45,9 @@ export const engineContract = {
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     abort: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
     related: oc.input(conversationSchemas.taskInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/tasks/{taskId}/messages" }),
+  },
+  permissions: {
+    decide: oc.input(permissionSchemas.decideInput).route({ method: "POST", path: "/bots/{botId}/permission-requests/{requestId}" }),
   },
   tasks: {
     listForLeader: oc.input(taskSchemas.leaderInput).output(taskSchemas.taskList).route({ method: "GET", path: "/bots/{leaderBotId}/tasks" }),

@@ -9,6 +9,7 @@ import type { createMemory } from "../memory/memory"
 import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
+import type { PermissionDecisionInput } from "../../shared/permissions"
 
 type EngineContext = { traceId?: string; spanId?: string }
 
@@ -47,6 +48,7 @@ export function createEngineRouter(
   tasks: ReturnType<typeof createTasks>,
   routines: ReturnType<typeof createRoutines>,
   memory: ReturnType<typeof createMemory>,
+  permissions: { decide(input: PermissionDecisionInput): void },
 ) {
   const operations = implement(engineContract).use(async ({ next }) => {
     try {
@@ -134,6 +136,12 @@ export function createEngineRouter(
           () => bots.update(input),
         ),
       ),
+      updateExecution: operations.bots.updateExecution.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.botexecutionupdate", context: observationContext(context) },
+          () => bots.updateExecution(input),
+        ),
+      ),
       remove: operations.bots.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.botremove", context: observationContext(context) },
@@ -165,6 +173,14 @@ export function createEngineRouter(
         observability.span(
           { name: "orpc.conversationrelated", context: observationContext(context) },
           () => conversations.related(input),
+        ),
+      ),
+    },
+    permissions: {
+      decide: operations.permissions.decide.handler(({ context, input }: { context: EngineContext; input: PermissionDecisionInput }) =>
+        observability.span(
+          { name: "orpc.permissiondecide", context: observationContext(context) },
+          () => permissions.decide(input),
         ),
       ),
     },

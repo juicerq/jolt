@@ -1,7 +1,9 @@
 import type { BotEffort } from "../../shared/bots"
+import type { BotPermissionMode } from "../../shared/bot-permissions"
 import type { IncomingMessage, MessageImage } from "../../shared/conversations"
+import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
 import type { Observability } from "../observability/observability"
-import type { PiPermissionDecision, PiPermissionPolicy } from "./pi-permissions"
+import type { PiPermissionPolicy } from "./pi-permissions"
 
 export type PiRuntimeEvent =
   | { type: "started" }
@@ -11,6 +13,8 @@ export type PiRuntimeEvent =
   | { type: "thinking-finished" }
   | { type: "tool-started"; callId: string; tool: string; detail?: string; brief?: string }
   | { type: "tool-finished"; callId: string; tool: string; failed: boolean; error?: string }
+  | { type: "permission-requested"; request: PermissionRequest }
+  | { type: "permission-resolved"; requestId: string }
   | { type: "finished"; reason: "stop" | "aborted" | "error" }
 
 export type PiCustomTool = {
@@ -24,7 +28,6 @@ export type PiSession = {
   sessionFile?: string
   prompt(content: string, images?: MessageImage[]): Promise<void>
   abort(): Promise<void>
-  setTools(tools: string[]): void
   subscribe(listener: (event: PiRuntimeEvent) => void): () => void
   dispose(): void
 }
@@ -37,7 +40,6 @@ export type PiSessionFactory = {
     effort: BotEffort
     model: string | null
     policy: PiPermissionPolicy
-    decisions: PiPermissionDecision[]
     customTools?: PiCustomTool[]
     sessionFile?: string
     instructions?: string
@@ -65,16 +67,60 @@ export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): Pi
 }
 
 export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observability: Observability) {
-  const sessions = new Map<string, { session: PiSession; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
-  const decisions: PiPermissionDecision[] = []
+  const sessions = new Map<string, { session: PiSession; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
+  const pending = new Map<string, { botId: string; request: PermissionRequest; resolve(decision: PermissionDecision): void }>()
+
+  function pendingKey(botId: string, requestId: string) {
+    return `${botId}:${requestId}`
+  }
+
+  function deliver(botId: string, event: PiRuntimeEvent) {
+    for (const listener of sessions.get(botId)?.listeners ?? []) {
+      listener(event)
+    }
+  }
+
+  function denyPending(botId: string) {
+    for (const [key, request] of pending) {
+      if (request.botId === botId) {
+        pending.delete(key)
+        request.resolve("denied")
+      }
+    }
+  }
+
+  function close(botId: string) {
+    const entry = sessions.get(botId)
+
+    if (!entry) {
+      return
+    }
+
+    denyPending(botId)
+    entry.unsubscribe()
+    entry.session.dispose()
+    sessions.delete(botId)
+  }
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; grants: Set<string>; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
-      sessions.get(input.botId)?.unsubscribe()
-      sessions.get(input.botId)?.session.dispose()
+    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; permissionMode: BotPermissionMode; customTools?: PiCustomTool[]; sessionFile?: string; instructions?: string }) {
+      close(input.botId)
+      const policy: PiPermissionPolicy = {
+        botId: input.botId,
+        allowedRoot: input.cwd,
+        mode: input.permissionMode,
+        request: (request) => new Promise<PermissionDecision>((resolve) => {
+          const key = pendingKey(input.botId, request.id)
 
-      const policy = { botId: input.botId, allowedRoot: input.cwd, grants: input.grants }
-      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: "codex" } }, () => sessionFactory.open({ ...input, policy, decisions }))
+          if (pending.has(key)) {
+            throw new Error("Permission request already exists")
+          }
+
+          pending.set(key, { botId: input.botId, request, resolve })
+          deliver(input.botId, { type: "permission-requested", request })
+        }),
+      }
+      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: "codex" } }, () => sessionFactory.open({ ...input, policy }))
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
       let receivedFirstEvent = false
       const unsubscribe = session.subscribe((event) => {
@@ -91,7 +137,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
           listener(event)
         }
       })
-      sessions.set(input.botId, { session, policy, unsubscribe, listeners })
+      sessions.set(input.botId, { session, unsubscribe, listeners })
 
       return { sessionFile: session.sessionFile }
     },
@@ -122,44 +168,30 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         throw new Error("Pi session not found")
       }
 
+      denyPending(botId)
+
       return observability.span({ name: "pi.abort", context: { botId, provider: "codex" } }, () => entry.session.abort())
     },
-    setTools(botId: string, tools: string[]) {
-      const entry = sessions.get(botId)
+    resolvePermission({ botId, requestId, decision }: { botId: string; requestId: string; decision: PermissionDecision }) {
+      const key = pendingKey(botId, requestId)
+      const request = pending.get(key)
 
-      if (!entry) {
-        throw new Error("Pi session not found")
+      if (!request || request.botId !== botId) {
+        throw new Error("Permission request not found")
       }
 
-      entry.policy.grants.clear()
-
-      for (const tool of tools) {
-        entry.policy.grants.add(tool)
-      }
-
-      entry.session.setTools(tools)
+      pending.delete(key)
+      request.resolve(decision)
+      deliver(botId, { type: "permission-resolved", requestId })
     },
-    decisions() {
-      return decisions.map((decision) => ({ ...decision }))
+    pending(botId: string) {
+      return Array.from(pending.values()).filter((request) => request.botId === botId).map((request) => request.request)
     },
-    close(botId: string) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        return
-      }
-
-      entry.unsubscribe()
-      entry.session.dispose()
-      sessions.delete(botId)
-    },
+    close,
     dispose() {
-      for (const entry of sessions.values()) {
-        entry.unsubscribe()
-        entry.session.dispose()
+      for (const botId of sessions.keys()) {
+        close(botId)
       }
-
-      sessions.clear()
     },
   }
 }

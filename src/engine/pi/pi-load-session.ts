@@ -90,7 +90,6 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
             listener({ type: "finished", reason: "aborted" })
           }
         },
-        setTools() {},
         subscribe(listener) {
           listeners.add(listener)
 

@@ -11,6 +11,8 @@ import {
   startChatRun,
   startChatThinking,
   startChatTool,
+  requestChatPermission,
+  resolveChatPermission,
 } from "@src/renderer/src/chat/chat-store"
 
 test("live chat groups consecutive tools without merging separate reasoning periods", () => {
@@ -58,4 +60,18 @@ test("a draft keeps text and images per Bot until the person sends it", () => {
   startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Veja as telas", images: [second] })
 
   expect(chatStore.state.drafts[botId]).toEqual({ content: "", images: [] })
+})
+
+test("permission decisions remove only their own pending request", () => {
+  const botId = crypto.randomUUID()
+
+  startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Trabalhe", images: [] })
+  requestChatPermission(botId, { id: "note-1", tool: "note", detail: "Prefere PDF" })
+  requestChatPermission(botId, { id: "bash-1", tool: "bash", detail: "bun test" })
+  resolveChatPermission(botId, "note-1")
+
+  expect(chatStore.state.runs[botId]?.permissionRequests).toEqual([{ id: "bash-1", tool: "bash", detail: "bun test" }])
+  expect(chatStore.state.statuses[botId]).toBe("awaiting-decision")
+
+  dismissChatRun(botId)
 })

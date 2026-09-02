@@ -17,12 +17,16 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const prompts: string[] = []
   const promptImages: MessageImage[][] = []
   const efforts: string[] = []
+  const permissionModes: string[] = []
+  const openedTools: string[][] = []
   const instructions: string[] = []
   const sessions = new Map<string, { listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; fail(): void }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
       instructions.push(input.instructions ?? "")
       efforts.push(`${input.effort}/${input.model ?? "default"}`)
+      permissionModes.push(input.policy.mode)
+      openedTools.push(input.tools)
       let finishPrompt: (() => void) | undefined
       let rejectPrompt: ((error: Error) => void) | undefined
       const state = { listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false, fail: () => rejectPrompt?.(new Error("Provider crashed")) }
@@ -70,7 +74,6 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
 
           finishPrompt?.()
         },
-        setTools() {},
         subscribe(listener) {
           state.listeners.add(listener)
 
@@ -123,7 +126,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
     }
   }
 
-  return { bots, conversations, database, databasePath, efforts, instructions, prompts, promptImages, runtime, sessions, observationSystem, turn, turnSettled }
+  return { bots, conversations, database, databasePath, efforts, permissionModes, openedTools, instructions, prompts, promptImages, runtime, sessions, observationSystem, turn, turnSettled }
 }
 
 describe("conversations", () => {
@@ -310,18 +313,23 @@ describe("conversations", () => {
     await environment.observationSystem.observability.flush()
   })
 
-  test("opens the session with the Bot Esforço and Modelo and reopens it when either changes", async () => {
+  test("opens the session with the Bot execution settings and reopens it when one changes", async () => {
     const environment = setup()
     const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
 
     await environment.turn(bot.id, "Olá")
     await environment.turn(bot.id, "De novo")
-    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "high", model: null })
+    await environment.bots.updateExecution({ id: bot.id, setting: "effort", value: "high" })
     await environment.turn(bot.id, "Pense mais")
-    await environment.bots.update({ id: bot.id, name: bot.name, function: bot.function, projectId: null, workingDirectoryOverride: null, memoryEnabled: true, effort: "high", model: "gpt-5.6-mini" })
+    await environment.bots.updateExecution({ id: bot.id, setting: "model", value: "gpt-5.6-mini" })
     await environment.turn(bot.id, "Mais rápido")
+    await environment.bots.updateExecution({ id: bot.id, setting: "permissionMode", value: "read-only" })
+    await environment.turn(bot.id, "Somente leia")
 
-    expect(environment.efforts).toEqual(["medium/default", "high/default", "high/gpt-5.6-mini"])
+    expect(environment.efforts).toEqual(["medium/default", "high/default", "high/gpt-5.6-mini", "high/gpt-5.6-mini"])
+    expect(environment.permissionModes).toEqual(["ask", "ask", "ask", "read-only"])
+    expect(environment.openedTools.every((tools) => ["read", "grep", "find", "ls"].every((tool) => tools.includes(tool)))).toBe(true)
+    expect(environment.openedTools.at(-1)).toEqual(["read", "grep", "find", "ls"])
     environment.conversations.dispose()
     await environment.observationSystem.observability.flush()
   })

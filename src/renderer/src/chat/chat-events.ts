@@ -7,6 +7,8 @@ import {
   appendChatThinking,
   finishChatThinking,
   finishChatTool,
+  requestChatPermission,
+  resolveChatPermission,
   settleChatRun,
   startChatRun,
   startChatThinking,
@@ -62,6 +64,16 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "tool-finished") {
       finishChatTool(botId, event.callId, event.failed, event.error)
+      return
+    }
+
+    if (event.type === "permission-requested") {
+      requestChatPermission(botId, event.request)
+      return
+    }
+
+    if (event.type === "permission-resolved") {
+      resolveChatPermission(botId, event.requestId)
       return
     }
 

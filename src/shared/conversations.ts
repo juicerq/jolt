@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { messageImageMimeTypes } from "./message-images"
+import { permissionSchemas } from "./permissions"
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine"])
@@ -59,6 +60,8 @@ const toolFinishedEvent = z.strictObject({
   failed: z.boolean(),
   error: id.optional(),
 })
+const permissionRequestedEvent = z.strictObject({ type: z.literal("permission-requested"), request: permissionSchemas.request })
+const permissionResolvedEvent = z.strictObject({ type: z.literal("permission-resolved"), requestId: id })
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]) })
 const event = z.discriminatedUnion("type", [
   startedEvent,
@@ -68,6 +71,8 @@ const event = z.discriminatedUnion("type", [
   thinkingFinishedEvent,
   toolStartedEvent,
   toolFinishedEvent,
+  permissionRequestedEvent,
+  permissionResolvedEvent,
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })

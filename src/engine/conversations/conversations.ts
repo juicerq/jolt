@@ -2,6 +2,7 @@ import type { Bot } from "../../shared/bots"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { createPiAgentRuntime, PiCustomTool } from "../pi/pi-agent-runtime"
+import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
@@ -10,7 +11,7 @@ import { createDelegation } from "./delegation"
 import { voice } from "./voice"
 import { parse } from "../../shared/parse"
 
-const defaultTools = ["read", "bash", "edit", "write"]
+const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
 
 export type BotExtension = {
@@ -93,7 +94,7 @@ export function createConversations(input: {
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
     const customTools = extensions.flatMap((extension) => extension.tools(bot))
-    const tools = [...defaultTools, ...customTools.map((tool) => tool.name)]
+    const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
     const instructions = [
       `You are ${bot.name}.`,
       `Expected outcome: ${bot.function.outcome}`,
@@ -101,7 +102,7 @@ export function createConversations(input: {
       ...extensions.map((extension) => extension.instructions(bot)),
       voice,
     ].filter(Boolean).join("\n")
-    const profile = JSON.stringify({ cwd, tools, instructions, effort: bot.effort, model: bot.model })
+    const profile = JSON.stringify({ cwd, tools, instructions, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
       return
@@ -114,7 +115,7 @@ export function createConversations(input: {
       tools,
       effort: bot.effort,
       model: bot.model,
-      grants: new Set(tools),
+      permissionMode: bot.permissionMode,
       customTools,
       instructions,
       ...(sessionFile ? { sessionFile } : {}),
@@ -300,7 +301,11 @@ export function createConversations(input: {
       return input.database.conversations.related(taskId)
     },
     events(): AsyncIterable<BotConversationEvent> {
-      const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: incoming(turn.message) } })))
+      const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
+        { botId, event: { type: "started", message: incoming(turn.message) } },
+        ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
+      ])
+      const queue = createQueue<BotConversationEvent>(initial)
       streams.add(queue)
 
       return {
