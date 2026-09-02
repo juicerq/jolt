@@ -1,7 +1,7 @@
 import { type } from "arktype"
+import { messageImageMimeTypes } from "./message-images"
 
 export const messageAuthor = type.enumerated("person", "bot", "routine")
-export const messageImageMimeTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const
 const optionalId = type("string > 0").or("null")
 const messageImage = type({ "+": "reject", data: "string > 0", mimeType: type.enumerated(...messageImageMimeTypes) })
 const conversationTool = type({

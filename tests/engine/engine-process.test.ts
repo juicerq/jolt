@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { createEngineClient } from "@src/renderer/src/engine-client"
-import { engineReadyMessage } from "@src/shared/engine-contract"
+import { engineReadyMessage } from "@src/shared/engine-ipc"
 import { observation } from "@src/shared/observability/observation"
 import { testDirectory } from "../support/test-directory"
 

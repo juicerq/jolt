@@ -40,3 +40,20 @@ test("does not report a cancelled request as a failed RPC", async () => {
     server.stop(true)
   }
 })
+
+test("bundles the Renderer's shared imports without arktype", async () => {
+  const build = await Bun.build({
+    entrypoints: [
+      "src/renderer/src/engine-client.ts",
+      "src/shared/bot-efforts.ts",
+      "src/shared/memory-limits.ts",
+      "src/shared/message-images.ts",
+      "src/shared/weekdays.ts",
+    ],
+    target: "browser",
+  })
+  const sources = await Promise.all(build.outputs.map((output) => output.text()))
+
+  expect(build.success).toBe(true)
+  expect(sources.some((source) => source.includes("ArkErrors"))).toBe(false)
+})

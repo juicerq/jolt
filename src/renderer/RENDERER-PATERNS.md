@@ -16,3 +16,7 @@ Leia `DESIGN.md` antes de criar, alterar ou revisar a interface. Ele define os t
 - O estado do componente controla dados usados somente por aquela parte da interface.
 
 Use selectors ao ler o TanStack Store para evitar renderizações causadas por mudanças que o componente não usa.
+
+## Importações de `src/shared`
+
+O Renderer não valida dados: o Bun Engine já validou tudo que envia. Importe de `src/shared` apenas tipos, com `import type`, ou arquivos sem arktype, como `bot-efforts.ts` e `weekdays.ts`. Um valor importado de um arquivo com schemas compila todos os schemas dele no boot do Renderer. O teste em `tests/renderer/engine-client.test.ts` falha quando o arktype entra no bundle.

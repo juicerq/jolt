@@ -1,6 +1,6 @@
 import { type } from "arktype"
+import { weekdays } from "./weekdays"
 
-export const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const
 const weekday = type.enumerated(...weekdays)
 const interval = type({ "+": "reject", form: type.enumerated("interval"), everyMinutes: "number.integer >= 1" })
 const fixedTime = type({ "+": "reject", form: type.enumerated("fixed-time"), days: weekday.array().atLeastLength(1), time: /^([01]\d|2[0-3]):[0-5]\d$/ })

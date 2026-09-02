@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron"
-import type { engineConnection } from "../shared/engine-contract"
+import type { engineConnection } from "../shared/engine-ipc"
 
 contextBridge.exposeInMainWorld("desktop", {
   getEngineConnection: (): Promise<typeof engineConnection.infer> => ipcRenderer.invoke("engine:get-connection"),

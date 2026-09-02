@@ -1,7 +1,6 @@
 import { type } from "arktype"
 import { messageAuthor } from "./conversations"
-
-export const memoryLimits = { memory: 300, total: 4000, note: 500 } as const
+import { memoryLimits } from "./memory-limits"
 
 const optionalId = type("string > 0").or("null")
 const memoryContent = type("string > 0").atMostLength(memoryLimits.memory)
@@ -36,10 +35,6 @@ export const memorySchemas = {
   storedMemory,
   memory,
   memoryList: memory.array(),
-}
-
-export function memoryUsage(memories: Pick<StoredMemory, "content">[]) {
-  return memories.reduce((total, memory) => total + memory.content.length, 0)
 }
 
 export type Note = typeof note.infer

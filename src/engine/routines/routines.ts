@@ -1,5 +1,6 @@
 import type { Bot } from "../../shared/bots"
-import { routineSchemas, weekdays, type Frequency, type Routine } from "../../shared/routines"
+import { routineSchemas, type Frequency, type Routine } from "../../shared/routines"
+import { weekdays } from "../../shared/weekdays"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"

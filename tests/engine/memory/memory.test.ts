@@ -7,7 +7,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 import { createPiAgentRuntime, type PiCustomTool, type PiRuntimeEvent, type PiSessionFactory } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
 import { createTasks } from "@src/engine/tasks/tasks"
-import { memoryLimits } from "@src/shared/memory"
+import { memoryLimits } from "@src/shared/memory-limits"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-memory-")

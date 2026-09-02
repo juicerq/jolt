@@ -1,5 +1,6 @@
 import type { Bot } from "../../shared/bots"
-import { memoryLimits, memorySchemas, memoryUsage, type Memory, type Note } from "../../shared/memory"
+import { memorySchemas, type Memory, type Note } from "../../shared/memory"
+import { memoryLimits, memoryUsage } from "../../shared/memory-limits"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"

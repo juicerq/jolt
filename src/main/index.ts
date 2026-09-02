@@ -3,7 +3,7 @@ import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain } from "electron"
 import { type } from "arktype"
-import { loopbackHttpUrl } from "../shared/engine-contract"
+import { loopbackHttpUrl } from "../shared/engine-ipc"
 import { EngineProcess } from "./engine-process/engine-process"
 
 if (process.env.JOLT_USER_DATA) {

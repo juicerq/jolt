@@ -1,4 +1,4 @@
-import type { engineConnection } from "../../shared/engine-contract"
+import type { engineConnection } from "../../shared/engine-ipc"
 
 declare global {
   interface Window {

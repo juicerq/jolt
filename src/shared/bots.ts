@@ -1,8 +1,8 @@
 import { type } from "arktype"
+import { botEfforts } from "./bot-efforts"
 import { providerName } from "./providers"
 
 const botFunction = type({ "+": "reject", outcome: "string > 0", "description?": "string > 0" })
-export const botEfforts = ["low", "medium", "high", "xhigh", "max"] as const
 const botEffort = type.enumerated(...botEfforts)
 export const workingDirectory = type("string > 0")
 const optionalId = type("string > 0").or("null")
