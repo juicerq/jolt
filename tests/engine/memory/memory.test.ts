@@ -46,7 +46,9 @@ function setup(options?: { databasePath?: string; curationWait?: number }) {
       }
 
       return {
-        async prompt(message) {
+        compact: async () => ({ tokensBefore: 0 }),
+        async prompt(prompt) {
+          const message = prompt.content
           emit({ type: "started" })
 
           if (input.ephemeral) {
@@ -130,7 +132,7 @@ function setup(options?: { databasePath?: string; curationWait?: number }) {
     sessions,
     untilCurated,
     send: (botId: string, content: string) => turn(botId, () => conversations.send({ botId, content, images: [] })),
-    call: (botId: string, content: string) => turn(botId, () => conversations.call(botId, content)),
+    call: (botId: string, content: string) => turn(botId, () => conversations.call({ id: crypto.randomUUID(), botId, content, frequency: { form: "interval", everyMinutes: 30 }, nextCallAt: new Date().toISOString() })),
   }
 }
 

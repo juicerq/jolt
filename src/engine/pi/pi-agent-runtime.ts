@@ -1,6 +1,6 @@
 import type { BotEffort } from "../../shared/bots"
 import type { BotPermissionMode } from "../../shared/bot-permissions"
-import type { IncomingMessage, MessageImage } from "../../shared/conversations"
+import type { ConversationCompactionResult, MessageImage, TurnContext } from "../../shared/conversations"
 import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
 import type { Observability } from "../observability/observability"
 import type { PiPermissionPolicy } from "./pi-permissions"
@@ -42,9 +42,16 @@ export type PiSchemaTool = {
 
 export type PiTool = PiCustomTool | PiSchemaTool
 
+export type PiPrompt = {
+  content: string
+  images?: MessageImage[]
+  context?: TurnContext
+}
+
 export type PiSession = {
   sessionFile?: string
-  prompt(content: string, images?: MessageImage[]): Promise<void>
+  compact(customInstructions?: string): Promise<ConversationCompactionResult>
+  prompt(input: PiPrompt): Promise<void>
   abort(): Promise<void>
   addTools?(tools: PiTool[]): void
   subscribe(listener: (event: PiRuntimeEvent) => void): () => void
@@ -192,14 +199,23 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
 
       return () => entry.listeners.delete(listener)
     },
-    async prompt(botId: string, message: Pick<IncomingMessage, "content" | "images">) {
+    async prompt(botId: string, prompt: PiPrompt) {
       const entry = sessions.get(botId)
 
       if (!entry) {
         throw new Error("Pi session not found")
       }
 
-      return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(message.content, message.images))
+      return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(prompt))
+    },
+    async compact(botId: string, customInstructions?: string) {
+      const entry = sessions.get(botId)
+
+      if (!entry) {
+        throw new Error("Pi session not found")
+      }
+
+      return observability.span({ name: "pi.compact", context: { botId, provider: "codex" } }, () => entry.session.compact(customInstructions))
     },
     addTools(botId: string, tools: PiTool[]) {
       const entry = sessions.get(botId)

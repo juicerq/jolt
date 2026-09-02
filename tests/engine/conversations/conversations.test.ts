@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { ConversationEvent, MessageImage } from "@src/shared/conversations"
+import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
@@ -14,12 +15,13 @@ import { testDirectory } from "../../support/test-directory"
 const directory = testDirectory("jolt-conversations-")
 
 function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), completePrompt = true) {
-  const prompts: string[] = []
+  const prompts: unknown[] = []
   const promptImages: MessageImage[][] = []
   const efforts: string[] = []
   const permissionModes: string[] = []
   const openedTools: string[][] = []
   const instructions: string[] = []
+  const compactionInstructions: (string | undefined)[] = []
   const sessions = new Map<string, { listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; fail(): void }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
@@ -34,9 +36,14 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
 
       return {
         sessionFile: join(directory, `${input.botId}.jsonl`),
-        async prompt(message, images = []) {
-          prompts.push(message)
-          promptImages.push(images)
+        async compact(customInstructions) {
+          compactionInstructions.push(customInstructions)
+
+          return { tokensBefore: 18_420, estimatedTokensAfter: 6_100 }
+        },
+        async prompt(prompt) {
+          prompts.push(prompt)
+          promptImages.push(prompt.images ?? [])
 
           for (const listener of state.listeners) {
             listener({ type: "started" })
@@ -90,7 +97,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
-  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (routine) => conversations.call(routine) } })
 
   async function turn(botId: string, content: string, images: MessageImage[] = []) {
     const events = conversations.events()[Symbol.asyncIterator]()
@@ -126,7 +133,7 @@ function setup(databasePath = join(directory, `${crypto.randomUUID()}.sqlite`), 
     }
   }
 
-  return { bots, conversations, database, databasePath, efforts, permissionModes, openedTools, instructions, prompts, promptImages, runtime, sessions, observationSystem, turn, turnSettled }
+  return { bots, conversations, database, databasePath, efforts, permissionModes, openedTools, instructions, compactionInstructions, prompts, promptImages, runtime, sessions, observationSystem, turn, turnSettled }
 }
 
 describe("conversations", () => {
@@ -156,11 +163,17 @@ describe("conversations", () => {
       "finished",
     ])
     expect(events.filter((event) => event.type === "thinking-finished").every((event) => event.durationMs > 0)).toBe(true)
-    expect(first.prompts).toEqual(["Olá"])
+    expect(first.prompts).toEqual([{
+      content: "Olá",
+      images: [],
+      context: { cause: "person", startedAt: expect.any(String), timeZone: expect.any(String) },
+    }])
     expect(first.instructions[0]).toStartWith("You are Atlas, a Bot inside Jolt.\nExpected outcome: Answer\nResponsibilities, limits and delivery: Help\n")
-    expect(first.instructions[0]).toContain("Your working directory is your own folder")
+    expect(first.instructions[0]).toContain("Your working directory is your private Bot directory")
     expect(first.instructions[0]).toContain("The person reviews each action before it runs")
     expect(first.instructions[0]).toContain("Use the hire tool")
+    expect(first.instructions[0]).toContain("Talk to the person as a capable colleague who shares the ongoing situation, not as an operation log")
+    expect(first.instructions[0]).toContain("When a Rotina repeats, use the conversation history to acknowledge its continuity and vary the report")
     expect(first.instructions[0]).toEndWith(voice)
     expect(first.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
@@ -308,7 +321,11 @@ describe("conversations", () => {
 
     await environment.turn(bot.id, "", [image])
 
-    expect(environment.prompts).toEqual([""])
+    expect(environment.prompts).toEqual([{
+      content: "",
+      images: [image],
+      context: { cause: "person", startedAt: expect.any(String), timeZone: expect.any(String) },
+    }])
     expect(environment.promptImages).toEqual([[image]])
     expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages[0]).toMatchObject({ author: "person", content: "", images: [image] })
     expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages[1]).toMatchObject({ author: "bot", images: [] })
@@ -339,6 +356,27 @@ describe("conversations", () => {
     await environment.observationSystem.observability.flush()
   })
 
+  test("tells a Bot when its working directory belongs to a Project", async () => {
+    const environment = setup()
+    const projectDirectory = join(directory, crypto.randomUUID())
+    const overrideDirectory = join(directory, crypto.randomUUID())
+    await mkdir(projectDirectory)
+    await mkdir(overrideDirectory)
+    const project = environment.database.projects.create({ id: crypto.randomUUID(), name: "Jolt", defaultWorkingDirectory: projectDirectory, createdAt: new Date().toISOString() })
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer" }, projectId: project.id })
+    const specialist = await environment.bots.create({ name: "Calo", provider: "codex", function: { outcome: "Review" }, projectId: project.id, workingDirectoryOverride: overrideDirectory })
+
+    await environment.turn(bot.id, "Revise a codebase")
+    await environment.turn(specialist.id, "Revise outra pasta")
+
+    expect(environment.instructions[0]).toContain('Your working directory is the shared folder of Project "Jolt"')
+    expect(environment.instructions[0]).not.toContain("your own folder")
+    expect(environment.instructions[1]).toContain('You belong to Project "Jolt". The person chose a different working directory for you')
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
   test("rejects a message with neither text nor images", async () => {
     const environment = setup()
     const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
@@ -346,6 +384,35 @@ describe("conversations", () => {
     await expect(environment.conversations.send({ botId: bot.id, content: "", images: [] })).rejects.toThrow("Message is empty")
     expect(environment.prompts).toEqual([])
     environment.conversations.dispose()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("compacts the Bot Context with optional instructions without adding a Message", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
+
+    await environment.turn(bot.id, "Investigue")
+    const result = await environment.conversations.compact({ botId: bot.id, instructions: "Preserve decisões" })
+
+    expect(result).toEqual({ tokensBefore: 18_420, estimatedTokensAfter: 6_100 })
+    expect(environment.compactionInstructions).toEqual(["Preserve decisões"])
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ content }) => content)).toEqual(["Investigue", "Resposta confirmada"])
+    environment.conversations.dispose()
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
+  test("does not interrupt a working Bot to compact its Context", async () => {
+    const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: { outcome: "Answer", description: "Help" } })
+
+    await environment.conversations.send({ botId: bot.id, content: "Continue", images: [] })
+
+    expect(environment.conversations.compact({ botId: bot.id })).rejects.toThrow("Bot is already working")
+    expect(environment.sessions.get(bot.id)?.aborted).toBe(false)
+    await environment.conversations.abort({ botId: bot.id })
+    environment.conversations.dispose()
+    environment.database.close()
     await environment.observationSystem.observability.flush()
   })
 

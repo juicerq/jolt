@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
 import { createConversations } from "@src/engine/conversations/conversations"
 import { createObservationSystem } from "@src/engine/observability/observability"
-import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory, type PiTool } from "@src/engine/pi/pi-agent-runtime"
+import { createPiAgentRuntime, type PiPrompt, type PiRuntimeEvent, type PiSessionFactory, type PiTool } from "@src/engine/pi/pi-agent-runtime"
 import { openDatabase } from "@src/engine/persistence/database"
 import { createRoutines } from "@src/engine/routines/routines"
 import { createTasks } from "@src/engine/tasks/tasks"
@@ -17,6 +17,7 @@ type Script = (message: string, call: (tool: string, params: Record<string, stri
 
 function setup() {
   const scripts = new Map<string, Script>()
+  const prompts = new Map<string, PiPrompt[]>()
   const sessions = new Map<string, { tools: string[]; customTools: PiTool[]; instructions: string }>()
   const sessionFactory: PiSessionFactory = {
     async open(input) {
@@ -32,10 +33,12 @@ function setup() {
 
       return {
         sessionFile: join(directory, `${input.botId}.jsonl`),
-        async prompt(message) {
+        compact: async () => ({ tokensBefore: 0 }),
+        async prompt(prompt) {
           aborted = false
           emit({ type: "started" })
           const script = scripts.get(input.botId) ?? scripts.get("*")
+          prompts.set(input.botId, [...(prompts.get(input.botId) ?? []), prompt])
 
           if (!script) {
             await new Promise<void>((resolve) => {
@@ -45,7 +48,7 @@ function setup() {
             return
           }
 
-          const reply = await script(message, async (tool, params) => {
+          const reply = await script(prompt.content, async (tool, params) => {
             const callId = crypto.randomUUID()
             const definition = input.customTools?.find((candidate) => candidate.name === tool)
 
@@ -89,7 +92,7 @@ function setup() {
   const tasks = createTasks({ database, observability: observationSystem.observability })
   const runtime = createPiAgentRuntime(sessionFactory, observationSystem.observability)
   const conversations = createConversations({ database, bots, tasks, runtime, observability: observationSystem.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
-  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+  const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (routine) => conversations.call(routine) } })
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
@@ -132,7 +135,7 @@ function setup() {
     await observationSystem.observability.flush()
   }
 
-  return { bots, close, conversations, database, observationSystem, scripts, sessions, tasks, team, turn }
+  return { bots, close, conversations, database, observationSystem, prompts, scripts, sessions, tasks, team, turn }
 }
 
 describe("delegation", () => {
@@ -153,6 +156,14 @@ describe("delegation", () => {
 
     expect(task).toMatchObject({ leaderBotId: leader.id, assigneeBotId: member.id, outcome: "Escrever testes", status: "done" })
     expect(task?.finishedAt).not.toBeNull()
+    expect(environment.prompts.get(member.id)?.[0]?.context).toEqual({
+      cause: "task-assignment",
+      taskId: task?.id,
+      sender: { id: leader.id, name: leader.name },
+      outcome: "Escrever testes",
+      startedAt: expect.any(String),
+      timeZone: expect.any(String),
+    })
     expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))).toEqual([
       { author: "person", authorBotId: null, taskId: null, content: "Delegue os testes" },
       { author: "bot", authorBotId: leader.id, taskId: null, content: "Calo respondeu: Testes escritos" },
@@ -319,6 +330,10 @@ describe("delegation", () => {
     const history = environment.conversations.history({ botId: leader.id, limit: 100 }).messages.map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
 
     expect(tasks.map((task) => task.status)).toEqual(["done", "done"])
+    expect(environment.prompts.get(leader.id)?.slice(1).map((prompt) => prompt.context)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ cause: "task-result", taskId: tasks[0]?.id, sender: { id: member.id, name: member.name }, outcome: "Escrever testes", status: "done" }),
+      expect.objectContaining({ cause: "task-result", taskId: tasks[1]?.id, sender: { id: other.id, name: other.name }, outcome: "Desenhar a tela", status: "done" }),
+    ]))
     expect(history).toContainEqual({ author: "bot", authorBotId: member.id, taskId: tasks[0]?.id, content: "Testes escritos" })
     expect(history).toContainEqual({ author: "bot", authorBotId: leader.id, taskId: tasks[0]?.id, content: "Recebi: Testes escritos" })
     expect(history).toContainEqual({ author: "bot", authorBotId: other.id, taskId: tasks[1]?.id, content: "Tela desenhada" })

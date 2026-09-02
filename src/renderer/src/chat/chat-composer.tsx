@@ -5,6 +5,7 @@ import type { Bot } from "../../../shared/bots"
 import type { MessageImage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
+import { menuCardClassName } from "../ui/menu"
 import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
 import { completeChatCommand } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
@@ -27,10 +28,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
-  const { suggestions, command, run: runCommand } = useChatCommands(bot, client, draft.content)
+  const { suggestions, command, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft.content)
   const menuOpen = suggestions.length > 0 && draft.content !== dismissedContent && !run
   const active = Math.min(highlighted, suggestions.length - 1)
   const empty = draft.content.trim().length === 0 && draft.images.length === 0
+  const busy = !!run || commandPending
   const aborting = run?.status === "aborting"
   const pluginRequest = run?.pluginRequests[0]
 
@@ -44,13 +46,13 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     addChatDraftImages(bot.id, images)
   }
 
-  function handleSend() {
-    if (empty || run) {
+  async function handleSend() {
+    if (empty || busy) {
       return
     }
 
     if (command) {
-      const ran = runCommand(command)
+      const ran = await runCommand(command).catch(() => false)
 
       if (ran) {
         setChatDraftContent(bot.id, "")
@@ -64,10 +66,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    handleSend()
+    void handleSend()
   }
 
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
+    resetCommand()
     setHighlighted(0)
     setChatDraftContent(bot.id, event.target.value)
   }
@@ -126,7 +129,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     }
 
     event.preventDefault()
-    handleSend()
+    void handleSend()
   }
 
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
@@ -145,7 +148,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   function handleDrop(event: DragEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (run) {
+    if (busy) {
       return
     }
 
@@ -165,9 +168,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDrop={handleDrop}
     >
       {menuOpen && <ChatCommandMenu id={menuId} suggestions={suggestions} highlighted={active} onHighlight={setHighlighted} onPick={pickCommand} />}
+      {!menuOpen && (compacting || compacted || commandError) && <ChatCommandStatus compacting={compacting} compacted={compacted} error={commandError} />}
       {pluginRequest && <ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
-      <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={!!run} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
+      <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
       <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
       <textarea
@@ -176,7 +180,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
         placeholder={`Converse com ${bot.name}...`}
         value={draft.content}
         rows={1}
-        disabled={!!run}
+        disabled={busy}
         role="combobox"
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
@@ -185,13 +189,33 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
       />
-      <ChatModelEffort bot={bot} client={client} disabled={!!run} />
-      <ChatPermission bot={bot} client={client} disabled={!!run} />
+      <ChatModelEffort bot={bot} client={client} disabled={busy} />
+      <ChatPermission bot={bot} client={client} disabled={busy} />
       {run
         ? <IconButton className="col-start-5" iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty} label="Enviar mensagem" tooltipPlacement="top" onClick={handleSend}><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty || commandPending} label={commandPending ? "Executando Comando" : "Enviar mensagem"} tooltipPlacement="top"><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </form>
   )
+}
+
+const tokenFormat = new Intl.NumberFormat("pt-BR")
+
+function ChatCommandStatus({ compacting, compacted, error }: { compacting: boolean; compacted?: { tokensBefore: number; estimatedTokensAfter?: number }; error: Error | null }) {
+  let content = "Compactando Contexto..."
+  let tone = "text-muted"
+
+  if (error) {
+    content = `Falha ao executar o Comando: ${error.message}`
+    tone = "text-status-error"
+  } else if (compacted?.estimatedTokensAfter === undefined && compacted) {
+    content = `Contexto compactado a partir de ${tokenFormat.format(compacted.tokensBefore)} tokens.`
+    tone = "text-secondary"
+  } else if (compacted) {
+    content = `Contexto compactado: ${tokenFormat.format(compacted.tokensBefore)} → ~${tokenFormat.format(compacted.estimatedTokensAfter ?? 0)} tokens.`
+    tone = "text-secondary"
+  }
+
+  return <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-w-full px-3 py-2 text-support ${tone}`} role={error ? "alert" : "status"} aria-live="polite">{compacting ? "Compactando Contexto..." : content}</div>
 }
 
 function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRemove(index: number): void }) {

@@ -106,7 +106,7 @@ export function createRoutines(input: {
   database: AppDatabase
   bots: ReturnType<typeof createBots>
   observability: Observability
-  conversations: { call(botId: string, content: string): Promise<void> }
+  conversations: { call(routine: Routine): Promise<void> }
 }) {
   let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -137,7 +137,7 @@ export function createRoutines(input: {
         input.database.routines.update(routine.id, { nextCallAt: nextCall(routine.frequency, now).toISOString() })
       }
 
-      await input.conversations.call(routine.botId, routine.content).then(
+      await input.conversations.call(routine).then(
         () => input.observability.event({ name: "routines.called", context: { botId: routine.botId } }),
         (error) => input.observability.event({ name: "routines.skipped", context: { botId: routine.botId }, error }),
       )
@@ -277,7 +277,7 @@ export function createRoutines(input: {
       const lines = routines.map((routine) => `- ${routine.id}: "${routine.content}", ${describeFrequency(routine.frequency)}${routine.enabled ? "" : ", paused"}`)
 
       return [
-        "A message from author \"routine\" is a scheduled call from one of your Rotinas, not from the person. Do what it asks and reply briefly; say \"nothing new\" when there is nothing to report.",
+        "A turn with cause \"routine\" is a scheduled call from one of your Rotinas, not from the person. Do what it asks and reply briefly; say \"nothing new\" when there is nothing to report.",
         "Use the routine tool when the person asks you to check or do something on a schedule, to change how often you do it, or to be reminded or called once at a later time. A Rotina that runs once is removed by itself after its call. Use remove_routine to stop a repeating one for good.",
         ...(lines.length > 0 ? ["Your Rotinas:", ...lines] : ["You have no Rotinas."]),
       ].join("\n")

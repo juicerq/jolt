@@ -10,14 +10,19 @@ import { testDirectory } from "../../support/test-directory"
 const directory = testDirectory("jolt-pi-runtime-")
 
 function setup() {
-  const sessions = new Map<string, { tools: string[]; listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; disposed: boolean }>()
+  const sessions = new Map<string, { tools: string[]; listeners: Set<(event: PiRuntimeEvent) => void>; aborted: boolean; disposed: boolean; compactionInstructions: (string | undefined)[] }>()
   const factory: PiSessionFactory = {
     async open(input) {
-      const state = { tools: [...input.tools], listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false, disposed: false }
+      const state = { tools: [...input.tools], listeners: new Set<(event: PiRuntimeEvent) => void>(), aborted: false, disposed: false, compactionInstructions: [] as (string | undefined)[] }
       sessions.set(input.botId, state)
 
       return {
         sessionFile: input.sessionFile ?? join(directory, `${input.botId}.jsonl`),
+        async compact(customInstructions) {
+          state.compactionInstructions.push(customInstructions)
+
+          return { tokensBefore: 12_000, estimatedTokensAfter: 4_000 }
+        },
         async prompt() {
           for (const listener of state.listeners) {
             listener({ type: "started" })
@@ -73,6 +78,18 @@ describe("Pi agent runtime", () => {
     await observations.observability.flush()
   })
 
+  test("compacts the selected Bot session with the requested focus", async () => {
+    const { runtime, sessions, observations } = setup()
+    await runtime.open({ botId: "atlas", cwd: directory, tools: [], effort: "medium", model: null, permissionMode: "ask" })
+
+    const result = await runtime.compact("atlas", "Preserve decisões")
+
+    expect(result).toEqual({ tokensBefore: 12_000, estimatedTokensAfter: 4_000 })
+    expect(sessions.get("atlas")?.compactionInstructions).toEqual(["Preserve decisões"])
+    runtime.dispose()
+    await observations.observability.flush()
+  })
+
   test("blocks traversal and symlinks outside the allowed folder", async () => {
     const root = join(directory, "root")
     const outside = join(directory, "outside.txt")
@@ -117,7 +134,7 @@ describe("Pi agent runtime", () => {
       async open(input) {
         policy = input.policy
 
-        return { prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
+        return { compact: async () => ({ tokensBefore: 0 }), prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
       },
     }, observations.observability)
     await runtime.open({ botId: "atlas", cwd: directory, tools: ["note"], effort: "medium", model: null, permissionMode: "ask" })
@@ -184,10 +201,11 @@ describe("Pi agent runtime", () => {
         policy = input.policy
 
         return {
+          compact: async () => ({ tokensBefore: 0 }),
           prompt: async () => undefined,
           abort: async () => undefined,
           subscribe(listener) {
-            sessions.set("atlas", { listeners: new Set([listener]), aborted: false, disposed: false, tools: input.tools })
+            sessions.set("atlas", { listeners: new Set([listener]), aborted: false, disposed: false, tools: input.tools, compactionInstructions: [] })
             return () => undefined
           },
           dispose() {},
@@ -232,7 +250,7 @@ describe("deferred session factory", () => {
       return { async open(input) {
         opened.push(input.botId)
 
-        return { prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
+        return { compact: async () => ({ tokensBefore: 0 }), prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
       } }
     })
     const input = { cwd: directory, tools: [], effort: "medium" as const, model: null, policy: { botId: "a", allowedRoot: directory, mode: "full" as const } }
@@ -250,7 +268,7 @@ describe("deferred session factory", () => {
       loads += 1
 
       return { async open() {
-        return { prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
+        return { compact: async () => ({ tokensBefore: 0 }), prompt: async () => undefined, abort: async () => undefined, subscribe: () => () => undefined, dispose() {} }
       } }
     })
 

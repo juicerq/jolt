@@ -2,6 +2,8 @@ import { z } from "zod"
 import { messageImageMimeTypes } from "./message-images"
 import { permissionSchemas } from "./permissions"
 import { pluginSchemas } from "./plugins"
+import type { Frequency } from "./routines"
+import type { TaskStatus } from "./tasks"
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine"])
@@ -85,9 +87,15 @@ const event = z.discriminatedUnion("type", [
 ])
 const botEvent = z.strictObject({ botId: id, event })
 const history = z.strictObject({ messages: z.array(message), earlier: z.int().nonnegative() })
+const compactionResult = z.strictObject({
+  tokensBefore: z.int().nonnegative(),
+  estimatedTokensAfter: z.int().nonnegative().optional(),
+})
 
 export const conversationSchemas = {
   botInput: z.strictObject({ botId: id }),
+  compactInput: z.strictObject({ botId: id, instructions: z.string().trim().min(1).optional() }),
+  compactionResult,
   historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
   history,
   sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage) }),
@@ -107,3 +115,10 @@ export type BotConversationEvent = z.infer<typeof botEvent>
 export type IncomingMessage = z.infer<typeof incomingMessage>
 export type ConversationActivity = z.infer<typeof conversationActivity>
 export type HistoryPage = z.infer<typeof conversationSchemas.history>
+export type ConversationCompactionResult = z.infer<typeof compactionResult>
+export type TurnContext = { startedAt: string; timeZone: string } & (
+  | { cause: "person" }
+  | { cause: "routine"; routineId: string; frequency: Frequency; scheduledFor: string }
+  | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string }; outcome: string }
+  | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; outcome: string; status: TaskStatus }
+)

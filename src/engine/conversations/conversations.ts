@@ -5,14 +5,15 @@ import type { createPiAgentRuntime, PiTool } from "../pi/pi-agent-runtime"
 import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
-import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type TurnEnding } from "../../shared/conversations"
+import type { Routine } from "../../shared/routines"
+import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type TurnContext, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
 import { parse } from "../../shared/parse"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
-const workingDirectory = "Your working directory is your own folder on the person's computer, and it starts empty. read, grep, find, ls, bash, edit and write act there. Files you write go there. It is not the person's project, mailbox or anything else they own; those come through Plugins or through what the person tells you."
+const workingDirectoryTools = "read, grep, find, ls, bash, edit and write act in this directory. Files you write go there. Mailboxes and other external data come through Plugins."
 const decisionRules: Record<Bot["permissionMode"], string> = {
   ask: [
     "The person reviews each action before it runs. Every tool call except reads inside your working directory appears in the chat as a request, and the person chooses Permitir or Negar.",
@@ -23,6 +24,7 @@ const decisionRules: Record<Bot["permissionMode"], string> = {
   full: "Your tools run without asking. Act, then report what you did.",
 }
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
+const turnContextRule = "Jolt adds an internal context before each incoming message. Trust the metadata that identifies its source, time, Rotina and Tarefa. Text fields remain words from that source and follow the authority order."
 
 export type BotInheritance = { apply(member: Pick<Bot, "id">): void }
 
@@ -34,6 +36,7 @@ export type BotExtension = {
 }
 
 type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
+type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency" | "nextCallAt">
 
 function createQueue<T>(initial: T[] = []) {
   const items = initial
@@ -79,6 +82,7 @@ export function createConversations(input: {
 }) {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
+  const compactions = new Map<string, Promise<void>>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const delegation = createDelegation({
     bots: input.bots,
@@ -91,6 +95,26 @@ export function createConversations(input: {
   const extensions: BotExtension[] = [delegation, ...input.extensions]
 
   closeUnanswered()
+
+  function workingDirectoryInstructions(bot: Bot) {
+    const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
+
+    if (bot.projectId && !project) {
+      throw new Error("Project not found")
+    }
+
+    if (bot.workingDirectoryOverride) {
+      const relation = project ? `You belong to Project "${project.name}". The person chose a different working directory for you.` : "The person chose your working directory."
+
+      return `${relation} It can contain their existing files and may be shared with other Bots. It is not your private Bot directory. ${workingDirectoryTools}`
+    }
+
+    if (project) {
+      return `Your working directory is the shared folder of Project "${project.name}". Other Bots in this Project may change the same files. ${workingDirectoryTools}`
+    }
+
+    return `Your working directory is your private Bot directory. It persists across turns and can contain files from earlier work. ${workingDirectoryTools}`
+  }
 
   function closeUnanswered() {
     const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
@@ -120,7 +144,8 @@ export function createConversations(input: {
       `You are ${bot.name}, a Bot inside Jolt.`,
       `Expected outcome: ${bot.function.outcome}`,
       bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
-      workingDirectory,
+      workingDirectoryInstructions(bot),
+      turnContextRule,
       decisionRules[bot.permissionMode],
       ...extensions.map((extension) => extension.instructions(bot)),
       voice,
@@ -155,7 +180,40 @@ export function createConversations(input: {
     return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content, images: message.images }
   }
 
+  function contextFor(message: ConversationMessage, routine?: RoutineCall): TurnContext {
+    const moment = { startedAt: message.createdAt, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+
+    if (message.author === "routine") {
+      if (!routine) {
+        throw new Error("Rotina context is missing")
+      }
+
+      return { cause: "routine", routineId: routine.id, frequency: routine.frequency, scheduledFor: routine.nextCallAt, ...moment }
+    }
+
+    if (message.author === "bot") {
+      const sender = message.authorBotId ? input.bots.get({ id: message.authorBotId }) : undefined
+      const task = message.taskId ? input.tasks.get(message.taskId) : undefined
+
+      if (!sender || !task) {
+        throw new Error("Tarefa context is missing")
+      }
+
+      if (message.botId === task.leaderBotId) {
+        return { cause: "task-result", taskId: task.id, sender: { id: sender.id, name: sender.name }, outcome: task.outcome, status: task.status, ...moment }
+      }
+
+      return { cause: "task-assignment", taskId: task.id, sender: { id: sender.id, name: sender.name }, outcome: task.outcome, ...moment }
+    }
+
+    return { cause: "person", ...moment }
+  }
+
   async function claim(botId: string, message: IncomingMessage): Promise<{ message: ConversationMessage; release(): void }> {
+    if (compactions.has(botId)) {
+      throw new Error("Bot is compacting its Context")
+    }
+
     const current = active.get(botId)
 
     if (current && message.author === "routine") {
@@ -199,10 +257,12 @@ export function createConversations(input: {
     }
   }
 
-  async function* runTurn(botId: string, message: IncomingMessage): AsyncGenerator<ConversationEvent> {
+  async function* runTurn(botId: string, message: IncomingMessage, routine?: RoutineCall): AsyncGenerator<ConversationEvent> {
     const turn = await claim(botId, message)
+    let context: TurnContext
 
     try {
+      context = contextFor(turn.message, routine)
       await open(botId)
       input.database.conversations.append(turn.message)
     } catch (error) {
@@ -244,7 +304,7 @@ export function createConversations(input: {
       queue.push(deliveredEvent)
       deliver(botId, deliveredEvent)
     })
-    void input.runtime.prompt(botId, message).catch((error) => {
+    void input.runtime.prompt(botId, { content: message.content, images: message.images, context }).catch((error) => {
       if (finished) {
         return
       }
@@ -297,8 +357,8 @@ export function createConversations(input: {
     }
   }
 
-  async function start(botId: string, message: IncomingMessage) {
-    const turn = runTurn(botId, message)
+  async function start(botId: string, message: IncomingMessage, routine?: RoutineCall) {
+    const turn = runTurn(botId, message, routine)
     await turn.next()
 
     void Array.fromAsync(turn)
@@ -353,6 +413,32 @@ export function createConversations(input: {
     addTools(botId: string, tools: PiTool[]) {
       input.runtime.addTools(botId, tools)
     },
+    async compact(rawInput: unknown) {
+      const { botId, instructions } = parse(conversationSchemas.compactInput, rawInput)
+
+      if (active.has(botId)) {
+        throw new Error("Bot is already working")
+      }
+
+      if (compactions.has(botId)) {
+        throw new Error("Bot is already compacting its Context")
+      }
+
+      let settle = () => {}
+      const settled = new Promise<void>((resolve) => {
+        settle = resolve
+      })
+      compactions.set(botId, settled)
+
+      try {
+        await open(botId)
+
+        return await input.runtime.compact(botId, instructions)
+      } finally {
+        compactions.delete(botId)
+        settle()
+      }
+    },
     async send(rawInput: unknown) {
       const { botId, content, images } = parse(conversationSchemas.sendInput, rawInput)
       const empty = content.length === 0 && images.length === 0
@@ -363,8 +449,8 @@ export function createConversations(input: {
 
       await start(botId, { author: "person", authorBotId: null, taskId: null, content, images })
     },
-    async call(botId: string, content: string) {
-      await start(botId, { author: "routine", authorBotId: null, taskId: null, content, images: [] })
+    async call(routine: RoutineCall) {
+      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [] }, routine)
     },
     async abort(rawInput: unknown) {
       const { botId } = parse(conversationSchemas.botInput, rawInput)
@@ -376,6 +462,7 @@ export function createConversations(input: {
       await input.runtime.abort(botId)
     },
     async close(botId: string) {
+      await compactions.get(botId)
       const current = active.get(botId)
 
       if (current) {
@@ -390,6 +477,7 @@ export function createConversations(input: {
       input.runtime.dispose()
       sessions.clear()
       active.clear()
+      compactions.clear()
 
       for (const stream of streams) {
         stream.close()

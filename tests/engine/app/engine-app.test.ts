@@ -40,7 +40,7 @@ function setup() {
   }
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
   const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }, { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) }] })
-  const routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+  const routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (routine) => conversations.call(routine) } })
   const memory = createMemory({ database, bots, observability: system.observability, sessionFactory, conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() } })
   const plugins = createPlugins({
     database,

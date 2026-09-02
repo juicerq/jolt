@@ -36,7 +36,9 @@ function setup(options: { gmailAvailable?: boolean } = {}) {
 
       return {
         sessionFile: join(directory, `${input.botId}.jsonl`),
-        async prompt(message) {
+        compact: async () => ({ tokensBefore: 0 }),
+        async prompt(prompt) {
+          const message = prompt.content
           controller = new AbortController()
           emit({ type: "started" })
           const script = scripts.get(input.botId) ?? scripts.get("*")

@@ -15,7 +15,7 @@ const hour = 60 * minute
 const day = 24 * hour
 
 function setup() {
-  const prompts: string[] = []
+  const prompts: unknown[] = []
   const tools = new Map<string, PiTool[]>()
   const listeners = new Set<(event: PiRuntimeEvent) => void>()
   let holdPrompt = false
@@ -25,6 +25,7 @@ function setup() {
       tools.set(input.botId, input.customTools ?? [])
 
       return {
+        compact: async () => ({ tokensBefore: 0 }),
         async prompt(message) {
           prompts.push(message)
 
@@ -62,11 +63,11 @@ function setup() {
   const runtime = createPiAgentRuntime(sessionFactory, system.observability)
   const tasks = createTasks({ database, observability: system.observability })
   const conversations = createConversations({ database, bots, tasks, runtime, observability: system.observability, extensions: [{ tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) }] })
-  let routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+  let routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (routine) => conversations.call(routine) } })
 
   function restart() {
     routines.dispose()
-    routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (botId, content) => conversations.call(botId, content) } })
+    routines = createRoutines({ database, bots, observability: system.observability, conversations: { call: (routine) => conversations.call(routine) } })
 
     return routines
   }
@@ -130,7 +131,18 @@ describe("routines", () => {
     const history = environment.conversations.history({ botId: bot.id, limit: 100 }).messages
 
     expect(history.map((message) => [message.author, message.content])).toEqual([["routine", "Verifique a caixa de entrada"], ["bot", "Nada novo."]])
-    expect(environment.prompts).toEqual(["Verifique a caixa de entrada"])
+    expect(environment.prompts).toEqual([{
+      content: "Verifique a caixa de entrada",
+      images: [],
+      context: {
+        cause: "routine",
+        routineId: routine.id,
+        frequency: routine.frequency,
+        scheduledFor: routine.nextCallAt,
+        startedAt: expect.any(String),
+        timeZone: expect.any(String),
+      },
+    }])
     expect(routines.list({ botId: bot.id })[0]?.nextCallAt).toBe(new Date(reopened.getTime() + 30 * minute).toISOString())
     await environment.close()
   })
@@ -147,7 +159,7 @@ describe("routines", () => {
     const routines = environment.restart()
     await Bun.sleep(50)
 
-    expect(environment.prompts).toEqual(["Revise o relatório"])
+    expect(environment.prompts).toEqual([expect.objectContaining({ content: "Revise o relatório" })])
     expect(routines.list({ botId: bot.id })[0]?.nextCallAt).toBe(new Date(reopened.getTime() + 30 * minute).toISOString())
     await environment.conversations.abort({ botId: bot.id })
     await environment.close()
@@ -221,7 +233,10 @@ describe("routines", () => {
     const routines = environment.restart()
     await environment.settled(bot.id)
 
-    expect(environment.prompts).toEqual(["Lembre o usuário: tomar café"])
+    expect(environment.prompts).toEqual([expect.objectContaining({
+      content: "Lembre o usuário: tomar café",
+      context: expect.objectContaining({ cause: "routine", routineId: routine.id, scheduledFor: at }),
+    })])
     expect(routines.list({ botId: bot.id })).toEqual([])
     await environment.close()
   })

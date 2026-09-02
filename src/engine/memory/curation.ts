@@ -129,7 +129,7 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
             }
           })
         })
-        const outcome = await session.prompt(describe(bot, input.database.memories.listForBot(bot.id), notes)).then(() => finished, (error: unknown) => error instanceof Error ? error : new Error(String(error)))
+        const outcome = await session.prompt({ content: describe(bot, input.database.memories.listForBot(bot.id), notes) }).then(() => finished, (error: unknown) => error instanceof Error ? error : new Error(String(error)))
         session.dispose()
 
         if (outcome instanceof Error) {

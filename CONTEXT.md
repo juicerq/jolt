@@ -53,8 +53,12 @@ O contrato permanente que define o resultado esperado, as responsabilidades, os 
 _Evitar_: Personalidade, prompt, memória, acesso
 
 **Contexto do Bot**:
-A seleção temporária de informações usadas numa execução.
+A seleção temporária de informações usadas num Turno. Inclui a Origem, o momento e, quando existem, a Rotina ou a Tarefa que iniciou o Turno.
 _Evitar_: Memória, histórico completo, prompt permanente
+
+**Turno**:
+Uma execução conversacional do Bot iniciada por uma mensagem da pessoa, uma Chamada, uma Tarefa ou um Resultado da Tarefa.
+_Evitar_: Ativação, rodada, run
 
 **Memória do Bot**:
 A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pessoa liga, desliga e limpa a Memória por Bot. Um Integrante lê também a Memória do seu Líder. Um Integrante temporário não tem Memória própria.
@@ -73,7 +77,7 @@ A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Origem**:
-De onde uma Nota ou Lembrança veio: da pessoa, ou do Bot durante uma conversa, uma Tarefa ou uma Chamada. O Jolt registra a Origem; o Bot não a escreve.
+De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
 _Evitar_: Fonte, autor, proveniência
 
 **Limite da Memória**:
@@ -129,7 +133,7 @@ A resposta da pessoa a um Pedido de permissão: Permitir ou Negar.
 _Evitar_: Grant, autorização permanente
 
 **Comando**:
-Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem. Hoje existe `/lembrar`, que cria uma Lembrança. Executar um Comando limpa o que foi digitado.
+Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem. Executar limpa o que foi digitado; `/lembrar` cria uma Lembrança e `/compactar` resume o Contexto atual sem alterar a Conversa ou a Memória, com instruções opcionais de foco.
 _Evitar_: Atalho, slash command, ação rápida
 
 **Tarefa**:

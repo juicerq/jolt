@@ -7,7 +7,7 @@ test("streams a scripted Markdown turn in small chunks and finishes", async () =
   const events: PiRuntimeEvent[] = []
   session.subscribe((event) => events.push(event))
 
-  await session.prompt("Revise")
+  await session.prompt({ content: "Revise" })
 
   const text = events.filter((event) => event.type === "text")
 

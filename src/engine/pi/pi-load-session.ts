@@ -68,6 +68,9 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
       let aborted = false
 
       return {
+        async compact() {
+          return { tokensBefore: 12_000, estimatedTokensAfter: 4_000 }
+        },
         async prompt() {
           aborted = false
 

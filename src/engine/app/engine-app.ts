@@ -165,6 +165,12 @@ export function createEngineRouter(
           () => conversations.send(input),
         ),
       ),
+      compact: operations.conversations.compact.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationcompact", context: observationContext(context) },
+          () => conversations.compact(input),
+        ),
+      ),
       abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.conversationabort", context: observationContext(context) },
