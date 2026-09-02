@@ -32,10 +32,9 @@ if (!app.isPackaged) {
 }
 
 app.whenReady().then(async () => {
-  const connection = await engine.start()
-  await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
+  const starting = engine.start()
 
-  ipcMain.handle("engine:get-connection", () => connection)
+  ipcMain.handle("engine:get-connection", () => starting)
 
   const window = new BrowserWindow({
     width: 1100,
@@ -74,11 +73,13 @@ app.whenReady().then(async () => {
     return path
   })
 
-  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
-    await window.loadURL(loopbackHttpUrl.assert(process.env.ELECTRON_RENDERER_URL))
-  } else {
-    await window.loadFile(join(__dirname, "../renderer/index.html"))
-  }
+  const loading = !app.isPackaged && process.env.ELECTRON_RENDERER_URL
+    ? window.loadURL(loopbackHttpUrl.assert(process.env.ELECTRON_RENDERER_URL))
+    : window.loadFile(join(__dirname, "../renderer/index.html"))
+
+  await starting
+  await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
+  await loading
 })
 
 let engineStopped = false
