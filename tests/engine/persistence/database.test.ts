@@ -105,3 +105,31 @@ describe("database", () => {
     await observability.flush()
   })
 })
+
+describe("conversation history pages", () => {
+  test("serves the newest page first and older pages before a message", () => {
+    const { bot, database } = setup()
+
+    for (let index = 1; index <= 7; index += 1) {
+      database.conversations.append({ id: `m${index}`, botId: bot.id, author: "person", authorBotId: null, taskId: null, content: `${index}`, images: [], activity: null, ending: null, createdAt: new Date().toISOString() })
+    }
+
+    const newest = database.conversations.history(bot.id, { limit: 3 })
+
+    expect(newest.messages.map((message) => message.content)).toEqual(["5", "6", "7"])
+    expect(newest.earlier).toBe(4)
+
+    const older = database.conversations.history(bot.id, { before: "m5", limit: 3 })
+
+    expect(older.messages.map((message) => message.content)).toEqual(["2", "3", "4"])
+    expect(older.earlier).toBe(1)
+
+    const oldest = database.conversations.history(bot.id, { before: "m2", limit: 3 })
+
+    expect(oldest.messages.map((message) => message.content)).toEqual(["1"])
+    expect(oldest.earlier).toBe(0)
+    expect(() => database.conversations.history(bot.id, { before: "missing", limit: 3 })).toThrow("Message not found")
+    expect(database.conversations.history(crypto.randomUUID(), { limit: 3 })).toEqual({ messages: [], earlier: 0 })
+    database.close()
+  })
+})

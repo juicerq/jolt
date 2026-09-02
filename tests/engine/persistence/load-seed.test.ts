@@ -21,7 +21,7 @@ describe("load seed", () => {
     expect(bots.filter((bot) => bot.leaderBotId === leader?.id).map((bot) => bot.name)).toEqual(["Pesquisador", "Redator"])
     expect(database.tasks.listForLeader(leader?.id ?? "")).toHaveLength(400)
 
-    const history = database.conversations.history(largest?.id ?? "")
+    const history = database.conversations.history(largest?.id ?? "", { limit: 500 }).messages
 
     expect(history.some((message) => message.activity !== null)).toBe(true)
     expect(history.some((message) => message.images.length > 0)).toBe(true)

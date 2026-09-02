@@ -156,11 +156,11 @@ describe("conversations", () => {
     expect(first.prompts).toEqual(["Olá"])
     expect(first.instructions[0]).toStartWith("You are Atlas.\nExpected outcome: Answer\nResponsibilities, limits and delivery: Help\nUse the hire tool")
     expect(first.instructions[0]).toEndWith(voice)
-    expect(first.conversations.history({ botId: bot.id }).map(({ author, content }) => ({ author, content }))).toEqual([
+    expect(first.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
       { author: "bot", content: "Resposta confirmada" },
     ])
-    const activity = first.conversations.history({ botId: bot.id }).at(-1)?.activity
+    const activity = first.conversations.history({ botId: bot.id, limit: 100 }).messages.at(-1)?.activity
 
     expect(activity?.steps.map((step) => step.type)).toEqual(["thinking", "tool", "thinking"])
     expect(activity?.steps[0]).toMatchObject({ type: "thinking", content: "Vou verificar o arquivo." })
@@ -178,11 +178,11 @@ describe("conversations", () => {
     first.database.close()
     const reopened = setup(first.databasePath)
 
-    expect(reopened.conversations.history({ botId: bot.id }).map(({ author, content }) => ({ author, content }))).toEqual([
+    expect(reopened.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content }) => ({ author, content }))).toEqual([
       { author: "person", content: "Olá" },
       { author: "bot", content: "Resposta confirmada" },
     ])
-    expect(reopened.conversations.history({ botId: bot.id }).at(-1)?.activity).toEqual(activity)
+    expect(reopened.conversations.history({ botId: bot.id, limit: 100 }).messages.at(-1)?.activity).toEqual(activity)
 
     reopened.conversations.dispose()
     reopened.database.close()
@@ -201,7 +201,7 @@ describe("conversations", () => {
     await environment.conversations.abort({ botId: bot.id })
 
     expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
-    expect(environment.conversations.history({ botId: bot.id }).map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
       { author: "person", content: "Pare depois", ending: null },
       { author: "bot", content: "Resposta ", ending: "aborted" },
     ])
@@ -226,7 +226,7 @@ describe("conversations", () => {
 
     expect(environment.sessions.get(bot.id)?.aborted).toBe(true)
     expect(await environment.bots.list()).toEqual([])
-    expect(() => environment.conversations.history({ botId: bot.id })).toThrow("Bot not found")
+    expect(() => environment.conversations.history({ botId: bot.id, limit: 100 })).toThrow("Bot not found")
     expect(() => environment.conversations.abort({ botId: bot.id })).toThrow("Bot is not working")
 
     environment.conversations.dispose()
@@ -245,7 +245,7 @@ describe("conversations", () => {
     environment.sessions.get(bot.id)?.fail()
     await environment.turnSettled(bot.id)
 
-    expect(environment.conversations.history({ botId: bot.id }).at(-1)).toMatchObject({ author: "bot", content: "Resposta ", ending: "failed" })
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages.at(-1)).toMatchObject({ author: "bot", content: "Resposta ", ending: "failed" })
 
     environment.conversations.dispose()
     environment.database.close()
@@ -266,14 +266,14 @@ describe("conversations", () => {
 
     const reopened = setup(first.databasePath)
 
-    expect(reopened.conversations.history({ botId: bot.id }).map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
+    expect(reopened.conversations.history({ botId: bot.id, limit: 100 }).messages.map(({ author, content, ending }) => ({ author, content, ending }))).toEqual([
       { author: "person", content: "Sem resposta", ending: null },
       { author: "bot", content: "", ending: "closed" },
     ])
 
     const again = setup(first.databasePath)
 
-    expect(again.conversations.history({ botId: bot.id })).toHaveLength(2)
+    expect(again.conversations.history({ botId: bot.id, limit: 100 }).messages).toHaveLength(2)
 
     for (const environment of [reopened, again]) {
       environment.conversations.dispose()
@@ -291,8 +291,8 @@ describe("conversations", () => {
 
     expect(environment.prompts).toEqual([""])
     expect(environment.promptImages).toEqual([[image]])
-    expect(environment.conversations.history({ botId: bot.id })[0]).toMatchObject({ author: "person", content: "", images: [image] })
-    expect(environment.conversations.history({ botId: bot.id })[1]).toMatchObject({ author: "bot", images: [] })
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages[0]).toMatchObject({ author: "person", content: "", images: [image] })
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages[1]).toMatchObject({ author: "bot", images: [] })
     environment.conversations.dispose()
     await environment.observationSystem.observability.flush()
   })

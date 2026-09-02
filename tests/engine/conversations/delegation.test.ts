@@ -154,14 +154,14 @@ describe("delegation", () => {
 
     expect(task).toMatchObject({ leaderBotId: leader.id, assigneeBotId: member.id, outcome: "Escrever testes", status: "done" })
     expect(task?.finishedAt).not.toBeNull()
-    expect(environment.conversations.history({ botId: leader.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))).toEqual([
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))).toEqual([
       { author: "person", authorBotId: null, taskId: null, content: "Delegue os testes" },
       { author: "bot", authorBotId: leader.id, taskId: null, content: "Calo respondeu: Testes escritos" },
     ])
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.activity?.steps).toEqual([
       { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", brief: "Escrever testes", status: "done" }] },
     ])
-    const memberHistory = environment.conversations.history({ botId: member.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
+    const memberHistory = environment.conversations.history({ botId: member.id, limit: 100 }).messages.map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
 
     expect(memberHistory).toEqual([
       { author: "bot", authorBotId: leader.id, taskId: task?.id, content: "Escrever testes\n\nCubra o módulo de tarefas" },
@@ -210,8 +210,8 @@ describe("delegation", () => {
     const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
 
     expect(task?.status).toBe("interrupted")
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toContain("direct order")
-    expect(environment.conversations.history({ botId: member.id }).map(({ author, taskId, content, ending }) => ({ author, taskId, content, ending }))).toEqual([
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toContain("direct order")
+    expect(environment.conversations.history({ botId: member.id, limit: 100 }).messages.map(({ author, taskId, content, ending }) => ({ author, taskId, content, ending }))).toEqual([
       { author: "bot", taskId: task?.id, content: "Revisar código\n\nLeia tudo", ending: null },
       { author: "bot", taskId: task?.id, content: "", ending: "aborted" },
       { author: "person", taskId: task?.id, content: "Pare e responda só isto", ending: null },
@@ -232,12 +232,12 @@ describe("delegation", () => {
     const [task] = environment.tasks.listForLeader({ leaderBotId: leader.id })
 
     expect(task).toMatchObject({ assigneeBotId: other.id, status: "done" })
-    expect(environment.conversations.history({ botId: other.id }).map(({ authorBotId, taskId, content }) => ({ authorBotId, taskId, content }))).toEqual([
+    expect(environment.conversations.history({ botId: other.id, limit: 100 }).messages.map(({ authorBotId, taskId, content }) => ({ authorBotId, taskId, content }))).toEqual([
       { authorBotId: member.id, taskId: task?.id, content: "Você conhece o DESIGN.md melhor" },
       { authorBotId: other.id, taskId: task?.id, content: "Tela desenhada" },
     ])
     expect(environment.conversations.related({ taskId: task?.id }).map((message) => message.botId)).toEqual([member.id, other.id, other.id, member.id])
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Dara assumiu: Tela desenhada")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Dara assumiu: Tela desenhada")
     await environment.close()
   })
 
@@ -253,10 +253,10 @@ describe("delegation", () => {
 
     expect(events).toContainEqual(expect.objectContaining({ type: "tool-finished", tool: "delegate", failed: true }))
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })[0]?.status).toBe("failed")
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.activity?.steps).toEqual([
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.activity?.steps).toEqual([
       { type: "tool", name: "delegate", tools: [{ callId: expect.any(String), name: "delegate", detail: "Calo", brief: "Rodar os testes", status: "failed" }] },
     ])
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Resultado: Error: Calo failed before finishing.")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Resultado: Error: Calo failed before finishing.")
     await environment.close()
   })
 
@@ -269,7 +269,7 @@ describe("delegation", () => {
     await environment.conversations.send({ botId: member.id, content: "Trabalhe", images: [] })
     await environment.turn(leader.id, "Delegue")
 
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Error: Zeta is not a member of Atlas | Error: Calo is already working")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Error: Zeta is not a member of Atlas | Error: Calo is already working")
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })).toEqual([])
     await environment.conversations.abort({ botId: member.id })
     await environment.close()
@@ -310,14 +310,14 @@ describe("delegation", () => {
     const events = await environment.turn(leader.id, "Delegue")
 
     expect(events.map((event) => event.type)).toEqual(["started", "tool-started", "tool-finished", "tool-started", "tool-finished", "text", "finished"])
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toContain("Calo")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toContain("Calo")
 
-    for (let attempt = 0; attempt < 200 && environment.conversations.history({ botId: leader.id }).length < 6; attempt++) {
+    for (let attempt = 0; attempt < 200 && environment.conversations.history({ botId: leader.id, limit: 100 }).messages.length < 6; attempt++) {
       await new Promise<void>((resolve) => setTimeout(resolve, 10))
     }
 
     const tasks = environment.tasks.listForLeader({ leaderBotId: leader.id })
-    const history = environment.conversations.history({ botId: leader.id }).map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
+    const history = environment.conversations.history({ botId: leader.id, limit: 100 }).messages.map(({ author, authorBotId, taskId, content }) => ({ author, authorBotId, taskId, content }))
 
     expect(tasks.map((task) => task.status)).toEqual(["done", "done"])
     expect(history).toContainEqual({ author: "bot", authorBotId: member.id, taskId: tasks[0]?.id, content: "Testes escritos" })
@@ -347,10 +347,10 @@ describe("delegation", () => {
 
     expect(hired).toMatchObject({ leaderBotId: leader.id, temporary: false, closed: false, function: { outcome: "Revisão de código" } })
     expect(hired?.function).not.toHaveProperty("description")
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Primeira: Feito: Primeira revisão. Mesma volta: Feito: Revisão extra")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Primeira: Feito: Primeira revisão. Mesma volta: Feito: Revisão extra")
     await environment.turn(leader.id, "Peça a segunda revisão")
 
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Segunda: Feito: Segunda revisão")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Segunda: Feito: Segunda revisão")
     expect(environment.sessions.get(leader.id)?.instructions).toContain("- Revisor: Revisão de código")
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id }).map((task) => task.status)).toEqual(["done", "done", "done"])
     await environment.close()
@@ -377,15 +377,15 @@ describe("delegation", () => {
     expect(task).toMatchObject({ assigneeBotId: hired?.id, outcome: "Revisão pronta", status: "done" })
     expect(environment.sessions.get(hired?.id ?? "")?.customTools.map((tool) => tool.name)).toEqual(["transfer"])
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("Revisor")
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Revisor respondeu: Três achados")
-    expect(environment.conversations.history({ botId: hired?.id ?? "" }).map(({ taskId, content }) => ({ taskId, content }))).toEqual([
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Revisor respondeu: Três achados")
+    expect(environment.conversations.history({ botId: hired?.id ?? "", limit: 100 }).messages.map(({ taskId, content }) => ({ taskId, content }))).toEqual([
       { taskId: task?.id, content: "Revisão pronta\n\nLeia os 5 arquivos" },
       { taskId: task?.id, content: "Três achados" },
     ])
     expect(() => environment.conversations.send({ botId: hired?.id ?? "", content: "Mais um", images: [] })).toThrow("Revisor was closed with its Tarefa")
     await environment.turn(leader.id, "Delegue de novo")
 
-    expect(environment.conversations.history({ botId: leader.id }).at(-1)?.content).toBe("Falhou: Error: Revisor is not a member of Atlas")
+    expect(environment.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Falhou: Error: Revisor is not a member of Atlas")
     expect(environment.tasks.listForLeader({ leaderBotId: leader.id })).toHaveLength(1)
     await environment.close()
   })

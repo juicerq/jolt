@@ -272,13 +272,13 @@ export function createConversations(input: {
 
   return {
     history(rawInput: unknown) {
-      const { botId } = conversationSchemas.botInput.assert(rawInput)
+      const { botId, ...page } = conversationSchemas.historyInput.assert(rawInput)
 
       if (!input.bots.get({ id: botId })) {
         throw new Error("Bot not found")
       }
 
-      return input.database.conversations.history(botId)
+      return input.database.conversations.history(botId, page)
     },
     related(rawInput: unknown) {
       const { taskId } = conversationSchemas.taskInput.assert(rawInput)

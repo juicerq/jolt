@@ -147,7 +147,7 @@ describe("memory", () => {
 
     await environment.send(bot.id, "Rode typecheck antes de entregar")
     await environment.call(bot.id, "Verifique a caixa de entrada")
-    const history = environment.conversations.history({ botId: bot.id })
+    const history = environment.conversations.history({ botId: bot.id, limit: 100 }).messages
 
     expect(history.map((message) => message.content)).toEqual(["Rode typecheck antes de entregar", "Nota saved.", "Verifique a caixa de entrada", "Nota saved."])
     expect(environment.database.notes.listPending(bot.id).map(({ content, turnAuthor, taskId, messageId, curatedAt }) => ({ content, turnAuthor, taskId, messageId, curatedAt }))).toEqual([
@@ -165,7 +165,7 @@ describe("memory", () => {
     await environment.send(bot.id, "   ")
     await environment.send(bot.id, "x".repeat(memoryLimits.note + 1))
 
-    expect(environment.conversations.history({ botId: bot.id }).filter((message) => message.author === "bot").map((message) => message.content)).toEqual([
+    expect(environment.conversations.history({ botId: bot.id, limit: 100 }).messages.filter((message) => message.author === "bot").map((message) => message.content)).toEqual([
       expect.stringMatching(/^Error: .*must be non-empty/),
       expect.stringMatching(new RegExp(`^Error: .*at most length ${memoryLimits.note}`)),
     ])

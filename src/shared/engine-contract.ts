@@ -74,7 +74,7 @@ export const engineContract = {
     remove: oc.input(botSchemas.idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
   },
   conversations: {
-    history: oc.input(conversationSchemas.botInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/bots/{botId}/messages" }),
+    history: oc.input(conversationSchemas.historyInput).output(conversationSchemas.history).route({ method: "GET", path: "/bots/{botId}/messages" }),
     events: oc.output(eventIterator(conversationSchemas.botEvent)).route({ method: "GET", path: "/conversations/events" }),
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     abort: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),

@@ -71,6 +71,8 @@ const botEvent = type({ "+": "reject", botId: "string > 0", event })
 
 export const conversationSchemas = {
   botInput: type({ "+": "reject", botId: "string > 0" }),
+  historyInput: type({ "+": "reject", botId: "string > 0", "before?": "string > 0", limit: "1 <= number.integer <= 500" }),
+  history: type({ "+": "reject", messages: message.array(), earlier: "number.integer >= 0" }),
   sendInput: type({ "+": "reject", botId: "string > 0", content: "string", images: messageImage.array() }),
   taskInput: type({ "+": "reject", taskId: "string > 0" }),
   message,

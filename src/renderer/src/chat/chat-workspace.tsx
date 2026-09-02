@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useCallback, useState } from "react"
 import type { Bot } from "../../../shared/bots"
@@ -19,11 +19,11 @@ import {
 } from "./chat-store"
 import { ChatComposer } from "./chat-composer"
 import { messageImageSource } from "./chat-images"
-import { ChatScroller, useRevealAbove } from "./chat-scroller"
+import { ChatScroller, type RevealAbove, useRevealAbove } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
-import { earlierMessageBatch, recentMessageLimit, windowHistory } from "./chat-history-window"
+import { earlierMessageBatch, flattenHistory, historyPageInput, olderHistoryPage, recentMessageLimit, windowHistory } from "./chat-history-window"
 import { ChatMemberResult } from "./chat-member-result"
 import { finishConversationOpen } from "./chat-open-span"
 import { ChatRoutineCall } from "./chat-routine-call"
@@ -33,8 +33,13 @@ const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "
 
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
   const [shown, setShown] = useState(recentMessageLimit)
-  const historyOptions = client.query.conversations.history.queryOptions({ input: { botId: bot.id } })
-  const { data: messages, error, isPending, isFetchedAfterMount } = useQuery(historyOptions)
+  const { data: pages, error, isPending, isFetchedAfterMount, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery(client.query.conversations.history.infiniteOptions({
+    input: (before: string | undefined) => historyPageInput(bot.id, before),
+    initialPageParam: undefined,
+    getNextPageParam: olderHistoryPage,
+  }))
+  const messages = pages ? flattenHistory(pages.pages).messages : undefined
+  const earlier = pages ? flattenHistory(pages.pages).earlier : 0
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const { data: tasks } = useQuery(client.query.tasks.listForLeader.queryOptions({ input: { leaderBotId: bot.id } }))
   const names = teamNames(groups)
@@ -56,6 +61,14 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
     })
   }
 
+  async function handleShowEarlier(revealAbove: RevealAbove) {
+    if (hidden === 0 && hasNextPage) {
+      await fetchNextPage()
+    }
+
+    revealAbove(() => setShown((count) => count + earlierMessageBatch))
+  }
+
   async function handleAbort() {
     const run = chatStore.state.runs[bot.id]
 
@@ -74,7 +87,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
       <ChatScroller>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
-        {hidden > 0 && <ChatEarlierMessages hidden={hidden} onShow={() => setShown((count) => count + earlierMessageBatch)} />}
+        {hidden + earlier > 0 && <ChatEarlierMessages hidden={hidden + earlier} loading={isFetchingNextPage} onShow={handleShowEarlier} />}
         {visible.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
         {messages && <ChatRunSlot bot={bot} names={names} taskStatuses={taskStatuses} empty={messages.length === 0} />}
       </ChatScroller>
@@ -83,12 +96,12 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   )
 }
 
-function ChatEarlierMessages({ hidden, onShow }: { hidden: number; onShow(): void }) {
+function ChatEarlierMessages({ hidden, loading, onShow }: { hidden: number; loading: boolean; onShow(revealAbove: RevealAbove): void }) {
   const revealAbove = useRevealAbove()
 
   return (
     <div className="flex justify-center">
-      <Button variant="secondary" type="button" onClick={() => revealAbove(onShow)}>Mostrar mensagens anteriores ({hidden})</Button>
+      <Button variant="secondary" type="button" disabled={loading} onClick={() => onShow(revealAbove)}>{loading ? "Carregando mensagens anteriores..." : `Mostrar mensagens anteriores (${hidden})`}</Button>
     </div>
   )
 }

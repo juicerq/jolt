@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite"
-import { and, asc, eq, inArray, isNull, max, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, isNull, lt, max, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
@@ -106,10 +106,21 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     conversations: {
-      history(botId: string) {
-        return observability.span({ name: "database.conversationhistory", context: { botId } }, () => conversationSchemas.messageList.assert(
-          database.select(messageColumns).from(messages).where(eq(messages.botId, botId)).orderBy(asc(messages.position)).all(),
-        ))
+      history(botId: string, page: { before?: string; limit: number }) {
+        return observability.span({ name: "database.conversationhistory", context: { botId } }, () => {
+          const cursor = page.before ? database.select({ position: messages.position }).from(messages).where(and(eq(messages.botId, botId), eq(messages.id, page.before))).get() : undefined
+
+          if (page.before && !cursor) {
+            throw new Error("Message not found")
+          }
+
+          const older = cursor ? and(eq(messages.botId, botId), lt(messages.position, cursor.position)) : eq(messages.botId, botId)
+          const rows = database.select({ ...messageColumns, position: messages.position }).from(messages).where(older).orderBy(desc(messages.position)).limit(page.limit).all().toReversed()
+          const oldest = rows.at(0)
+          const earlier = oldest ? database.select({ value: count() }).from(messages).where(and(eq(messages.botId, botId), lt(messages.position, oldest.position))).get()?.value ?? 0 : 0
+
+          return conversationSchemas.history.assert({ messages: rows.map(({ position: _position, ...row }) => row), earlier })
+        })
       },
       related(taskId: string) {
         return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => conversationSchemas.messageList.assert(

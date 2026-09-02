@@ -128,7 +128,7 @@ describe("routines", () => {
     const routines = environment.restart()
     await environment.settled(bot.id)
 
-    const history = environment.conversations.history({ botId: bot.id })
+    const history = environment.conversations.history({ botId: bot.id, limit: 100 }).messages
 
     expect(history.map((message) => [message.author, message.content])).toEqual([["routine", "Verifique a caixa de entrada"], ["bot", "Nada novo."]])
     expect(environment.prompts).toEqual(["Verifique a caixa de entrada"])

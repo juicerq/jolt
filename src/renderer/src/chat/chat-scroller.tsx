@@ -3,7 +3,7 @@ import { createContext, type PropsWithChildren, type UIEvent, useCallback, useCo
 import { flushSync } from "react-dom"
 import { getChatScrollMode } from "./chat-scroll"
 
-type RevealAbove = (update: () => void) => void
+export type RevealAbove = (update: () => void) => void
 
 const ChatScrollerContext = createContext<RevealAbove>((update) => update())
 

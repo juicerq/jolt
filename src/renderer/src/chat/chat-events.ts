@@ -66,7 +66,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: client.query.conversations.history.queryOptions({ input: { botId } }).queryKey }),
+      queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       invalidateTeam(),
     ])

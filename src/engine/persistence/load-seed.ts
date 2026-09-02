@@ -215,7 +215,9 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
     }
 
     for (const entry of [bot, ...members.map((member) => member.bot)]) {
-      created.push({ name: entry.name, messages: database.conversations.history(entry.id).length })
+      const last = database.conversations.history(entry.id, { limit: 1 })
+
+      created.push({ name: entry.name, messages: last.messages.length + last.earlier })
     }
   }
 
