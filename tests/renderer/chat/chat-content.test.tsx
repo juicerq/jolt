@@ -49,3 +49,9 @@ describe("ChatContent", () => {
     expect(markup).toContain('rel="noreferrer"')
   })
 })
+
+describe("ChatContent lists", () => {
+  test("an ordered list keeps its starting number", () => {
+    expect(renderToStaticMarkup(<ChatContent content={"3. terceiro\n4. quarto"} />)).toMatch(/<ol[^>]*start="3"/)
+  })
+})
