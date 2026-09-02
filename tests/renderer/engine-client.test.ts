@@ -41,6 +41,34 @@ test("does not report a cancelled request as a failed RPC", async () => {
   }
 })
 
+test("returns the response without waiting for the span report", async () => {
+  let spanReceived = false
+  const server = Bun.serve({
+    port: 0,
+    async fetch(request) {
+      if (request.url.endsWith("/observations/rendererSpan")) {
+        spanReceived = true
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      }
+
+      return new Response(JSON.stringify({ json: request.url.endsWith("/observations/rendererSpan") ? {} : [] }), { headers: { "content-type": "application/json" } })
+    },
+  })
+
+  try {
+    const client = createEngineClient({ url: `http://127.0.0.1:${server.port}`, token: "test-token" })
+    const startedAt = performance.now()
+
+    await client.raw.projects.list(undefined)
+
+    expect(performance.now() - startedAt).toBeLessThan(150)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(spanReceived).toBe(true)
+  } finally {
+    server.stop(true)
+  }
+})
+
 test("bundles the Renderer's shared imports without schemas", async () => {
   const build = await Bun.build({
     entrypoints: [

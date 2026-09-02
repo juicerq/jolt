@@ -29,7 +29,7 @@ export function createEngineClient(connection: EngineConnection) {
 
       try {
         const response = await fetch(request, init)
-        await sender.observations.rendererSpan({
+        void sender.observations.rendererSpan({
           name: "renderer.rpc",
           timestamp: new Date().toISOString(),
           durationMs: performance.now() - startedAt,
@@ -45,7 +45,7 @@ export function createEngineClient(connection: EngineConnection) {
           throw error
         }
 
-        await sender.observations.rendererSpan({
+        void sender.observations.rendererSpan({
           name: "renderer.rpc",
           timestamp: new Date().toISOString(),
           durationMs: performance.now() - startedAt,
