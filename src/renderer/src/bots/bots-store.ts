@@ -1,4 +1,5 @@
 import { Store } from "@tanstack/react-store"
+import { beginConversationOpen } from "../chat/chat-open-span"
 
 type BotsState = {
   selectedBotId: string | null
@@ -13,6 +14,10 @@ export const botsStore = new Store<BotsState>({
 })
 
 export function selectBot(botId: string) {
+  if (botsStore.state.selectedBotId !== botId) {
+    beginConversationOpen(botId)
+  }
+
   botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null }))
 }
 

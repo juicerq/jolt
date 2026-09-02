@@ -1,10 +1,12 @@
 import { Blobatar } from "@blobatar/react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
+import { useCallback, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ConversationMessage, MessageImage } from "../../../shared/conversations"
 import type { TaskStatus } from "../../../shared/tasks"
 import type { EngineClient } from "../engine-client"
+import { Button } from "../ui/button"
 import {
   type ChatDraft,
   chatStore,
@@ -16,23 +18,33 @@ import {
 } from "./chat-store"
 import { ChatComposer } from "./chat-composer"
 import { messageImageSource } from "./chat-images"
-import { ChatScroller } from "./chat-scroller"
+import { ChatScroller, useRevealAbove } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
+import { earlierMessageBatch, recentMessageLimit, windowHistory } from "./chat-history-window"
 import { ChatMemberResult } from "./chat-member-result"
+import { finishConversationOpen } from "./chat-open-span"
 import { ChatRoutineCall } from "./chat-routine-call"
 import { ChatTurnEnding } from "./chat-turn-ending"
 
+const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" })
+
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
-  const run = useSelector(chatStore, (state) => state.runs[bot.id])
+  const [shown, setShown] = useState(recentMessageLimit)
   const historyOptions = client.query.conversations.history.queryOptions({ input: { botId: bot.id } })
-  const { data: messages, error, isPending } = useQuery(historyOptions)
+  const { data: messages, error, isPending, isFetchedAfterMount } = useQuery(historyOptions)
   const { data: allBots } = useQuery(client.query.bots.list.queryOptions())
   const { data: tasks } = useQuery(client.query.tasks.listForLeader.queryOptions({ input: { leaderBotId: bot.id } }))
   const names = Object.fromEntries((allBots ?? []).map((entry) => [entry.id, entry.name]))
   const taskStatuses = Object.fromEntries((tasks ?? []).map((task) => [task.id, task.status]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
+  const { visible, hidden } = windowHistory(messages ?? [], shown)
+  const handleOpened = useCallback((section: HTMLElement | null) => {
+    if (section && messages) {
+      finishConversationOpen(client.raw.observations, { botId: bot.id, count: messages.length, state: isFetchedAfterMount ? "fetched" : "cached" })
+    }
+  }, [bot.id, client, isFetchedAfterMount, messages])
 
   async function handleSend(draft: ChatDraft) {
     const message = { ...draft, content: draft.content.trim() }
@@ -44,6 +56,8 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }
 
   async function handleAbort() {
+    const run = chatStore.state.runs[bot.id]
+
     if (!run || run.status === "aborting") {
       return
     }
@@ -55,17 +69,41 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }
 
   return (
-    <section className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
+    <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
       <ChatScroller>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
-        {!isPending && !error && messages?.length === 0 && !run && <EmptyChat bot={bot} />}
-        {messages?.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
-        {run && <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />}
+        {hidden > 0 && <ChatEarlierMessages hidden={hidden} onShow={() => setShown((count) => count + earlierMessageBatch)} />}
+        {visible.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
+        {messages && <ChatRunSlot bot={bot} names={names} taskStatuses={taskStatuses} empty={messages.length === 0} />}
       </ChatScroller>
       {bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />}
     </section>
   )
+}
+
+function ChatEarlierMessages({ hidden, onShow }: { hidden: number; onShow(): void }) {
+  const revealAbove = useRevealAbove()
+
+  return (
+    <div className="flex justify-center">
+      <Button variant="secondary" type="button" onClick={() => revealAbove(onShow)}>Mostrar mensagens anteriores ({hidden})</Button>
+    </div>
+  )
+}
+
+function ChatRunSlot({ bot, names, taskStatuses, empty }: { bot: Bot; names: Record<string, string>; taskStatuses: Record<string, TaskStatus>; empty: boolean }) {
+  const run = useSelector(chatStore, (state) => state.runs[bot.id])
+
+  if (run) {
+    return <ChatRun bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
+  }
+
+  if (empty) {
+    return <EmptyChat bot={bot} />
+  }
+
+  return null
 }
 
 function memberMessageKind(bot: Pick<Bot, "leaderBotId">, message: Pick<ConversationMessage, "authorBotId">) {
@@ -177,5 +215,5 @@ function formatMessageTime(createdAt: string) {
     return createdAt
   }
 
-  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(timestamp)
+  return timeFormat.format(timestamp)
 }
