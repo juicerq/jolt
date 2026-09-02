@@ -100,7 +100,7 @@ function ChatEarlierMessages({ hidden, loading, onShow }: { hidden: number; load
   const revealAbove = useRevealAbove()
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center [overflow-anchor:none]">
       <Button variant="secondary" type="button" disabled={loading} onClick={() => onShow(revealAbove)}>{loading ? "Carregando mensagens anteriores..." : `Mostrar mensagens anteriores (${hidden})`}</Button>
     </div>
   )

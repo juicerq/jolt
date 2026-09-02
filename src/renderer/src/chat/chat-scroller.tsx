@@ -1,11 +1,11 @@
 import { ArrowDownIcon } from "@heroicons/react/24/outline"
-import { createContext, type PropsWithChildren, type UIEvent, useCallback, useContext, useRef, useState } from "react"
-import { flushSync } from "react-dom"
+import { createContext, type PropsWithChildren, startTransition, type UIEvent, useCallback, useContext, useRef, useState } from "react"
 import { getChatScrollMode } from "./chat-scroll"
 
 export type RevealAbove = (update: () => void) => void
 
 const ChatScrollerContext = createContext<RevealAbove>((update) => update())
+const scrollAnchoringMinimumTop = 1
 
 export function useRevealAbove() {
   return useContext(ChatScrollerContext)
@@ -83,15 +83,12 @@ export function ChatScroller({ children }: PropsWithChildren) {
   const revealAbove = useCallback<RevealAbove>((update) => {
     const viewport = viewportRef.current
 
-    if (!viewport) {
-      update()
-      return
+    if (viewport) {
+      viewport.scrollTop = Math.max(viewport.scrollTop, scrollAnchoringMinimumTop)
     }
 
-    const heightBefore = viewport.scrollHeight
     shouldFollowRef.current = false
-    flushSync(update)
-    viewport.scrollTop += viewport.scrollHeight - heightBefore
+    startTransition(update)
   }, [])
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
