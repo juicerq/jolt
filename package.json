@@ -14,6 +14,8 @@
     "bench:open": "bun bench/conversation-open.ts",
     "bench:turn": "bun bench/conversation-turn.ts",
     "bench:boot": "bun bench/boot.ts",
+    "bench:typing": "bun bench/typing.ts",
+    "bench:scroll": "bun bench/scroll.ts",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "test": "bun run build:engine && bun test tests --no-orphans --parallel=4",
