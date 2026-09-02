@@ -23,6 +23,12 @@ type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
 function createQueue<T>(initial: T[] = []) {
   const items = initial
   let wake: (() => void) | undefined
+  let closed = false
+
+  function notify() {
+    wake?.()
+    wake = undefined
+  }
 
   return {
     get size() {
@@ -30,11 +36,14 @@ function createQueue<T>(initial: T[] = []) {
     },
     push(item: T) {
       items.push(item)
-      wake?.()
-      wake = undefined
+      notify()
+    },
+    close() {
+      closed = true
+      notify()
     },
     async next() {
-      if (items.length === 0) {
+      if (items.length === 0 && !closed) {
         await new Promise<void>((resolve) => {
           wake = resolve
         })
@@ -55,7 +64,7 @@ export function createConversations(input: {
 }) {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
-  const listeners = new Set<(event: BotConversationEvent) => void>()
+  const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const delegation = createDelegation({ bots: input.bots, tasks: input.tasks, observability: input.observability, runTurn, active: (botId) => active.get(botId)?.message })
   const extensions = [delegation, ...input.extensions]
 
@@ -161,8 +170,8 @@ export function createConversations(input: {
   }
 
   function deliver(botId: string, event: ConversationEvent) {
-    for (const listener of listeners) {
-      listener({ botId, event })
+    for (const stream of streams) {
+      stream.push({ botId, event })
     }
   }
 
@@ -292,20 +301,16 @@ export function createConversations(input: {
     },
     events(): AsyncIterable<BotConversationEvent> {
       const queue = createQueue<BotConversationEvent>(Array.from(active, ([botId, turn]) => ({ botId, event: { type: "started", message: incoming(turn.message) } })))
-      listeners.add(queue.push)
+      streams.add(queue)
 
       return {
         async *[Symbol.asyncIterator]() {
           try {
-            while (true) {
-              const event = await queue.next()
-
-              if (event) {
-                yield event
-              }
+            for (let event = await queue.next(); event; event = await queue.next()) {
+              yield event
             }
           } finally {
-            listeners.delete(queue.push)
+            streams.delete(queue)
           }
         },
       }
@@ -350,7 +355,12 @@ export function createConversations(input: {
       input.runtime.dispose()
       sessions.clear()
       active.clear()
-      listeners.clear()
+
+      for (const stream of streams) {
+        stream.close()
+      }
+
+      streams.clear()
     },
   }
 }

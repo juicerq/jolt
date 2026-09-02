@@ -211,7 +211,15 @@ process.send?.({ type: "ready", port: server.port })
 
 let stopping = false
 
-process.on("SIGTERM", async () => {
+async function drainRequests() {
+  const deadline = performance.now() + 5_000
+
+  while (server.pendingRequests > 0 && performance.now() < deadline) {
+    await Bun.sleep(25)
+  }
+}
+
+async function shutdown() {
   if (stopping) {
     return
   }
@@ -221,28 +229,14 @@ process.on("SIGTERM", async () => {
     { name: "engine.shutdown", attributes: { process: "engine", status: "stopped" } },
     async () => {
       engineState = "stopping"
-      let timeout: ReturnType<typeof setTimeout> | undefined
-      const gracefulStop = server.stop(false)
-      const result = await Promise.race([
-        gracefulStop.then(() => "stopped" as const, () => "failed" as const),
-        new Promise<"timeout">((resolve) => {
-          timeout = setTimeout(() => resolve("timeout"), 5_000)
-        }),
-      ])
-
-      if (timeout) {
-        clearTimeout(timeout)
-      }
-
-      if (result !== "stopped") {
-        await server.stop(true).catch(() => {
-          process.stderr.write("Bun Engine forced shutdown failed\n")
-        })
-      }
-
+      void server.stop(false)
       memory.dispose()
       routines.dispose()
       conversations.dispose()
+      await drainRequests()
+      await server.stop(true).catch(() => {
+        process.stderr.write("Bun Engine forced shutdown failed\n")
+      })
       database.close()
       engineState = "stopped"
 
@@ -264,4 +258,7 @@ process.on("SIGTERM", async () => {
   })
   await observationSystem.observability.flush()
   process.exit(0)
-})
+}
+
+process.on("SIGTERM", shutdown)
+process.on("disconnect", shutdown)

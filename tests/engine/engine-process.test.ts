@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { QueryClient } from "@tanstack/react-query"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { createEngineClient } from "@src/renderer/src/engine-client"
 import { type EngineReadyMessage, engineReadyMessage } from "@src/shared/engine-ipc"
@@ -110,4 +110,42 @@ describe("compiled Bun Engine", () => {
     expect(observations.some((item) => item.name === "engine.startup" && item.kind === "span")).toBe(true)
     expect(observations.some((item) => item.name === "engine.shutdown" && item.kind === "span")).toBe(true)
   })
+
+  test("exits when the IPC channel closes while an events stream is open", async () => {
+    const userDirectory = join(directory, "ipc")
+    mkdirSync(userDirectory, { recursive: true })
+    let resolveReady: (message: EngineReadyMessage) => void = () => undefined
+    const ready = new Promise<EngineReadyMessage>((resolve) => {
+      resolveReady = resolve
+    })
+    const child = Bun.spawn([join(process.cwd(), "dist-engine", "jolt-engine")], {
+      env: {
+        BOT_TEAMS_ENGINE_TOKEN: "test-token",
+        BOT_TEAMS_DATABASE_PATH: join(userDirectory, "test.sqlite"),
+        BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: join(userDirectory, "bots"),
+      },
+      cwd: userDirectory,
+      stdout: "pipe",
+      stderr: "pipe",
+      ipc(message) {
+        resolveReady(parse(engineReadyMessage, message))
+      },
+    })
+    const message = await ready
+    const client = createEngineClient({ url: `http://127.0.0.1:${message.port}/rpc`, token: "test-token" })
+    const events = (await client.raw.conversations.events(undefined))[Symbol.asyncIterator]()
+    const pending = events.next().catch(() => undefined)
+
+    child.disconnect()
+
+    expect(await child.exited).toBe(0)
+    await pending
+    const logFile = readdirSync(join(userDirectory, "logs")).find((entry) => entry.endsWith(".jsonl"))
+    const observations = readFileSync(join(userDirectory, "logs", logFile!), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => parse(observation, JSON.parse(line)))
+
+    expect(observations.some((item) => item.name === "engine.shutdown" && item.kind === "span")).toBe(true)
+  }, { timeout: 4_000 })
 })

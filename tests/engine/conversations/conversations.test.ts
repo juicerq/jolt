@@ -211,6 +211,19 @@ describe("conversations", () => {
     await environment.observationSystem.observability.flush()
   })
 
+  test("ends the open event streams on dispose", async () => {
+    const environment = setup()
+    const events = environment.conversations.events()[Symbol.asyncIterator]()
+    const pending = events.next()
+
+    environment.conversations.dispose()
+
+    expect(await pending).toEqual({ done: true, value: undefined })
+
+    environment.database.close()
+    await environment.observationSystem.observability.flush()
+  })
+
   test("excluding a working Bot interrupts its turn before it disappears", async () => {
     const environment = setup(join(directory, `${crypto.randomUUID()}.sqlite`), false)
     const bot = await environment.bots.create({
