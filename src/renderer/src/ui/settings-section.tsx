@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+export const settingsPanelClassName = "rounded-xl bg-surface-raised px-4 py-3.5"
+
 export function SettingsSection({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-4" aria-label={title}>

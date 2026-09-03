@@ -1,16 +1,17 @@
 import { Blobatar } from "@blobatar/react"
-import { BookOpenIcon, ClockIcon, LinkIcon, TrashIcon } from "@heroicons/react/24/outline"
+import { LinkIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
+import { ConfirmationDialog } from "../ui/dialog"
 import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
-import { SettingsSection } from "../ui/settings-section"
+import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
-import { lineClassName, revealClassName } from "./bot-form"
+import { lineClassName } from "./bot-form"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
 import { BotPlugins } from "./bot-plugins"
@@ -20,7 +21,7 @@ import { WorkspaceHint } from "./workspace-hint"
 
 export type SettingsDraft = { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
 
-const headerLineClassName = `${lineClassName} -mx-2 w-[calc(100%+16px)] rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent`
+const headerLineClassName = `${lineClassName} -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent`
 
 export function draftOf(bot: Bot): SettingsDraft {
   return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "" }
@@ -56,7 +57,7 @@ export function settingsChange(bot: Bot, draft: SettingsDraft) {
   }
 }
 
-export function BotSettings({ bot, client, onClose, onOpenRoutines, onOpenMemory }: { bot: Bot; client: EngineClient; onClose: () => void; onOpenRoutines: () => void; onOpenMemory: () => void }) {
+export function BotSettings({ bot, client, onClose }: { bot: Bot; client: EngineClient; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(() => draftOf(bot))
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
@@ -106,50 +107,58 @@ export function BotSettings({ bot, client, onClose, onOpenRoutines, onOpenMemory
           </div>
         </header>
         <SettingsSection title="Função">
-          <Field label="Descrição" optional><textarea className={`${fieldControlClassName} field-sizing-content max-h-48 min-h-20 resize-none font-normal`} placeholder="Responsabilidades, limites e forma de entrega" rows={3} value={draft.description} disabled={confirmingRemoval} onChange={(event) => patch({ description: event.target.value })} /></Field>
+          <div className={settingsPanelClassName}>
+            <Field label="Descrição" optional><textarea className={`${fieldControlClassName} field-sizing-content max-h-48 min-h-20 resize-none font-normal`} placeholder="Responsabilidades, limites e forma de entrega" rows={3} value={draft.description} disabled={confirmingRemoval} onChange={(event) => patch({ description: event.target.value })} /></Field>
+          </div>
         </SettingsSection>
         <SettingsSection title="Trabalho">
-          {leader
-            ? (
-              <Field label="Vínculo" as="div">
-                <div className="flex items-center gap-3">
-                  <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={leader.avatarSeed} size={32} alt="" />
-                  <p className="m-0 text-control font-medium text-secondary">Integrante de {leader.name}</p>
-                </div>
-              </Field>
-            )
-            : (
-              <Field label="Projeto">
-                <Select icon={<LinkIcon />} value={draft.projectId} disabled={confirmingRemoval} onChange={(event) => patch({ projectId: event.target.value })}>
-                  <option value="">Sem projeto</option>
-                  {projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
-                </Select>
-              </Field>
-            )}
-          <Field label="Pasta própria" optional as="div">
-            <DirectoryPicker value={draft.workingDirectoryOverride} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => patch({ workingDirectoryOverride: "" })} />
-            <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={draft.workingDirectoryOverride} />
-          </Field>
+          <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
+            {leader
+              ? (
+                <Field label="Vínculo" as="div">
+                  <div className="flex items-center gap-3">
+                    <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={leader.avatarSeed} size={32} alt="" />
+                    <p className="m-0 text-control font-medium text-secondary">Integrante de {leader.name}</p>
+                  </div>
+                </Field>
+              )
+              : (
+                <Field label="Projeto">
+                  <Select icon={<LinkIcon />} value={draft.projectId} disabled={confirmingRemoval} onChange={(event) => patch({ projectId: event.target.value })}>
+                    <option value="">Sem projeto</option>
+                    {projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}
+                  </Select>
+                </Field>
+              )}
+            <Field label="Pasta própria" optional as="div">
+              <DirectoryPicker value={draft.workingDirectoryOverride} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => patch({ workingDirectoryOverride: "" })} />
+              <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={draft.workingDirectoryOverride} />
+            </Field>
+          </div>
         </SettingsSection>
         {failure && <p className="m-0 text-support text-status-error">Falha nas configurações: {failure}</p>}
       </form>
-      <div className="flex gap-2">
-        {!bot.temporary && (
-          <Button className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={onOpenRoutines}>
-            <ClockIcon className="size-4" aria-hidden="true" />Rotinas
-          </Button>
-        )}
-        <Button className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={onOpenMemory}>
-          <BookOpenIcon className="size-4" aria-hidden="true" />Memória
-        </Button>
-      </div>
       <BotPlugins bot={bot} client={client} />
       {!bot.temporary && <BotColleagues bot={bot} client={client} groups={projectGroups} />}
-      <section className="flex flex-col items-start gap-4 border-t border-outline pt-6" aria-label="Excluir Bot">
-        {confirmingRemoval
-          ? <BotRemoval bot={bot} members={members} removing={removing} failure={removeError?.message} onCancel={() => setConfirmingRemoval(false)} onConfirm={() => remove({ id: bot.id })} />
-          : <Button className="inline-flex items-center gap-2" variant="danger" type="button" onClick={() => setConfirmingRemoval(true)}><TrashIcon className="size-4" aria-hidden="true" />Excluir Bot</Button>}
+      <section className="flex justify-end" aria-label="Excluir Bot">
+        <Button className="inline-flex items-center gap-2" variant="danger" type="button" onClick={() => setConfirmingRemoval(true)}><TrashIcon className="size-4" aria-hidden="true" />Excluir Bot</Button>
       </section>
+      {confirmingRemoval && (
+        <ConfirmationDialog
+          icon={<TrashIcon />}
+          title="Excluir Bot"
+          onClose={() => !removing && setConfirmingRemoval(false)}
+          actions={(
+            <>
+              <Button variant="text" type="button" autoFocus disabled={removing} onClick={() => setConfirmingRemoval(false)}>Cancelar</Button>
+              <Button variant="danger" type="button" disabled={removing} onClick={() => remove({ id: bot.id })}>{removing ? "Excluindo..." : "Excluir Bot"}</Button>
+            </>
+          )}
+        >
+          <p className="m-0 text-control text-secondary">Excluir {bot.name} apaga a conversa e a memória{teamNote(members)}. Não é possível desfazer.</p>
+          {removeError && <p className="m-0 text-support text-status-error">Falha ao excluir o Bot: {removeError.message}</p>}
+        </ConfirmationDialog>
+      )}
     </BotPage>
   )
 }
@@ -166,17 +175,4 @@ function teamNote(members: Bot[]) {
   }
 
   return ` e também exclui ${members.length} Integrantes: ${names}`
-}
-
-function BotRemoval({ bot, members, removing, failure, onCancel, onConfirm }: { bot: Bot; members: Bot[]; removing: boolean; failure?: string; onCancel: () => void; onConfirm: () => void }) {
-  return (
-    <div className={`${revealClassName} flex flex-col items-start gap-4`}>
-      <p className="m-0 text-control font-medium text-secondary">Excluir {bot.name} apaga a conversa e a memória{teamNote(members)}. Não é possível desfazer.</p>
-      <div className="flex gap-2">
-        <Button variant="text" type="button" autoFocus disabled={removing} onClick={onCancel}>Cancelar</Button>
-        <Button variant="danger" type="button" disabled={removing} onClick={onConfirm}>{removing ? "Excluindo..." : "Excluir Bot"}</Button>
-      </div>
-      {failure && <p className="m-0 text-support text-status-error">Falha ao excluir o Bot: {failure}</p>}
-    </div>
-  )
 }

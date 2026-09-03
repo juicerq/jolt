@@ -1,4 +1,4 @@
-import { BookOpenIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon } from "@heroicons/react/24/outline"
+import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { Bot } from "../../../shared/bots"
@@ -8,6 +8,7 @@ import { ChatWorkspace } from "../chat/chat-workspace"
 import type { EngineClient } from "../engine-client"
 import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
+import { BrainIcon } from "../ui/brain-icon"
 import { InlineAction } from "../ui/inline-action"
 import { BotMemory } from "./bot-memory"
 import { BotRoutineEditor } from "./bot-routine-editor"
@@ -51,7 +52,7 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   const openRoutines = () => openBotRoute({ name: "routines" })
 
   if (route.name === "settings") {
-    return <BotSettings bot={bot} client={client} onClose={close} onOpenRoutines={openRoutines} onOpenMemory={() => openBotRoute({ name: "memory" })} />
+    return <BotSettings bot={bot} client={client} onClose={close} />
   }
 
   if (route.name === "routines") {
@@ -89,7 +90,7 @@ function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
       <IconButton iconSize={16} current={route.name === "chat"} type="button" label={`Conversa de ${bot.name}`} tooltipPlacement="left" onClick={() => openBotRoute({ name: "chat" })}><ChatBubbleLeftIcon aria-hidden="true" /></IconButton>
       <IconButton iconSize={16} current={route.name === "settings"} type="button" label={`Configurações de ${bot.name}`} tooltipPlacement="left" onClick={() => open("settings")}><Cog6ToothIcon aria-hidden="true" /></IconButton>
       {!bot.temporary && <IconButton iconSize={16} current={route.name === "routines" || route.name === "routine"} type="button" label={`Rotinas de ${bot.name}`} tooltipPlacement="left" onClick={() => open("routines")}><ClockIcon aria-hidden="true" /></IconButton>}
-      <IconButton iconSize={16} current={route.name === "memory"} type="button" label={`Memórias de ${bot.name}`} tooltipPlacement="left" onClick={() => open("memory")}><BookOpenIcon aria-hidden="true" /></IconButton>
+      <IconButton iconSize={16} current={route.name === "memory"} type="button" label={`Memórias de ${bot.name}`} tooltipPlacement="left" onClick={() => open("memory")}><BrainIcon aria-hidden="true" /></IconButton>
     </ChatEdgeTab>
   )
 }

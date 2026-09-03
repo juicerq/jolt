@@ -4,7 +4,7 @@ import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
-import { SettingsSection } from "../ui/settings-section"
+import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { teamLeaders } from "./team"
 
 export function colleaguesOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "colleagueIds">) {
@@ -43,9 +43,11 @@ export function BotColleagues({ bot, client, groups }: { bot: Bot; client: Engin
 
   return (
     <SettingsSection title="Colegas">
-      <p className="m-0 text-support text-muted">{bot.name} pode abrir uma Tarefa para estes Bots. Cada um segue a própria Permissão.</p>
-      <BotColleagueList bot={bot} colleagues={colleaguesOf(groups, bot)} busy={isPending} onRevoke={(colleagueBotId) => revoke({ botId: bot.id, colleagueBotId })} />
-      {error && <p className="m-0 text-support text-status-error">Falha nos Colegas: {error.message}</p>}
+      <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
+        <p className="m-0 text-support text-muted">{bot.name} pode abrir uma Tarefa para estes Bots. Cada um segue a própria Permissão.</p>
+        <BotColleagueList bot={bot} colleagues={colleaguesOf(groups, bot)} busy={isPending} onRevoke={(colleagueBotId) => revoke({ botId: bot.id, colleagueBotId })} />
+        {error && <p className="m-0 text-support text-status-error">Falha nos Colegas: {error.message}</p>}
+      </div>
     </SettingsSection>
   )
 }

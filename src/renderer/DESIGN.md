@@ -400,11 +400,11 @@ centered 560px column, like New Bot. The header reuses the New Bot lines beside
 the 64px Blobatar: the name as a borderless title line and the expected outcome
 as a borderless control line, left-aligned, each gaining the hover surface
 hugging its text. Below come sections labeled in uppercase label type: Função
-with the description, then Trabalho. Every other field shows its
-label. Vínculo shows the Leader as a 32px Blobatar beside its name. Rotinas and
-Memória are two secondary buttons side by side, each with its icon and the
-route title. The form has no
-footer: while it holds unsaved changes, a bar pinned to the bottom of the plane
+with the description, Trabalho, Plugins, then Colegas. Each section places its
+content in the same borderless raised panel as App settings. Every field shows
+its label. Vínculo shows the Leader as a 32px Blobatar beside its name. Rotinas
+and Memória stay in the edge tab instead of appearing again inside Settings.
+The form has no footer: while it holds unsaved changes, a bar pinned to the bottom of the plane
 names that state on the left and places discard and the single primary action
 on the right. It disappears when the draft matches the Bot. The destructive
 action sits last, after a divider, as an outlined error-ink button with a trash
@@ -438,8 +438,8 @@ the sidebar return to the conversation.
 
 **App settings.** Settings is a page on the conversation plane with the same
 centered 560px column, title anatomy, edge-tab close action, and Escape behavior
-as Plugins. Sections use the settings section anatomy without a surrounding
-card. Each preference saves when changed. Conversation contains the global
+as Plugins. Each preference uses one borderless raised row inside its settings
+section and saves when changed. Conversation contains the global
 switch for showing Activity details; it is off by default and explains that
 hidden details remain recorded.
 
