@@ -6,6 +6,8 @@ import { ChatWorkspace } from "../chat/chat-workspace"
 import type { EngineClient } from "../engine-client"
 import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
+import { InlineAction } from "../ui/inline-action"
+import { openCreateBot } from "./bots-store"
 import { BotSettings } from "./bot-settings"
 import { findTeamBot } from "./team"
 
@@ -15,7 +17,7 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   const bot = botId ? findTeamBot(groups, botId) : undefined
 
   if (!botId) {
-    return <EmptyState title="Escolha um Bot" description="Abra um da lista ou crie um novo." />
+    return <EmptyState title="Escolha um Bot" description={<>Abra um da lista ou <InlineAction type="button" onClick={openCreateBot}>crie um novo</InlineAction>.</>} />
   }
 
   if (error) {

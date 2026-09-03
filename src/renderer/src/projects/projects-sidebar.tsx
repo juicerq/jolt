@@ -2,7 +2,7 @@ import { Blobatar } from "@blobatar/react"
 import { ChevronDownIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
@@ -10,6 +10,7 @@ import { describeMember, groupMembers, highlightedBotId } from "../bots/member-g
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
+import { InlineAction } from "../ui/inline-action"
 import { Tooltip, useTooltip } from "../ui/tooltip"
 
 const chatStatusLabels: Record<ChatStatus, string> = {
@@ -69,7 +70,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
       {draft && <DraftRow draft={draft} />}
       {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
-        <SidebarEmpty title="Nenhum Bot">Crie um Bot ou Projeto para começar.</SidebarEmpty>
+        <SidebarEmpty title="Nenhum Bot"><InlineAction type="button" onClick={openCreateBot}>Crie um Bot</InlineAction> ou Projeto para começar.</SidebarEmpty>
       )}
       {data && query && !hasVisibleBots && <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>}
       {visibleData && hasVisibleBots && (
@@ -116,7 +117,7 @@ function DraftRow({ draft }: { draft: BotDraft }) {
   )
 }
 
-function SidebarEmpty({ children, title }: { children: string; title: string }) {
+function SidebarEmpty({ children, title }: { children: ReactNode; title: string }) {
   return (
     <div className="flex min-h-45 flex-col items-center justify-center gap-1.5 text-center text-support text-secondary">
       <strong className="text-section font-semibold text-primary">{title}</strong>
