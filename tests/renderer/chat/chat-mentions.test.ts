@@ -4,7 +4,7 @@ import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 
 function bot(id: string, name: string, leaderBotId: string | null = null, temporary = false): Bot {
-  return { id, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed: false, colleagueIds: [] }
+  return { id, avatarSeed: `jolt:new:${name}`, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed: false, colleagueIds: [] }
 }
 
 const atlas = { ...bot("atlas", "Atlas"), colleagueIds: ["emailer"] }
@@ -16,8 +16,8 @@ const groups: ProjectGroups = {
 describe("mention candidates", () => {
   test("offers every top-level Bot except the Bot itself and says which ones are already Colegas", () => {
     expect(mentionCandidates(groups, atlas)).toEqual([
-      { botId: "emailer", name: "Emailer", detail: "Colega" },
-      { botId: "drafter", name: "Drafter", detail: "Vira Colega de Atlas" },
+      { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer", detail: "Colega" },
+      { botId: "drafter", name: "Drafter", avatarSeed: "jolt:new:Drafter", detail: "Vira Colega de Atlas" },
     ])
   })
 
@@ -44,14 +44,14 @@ describe("mention suggestions", () => {
 
 describe("applying a mention", () => {
   test("replaces the word being typed with the name and a space", () => {
-    expect(applyChatMention("Peça ao @ema", { botId: "emailer", name: "Emailer" })).toBe("Peça ao @Emailer ")
-    expect(applyChatMention("@", { botId: "emailer", name: "Emailer" })).toBe("@Emailer ")
+    expect(applyChatMention("Peça ao @ema", { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" })).toBe("Peça ao @Emailer ")
+    expect(applyChatMention("@", { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" })).toBe("@Emailer ")
   })
 })
 
 describe("mentioned Bots on send", () => {
   test("keeps only the mentions still present in the text, once each", () => {
-    const mentions = [{ botId: "emailer", name: "Emailer" }, { botId: "drafter", name: "Drafter" }, { botId: "emailer", name: "Emailer" }]
+    const mentions = [{ botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" }, { botId: "drafter", name: "Drafter", avatarSeed: "jolt:new:Drafter" }, { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" }]
 
     expect(mentionedBotIds("@Emailer manda e @Emailer confirma", mentions)).toEqual(["emailer"])
     expect(mentionedBotIds("sem menção", mentions)).toEqual([])
@@ -59,18 +59,18 @@ describe("mentioned Bots on send", () => {
 })
 
 describe("splitting a message into mentions", () => {
-  const mentions = [{ botId: "emailer", name: "Emailer" }, { botId: "email", name: "Email" }]
+  const mentions = [{ botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" }, { botId: "email", name: "Email", avatarSeed: "jolt:new:Email" }]
 
   test("wraps each mention and keeps the text around it", () => {
     expect(splitChatMentions("use o @Emailer para o Pedro", mentions)).toEqual([
       { text: "use o " },
-      { text: "@Emailer", mention: { botId: "emailer", name: "Emailer" } },
+      { text: "@Emailer", mention: { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" } },
       { text: " para o Pedro" },
     ])
   })
 
   test("prefers the longest name so a shorter one never eats it", () => {
-    expect(splitChatMentions("@Emailer", mentions)).toEqual([{ text: "@Emailer", mention: { botId: "emailer", name: "Emailer" } }])
+    expect(splitChatMentions("@Emailer", mentions)).toEqual([{ text: "@Emailer", mention: { botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" } }])
   })
 
   test("leaves an unknown name and a bare at sign alone", () => {
@@ -84,6 +84,6 @@ describe("splitting a message into mentions", () => {
 
 describe("known mentions", () => {
   test("turns the Bot names into mentions", () => {
-    expect(knownChatMentions({ emailer: "Emailer" })).toEqual([{ botId: "emailer", name: "Emailer" }])
+    expect(knownChatMentions({ emailer: { name: "Emailer", avatarSeed: "jolt:new:Emailer" } })).toEqual([{ botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" }])
   })
 })

@@ -8,7 +8,7 @@ type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label
   position?: "absolute" | "relative"
   shape?: "circle" | "rounded"
   size?: 24 | 28 | 30 | 32 | 34
-  tone?: "canvas" | "danger" | "ghost" | "primary" | "window-close"
+  tone?: "canvas" | "danger" | "ghost" | "primary" | "raised" | "window-close"
   tooltipPlacement?: TooltipPlacement
 }
 
@@ -32,6 +32,7 @@ const toneClassNames = {
   danger: "border border-outline-strong bg-transparent text-status-error hover:bg-surface-hover focus-visible:bg-surface-hover active:bg-surface-active disabled:opacity-60",
   ghost: "border-0 bg-transparent text-muted hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary active:bg-surface-active disabled:opacity-40",
   primary: "border-0 bg-accent text-accent-ink hover:bg-primary focus-visible:bg-primary active:bg-primary disabled:opacity-60",
+  raised: "border border-outline-strong bg-surface-raised text-secondary shadow-md hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary active:bg-surface-active disabled:opacity-40",
   "window-close": "border-0 bg-transparent text-muted hover:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] hover:text-status-error focus-visible:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] focus-visible:text-status-error active:bg-surface-active disabled:opacity-40",
 }
 

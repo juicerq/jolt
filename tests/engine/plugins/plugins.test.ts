@@ -265,8 +265,8 @@ describe("plugins", () => {
     await environment.plugins.awaitConnection({ connectionId: started.connectionId })
     const withPlugins = environment.plugins.inheritance(leader, "ana@example.com")
     const without = environment.plugins.inheritance(leader, "")
-    const member = environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: false, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
-    const other = environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: true, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const member = environment.database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Calo", leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: false, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const other = environment.database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Dara", leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: true, memoryEnabled: false, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
     withPlugins.apply(member)
     without.apply(other)

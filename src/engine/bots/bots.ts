@@ -1,5 +1,6 @@
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
+import { defaultBotAvatarSeed } from "../../shared/bot-avatar"
 import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "../../shared/bots"
 import type { ProviderAvailability } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
@@ -127,6 +128,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         id: crypto.randomUUID(),
         ...workspace,
         name: input.name,
+        avatarSeed: input.avatarSeed ?? defaultBotAvatarSeed(input.name),
         provider: input.provider,
         function: input.function,
         temporary: false,
@@ -145,6 +147,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         leaderBotId: leader.id,
         projectId: leader.projectId,
         name: details.name,
+        avatarSeed: defaultBotAvatarSeed(details.name),
         provider: leader.provider,
         function: details.function,
         workingDirectoryOverride: leader.workingDirectoryOverride,

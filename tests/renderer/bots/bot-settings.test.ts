@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { draftOf, settingsChange } from "@src/renderer/src/bots/bot-settings"
 import type { Bot } from "@src/shared/bots"
 
-const bot: Bot = { id: "b1", leaderBotId: null, projectId: null, name: "Testador", provider: "codex", function: { outcome: "Testes passando" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: "/tmp/b1", closed: false, colleagueIds: [] }
+const bot: Bot = { id: "b1", avatarSeed: "jolt:new:Testador", leaderBotId: null, projectId: null, name: "Testador", provider: "codex", function: { outcome: "Testes passando" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: "/tmp/b1", closed: false, colleagueIds: [] }
 
 describe("Bot settings", () => {
   test("a draft equal to the Bot has no change, even with spare spaces", () => {

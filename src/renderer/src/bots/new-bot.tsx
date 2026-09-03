@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, LinkIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, type KeyboardEvent, useState } from "react"
 import type { EngineClient } from "../engine-client"
@@ -10,7 +10,7 @@ import { Select } from "../ui/select"
 import { useEscape } from "../ui/use-escape"
 import { FolderChip, hintClassName, lineClassName, revealClassName, settledClassName } from "./bot-form"
 import { workspaceInput } from "./bot-workspace"
-import { discardDraft, nameDraft, selectBot } from "./bots-store"
+import { botDraftAvatarSeed, type BotDraft, discardDraft, nameDraft, regenerateDraftAvatar, selectBot } from "./bots-store"
 
 type Step = "name" | "outcome" | "workspace"
 
@@ -29,13 +29,14 @@ function onEnter(commit: () => void) {
   }
 }
 
-export function NewBot({ client }: { client: EngineClient }) {
+export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraft }) {
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>("name")
   const [name, setName] = useState("")
   const [outcome, setOutcome] = useState("")
   const [workspace, setWorkspace] = useState("")
   const [workingDirectoryOverride, setWorkingDirectoryOverride] = useState("")
+  const [avatarRevision, setAvatarRevision] = useState(0)
   const directory = useDirectoryChooser(setWorkingDirectoryOverride)
   const { data: providers, error: providersError, isPending: providersPending } = useQuery(client.query.providers.list.queryOptions())
   const { data: projectGroups } = useQuery(client.query.projects.list.queryOptions())
@@ -49,6 +50,7 @@ export function NewBot({ client }: { client: EngineClient }) {
       selectBot(bot.id)
     },
   }))
+  const avatarSeed = botDraftAvatarSeed({ ...draft, name })
 
   useEscape(discardDraft)
 
@@ -57,6 +59,11 @@ export function NewBot({ client }: { client: EngineClient }) {
     setName(trimmed)
     nameDraft(trimmed)
     setStep("outcome")
+  }
+
+  function regenerateAvatar() {
+    regenerateDraftAvatar()
+    setAvatarRevision((revision) => revision + 1)
   }
 
   function commitOutcome() {
@@ -68,6 +75,7 @@ export function NewBot({ client }: { client: EngineClient }) {
     event.preventDefault()
     mutate({
       name,
+      avatarSeed,
       provider: "codex",
       function: { outcome },
       ...workspaceInput(workspace),
@@ -79,7 +87,10 @@ export function NewBot({ client }: { client: EngineClient }) {
     <section className="relative grid h-full min-h-0 overflow-y-auto bg-surface" aria-label="Novo Bot">
       <IconButton className="top-2.5 right-[var(--window-controls-clearance)] z-2" iconSize={16} position="absolute" type="button" label="Descartar" tooltipPlacement="left" onClick={discardDraft}><XMarkIcon aria-hidden="true" /></IconButton>
       <form className="mx-auto mt-[26vh] mb-auto flex w-[min(520px,calc(100%-48px))] flex-col items-center gap-2 pb-12 text-center" onSubmit={handleSubmit}>
-        <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={64} alt="" />
+        <div className="relative">
+          <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={avatarSeed} size={64} alt="" />
+          <IconButton className="-right-1.5 -bottom-1.5" iconSize={13} position="absolute" shape="circle" size={24} tone="raised" type="button" label="Gerar outro avatar" tooltipPlacement="right" onClick={regenerateAvatar}><ArrowPathIcon key={avatarRevision} className={avatarRevision > 0 ? "animate-spin [animation-duration:280ms] [animation-iteration-count:1] [animation-timing-function:cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none" : ""} aria-hidden="true" /></IconButton>
+        </div>
         {step === "name"
           ? (
             <>

@@ -4,6 +4,7 @@ import { botPermissionModes } from "./bot-permissions"
 import { providerName } from "./providers"
 
 const id = z.string().min(1)
+const avatarSeed = z.string().min(1).max(256)
 const botFunction = z.strictObject({ outcome: id, description: id.optional() })
 const botEffort = z.enum(botEfforts)
 const botPermissionMode = z.enum(botPermissionModes)
@@ -11,6 +12,7 @@ export const workingDirectory = z.string().min(1)
 const optionalId = id.nullable()
 const storedBot = z.strictObject({
   id,
+  avatarSeed,
   leaderBotId: optionalId,
   projectId: optionalId,
   name: id,
@@ -26,7 +28,7 @@ const storedBot = z.strictObject({
 })
 const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean(), colleagueIds: z.array(id) })
 const colleague = z.strictObject({ botId: id, colleagueBotId: id })
-const createFields = { name: id, provider: providerName, function: botFunction, workingDirectoryOverride: workingDirectory.optional() }
+const createFields = { name: id, avatarSeed: avatarSeed.optional(), provider: providerName, function: botFunction, workingDirectoryOverride: workingDirectory.optional() }
 const createInput = z.union([
   z.strictObject({ ...createFields, projectId: id.optional() }),
   z.strictObject({ ...createFields, leaderBotId: id }),

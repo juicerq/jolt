@@ -40,6 +40,7 @@ describe("bots", () => {
 
     expect(created).toEqual({
       id: created.id,
+      avatarSeed: "jolt:new:Marina",
       leaderBotId: null,
       projectId: null,
       colleagueIds: [],
@@ -63,6 +64,17 @@ describe("bots", () => {
     await reopened.observationSystem.observability.flush()
   })
 
+  test("keeps the avatar chosen while creating a Bot", async () => {
+    const { bots, database, observationSystem } = setup()
+    const avatarSeed = `jolt:new:${crypto.randomUUID()}`
+    const created = await bots.create({ ...input, avatarSeed })
+
+    expect(created.avatarSeed).toBe(avatarSeed)
+    expect((await bots.get({ id: created.id }))?.avatarSeed).toBe(avatarSeed)
+    database.close()
+    await observationSystem.observability.flush()
+  })
+
   test("creates a member that inherits the Leader Project and folder unless given its own folder", async () => {
     const { bots, database, observationSystem, projects } = setup()
     const projectDirectory = join(directory, crypto.randomUUID())
@@ -76,7 +88,7 @@ describe("bots", () => {
     const inheriting = await bots.create({ ...input, name: "Lia", leaderBotId: leader.id })
     const own = await bots.create({ ...input, name: "Calo", leaderBotId: leader.id, workingDirectoryOverride: ownDirectory })
 
-    expect(inheriting).toEqual({ ...leader, id: inheriting.id, name: "Lia", leaderBotId: leader.id, createdAt: inheriting.createdAt })
+    expect(inheriting).toEqual({ ...leader, id: inheriting.id, name: "Lia", avatarSeed: "jolt:new:Lia", leaderBotId: leader.id, createdAt: inheriting.createdAt })
     expect(own).toMatchObject({ leaderBotId: leader.id, projectId: project.id, workingDirectoryOverride: ownDirectory, effectiveWorkingDirectory: ownDirectory })
     expect(() => bots.create({ ...input, leaderBotId: inheriting.id })).toThrow("A member cannot lead")
     expect(() => bots.create({ ...input, leaderBotId: "missing-bot" })).toThrow("Leader not found")
@@ -188,6 +200,7 @@ describe("bots", () => {
       leaderBotId: leader.id,
       projectId: firstProject.id,
       name: "Calo",
+      avatarSeed: "jolt:new:Calo",
       provider: "codex",
       function: input.function,
       workingDirectoryOverride: memberOverride,

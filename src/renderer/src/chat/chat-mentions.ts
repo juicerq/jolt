@@ -2,7 +2,7 @@ import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
 import { teamLeaders } from "../bots/team"
 
-export type ChatMention = { botId: string; name: string }
+export type ChatMention = { botId: string; name: string; avatarSeed: string }
 
 export type ChatMentionSuggestion = ChatMention & { detail: string }
 
@@ -13,7 +13,7 @@ const mentionWord = /(?:^|\s)@(\S*)$/
 export function mentionCandidates(groups: ProjectGroups | undefined, bot: Pick<Bot, "id" | "name" | "colleagueIds">): ChatMentionSuggestion[] {
   return teamLeaders(groups)
     .filter((candidate) => candidate.id !== bot.id && !candidate.temporary)
-    .map((candidate) => ({ botId: candidate.id, name: candidate.name, detail: bot.colleagueIds.includes(candidate.id) ? "Colega" : `Vira Colega de ${bot.name}` }))
+    .map((candidate) => ({ botId: candidate.id, name: candidate.name, avatarSeed: candidate.avatarSeed, detail: bot.colleagueIds.includes(candidate.id) ? "Colega" : `Vira Colega de ${bot.name}` }))
 }
 
 export function suggestChatMentions(content: string, candidates: ChatMentionSuggestion[]) {
@@ -30,8 +30,8 @@ export function applyChatMention(content: string, mention: ChatMention) {
   return content.replace(/@\S*$/, `@${mention.name} `)
 }
 
-export function knownChatMentions(names: Record<string, string>): ChatMention[] {
-  return Object.entries(names).map(([botId, name]) => ({ botId, name }))
+export function knownChatMentions(identities: Record<string, { name: string; avatarSeed: string }>): ChatMention[] {
+  return Object.entries(identities).map(([botId, identity]) => ({ botId, ...identity }))
 }
 
 export function activeChatMentions(content: string, mentions: ChatMention[]) {

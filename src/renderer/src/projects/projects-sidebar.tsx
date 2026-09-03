@@ -5,8 +5,7 @@ import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
-import { botAvatarName } from "../bots/bot-avatar"
-import { botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
+import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
@@ -68,7 +67,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       </div>
       {error && <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>}
       {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
-      {draft && <DraftRow name={draft.name} />}
+      {draft && <DraftRow draft={draft} />}
       {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
         <SidebarEmpty title="Nenhum Bot">Crie um Bot ou Projeto para começar.</SidebarEmpty>
       )}
@@ -105,12 +104,12 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   )
 }
 
-function DraftRow({ name }: { name: string }) {
+function DraftRow({ draft }: { draft: BotDraft }) {
   return (
     <div className="mr-2 mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
-      <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
+      <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={botDraftAvatarSeed(draft)} size={32} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
-        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{name || "Novo Bot"}</strong>
+        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
       </span>
     </div>
@@ -281,7 +280,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
     return (
       <Blobatar
         className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus"
-        name={botAvatarName(bot)}
+        name={bot.avatarSeed}
         size={32}
         alt=""
       />
@@ -295,7 +294,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
       {avatars.map((avatar, index) => (
         <Blobatar
           className={`absolute size-6 shrink-0 rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
-          name={botAvatarName(avatar)}
+          name={avatar.avatarSeed}
           size={24}
           alt=""
           key={avatar.id}

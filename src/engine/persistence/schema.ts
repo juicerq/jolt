@@ -20,6 +20,7 @@ export const bots = snakeCase.table("bots", {
   leaderBotId: text().references((): AnySQLiteColumn => bots.id, { onDelete: "cascade" }),
   projectId: text().references(() => projects.id, { onDelete: "set null" }),
   name: text().notNull(),
+  avatarSeed: text().notNull(),
   provider: text({ enum: ["codex"] }).notNull(),
   function: text({ mode: "json" }).$type<StoredBot["function"]>().notNull(),
   workingDirectoryOverride: text(),

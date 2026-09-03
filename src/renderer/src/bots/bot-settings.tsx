@@ -99,7 +99,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
       <div className="mx-auto flex w-[min(560px,calc(100%-48px))] flex-1 flex-col gap-8 pt-12 pb-12">
         <form className="flex flex-col gap-8" id="bot-settings" onSubmit={handleSubmit}>
           <header className="flex items-center gap-4">
-            <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jolt:${bot.id}:${bot.name}`} size={64} alt="" />
+            <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={bot.avatarSeed} size={64} alt="" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <label className="sr-only" htmlFor="bot-settings-name">Nome</label>
               <input className={`${headerLineClassName} text-title font-semibold text-primary placeholder:font-normal`} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} />
@@ -115,7 +115,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
               ? (
                 <Field label="Vínculo" as="div">
                   <div className="flex items-center gap-3">
-                    <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:${leader.id}:${leader.name}`} size={32} alt="" />
+                    <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={leader.avatarSeed} size={32} alt="" />
                     <p className="m-0 text-control font-medium text-secondary">Integrante de {leader.name}</p>
                   </div>
                 </Field>

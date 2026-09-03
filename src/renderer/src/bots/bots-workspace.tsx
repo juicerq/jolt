@@ -19,7 +19,7 @@ export function BotsWorkspace({ client }: { client: EngineClient }) {
     }
 
     if (draft) {
-      return <NewBot client={client} />
+      return <NewBot client={client} draft={draft} />
     }
 
     return <BotChat key={selectedBotId ?? "no-bot"} client={client} botId={selectedBotId} />

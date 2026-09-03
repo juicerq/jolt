@@ -21,6 +21,10 @@ export function teamNames(groups: ProjectGroups | undefined) {
   return Object.fromEntries(teamBots(groups).map((bot) => [bot.id, bot.name]))
 }
 
+export function teamAvatarIdentities(groups: ProjectGroups | undefined) {
+  return Object.fromEntries(teamBots(groups).map((bot) => [bot.id, { name: bot.name, avatarSeed: bot.avatarSeed }]))
+}
+
 export function teamOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "id" | "leaderBotId">) {
   const leaders = teamLeaders(groups)
   const leader = bot.leaderBotId ? leaders.find((candidate) => candidate.id === bot.leaderBotId) : undefined
