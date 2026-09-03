@@ -1,18 +1,34 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { PluginConnectInput } from "../../../shared/plugins"
+import { useState } from "react"
+import type { PluginConnectInput, PluginStep } from "../../../shared/plugins"
 import type { EngineClient } from "../engine-client"
 
 export function useConnectPlugin(client: EngineClient, onConnected?: () => void) {
   const queryClient = useQueryClient()
+  const [step, setStep] = useState<PluginStep>()
+
+  async function follow(connectionId: string) {
+    const steps = await client.raw.plugins.connectionSteps({ connectionId })
+
+    for await (const next of steps) {
+      setStep(next)
+
+      if (next.type === "browser") {
+        await window.desktop.openInBrowser(next.url)
+      }
+    }
+  }
+
   const { mutate, isPending, error, variables } = useMutation({
     async mutationFn(input: PluginConnectInput) {
+      setStep(undefined)
       const started = await client.raw.plugins.connect(input)
-
-      if (started.authorizationUrl) {
-        await window.desktop.openInBrowser(started.authorizationUrl)
-      }
+      void follow(started.connectionId).catch(() => undefined)
 
       return client.raw.plugins.awaitConnection({ connectionId: started.connectionId })
+    },
+    onSettled() {
+      setStep(undefined)
     },
     onSuccess() {
       queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
@@ -20,5 +36,5 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
     },
   })
 
-  return { connect: mutate, isPending, error, connecting: isPending ? variables : undefined }
+  return { connect: mutate, isPending, error, step, connecting: isPending ? variables : undefined }
 }

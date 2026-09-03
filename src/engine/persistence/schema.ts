@@ -115,9 +115,27 @@ export const accounts = snakeCase.table("accounts", {
 
 export const accesses = snakeCase.table("accesses", {
   botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
-  pluginId: text().notNull(),
   accountId: text().notNull().references(() => accounts.id, { onDelete: "cascade" }),
 }, (table) => [
-  primaryKey({ columns: [table.botId, table.pluginId] }),
+  primaryKey({ columns: [table.botId, table.accountId] }),
   index("accesses_account_id").on(table.accountId),
+])
+
+export const whatsappContacts = snakeCase.table("whatsapp_contacts", {
+  accountId: text().notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  jid: text().notNull(),
+  name: text().notNull(),
+}, (table) => [primaryKey({ columns: [table.accountId, table.jid] })])
+
+export const whatsappMessages = snakeCase.table("whatsapp_messages", {
+  id: text().primaryKey(),
+  accountId: text().notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  chatId: text().notNull(),
+  senderName: text().notNull(),
+  fromMe: integer({ mode: "boolean" }).notNull(),
+  content: text().notNull(),
+  sentAt: text().notNull(),
+}, (table) => [
+  index("whatsapp_messages_account_chat").on(table.accountId, table.chatId, table.sentAt),
+  index("whatsapp_messages_account_sent_at").on(table.accountId, table.sentAt),
 ])

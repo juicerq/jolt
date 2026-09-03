@@ -14,6 +14,7 @@ import { createConversations } from "./conversations/conversations"
 import { createMemory } from "./memory/memory"
 import { createGmailAdapter } from "./plugins/gmail/gmail"
 import { createMcpAdapter } from "./plugins/mcp/mcp"
+import { createWhatsappAdapter } from "./plugins/whatsapp/whatsapp"
 import { createPlugins } from "./plugins/plugins"
 import { createSecrets } from "./plugins/secrets"
 import { createPiAgentRuntime, deferPiSessionFactory } from "./pi/pi-agent-runtime"
@@ -157,6 +158,7 @@ const plugins = createPlugins({
       observability: observationSystem.observability,
       ...(environment.BOT_TEAMS_GOOGLE_CLIENT_ID ? { client: { id: environment.BOT_TEAMS_GOOGLE_CLIENT_ID, ...(environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET ? { secret: environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
     }),
+    whatsapp: createWhatsappAdapter({ observability: observationSystem.observability, database }),
     mcp: createMcpAdapter({ observability: observationSystem.observability }),
   },
   conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
@@ -228,6 +230,7 @@ const server = Bun.serve({
   },
 })
 engineState = "ready"
+plugins.resume()
 observationSystem.receiver.span({
   name: "engine.startup",
   timestamp: startupTimestamp,

@@ -277,6 +277,7 @@ export function createEngineRouter(
           () => plugins.connect(input),
         ),
       ),
+      connectionSteps: operations.plugins.connectionSteps.handler(({ input }: { input: unknown }) => surfacedStream(plugins.connectionSteps(input))),
       awaitConnection: operations.plugins.awaitConnection.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.pluginawaitconnection", context: observationContext(context) },

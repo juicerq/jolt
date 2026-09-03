@@ -11,6 +11,7 @@ import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
 import { parse } from "../../shared/parse"
+import { createQueue } from "../queue"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const workingDirectoryTools = "read, grep, find, ls, bash, edit and write act in this directory. Files you write go there. Mailboxes and other external data come through Plugins."
@@ -37,40 +38,6 @@ export type BotExtension = {
 
 type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency" | "nextCallAt">
-
-function createQueue<T>(initial: T[] = []) {
-  const items = initial
-  let wake: (() => void) | undefined
-  let closed = false
-
-  function notify() {
-    wake?.()
-    wake = undefined
-  }
-
-  return {
-    get size() {
-      return items.length
-    },
-    push(item: T) {
-      items.push(item)
-      notify()
-    },
-    close() {
-      closed = true
-      notify()
-    },
-    async next() {
-      if (items.length === 0 && !closed) {
-        await new Promise<void>((resolve) => {
-          wake = resolve
-        })
-      }
-
-      return items.shift()
-    },
-  }
-}
 
 export function createConversations(input: {
   database: AppDatabase

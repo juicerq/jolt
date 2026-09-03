@@ -3,9 +3,20 @@ import { join } from "node:path"
 import { createObservationSystem } from "@src/engine/observability/observability"
 import { createGmailAdapter, gmailSearchConcurrency, gmailTools } from "@src/engine/plugins/gmail/gmail"
 import { PluginAuthError } from "@src/engine/plugins/plugin-adapter"
+import type { PluginStep } from "@src/shared/plugins"
 import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-gmail-")
+
+function authorizationUrl(steps: PluginStep[]) {
+  const browser = steps.find((step) => step.type === "browser")
+
+  if (!browser) {
+    throw new Error("No browser Passo")
+  }
+
+  return browser.url
+}
 
 type Fake = { requests: { method: string; path: string; body: string; authorization: string | null }[]; tokens: string[]; refreshOutcome: "ok" | "invalid_grant"; rateLimits: number; inFlight: number; peakInFlight: number; drafts: Map<string, { to: string; subject: string; threadId?: string }>; sent: string[]; delivered: { to: string; subject: string; inReplyTo: string; threadId?: string }[]; labels: Map<string, Set<string>> }
 
@@ -178,8 +189,9 @@ describe("gmail adapter", () => {
   }
 
   async function connected(environment: ReturnType<typeof setup>) {
-    const connection = environment.adapter.connect({ pluginId: "gmail", name: "Gmail" })
-    const url = new URL(connection.authorizationUrl ?? "")
+    const steps: PluginStep[] = []
+    const connection = environment.adapter.connect({ pluginId: "gmail", name: "Gmail", step: (step) => steps.push(step) })
+    const url = new URL(authorizationUrl(steps))
     const redirect = new URL(url.searchParams.get("redirect_uri") ?? "")
     redirect.searchParams.set("code", "code-1")
     redirect.searchParams.set("state", url.searchParams.get("state") ?? "")
@@ -206,8 +218,9 @@ describe("gmail adapter", () => {
 
   test("a wrong state or a denied sign-in never completes the connection", async () => {
     const environment = setup()
-    const connection = environment.adapter.connect({ pluginId: "gmail", name: "Gmail" })
-    const url = new URL(connection.authorizationUrl ?? "")
+    const steps: PluginStep[] = []
+    const connection = environment.adapter.connect({ pluginId: "gmail", name: "Gmail", step: (step) => steps.push(step) })
+    const url = new URL(authorizationUrl(steps))
     const redirect = new URL(url.searchParams.get("redirect_uri") ?? "")
     redirect.searchParams.set("code", "code-1")
     redirect.searchParams.set("state", "other")
@@ -313,6 +326,6 @@ describe("gmail adapter", () => {
     const adapter = createGmailAdapter({ observability: system.observability })
 
     expect(adapter.availability()).toEqual({ available: false, reason: "Gmail needs a Google client id. Set JOLT_GOOGLE_CLIENT_ID before starting Jolt." })
-    expect(() => adapter.connect({ pluginId: "gmail", name: "Gmail" })).toThrow("JOLT_GOOGLE_CLIENT_ID")
+    expect(() => adapter.connect({ pluginId: "gmail", name: "Gmail", step() {} })).toThrow("JOLT_GOOGLE_CLIENT_ID")
   })
 })

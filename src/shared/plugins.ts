@@ -24,7 +24,11 @@ const storedAccount = z.strictObject({
   tools: z.array(toolDescriptor),
   checkedAt: id,
 })
-const access = z.strictObject({ botId: id, pluginId: id, accountId: id })
+const step = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("browser"), url: z.url() }),
+  z.strictObject({ type: z.literal("qr"), code: id }),
+])
+const access = z.strictObject({ botId: id, accountId: id })
 const account = z.strictObject({
   id,
   pluginId: id,
@@ -62,15 +66,16 @@ export const pluginSchemas = {
   accessList: z.array(access),
   toolDescriptor,
   toolDescriptorList: z.array(toolDescriptor),
+  step,
   snapshot,
   request,
   addCustomInput: z.strictObject({ name: id, command: id, env: z.record(id, z.string()) }),
   idInput: z.strictObject({ id }),
   connectInput: z.strictObject({ pluginId: id, accountId: id.optional(), botId: id.optional(), requestId: id.optional() }),
-  connectOutput: z.strictObject({ connectionId: id, authorizationUrl: z.url().optional() }),
+  connectOutput: z.strictObject({ connectionId: id }),
   connectionInput: z.strictObject({ connectionId: id }),
   accountInput: z.strictObject({ accountId: id }),
-  grantInput: z.strictObject({ botId: id, pluginId: id, accountId: id.nullable() }),
+  grantInput: z.strictObject({ botId: id, accountId: id, granted: z.boolean() }),
   decideInput: z.strictObject({ botId: id, requestId: id, accountId: id.nullable() }),
 }
 
@@ -78,6 +83,7 @@ export type StoredPlugin = z.infer<typeof storedPlugin>
 export type StoredAccount = z.infer<typeof storedAccount>
 export type PluginAccess = z.infer<typeof access>
 export type ToolDescriptor = z.infer<typeof toolDescriptor>
+export type PluginStep = z.infer<typeof step>
 export type PluginAccount = z.infer<typeof account>
 export type Plugin = z.infer<typeof plugin>
 export type PluginSnapshot = z.infer<typeof snapshot>

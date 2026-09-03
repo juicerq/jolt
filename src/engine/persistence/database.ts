@@ -19,11 +19,15 @@ import type { Routine } from "../../shared/routines"
 import { routineSchemas } from "../../shared/routines"
 import type { Task } from "../../shared/tasks"
 import { taskSchemas } from "../../shared/tasks"
-import { accesses, accounts, bots, conversations, memories, messages, notes, plugins, projects, routines, tasks } from "./schema"
+import type { WhatsappContact, WhatsappSavedMessage } from "../../shared/whatsapp"
+import { whatsappSchemas } from "../../shared/whatsapp"
+import { accesses, accounts, bots, conversations, memories, messages, notes, plugins, projects, routines, tasks, whatsappContacts, whatsappMessages } from "./schema"
 import { parse } from "../../shared/parse"
 
+const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
+
 function insertion(table: SQLiteTable) {
-  return asc(sql`${table}.rowid`)
+  return sql`${table}.rowid`
 }
 
 const messageColumns = {
@@ -60,7 +64,7 @@ export function openDatabase(path: string, observability: Observability) {
       list() {
         return observability.span(
           { name: "database.projectlist" },
-          () => parse(projectSchemas.projectList, database.select().from(projects).orderBy(asc(projects.createdAt), insertion(projects)).all()),
+          () => parse(projectSchemas.projectList, database.select().from(projects).orderBy(asc(projects.createdAt), asc(insertion(projects))).all()),
         )
       },
       get(id: string) {
@@ -79,7 +83,7 @@ export function openDatabase(path: string, observability: Observability) {
         })
       },
       list() {
-        return observability.span({ name: "database.botlist" }, () => parse(botSchemas.storedBotList, database.select().from(bots).orderBy(asc(bots.createdAt), insertion(bots)).all()))
+        return observability.span({ name: "database.botlist" }, () => parse(botSchemas.storedBotList, database.select().from(bots).orderBy(asc(bots.createdAt), asc(insertion(bots))).all()))
       },
       get(id: string) {
         return observability.span({ name: "database.botget", context: { botId: id } }, () => {
@@ -134,7 +138,7 @@ export function openDatabase(path: string, observability: Observability) {
       },
       related(taskId: string) {
         return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => parse(conversationSchemas.messageList, 
-          database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(insertion(messages)).all(),
+          database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(asc(insertion(messages))).all(),
         ))
       },
       lastMessages() {
@@ -197,7 +201,7 @@ export function openDatabase(path: string, observability: Observability) {
       },
       listForLeader(leaderBotId: string) {
         return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => parse(taskSchemas.taskList, 
-          database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), insertion(tasks)).all(),
+          database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(insertion(tasks))).all(),
         ))
       },
     },
@@ -218,12 +222,12 @@ export function openDatabase(path: string, observability: Observability) {
       },
       listForBot(botId: string) {
         return observability.span({ name: "database.routinelist", context: { botId } }, () => parse(routineSchemas.routineList, 
-          database.select().from(routines).where(eq(routines.botId, botId)).orderBy(asc(routines.createdAt), insertion(routines)).all(),
+          database.select().from(routines).where(eq(routines.botId, botId)).orderBy(asc(routines.createdAt), asc(insertion(routines))).all(),
         ))
       },
       listEnabled() {
         return observability.span({ name: "database.routinelistenabled" }, () => parse(routineSchemas.routineList, 
-          database.select().from(routines).where(eq(routines.enabled, true)).orderBy(asc(routines.nextCallAt), insertion(routines)).all(),
+          database.select().from(routines).where(eq(routines.enabled, true)).orderBy(asc(routines.nextCallAt), asc(insertion(routines))).all(),
         ))
       },
       update(id: string, changes: Partial<Pick<Routine, "content" | "frequency" | "enabled" | "nextCallAt">>) {
@@ -247,7 +251,7 @@ export function openDatabase(path: string, observability: Observability) {
       },
       listPending(botId: string) {
         return observability.span({ name: "database.notelistpending", context: { botId } }, () => parse(memorySchemas.noteList, 
-          database.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt))).orderBy(asc(notes.createdAt), insertion(notes)).all(),
+          database.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt))).orderBy(asc(notes.createdAt), asc(insertion(notes))).all(),
         ))
       },
       pendingBotIds() {
@@ -288,7 +292,7 @@ export function openDatabase(path: string, observability: Observability) {
             .from(memories)
             .leftJoin(notes, eq(notes.id, memories.noteId))
             .where(eq(memories.botId, botId))
-            .orderBy(asc(memories.createdAt), insertion(memories))
+            .orderBy(asc(memories.createdAt), asc(insertion(memories)))
             .all(),
         ))
       },
@@ -315,7 +319,7 @@ export function openDatabase(path: string, observability: Observability) {
         })
       },
       list() {
-        return observability.span({ name: "database.pluginlist" }, () => parse(pluginSchemas.storedPluginList, database.select().from(plugins).orderBy(asc(plugins.createdAt), insertion(plugins)).all()))
+        return observability.span({ name: "database.pluginlist" }, () => parse(pluginSchemas.storedPluginList, database.select().from(plugins).orderBy(asc(plugins.createdAt), asc(insertion(plugins))).all()))
       },
       get(id: string) {
         return observability.span({ name: "database.pluginget", context: { pluginId: id } }, () => {
@@ -341,7 +345,7 @@ export function openDatabase(path: string, observability: Observability) {
         })
       },
       list() {
-        return observability.span({ name: "database.accountlist" }, () => parse(pluginSchemas.storedAccountList, database.select().from(accounts).orderBy(asc(accounts.checkedAt), insertion(accounts)).all()))
+        return observability.span({ name: "database.accountlist" }, () => parse(pluginSchemas.storedAccountList, database.select().from(accounts).orderBy(asc(accounts.checkedAt), asc(insertion(accounts))).all()))
       },
       get(id: string) {
         return observability.span({ name: "database.accountget" }, () => {
@@ -363,20 +367,65 @@ export function openDatabase(path: string, observability: Observability) {
     },
     accesses: {
       list() {
-        return observability.span({ name: "database.accesslist" }, () => parse(pluginSchemas.accessList, database.select().from(accesses).all()))
+        return observability.span({ name: "database.accesslist" }, () => parse(pluginSchemas.accessList, database.select().from(accesses).orderBy(asc(insertion(accesses))).all()))
       },
       listForBot(botId: string) {
-        return observability.span({ name: "database.accesslistforbot", context: { botId } }, () => parse(pluginSchemas.accessList, database.select().from(accesses).where(eq(accesses.botId, botId)).all()))
+        return observability.span({ name: "database.accesslistforbot", context: { botId } }, () => parse(pluginSchemas.accessList, database.select().from(accesses).where(eq(accesses.botId, botId)).orderBy(asc(insertion(accesses))).all()))
       },
       set(access: PluginAccess) {
-        return observability.span({ name: "database.accessset", context: { botId: access.botId, pluginId: access.pluginId } }, () => {
-          database.insert(accesses).values(access).onConflictDoUpdate({ target: [accesses.botId, accesses.pluginId], set: { accountId: access.accountId } }).run()
+        return observability.span({ name: "database.accessset", context: { botId: access.botId } }, () => {
+          database.insert(accesses).values(access).onConflictDoNothing().run()
 
           return access
         })
       },
-      remove(botId: string, pluginId: string) {
-        return observability.span({ name: "database.accessremove", context: { botId, pluginId } }, () => database.delete(accesses).where(and(eq(accesses.botId, botId), eq(accesses.pluginId, pluginId))).run().changes)
+      remove(botId: string, accountId: string) {
+        return observability.span({ name: "database.accessremove", context: { botId } }, () => database.delete(accesses).where(and(eq(accesses.botId, botId), eq(accesses.accountId, accountId))).run().changes)
+      },
+    },
+    whatsappMessages: {
+      save(message: WhatsappSavedMessage) {
+        return observability.span({ name: "database.whatsappmessagesave" }, () => {
+          database.insert(whatsappMessages).values(message).onConflictDoUpdate({ target: whatsappMessages.id, set: message }).run()
+
+          return message
+        })
+      },
+      saveContact(contact: WhatsappContact) {
+        return observability.span({ name: "database.whatsappcontactsave" }, () => {
+          database.insert(whatsappContacts).values(contact).onConflictDoUpdate({ target: [whatsappContacts.accountId, whatsappContacts.jid], set: { name: contact.name } }).run()
+
+          return contact
+        })
+      },
+      unnamedChats(accountId: string) {
+        return observability.span({ name: "database.whatsappunnamedchats" }, () => database
+          .selectDistinct({ chatId: whatsappMessages.chatId })
+          .from(whatsappMessages)
+          .leftJoin(whatsappContacts, and(eq(whatsappContacts.accountId, whatsappMessages.accountId), eq(whatsappContacts.jid, whatsappMessages.chatId)))
+          .where(and(eq(whatsappMessages.accountId, accountId), isNull(whatsappContacts.name)))
+          .all()
+          .map((row) => row.chatId))
+      },
+      listChats(accountId: string) {
+        return observability.span({ name: "database.whatsappchatlist" }, () => parse(whatsappSchemas.chatList, database
+          .select({ chatId: whatsappMessages.chatId, chatName: chatName, lastSentAt: max(whatsappMessages.sentAt), lastSenderName: whatsappMessages.senderName, lastContent: whatsappMessages.content, messages: count() })
+          .from(whatsappMessages)
+          .leftJoin(whatsappContacts, and(eq(whatsappContacts.accountId, whatsappMessages.accountId), eq(whatsappContacts.jid, whatsappMessages.chatId)))
+          .where(eq(whatsappMessages.accountId, accountId))
+          .groupBy(whatsappMessages.chatId)
+          .orderBy(desc(max(whatsappMessages.sentAt)))
+          .all()))
+      },
+      readChat(accountId: string, chatId: string, limit: number) {
+        return observability.span({ name: "database.whatsappchatread" }, () => parse(whatsappSchemas.storedMessageList, database
+          .select({ id: whatsappMessages.id, accountId: whatsappMessages.accountId, chatId: whatsappMessages.chatId, chatName: chatName, senderName: whatsappMessages.senderName, fromMe: whatsappMessages.fromMe, content: whatsappMessages.content, sentAt: whatsappMessages.sentAt })
+          .from(whatsappMessages)
+          .leftJoin(whatsappContacts, and(eq(whatsappContacts.accountId, whatsappMessages.accountId), eq(whatsappContacts.jid, whatsappMessages.chatId)))
+          .where(and(eq(whatsappMessages.accountId, accountId), eq(whatsappMessages.chatId, chatId)))
+          .orderBy(desc(whatsappMessages.sentAt), desc(insertion(whatsappMessages)))
+          .limit(limit)
+          .all()).reverse())
       },
     },
     migrationState() {

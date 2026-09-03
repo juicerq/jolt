@@ -60,6 +60,7 @@ const allowedAttributeKeys = new Set([
   "method",
   "port",
   "process",
+  "reason",
   "runtime",
   "state",
   "status",

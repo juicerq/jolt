@@ -71,9 +71,10 @@ export const engineContract = {
     addCustom: oc.input(pluginSchemas.addCustomInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/plugins" }),
     remove: oc.input(pluginSchemas.idInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/plugins/{id}/remove" }),
     connect: oc.input(pluginSchemas.connectInput).output(pluginSchemas.connectOutput).route({ method: "POST", path: "/plugins/{pluginId}/connect" }),
+    connectionSteps: oc.input(pluginSchemas.connectionInput).output(eventIterator(pluginSchemas.step)).route({ method: "GET", path: "/plugins/connections/{connectionId}/steps" }),
     awaitConnection: oc.input(pluginSchemas.connectionInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/plugins/connections/{connectionId}" }),
     disconnect: oc.input(pluginSchemas.accountInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/plugins/accounts/{accountId}/disconnect" }),
-    grant: oc.input(pluginSchemas.grantInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/bots/{botId}/plugins/{pluginId}" }),
+    grant: oc.input(pluginSchemas.grantInput).output(pluginSchemas.snapshot).route({ method: "POST", path: "/bots/{botId}/accounts/{accountId}" }),
     decide: oc.input(pluginSchemas.decideInput).route({ method: "POST", path: "/bots/{botId}/plugin-requests/{requestId}" }),
   },
   observations: {

@@ -173,8 +173,12 @@ Uma credencial conectada a um Plugin, guardada cifrada no computador da pessoa, 
 _Evitar_: Conexão, credencial, login, token
 
 **Acesso**:
-A ligação entre um Bot e uma Conta: o Bot usa uma Conta por Plugin. A pessoa concede nas configurações do Bot, ou na Conversa quando o Bot pede pelo Pedido de Plugin. A Permissão do Bot vale para as ferramentas do Plugin como para as demais. Um Integrante temporário recebe só os Acessos que o Líder passa ao contratar.
+A ligação entre um Bot e uma Conta. Um Bot pode ter Acesso a várias Contas do mesmo Plugin. A pessoa concede nas configurações do Bot, ou na Conversa quando o Bot pede pelo Pedido de Plugin. A Permissão do Bot vale para as ferramentas do Plugin como para as demais. Um Integrante temporário recebe só os Acessos que o Líder passa ao contratar.
 _Evitar_: Grant, vínculo, permissão do Plugin
+
+**Conta escolhida**:
+A Conta que o Bot indica ao chamar uma ferramenta do Plugin. Com um único Acesso ao Plugin, ela é implícita. Com mais de um, o Bot precisa indicá-la pelo rótulo e, quando não está claro qual a pessoa quer, pergunta antes de agir.
+_Evitar_: Conta padrão, Conta ativa, sessão
 
 **Pedido de Plugin**:
 Uma solicitação feita durante a Conversa quando o Bot precisa de um Plugin sem Acesso ou quando a Conta precisa autenticar de novo. A pessoa escolhe uma Conta, conecta uma nova no navegador ou cancela; o Bot continua na mesma Conversa com as ferramentas prontas. Ele não passa por Pedido de permissão: pedir o Plugin já é a pergunta.

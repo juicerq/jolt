@@ -2,12 +2,13 @@ import type { Bot } from "../../shared/bots"
 import type { ConversationEvent } from "../../shared/conversations"
 import { parse } from "../../shared/parse"
 import type { PluginKind } from "../../shared/plugin-kinds"
-import { connectPluginTool, pluginSchemas, type PluginAccount, type PluginRequest, type PluginSnapshot, type StoredAccount, type StoredPlugin, type ToolDescriptor } from "../../shared/plugins"
+import { connectPluginTool, pluginSchemas, type PluginAccount, type PluginRequest, type PluginSnapshot, type PluginStep, type StoredAccount, type StoredPlugin, type ToolDescriptor } from "../../shared/plugins"
 import type { Observability } from "../observability/observability"
 import type { createBots } from "../bots/bots"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSchemaTool, PiTool } from "../pi/pi-agent-runtime"
-import { PluginAuthError, type PluginAdapter, type PluginConnected } from "./plugin-adapter"
+import { createQueue } from "../queue"
+import { PluginAuthError, type PluginAccountSession, type PluginAdapter, type PluginConnected } from "./plugin-adapter"
 import type { Secrets } from "./secrets"
 
 type Catalogued = { id: string; kind: PluginKind; name: string; builtIn: boolean; config?: StoredPlugin["config"] }
@@ -16,9 +17,16 @@ type Requested = { account: StoredAccount } | { cancelled: true }
 
 type PendingRequest = { botId: string; request: PluginRequest; resolve(outcome: Requested): void; reject(error: Error): void }
 
-type PendingConnection = { pluginId: string; done: Promise<PluginSnapshot>; cancel(): void }
+type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
-const builtInPlugins: Catalogued[] = [{ id: "gmail", kind: "gmail", name: "Gmail", builtIn: true }]
+type PendingConnection = { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest(): PluginStep | undefined; cancel(): void }
+
+const builtInPlugins: Catalogued[] = [
+  { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },
+  { id: "whatsapp", kind: "whatsapp", name: "WhatsApp", builtIn: true },
+]
+
+const accountProperty = { type: "string", description: "Label of the Conta to use. Send it whenever you use more than one Conta of this Plugin. When it is not clear which Conta the person means, ask them before you call." } as const
 
 export function createPlugins(input: {
   database: AppDatabase
@@ -59,6 +67,35 @@ export function createPlugins(input: {
     const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
 
     return plugin ? input.adapters[plugin.kind].tools?.() ?? account.tools : account.tools
+  }
+
+  function sessionFor(account: StoredAccount): PluginAccountSession {
+    const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
+
+    return {
+      id: account.id,
+      pluginId: account.pluginId,
+      label: account.label,
+      ...(plugin?.config ? { config: plugin.config } : {}),
+      secret: account.secret ? input.secrets.open(account.secret) : "",
+      saveSecret(updated: string) {
+        input.database.accounts.update(account.id, { secret: input.secrets.seal(updated), checkedAt: new Date().toISOString() })
+      },
+    }
+  }
+
+  function resumeAccount(account: StoredAccount) {
+    const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
+
+    if (!plugin || account.state !== "connected") {
+      return
+    }
+
+    try {
+      input.adapters[plugin.kind].resume?.(sessionFor(account))
+    } catch (error) {
+      input.observability.event({ name: "plugin.resumefailed", context: { pluginId: plugin.id }, error: error instanceof Error ? error : new Error("Resume failed") })
+    }
   }
 
   function present(account: StoredAccount, accesses = input.database.accesses.list()): PluginAccount {
@@ -103,30 +140,60 @@ export function createPlugins(input: {
     })
   }
 
-  function grant(botId: string, pluginId: string, accountId: string | null) {
+  function grant(botId: string, accountId: string, granted: boolean) {
     if (!input.bots.get({ id: botId })) {
       throw new Error("Bot not found")
     }
 
-    pluginOf(pluginId)
+    const account = accountOf(accountId)
 
-    if (accountId === null) {
-      input.database.accesses.remove(botId, pluginId)
+    if (!granted) {
+      input.database.accesses.remove(botId, account.id)
 
       return
     }
 
-    const account = accountOf(accountId)
-
-    if (account.pluginId !== pluginId) {
-      throw new Error("That Conta belongs to another Plugin")
-    }
-
-    input.database.accesses.set({ botId, pluginId, accountId })
+    input.database.accesses.set({ botId, accountId: account.id })
   }
 
-  function describe(plugin: Catalogued, account: StoredAccount) {
-    return `Connected ${plugin.name} as ${account.label}. Tools available now: ${toolsOf(account).map((tool) => tool.name).join(", ")}.`
+  function accountsFor(bot: Pick<Bot, "id">, plugin: Catalogued) {
+    return grantedAccounts(bot).filter((account) => account.pluginId === plugin.id)
+  }
+
+  function describe(plugin: Catalogued, account: StoredAccount, granted: StoredAccount[]) {
+    const tools = `Tools available now: ${toolsOf(account).map((tool) => tool.name).join(", ")}.`
+
+    if (granted.length > 1) {
+      return `Connected ${plugin.name} as ${account.label}. You now use ${granted.length} Contas of ${plugin.name}: ${granted.map((candidate) => candidate.label).join(", ")}. Pass conta on every call, and ask the person which Conta they mean when it is not clear. ${tools}`
+    }
+
+    return `Connected ${plugin.name} as ${account.label}. ${tools}`
+  }
+
+  function chooseAccount(plugin: Catalogued, accounts: StoredAccount[], requested: unknown) {
+    if (accounts.length === 0) {
+      throw new Error(`The Conta for ${plugin.name} was disconnected. Ask the person to connect it again.`)
+    }
+
+    const labels = accounts.map((account) => account.label).join(", ")
+
+    if (typeof requested !== "string" || !requested.trim()) {
+      const only = accounts.length === 1 ? accounts[0] : undefined
+
+      if (!only) {
+        throw new Error(`You use ${accounts.length} Contas of ${plugin.name}: ${labels}. Ask the person which one they mean, then call again with conta.`)
+      }
+
+      return only
+    }
+
+    const chosen = accounts.find((account) => account.label === requested || account.id === requested)
+
+    if (!chosen) {
+      throw new Error(`You have no Conta named ${requested} in ${plugin.name}. Yours: ${labels}. Ask the person which one they mean.`)
+    }
+
+    return chosen
   }
 
   function requestKey(botId: string, requestId: string) {
@@ -180,21 +247,11 @@ export function createPlugins(input: {
     return outcome.account
   }
 
-  function toolFor(bot: Pick<Bot, "id">, plugin: Catalogued, accountId: string, descriptor: ToolDescriptor): PiSchemaTool {
+  function toolFor(bot: Pick<Bot, "id">, plugin: Catalogued, descriptor: ToolDescriptor): PiSchemaTool {
     const adapter = input.adapters[plugin.kind]
 
     async function run(account: StoredAccount, params: Record<string, unknown>, signal: AbortSignal | undefined, retried: boolean): Promise<string> {
-      const secret = account.secret ? input.secrets.open(account.secret) : ""
-      const session = {
-        id: account.id,
-        pluginId: account.pluginId,
-        label: account.label,
-        ...(plugin.config ? { config: plugin.config } : {}),
-        secret,
-        saveSecret: (updated: string) => {
-          input.database.accounts.update(account.id, { secret: input.secrets.seal(updated), checkedAt: new Date().toISOString() })
-        },
-      }
+      const session = sessionFor(account)
 
       try {
         return await input.observability.span({ name: "plugin.toolcall", context: { botId: bot.id, pluginId: plugin.id }, attributes: { tool: descriptor.name } }, () => adapter.execute(session, descriptor, params, signal))
@@ -216,35 +273,49 @@ export function createPlugins(input: {
       name: descriptor.name,
       label: descriptor.label,
       description: descriptor.description,
-      inputSchema: descriptor.inputSchema,
+      inputSchema: { ...descriptor.inputSchema, properties: { ...descriptor.inputSchema.properties, conta: accountProperty } },
       async execute(params, signal) {
-        const account = input.database.accounts.get(accountId)
-
-        if (!account) {
-          throw new Error(`The Conta for ${plugin.name} was disconnected. Ask the person to connect it again.`)
-        }
+        const { conta: requested, ...rest } = params
+        const account = chooseAccount(plugin, accountsFor(bot, plugin), requested)
 
         if (account.state === "connected") {
-          return run(account, params, signal, false)
+          return run(account, rest, signal, false)
         }
 
-        return run(await reauthorize(bot, plugin, account, signal), params, signal, true)
+        return run(await reauthorize(bot, plugin, account, signal), rest, signal, true)
       },
     }
   }
 
   function grantedTools(bot: Pick<Bot, "id">) {
-    return grantedAccounts(bot).flatMap((account) => {
-      const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
+    const plugins = catalogue()
+    const tools: PiSchemaTool[] = []
+    const names = new Set<string>()
 
-      return plugin ? toolsOf(account).map((descriptor) => toolFor(bot, plugin, account.id, descriptor)) : []
-    })
+    for (const account of grantedAccounts(bot)) {
+      const plugin = plugins.find((candidate) => candidate.id === account.pluginId)
+
+      if (!plugin) {
+        continue
+      }
+
+      for (const descriptor of toolsOf(account)) {
+        if (names.has(descriptor.name)) {
+          continue
+        }
+
+        names.add(descriptor.name)
+        tools.push(toolFor(bot, plugin, descriptor))
+      }
+    }
+
+    return tools
   }
 
   function connectTool(bot: Pick<Bot, "id">): PiCustomTool {
     return {
       name: connectPluginTool,
-      description: "Ask the person to connect a Plugin so you can use its tools. Use it when the person needs something a Plugin does and you have no tools for it yet. The person picks or connects a Conta; the tools become available right after.",
+      description: "Ask the person to connect a Plugin so you can use its tools. Use it when the person needs something a Plugin does and you have no tools for it yet, or when they want another Conta of a Plugin you already use. The person picks or connects a Conta; the tools become available right after.",
       parameters: { plugin: "Id of the Plugin, as listed in your instructions" },
       async execute(params, signal) {
         const plugin = catalogue().find((candidate) => candidate.id === params.plugin)
@@ -253,15 +324,18 @@ export function createPlugins(input: {
           throw new Error(`Unknown Plugin ${params.plugin ?? ""}. Use one of: ${catalogue().map((candidate) => candidate.id).join(", ")}`)
         }
 
+        const registered = accountsFor(bot, plugin).length > 0
         const outcome = await ask(bot, plugin, signal)
 
         if ("cancelled" in outcome) {
           return `The person did not connect ${plugin.name}. Continue without it and offer to try again when they want.`
         }
 
-        input.conversations.addTools(bot.id, toolsOf(outcome.account).map((descriptor) => toolFor(bot, plugin, outcome.account.id, descriptor)))
+        if (!registered) {
+          input.conversations.addTools(bot.id, toolsOf(outcome.account).map((descriptor) => toolFor(bot, plugin, descriptor)))
+        }
 
-        return describe(plugin, outcome.account)
+        return describe(plugin, outcome.account, accountsFor(bot, plugin))
       },
     }
   }
@@ -278,8 +352,10 @@ export function createPlugins(input: {
       throw new Error("Conta not found")
     }
 
+    resumeAccount(account)
+
     if (target.botId) {
-      grant(target.botId, plugin.id, account.id)
+      grant(target.botId, account.id, true)
     }
 
     if (target.botId && target.requestId) {
@@ -298,7 +374,18 @@ export function createPlugins(input: {
       throw new Error(availability.reason)
     }
 
-    const connection = input.adapters[plugin.kind].connect({ pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}) })
+    const streams = new Set<StepStream>()
+    let latest: PluginStep | undefined
+
+    function step(next: PluginStep) {
+      latest = next
+
+      for (const stream of streams) {
+        stream.push(next)
+      }
+    }
+
+    const connection = input.adapters[plugin.kind].connect({ pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}), step })
     const connectionId = crypto.randomUUID()
     const done = connection.connected.then((connected) => {
       connectionFinished(plugin, connected, target)
@@ -315,14 +402,23 @@ export function createPlugins(input: {
       throw failure
     }).finally(() => {
       connections.delete(connectionId)
+
+      for (const stream of streams) {
+        stream.close()
+      }
     })
     done.catch(() => undefined)
-    connections.set(connectionId, { pluginId: plugin.id, done, cancel: connection.cancel })
+    connections.set(connectionId, { pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel })
 
-    return { connectionId, ...(connection.authorizationUrl ? { authorizationUrl: connection.authorizationUrl } : {}), done }
+    return { connectionId, done }
   }
 
   return {
+    resume() {
+      for (const account of input.database.accounts.list()) {
+        resumeAccount(account)
+      }
+    },
     tools(bot: Pick<Bot, "id" | "temporary">): PiTool[] {
       const granted = grantedTools(bot)
 
@@ -339,19 +435,29 @@ export function createPlugins(input: {
 
       const plugins = catalogue()
       const granted = grantedAccounts(bot)
-      const using = granted.map((account) => {
-        const plugin = plugins.find((candidate) => candidate.id === account.pluginId)
+      const using = plugins.flatMap((plugin) => {
+        const accounts = granted.filter((account) => account.pluginId === plugin.id)
 
-        return `You use ${plugin?.name ?? account.pluginId} as ${account.label}${account.state === "connected" ? "" : " (it needs to authenticate again; its tools will ask the person)"}.`
+        if (accounts.length === 0) {
+          return []
+        }
+
+        const labels = accounts.map((account) => `${account.label}${account.state === "connected" ? "" : " (it needs to authenticate again; its tools will ask the person)"}`).join(", ")
+
+        if (accounts.length === 1) {
+          return [`You use ${plugin.name} as ${labels}.`]
+        }
+
+        return [`You use ${plugin.name} as ${labels}. Pass conta on every ${plugin.name} call, and ask the person which Conta they mean when it is not clear.`]
       })
 
       if (bot.temporary) {
         return using.join("\n")
       }
 
-      const available = plugins.filter((plugin) => input.adapters[plugin.kind].availability().available && !granted.some((account) => account.pluginId === plugin.id))
+      const available = plugins.filter((plugin) => input.adapters[plugin.kind].availability().available)
       const offer = available.length > 0
-        ? `Plugins you can connect with the connect_plugin tool when the person needs them: ${available.map((plugin) => `${plugin.id} (${plugin.name})`).join(", ")}. Do not ask the person to connect anything by hand; call the tool and they decide there.`
+        ? `Plugins you can connect with the connect_plugin tool when the person needs them, including another Conta of a Plugin you already use: ${available.map((plugin) => `${plugin.id} (${plugin.name})`).join(", ")}. Do not ask the person to connect anything by hand; call the tool and they decide there.`
         : ""
       const sharing = !bot.leaderBotId && granted.length > 0
         ? `When hiring, pass plugins with the Conta labels the member may use, separated by commas: ${granted.map((account) => account.label).join(", ")}. A member without plugins cannot use them.`
@@ -375,7 +481,7 @@ export function createPlugins(input: {
       return {
         apply(member: Pick<Bot, "id">) {
           for (const account of accounts) {
-            input.database.accesses.set({ botId: member.id, pluginId: account.pluginId, accountId: account.id })
+            input.database.accesses.set({ botId: member.id, accountId: account.id })
           }
         },
       }
@@ -432,6 +538,30 @@ export function createPlugins(input: {
 
       return parse(pluginSchemas.connectOutput, started)
     },
+    connectionSteps(rawInput: unknown): AsyncIterable<PluginStep> {
+      const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
+      const connection = connections.get(connectionId)
+      const pending = connection?.latest()
+      const queue = createQueue<PluginStep>(pending ? [pending] : [])
+
+      if (!connection) {
+        queue.close()
+      }
+
+      connection?.streams.add(queue)
+
+      return {
+        async *[Symbol.asyncIterator]() {
+          try {
+            for (let step = await queue.next(); step; step = await queue.next()) {
+              yield step
+            }
+          } finally {
+            connection?.streams.delete(queue)
+          }
+        },
+      }
+    },
     async awaitConnection(rawInput: unknown) {
       const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
       const connection = connections.get(connectionId)
@@ -458,7 +588,7 @@ export function createPlugins(input: {
     },
     grant(rawInput: unknown) {
       const details = parse(pluginSchemas.grantInput, rawInput)
-      grant(details.botId, details.pluginId, details.accountId)
+      grant(details.botId, details.accountId, details.granted)
 
       return list()
     },
@@ -483,7 +613,7 @@ export function createPlugins(input: {
         throw new Error("That Conta belongs to another Plugin")
       }
 
-      grant(details.botId, account.pluginId, account.id)
+      grant(details.botId, account.id, true)
       settleRequest(key, { value: { account } })
     },
     async dispose() {

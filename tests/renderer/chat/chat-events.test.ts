@@ -69,7 +69,7 @@ function setup() {
     bots,
     observability: system.observability,
     secrets: createSecrets("00".repeat(32)),
-    adapters: { gmail: fakePluginAdapter("gmail").adapter, mcp: fakePluginAdapter("mcp").adapter },
+    adapters: { gmail: fakePluginAdapter("gmail").adapter, whatsapp: fakePluginAdapter("whatsapp").adapter, mcp: fakePluginAdapter("mcp").adapter },
     conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
   })
   const diagnostics = createDiagnostics({

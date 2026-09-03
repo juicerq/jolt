@@ -12,7 +12,7 @@ describe("ChatPluginRequest", () => {
   })
 
   test("explains what the person must do", () => {
-    expect(pluginRequestDetail({ pluginName: "Gmail", accounts: [], connectable: true })).toBe("O Bot precisa de uma Conta de Gmail. A conexão abre no seu navegador.")
+    expect(pluginRequestDetail({ pluginName: "Gmail", accounts: [], connectable: true })).toBe("O Bot precisa de uma Conta de Gmail.")
     expect(pluginRequestDetail({ pluginName: "Gmail", accounts: [ana], connectable: true })).toBe("Escolha a Conta de Gmail que o Bot pode usar.")
     expect(pluginRequestDetail({ pluginName: "Gmail", accounts: [], connectable: false })).toBe("Gmail não está configurado neste computador.")
   })

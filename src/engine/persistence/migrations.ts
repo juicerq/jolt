@@ -7,6 +7,9 @@ import botEffort from "../../../drizzle/20260901225418_bot-effort/migration.sql"
 import botModel from "../../../drizzle/20260901225922_bot-model/migration.sql" with { type: "text" }
 import botPermission from "../../../drizzle/20260902153823_bot-permission/migration.sql" with { type: "text" }
 import plugins from "../../../drizzle/20260902190240_plugins/migration.sql" with { type: "text" }
+import multiAccountAccess from "../../../drizzle/20260902235222_multi-account-access/migration.sql" with { type: "text" }
+import whatsappMessages from "../../../drizzle/20260903011817_whatsapp-messages/migration.sql" with { type: "text" }
+import whatsappContacts from "../../../drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -17,4 +20,7 @@ export const migrations = [
   { name: "20260901225922_bot-model", timestamp: 1788303562000, sql: botModel },
   { name: "20260902153823_bot-permission", timestamp: 1788374303000, sql: botPermission },
   { name: "20260902190240_plugins", timestamp: 1788375760000, sql: plugins },
+  { name: "20260902235222_multi-account-access", timestamp: 1788393142000, sql: multiAccountAccess },
+  { name: "20260903011817_whatsapp-messages", timestamp: 1788398297000, sql: whatsappMessages },
+  { name: "20260903021111_whatsapp-contacts", timestamp: 1788401471000, sql: whatsappContacts },
 ] satisfies MigrationsJournal

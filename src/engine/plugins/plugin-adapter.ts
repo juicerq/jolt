@@ -1,12 +1,11 @@
 import type { PluginKind } from "../../shared/plugin-kinds"
-import type { StoredPlugin, ToolDescriptor } from "../../shared/plugins"
+import type { PluginStep, StoredPlugin, ToolDescriptor } from "../../shared/plugins"
 
 export class PluginAuthError extends Error {}
 
 export type PluginConnected = { label: string; secret: string; tools: ToolDescriptor[] }
 
 export type PluginConnection = {
-  authorizationUrl?: string
   connected: Promise<PluginConnected>
   cancel(): void
 }
@@ -26,7 +25,8 @@ export type PluginAdapter = {
   kind: PluginKind
   availability(): PluginAvailability
   tools?(): ToolDescriptor[]
-  connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string }): PluginConnection
+  connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step(step: PluginStep): void }): PluginConnection
+  resume?(account: PluginAccountSession): void
   execute(account: PluginAccountSession, tool: ToolDescriptor, input: Record<string, unknown>, signal?: AbortSignal): Promise<string>
   stop(accountId: string): Promise<void>
 }

@@ -13,7 +13,7 @@ describe("mcp adapter", () => {
     const adapter = createMcpAdapter({ observability: system.observability })
     const config = { command, envNames: ["ECHO_TOKEN"] }
     const secret = JSON.stringify({ ECHO_TOKEN: "t0k" })
-    const connected = await adapter.connect({ pluginId: "p1", name: "Echo Server", config, secret }).connected
+    const connected = await adapter.connect({ pluginId: "p1", name: "Echo Server", config, secret, step() {} }).connected
 
     expect(connected.label).toBe("Echo Server")
     expect(connected.tools.map((tool) => [tool.name, tool.label])).toEqual([["echo_server_say_hello", "say hello"], ["echo_server_fail", "fail"]])
@@ -36,7 +36,7 @@ describe("mcp adapter", () => {
     const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
     const adapter = createMcpAdapter({ observability: system.observability })
 
-    await expect(adapter.connect({ pluginId: "p2", name: "Broken", config: { command: join(directory, "missing-binary"), envNames: [] } }).connected).rejects.toThrow()
+    await expect(adapter.connect({ pluginId: "p2", name: "Broken", config: { command: join(directory, "missing-binary"), envNames: [] }, step() {} }).connected).rejects.toThrow()
     await system.observability.flush()
   })
 })

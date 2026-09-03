@@ -11,6 +11,7 @@ import { useEscape } from "../ui/use-escape"
 import { AddPluginDialog } from "./add-plugin-dialog"
 import { PluginAccountRow } from "./plugin-account-row"
 import { useConnectPlugin } from "./plugin-connection"
+import { PluginStepView, pluginStepLabel } from "./plugin-step"
 
 export function PluginsScreen({ client }: { client: EngineClient }) {
   const [adding, setAdding] = useState(false)
@@ -58,15 +59,16 @@ export function PluginCard({ plugin, client }: { plugin: Plugin; client: EngineC
           <h3 className="m-0 text-section font-semibold text-primary">{plugin.name}</h3>
           <p className="m-0 text-support text-muted">{describePlugin(plugin)}</p>
         </div>
-        {plugin.builtIn && plugin.available && <Button variant="secondary" type="button" disabled={busy} onClick={() => connection.connect({ pluginId: plugin.id })}>{connection.isPending && !connection.connecting?.accountId ? "Aguardando o navegador..." : "Conectar"}</Button>}
+        {plugin.builtIn && plugin.available && <Button variant="secondary" type="button" disabled={busy} onClick={() => connection.connect({ pluginId: plugin.id })}>{connection.isPending && !connection.connecting?.accountId ? pluginStepLabel(connection.step) : "Conectar"}</Button>}
         {!plugin.builtIn && !confirmingRemoval && <Button variant="text" type="button" disabled={busy} onClick={() => setConfirmingRemoval(true)}>Remover</Button>}
       </div>
+      <PluginStepView step={connection.step} />
       {plugin.accounts.length > 0 && (
         <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
           {plugin.accounts.map((account) => (
             <PluginAccountRow key={account.id} account={account} actions={(
               <>
-                {account.state !== "connected" && plugin.builtIn && plugin.available && <Button variant="secondary" type="button" disabled={busy} onClick={() => connection.connect({ pluginId: plugin.id, accountId: account.id })}>{connection.connecting?.accountId === account.id ? "Aguardando o navegador..." : "Reconectar"}</Button>}
+                {account.state !== "connected" && plugin.builtIn && plugin.available && <Button variant="secondary" type="button" disabled={busy} onClick={() => connection.connect({ pluginId: plugin.id, accountId: account.id })}>{connection.connecting?.accountId === account.id ? pluginStepLabel(connection.step) : "Reconectar"}</Button>}
                 {plugin.builtIn && <Button variant="text" type="button" disabled={busy} onClick={() => disconnect({ accountId: account.id })}>Desconectar</Button>}
               </>
             )} />

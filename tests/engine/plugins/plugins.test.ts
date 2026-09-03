@@ -114,7 +114,7 @@ function setup(options: { gmailAvailable?: boolean } = {}) {
     bots,
     observability: observationSystem.observability,
     secrets: createSecrets("11".repeat(32)),
-    adapters: { gmail: gmail.adapter, mcp: mcp.adapter },
+    adapters: { gmail: gmail.adapter, whatsapp: fakePluginAdapter("whatsapp").adapter, mcp: mcp.adapter },
     conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
   })
 
@@ -178,7 +178,14 @@ describe("plugins", () => {
     expect(requested.request).toMatchObject({ pluginId: "gmail", pluginName: "Gmail", accounts: [], connectable: true })
 
     const started = environment.plugins.connect({ pluginId: "gmail", botId: bot.id, requestId: requested.request.id })
-    expect(started.authorizationUrl).toBe("https://example.test/authorize/gmail")
+    const steps = []
+
+    for await (const step of environment.plugins.connectionSteps({ connectionId: started.connectionId })) {
+      steps.push(step)
+      break
+    }
+
+    expect(steps).toEqual([{ type: "browser", url: "https://example.test/authorize/gmail" }])
     environment.gmail.finish("ana@example.com")
     const snapshot = await environment.plugins.awaitConnection({ connectionId: started.connectionId })
     const events = await turn.finished
@@ -316,7 +323,7 @@ describe("plugins", () => {
 
     expect(plugin).toMatchObject({ name: "Linear", builtIn: false, config: { command: "npx linear-mcp", envNames: ["LINEAR_TOKEN"] } })
     expect(account).toMatchObject({ label: "Linear", state: "connected", tools: ["mcp_echo"] })
-    environment.plugins.grant({ botId: bot.id, pluginId: plugin?.id ?? "", accountId: account?.id ?? "" })
+    environment.plugins.grant({ botId: bot.id, accountId: account?.id ?? "", granted: true })
     expect(environment.database.accesses.listForBot(bot.id)).toHaveLength(1)
     await expect(environment.plugins.disconnect({ accountId: account?.id ?? "" })).rejects.toThrow("Remove the Plugin")
 
@@ -329,6 +336,37 @@ describe("plugins", () => {
     expect(removed.plugins.some((candidate) => candidate.kind === "mcp")).toBe(false)
     expect(environment.database.accesses.listForBot(bot.id)).toHaveLength(0)
     expect(environment.mcp.stopped).toEqual([account?.id ?? ""])
+
+    await environment.close()
+  })
+
+  test("a bot keeps two Contas of the same Plugin and picks one by label", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
+
+    for (const label of ["ana@example.com", "bob@example.com"]) {
+      const started = environment.plugins.connect({ pluginId: "gmail", botId: bot.id })
+      environment.gmail.finish(label)
+      await environment.plugins.awaitConnection({ connectionId: started.connectionId })
+    }
+
+    expect(environment.database.accesses.listForBot(bot.id)).toHaveLength(2)
+
+    environment.scripts.set(bot.id, async (_message, call) => {
+      const guessed = await call("gmail_echo", { text: "x" })
+      const chosen = await call("gmail_echo", { text: "x", conta: "bob@example.com" })
+      const unknown = await call("gmail_echo", { text: "x", conta: "carl@example.com" })
+
+      return `${guessed} | ${chosen} | ${unknown}`
+    })
+    const turn = environment.turn(bot.id, "manda email")
+    await turn.finished
+
+    expect(environment.sessions.get(bot.id)?.customTools.filter((tool) => tool.name === "gmail_echo")).toHaveLength(1)
+    expect(environment.sessions.get(bot.id)?.instructions).toContain("You use Gmail as ana@example.com, bob@example.com. Pass conta on every Gmail call")
+    expect(turn.reply()).toContain("Error: You use 2 Contas of Gmail: ana@example.com, bob@example.com. Ask the person which one they mean")
+    expect(turn.reply()).toContain("Error: You have no Conta named carl@example.com in Gmail")
+    expect(environment.gmail.calls).toEqual([expect.objectContaining({ secret: "bob@example.com-secret", tool: "gmail_echo", input: { text: "x" } })])
 
     await environment.close()
   })

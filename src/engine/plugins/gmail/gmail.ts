@@ -395,7 +395,9 @@ export function createGmailAdapter(input: { observability: Observability; client
         pending.delete(key)
       })
 
-      return { authorizationUrl: authorization.authorizationUrl, connected, cancel: authorization.cancel }
+      details.step({ type: "browser", url: authorization.authorizationUrl })
+
+      return { connected, cancel: authorization.cancel }
     },
     execute(account, tool, params, signal) {
       const operation = operations[tool.name]

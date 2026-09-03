@@ -1,4 +1,4 @@
-export const pluginKinds = ["gmail", "mcp"] as const
+export const pluginKinds = ["gmail", "whatsapp", "mcp"] as const
 
 export type PluginKind = (typeof pluginKinds)[number]
 

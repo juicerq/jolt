@@ -19,15 +19,15 @@ export function fakePluginAdapter(kind: PluginKind, options: { available?: boole
     tools() {
       return tools
     },
-    connect() {
+    connect(details) {
       let entry: Pending | undefined
       const connected = new Promise<PluginConnected>((resolve, reject) => {
         entry = { resolve, reject }
         pending.push(entry)
       })
+      details.step({ type: "browser", url: `https://example.test/authorize/${kind}` })
 
       return {
-        authorizationUrl: `https://example.test/authorize/${kind}`,
         connected,
         cancel() {
           entry?.reject(new Error("Connection cancelled"))
