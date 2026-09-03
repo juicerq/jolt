@@ -101,13 +101,18 @@ describe("engine router", () => {
     await environment.close()
   })
 
-  test("the person lists, adds, forgets and clears Lembranças through the router", async () => {
+  test("the person lists, adds, rewrites, forgets and clears Lembranças through the router", async () => {
     const environment = setup()
     const bot = await environment.bots.create({ name: "Marina", provider: "codex", function: botFunction })
     const added = await environment.client.memory.add({ botId: bot.id, content: "Prefers short replies" })
 
     expect(added).toEqual({ id: expect.any(String), botId: bot.id, content: "Prefers short replies", origin: "person", turnAuthor: null, createdAt: expect.any(String) })
     expect(await environment.client.memory.list({ botId: bot.id })).toEqual([added])
+
+    const updated = await environment.client.memory.update({ id: added.id, content: "Prefers long replies" })
+
+    expect(updated).toEqual({ ...added, content: "Prefers long replies" })
+    expect(await environment.client.memory.list({ botId: bot.id })).toEqual([updated])
     await environment.client.memory.forget({ id: added.id })
 
     expect(await environment.client.memory.list({ botId: bot.id })).toEqual([])

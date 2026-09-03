@@ -64,6 +64,7 @@ export const engineContract = {
   memory: {
     list: oc.input(memorySchemas.botInput).output(memorySchemas.memoryList).route({ method: "GET", path: "/bots/{botId}/memories" }),
     add: oc.input(memorySchemas.addInput).output(memorySchemas.memory).route({ method: "POST", path: "/bots/{botId}/memories" }),
+    update: oc.input(memorySchemas.updateInput).output(memorySchemas.memory).route({ method: "POST", path: "/memories/{id}/update" }),
     forget: oc.input(memorySchemas.idInput).route({ method: "POST", path: "/memories/{id}/forget" }),
     clear: oc.input(memorySchemas.botInput).route({ method: "POST", path: "/bots/{botId}/memories/clear" }),
   },

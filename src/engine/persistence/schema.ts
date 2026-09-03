@@ -80,10 +80,12 @@ export const messages = snakeCase.table("messages", {
 export const routines = snakeCase.table("routines", {
   id: text().primaryKey(),
   botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  name: text().notNull(),
   content: text().notNull(),
   frequency: text({ mode: "json" }).$type<Routine["frequency"]>().notNull(),
-  enabled: integer({ mode: "boolean" }).notNull().default(true),
-  nextCallAt: text().notNull(),
+  status: text({ enum: ["active", "paused", "completed", "failed"] }).$type<Routine["status"]>().notNull().default("active"),
+  timeZone: text().notNull(),
+  nextCallAt: text(),
   createdAt: text().notNull(),
 }, (table) => [index("routines_bot_id").on(table.botId)])
 

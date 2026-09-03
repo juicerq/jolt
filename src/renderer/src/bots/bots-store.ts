@@ -1,8 +1,16 @@
 import { Store } from "@tanstack/react-store"
 import { beginConversationOpen } from "../chat/chat-open-span"
 
+export type BotRoute =
+  | { name: "chat" }
+  | { name: "settings" }
+  | { name: "routines" }
+  | { name: "memory" }
+  | { name: "routine"; id: "new" | string }
+
 type BotsState = {
   selectedBotId: string | null
+  botRoute: BotRoute
   draft: { name: string } | null
   dialog: "create-project" | null
   screen: "plugins" | null
@@ -10,6 +18,7 @@ type BotsState = {
 
 export const botsStore = new Store<BotsState>({
   selectedBotId: null,
+  botRoute: { name: "chat" },
   draft: null,
   dialog: null,
   screen: null,
@@ -20,7 +29,11 @@ export function selectBot(botId: string) {
     beginConversationOpen(botId)
   }
 
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, draft: null, dialog: null, screen: null }))
+  botsStore.setState((state) => ({ ...state, selectedBotId: botId, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
+}
+
+export function openBotRoute(route: BotRoute) {
+  botsStore.setState((state) => ({ ...state, botRoute: route }))
 }
 
 export function openPlugins() {

@@ -12,7 +12,9 @@ export const weekdayLabels: Record<Weekday, string> = {
 
 export function describeFrequency(frequency: Frequency) {
   if (frequency.form === "interval") {
-    return frequency.everyMinutes === 1 ? "A cada minuto" : `A cada ${frequency.everyMinutes} minutos`
+    const cadence = frequency.everyMinutes === 60 ? "de hora em hora" : frequency.everyMinutes === 1 ? "a cada minuto" : `a cada ${frequency.everyMinutes} minutos`
+
+    return `${frequency.days.map((day) => weekdayLabels[day]).join(", ")} · ${cadence} · ${frequency.startTime}–${frequency.endTime}`
   }
 
   if (frequency.form === "once") {
@@ -23,5 +25,5 @@ export function describeFrequency(frequency: Frequency) {
     return `Uma vez, ${date} às ${time}`
   }
 
-  return `${frequency.days.map((day) => weekdayLabels[day]).join(", ")} às ${frequency.time}`
+  return `${frequency.days.map((day) => weekdayLabels[day]).join(", ")} · ${frequency.times.join(", ")}`
 }

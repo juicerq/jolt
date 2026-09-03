@@ -132,7 +132,7 @@ function setup(options?: { databasePath?: string; curationWait?: number }) {
     sessions,
     untilCurated,
     send: (botId: string, content: string) => turn(botId, () => conversations.send({ botId, content, images: [] })),
-    call: (botId: string, content: string) => turn(botId, () => conversations.call({ id: crypto.randomUUID(), botId, content, frequency: { form: "interval", everyMinutes: 30 }, nextCallAt: new Date().toISOString() })),
+    call: (botId: string, content: string) => turn(botId, () => conversations.call({ id: crypto.randomUUID(), botId, content, frequency: { form: "interval", everyMinutes: 30, days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], startTime: "00:00", endTime: "23:59" }, nextCallAt: new Date().toISOString() })),
   }
 }
 
@@ -277,6 +277,18 @@ describe("memory", () => {
     expect(environment.memory.list({ botId: bot.id })).toEqual([])
     expect(environment.database.notes.listPending(bot.id)).toEqual([])
     expect(() => environment.memory.list({ botId: "missing" })).toThrow("Bot not found")
+    await environment.close()
+  })
+
+  test("the person rewrites a Lembrança without changing its Origem", async () => {
+    const environment = setup()
+    const bot = await environment.bots.create({ name: "Atlas", provider: "codex", function: botFunction })
+    const added = environment.memory.add({ botId: bot.id, content: "Prefers short replies" })
+    const updated = environment.memory.update({ id: added.id, content: "Prefers long replies" })
+
+    expect(updated).toEqual({ ...added, content: "Prefers long replies" })
+    expect(environment.memory.list({ botId: bot.id })).toEqual([updated])
+    expect(() => environment.memory.update({ id: "missing", content: "Nada" })).toThrow("Lembrança not found")
     await environment.close()
   })
 

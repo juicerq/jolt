@@ -243,12 +243,12 @@ export function openDatabase(path: string, observability: Observability) {
           database.select().from(routines).where(eq(routines.botId, botId)).orderBy(asc(routines.createdAt), asc(insertion(routines))).all(),
         ))
       },
-      listEnabled() {
+      listActive() {
         return observability.span({ name: "database.routinelistenabled" }, () => parse(routineSchemas.routineList, 
-          database.select().from(routines).where(eq(routines.enabled, true)).orderBy(asc(routines.nextCallAt), asc(insertion(routines))).all(),
+          database.select().from(routines).where(eq(routines.status, "active")).orderBy(asc(routines.nextCallAt), asc(insertion(routines))).all(),
         ))
       },
-      update(id: string, changes: Partial<Pick<Routine, "content" | "frequency" | "enabled" | "nextCallAt">>) {
+      update(id: string, changes: Partial<Pick<Routine, "name" | "content" | "frequency" | "status" | "timeZone" | "nextCallAt">>) {
         return observability.span({ name: "database.routineupdate" }, () => {
           const row = database.update(routines).set(changes).where(eq(routines.id, id)).returning().get()
 

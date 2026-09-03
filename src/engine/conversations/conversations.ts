@@ -37,7 +37,7 @@ export type BotExtension = {
 }
 
 type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
-type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency" | "nextCallAt">
+type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 
 export function createConversations(input: {
   database: AppDatabase

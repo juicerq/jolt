@@ -245,6 +245,12 @@ export function createEngineRouter(
           () => memory.add(input),
         ),
       ),
+      update: operations.memory.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.memoryupdate", context: observationContext(context) },
+          () => memory.update(input),
+        ),
+      ),
       forget: operations.memory.forget.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.memoryforget", context: observationContext(context) },

@@ -63,8 +63,9 @@ export function createMemory(input: {
     return bot
   }
 
-  function assertFits(botId: string, content: string) {
-    const total = memoryUsage(input.database.memories.listForBot(botId)) + content.length
+  function assertFits(botId: string, content: string, replacing?: string) {
+    const memories = input.database.memories.listForBot(botId).filter((memory) => memory.id !== replacing)
+    const total = memoryUsage(memories) + content.length
 
     if (total > memoryLimits.total) {
       throw new Error(`The Memória is full: ${total} of ${memoryLimits.total} characters. Forget or replace a Lembrança first.`)
@@ -194,6 +195,28 @@ export function createMemory(input: {
         input.database.memories.create({ id, botId: bot.id, content, origin: "person", noteId: null, createdAt })
 
         return parse(memorySchemas.memory, { id, botId: bot.id, content, origin: "person", turnAuthor: null, createdAt })
+      })
+    },
+    update(rawInput: unknown) {
+      const { id, content } = parse(memorySchemas.updateInput, rawInput)
+      const memory = input.database.memories.get(id)
+
+      if (!memory) {
+        throw new Error("Lembrança not found")
+      }
+
+      const bot = owner(memory.botId)
+
+      return input.observability.span({ name: "memory.update", context: { botId: bot.id } }, () => {
+        assertFits(bot.id, content, memory.id)
+        input.database.memories.update(memory.id, { content })
+        const updated = input.database.memories.listForBot(bot.id).find((entry) => entry.id === memory.id)
+
+        if (!updated) {
+          throw new Error("Lembrança not found")
+        }
+
+        return updated
       })
     },
     forget(rawInput: unknown) {

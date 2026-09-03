@@ -116,9 +116,9 @@ export function ChatScroller({ children }: PropsWithChildren) {
     <ChatScrollerContext value={revealAbove}>
       <div className="relative col-start-1 row-start-1 min-h-0 min-w-0">
         <div className="flex h-full min-h-0 max-h-none flex-col gap-0 overflow-x-hidden overflow-y-auto p-0" ref={attachViewport} onScroll={handleScroll} aria-live="polite">
-          <div className="box-border flex min-h-full flex-none flex-col gap-6 px-[clamp(28px,12vw,180px)] pt-16 pb-28 max-[700px]:px-5" ref={attachContent}>{children}</div>
+          <div className="box-border flex min-h-full flex-none flex-col gap-6 px-[clamp(28px,12vw,180px)] pt-16 pb-6 max-[700px]:px-5" ref={attachContent}>{children}</div>
         </div>
-        {showEndButton && <button className="absolute bottom-[88px] left-1/2 z-[2] inline-flex h-[34px] w-auto -translate-x-1/2 items-center justify-center gap-1.5 rounded-full border border-outline-strong bg-surface-raised px-3 text-control font-medium text-secondary shadow-[0_8px_24px_rgb(0_0_0_/_28%)] hover:bg-surface-hover hover:text-primary active:scale-96 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface [&_svg]:size-4 [&_svg]:stroke-[1.75]" type="button" onClick={handleGoToEnd}><ArrowDownIcon aria-hidden="true" /><span>Ir para o fim</span></button>}
+        {showEndButton && <button className="absolute bottom-6 left-1/2 z-[2] inline-flex h-[34px] w-auto -translate-x-1/2 items-center justify-center gap-1.5 rounded-full border border-outline-strong bg-surface-raised px-3 text-control font-medium text-secondary shadow-[0_8px_24px_rgb(0_0_0_/_28%)] hover:bg-surface-hover hover:text-primary active:scale-96 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface [&_svg]:size-4 [&_svg]:stroke-[1.75]" type="button" onClick={handleGoToEnd}><ArrowDownIcon aria-hidden="true" /><span>Ir para o fim</span></button>}
       </div>
     </ChatScrollerContext>
   )

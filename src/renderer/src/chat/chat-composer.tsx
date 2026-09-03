@@ -184,7 +184,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   return (
     <form
-      className="relative z-[1] col-start-1 row-start-1 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 self-end justify-self-center border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted max-[700px]:w-[calc(100%-28px)]"
+      className="relative z-[1] col-start-1 row-start-2 mb-[22px] grid w-[min(680px,calc(100%-48px))] box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 self-end justify-self-center border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted max-[700px]:w-[calc(100%-28px)]"
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDrop={handleDrop}

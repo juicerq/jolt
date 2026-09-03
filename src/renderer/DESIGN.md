@@ -285,6 +285,9 @@ dialog has a compact header, one scrollable body, and a footer whose actions sta
 visible. Creation may use steps when all fields do not fit comfortably inside a
 680px-wide dialog. It never replaces the conversation plane.
 
+Bot settings, Rotinas, Memórias, and the Rotina editor replace the conversation
+on that same floating plane. They share one centered 560px column.
+
 Spacing follows 4, 8, 12, 16, 24, 32, and 48px. A label sits 8px from its
 control. Related controls sit 12 or 16px apart. Sections use 24 or 32px. Values
 outside this scale need a visible alignment reason.
@@ -381,31 +384,53 @@ centered 560px column, like New Bot. The header reuses the New Bot lines beside
 the 64px Blobatar: the name as a borderless title line and the expected outcome
 as a borderless control line, left-aligned, each gaining the hover surface
 hugging its text. Below come sections labeled in uppercase label type: Função
-with the description, Trabalho, Rotinas, Memória. Every other field shows its
-label. Vínculo shows the Leader as a 32px Blobatar beside its name. The form
-has no footer: while it holds unsaved changes, a bar pinned to the bottom of
-the plane names that state on the left and places discard and the single
-primary action on the right. It disappears when the draft matches the Bot.
-Rotinas save on their own: a divided list with ghost icon actions per row, a
-secondary button with a plus icon to add, and a dialog for creating or editing
-one Rotina. Memória saves on its own: the switch sits in the section header
-and a support sentence names the current state. While on, the section shows a
-divided list of Lembranças with the Origem on the supporting line and a ghost
-trash action per row, one input with a secondary add button, a text action to
-clear that commits the same way as Excluir, and the Leader's Memória as a
-quiet block that appears only when the Leader knows something. Off hides
-everything but the sentence. The destructive action sits last, after a
-divider, as an outlined error-ink button with a trash icon. Committing it
-swaps the button for one sentence naming what disappears, a text cancel, and
-an outlined error-ink confirm. Closing lives in the edge tab and Escape.
+with the description, then Trabalho. Every other field shows its
+label. Vínculo shows the Leader as a 32px Blobatar beside its name. Rotinas and
+Memória are two secondary buttons side by side, each with its icon and the
+route title. The form has no
+footer: while it holds unsaved changes, a bar pinned to the bottom of the plane
+names that state on the left and places discard and the single primary action
+on the right. It disappears when the draft matches the Bot. The destructive
+action sits last, after a divider, as an outlined error-ink button with a trash
+icon. Committing it swaps the button for one sentence naming what disappears, a
+text cancel, and an outlined error-ink confirm. Closing lives in Conversa on
+the edge tab, choosing the Bot in the sidebar, and Escape.
+
+**Bot routines.** The Rotinas page reuses the Bot settings shell: the 64px
+Blobatar beside the name in title type and the expected outcome in control type,
+then the Rotinas section. A routine has a short name, an expandable instruction
+preview, and one semantic schedule summary. Repeated times belong to that
+schedule instead of appearing as duplicated rows. Pause, edit, and remove act on
+the complete routine. Edit and Nova Rotina open the Rotina page. A secondary
+button with a plus icon adds.
+
+**Bot memory.** The Memórias page reuses the same shell. The switch sits in the
+section header and a support sentence names the current state. While on, the
+section shows a divided list of Lembranças with the Origem on the supporting
+line, a ghost pencil that edits the text inline, and a ghost trash action per
+row, one input with a secondary add button, a text action to clear that commits
+the same way as Excluir, and the Leader's Memória as a quiet block that appears
+only when the Leader knows something. Off hides everything but the sentence.
+
+**Rotina.** Creating or editing a Rotina is a page on the conversation plane,
+not a dialog. It reuses the Bot settings shell and one uppercase Rotina section
+with the name, the instruction, and the schedule. The save bar matches Bot
+settings: it stays while the new draft is open or the edit differs from the
+Rotina, discard restores or leaves, and the single primary action commits.
+Escape returns to Rotinas. The edge tab Conversa action and choosing the Bot in
+the sidebar return to the conversation.
 
 **Edge tab.** The Bot's actions on the conversation plane hide inside a small
 tab hugging the plane's right edge at mid-height: a raised half-rounded tongue
 with a chevron in muted ink. Pointer hover or keyboard focus unfolds a column of
 ghost icon buttons at the edge, so the first action lands under the pointer,
-while the chevron slides to the left end and turns toward the edge. Settings lives here, and
-future Bot actions join the same column. Nothing sits in the top-right corner
-beside the window controls.
+while the chevron slides to the left end and turns toward the edge. Conversa,
+Settings, Rotinas, and Memórias live here. Conversa is always first and is the
+chat route. The current page uses the active surface. Choosing Settings,
+Rotinas, or Memórias again returns to the conversation, except on the Rotina
+editor, where Rotinas is current and choosing it returns to the list. Choosing
+the Bot in the sidebar also returns to the conversation. Nothing sits in the
+top-right corner beside the window controls.
 
 **Prompt.** An 18px-radius card centered near the bottom of the conversation.
 The field is the strongest control on the screen. Its send action is the only

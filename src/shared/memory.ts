@@ -29,6 +29,7 @@ export const memorySchemas = {
   botInput: z.strictObject({ botId: id }),
   idInput: z.strictObject({ id }),
   addInput: z.strictObject({ botId: id, content: memoryContent }),
+  updateInput: z.strictObject({ id, content: memoryContent }),
   note,
   noteList: z.array(note),
   storedMemory,

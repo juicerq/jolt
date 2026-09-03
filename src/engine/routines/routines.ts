@@ -11,10 +11,6 @@ const minute = 60_000
 const longestWait = 60 * minute
 
 export function nextCall(frequency: Frequency, from: Date) {
-  if (frequency.form === "interval") {
-    return new Date(from.getTime() + frequency.everyMinutes * minute)
-  }
-
   if (frequency.form === "once") {
     const at = new Date(frequency.at)
 
@@ -25,33 +21,66 @@ export function nextCall(frequency: Frequency, from: Date) {
     return at
   }
 
-  const [hours = 0, minutes = 0] = frequency.time.split(":").map(Number)
-
   for (let offset = 0; offset <= 7; offset++) {
-    const candidate = new Date(from)
-    candidate.setDate(from.getDate() + offset)
-    candidate.setHours(hours, minutes, 0, 0)
-    const weekday = weekdays[(candidate.getDay() + 6) % 7]
+    const day = new Date(from)
+    day.setDate(from.getDate() + offset)
+    const weekday = weekdays[(day.getDay() + 6) % 7]
     const chosenDay = weekday !== undefined && frequency.days.includes(weekday)
 
-    if (chosenDay && candidate > from) {
-      return candidate
+    if (!chosenDay) {
+      continue
+    }
+
+    const times = frequency.form === "fixed-time"
+      ? frequency.times
+      : intervalTimes(frequency.startTime, frequency.endTime, frequency.everyMinutes)
+
+    for (const time of times) {
+      const [hours = 0, minutes = 0] = time.split(":").map(Number)
+      const candidate = new Date(day)
+      candidate.setHours(hours, minutes, 0, 0)
+
+      if (candidate > from) {
+        return candidate
+      }
     }
   }
 
   throw new Error("The Frequência has no next call")
 }
 
+function intervalTimes(startTime: string, endTime: string, everyMinutes: number) {
+  const toMinutes = (value: string) => {
+    const [hours = 0, minutes = 0] = value.split(":").map(Number)
+
+    return hours * 60 + minutes
+  }
+  const start = toMinutes(startTime)
+  const end = toMinutes(endTime)
+
+  if (end < start) {
+    throw new Error("The end time must not be before the start time")
+  }
+
+  const times: string[] = []
+
+  for (let value = start; value <= end; value += everyMinutes) {
+    times.push(`${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`)
+  }
+
+  return times
+}
+
 function describeFrequency(frequency: Frequency) {
   if (frequency.form === "interval") {
-    return `every ${frequency.everyMinutes} minutes`
+    return `every ${frequency.everyMinutes} minutes, ${frequency.days.join(", ")}, from ${frequency.startTime} through ${frequency.endTime}`
   }
 
   if (frequency.form === "once") {
     return `once at ${frequency.at}`
   }
 
-  return `${frequency.days.join(", ")} at ${frequency.time}`
+  return `${frequency.days.join(", ")} at ${frequency.times.join(", ")}`
 }
 
 function parseAt(text: string, now: Date) {
@@ -80,7 +109,13 @@ function parseAt(text: string, now: Date) {
 
 function frequencyFrom(params: Record<string, string>, current?: Routine) {
   if (params.everyMinutes) {
-    return parse(routineSchemas.frequency, { form: "interval", everyMinutes: Number(params.everyMinutes) })
+    return parse(routineSchemas.frequency, {
+      form: "interval",
+      everyMinutes: Number(params.everyMinutes),
+      days: (params.days ?? "monday,tuesday,wednesday,thursday,friday").split(",").map((day) => day.trim().toLowerCase()).filter(Boolean),
+      startTime: params.startTime ?? "00:00",
+      endTime: params.endTime ?? "23:59",
+    })
   }
 
   if (params.inMinutes) {
@@ -91,30 +126,30 @@ function frequencyFrom(params: Record<string, string>, current?: Routine) {
     return parse(routineSchemas.frequency, { form: "once", at: parseAt(params.at, new Date()).toISOString() })
   }
 
-  if (params.days || params.time) {
-    return parse(routineSchemas.frequency, { form: "fixed-time", days: (params.days ?? "").split(",").map((day) => day.trim().toLowerCase()).filter(Boolean), time: params.time ?? "" })
+  if (params.days || params.times || params.time) {
+    return parse(routineSchemas.frequency, { form: "fixed-time", days: (params.days ?? "").split(",").map((day) => day.trim().toLowerCase()).filter(Boolean), times: (params.times ?? params.time ?? "").split(",").map((time) => time.trim()).filter(Boolean) })
   }
 
   if (current) {
     return current.frequency
   }
 
-  throw new Error("Give everyMinutes for an interval, days and time for a fixed time, or inMinutes or at for a single call")
+  throw new Error("Give everyMinutes, days, startTime and endTime for an interval; days and times for fixed times; or inMinutes or at for a single call")
 }
 
 export function createRoutines(input: {
   database: AppDatabase
   bots: ReturnType<typeof createBots>
   observability: Observability
-  conversations: { call(routine: Routine): Promise<void> }
+  conversations: { call(routine: Routine & { nextCallAt: string }): Promise<void> }
 }) {
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function schedule() {
     clearTimeout(timer)
-    const [earliest] = input.database.routines.listEnabled()
+    const [earliest] = input.database.routines.listActive()
 
-    if (!earliest) {
+    if (!earliest?.nextCallAt) {
       return
     }
 
@@ -128,18 +163,26 @@ export function createRoutines(input: {
 
   async function fire() {
     const now = new Date()
-    const due = input.database.routines.listEnabled().filter((routine) => Date.parse(routine.nextCallAt) <= now.getTime())
+    const due = input.database.routines.listActive().filter((routine) => routine.nextCallAt && Date.parse(routine.nextCallAt) <= now.getTime())
 
     for (const routine of due) {
-      if (routine.frequency.form === "once") {
-        input.database.routines.remove(routine.id)
-      } else {
+      if (routine.frequency.form !== "once") {
         input.database.routines.update(routine.id, { nextCallAt: nextCall(routine.frequency, now).toISOString() })
       }
 
-      await input.conversations.call(routine).then(
-        () => input.observability.event({ name: "routines.called", context: { botId: routine.botId } }),
-        (error) => input.observability.event({ name: "routines.skipped", context: { botId: routine.botId }, error }),
+      await input.conversations.call({ ...routine, nextCallAt: routine.nextCallAt ?? now.toISOString() }).then(
+        () => {
+          if (routine.frequency.form === "once") {
+            input.database.routines.update(routine.id, { status: "completed", nextCallAt: null })
+          }
+          input.observability.event({ name: "routines.called", context: { botId: routine.botId } })
+        },
+        (error) => {
+          if (routine.frequency.form === "once") {
+            input.database.routines.update(routine.id, { status: "failed", nextCallAt: null })
+          }
+          input.observability.event({ name: "routines.skipped", context: { botId: routine.botId }, error })
+        },
       )
     }
 
@@ -174,7 +217,7 @@ export function createRoutines(input: {
     const details = parse(routineSchemas.createInput, rawInput)
     const bot = owner(details.botId)
     const now = new Date()
-    const routine: Routine = { id: crypto.randomUUID(), ...details, enabled: true, nextCallAt: nextCall(details.frequency, now).toISOString(), createdAt: now.toISOString() }
+    const routine: Routine = { id: crypto.randomUUID(), ...details, status: "active", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, nextCallAt: nextCall(details.frequency, now).toISOString(), createdAt: now.toISOString() }
 
     return input.observability.span({ name: "routines.create", context: { botId: bot.id } }, () => {
       const created = input.database.routines.create(routine)
@@ -189,7 +232,8 @@ export function createRoutines(input: {
     const routine = existing(id)
 
     return input.observability.span({ name: "routines.update", context: { botId: routine.botId } }, () => {
-      const updated = input.database.routines.update(routine.id, { ...changes, nextCallAt: nextCall(changes.frequency, new Date()).toISOString() })
+      const nextCallAt = changes.status === "active" ? nextCall(changes.frequency, new Date()).toISOString() : null
+      const updated = input.database.routines.update(routine.id, { ...changes, nextCallAt })
 
       if (!updated) {
         throw new Error("Rotina not found")
@@ -211,6 +255,20 @@ export function createRoutines(input: {
     })
   }
 
+  const openedAt = new Date()
+
+  for (const routine of input.database.routines.listActive()) {
+    if (!routine.nextCallAt || Date.parse(routine.nextCallAt) > openedAt.getTime()) {
+      continue
+    }
+
+    if (routine.frequency.form === "once") {
+      input.database.routines.update(routine.id, { status: "failed", nextCallAt: null })
+    } else {
+      input.database.routines.update(routine.id, { nextCallAt: nextCall(routine.frequency, openedAt).toISOString() })
+    }
+  }
+
   schedule()
 
   return {
@@ -229,13 +287,16 @@ export function createRoutines(input: {
 
       return [{
         name: "routine",
-        description: "Create or change one of your Rotinas: a message Jolt sends you on a schedule. Give an id to change an existing Rotina; omit it to create one. A Rotina repeats every N minutes, repeats on chosen weekdays at a local time, or runs once and is then removed by itself.",
+        description: "Create or change one Rotina atomically: one named instruction with one schedule. Give an id to change an existing Rotina; omit it to create one. A schedule can repeat inside a weekday time window, contain multiple fixed times on chosen weekdays, or run once.",
         parameters: {
           "id?": "Id of the Rotina to change. Omit to create a new one.",
+          "name?": "Short name for the Rotina. Required to create; omit to keep the current one.",
           "content?": "The message you receive at each call: what you must check or do. Required to create; omit to keep the current one.",
-          "everyMinutes?": "Interval in minutes, for a Rotina that repeats every N minutes.",
+          "everyMinutes?": "Interval in minutes inside a time window.",
           "days?": "Comma-separated weekdays in English, for a fixed-time Rotina. Example: \"monday, friday\".",
-          "time?": "Local time as HH:MM, for a fixed-time Rotina. Example: \"09:00\".",
+          "times?": "Comma-separated local times as HH:MM for a fixed-time Rotina.",
+          "startTime?": "Start of an interval window as HH:MM.",
+          "endTime?": "Inclusive end of an interval window as HH:MM.",
           "inMinutes?": "Minutes from now, for a Rotina that runs once. Example: \"5\".",
           "at?": "Local time for a Rotina that runs once: \"HH:MM\" for the next such time, or \"YYYY-MM-DD HH:MM\".",
           "enabled?": "\"no\" to pause the Rotina, \"yes\" to resume it. Defaults to yes.",
@@ -243,18 +304,23 @@ export function createRoutines(input: {
         async execute(params) {
           const current = params.id ? existing(params.id, bot.id) : undefined
           const frequency = frequencyFrom(params, current)
-          const enabled = params.enabled ? params.enabled !== "no" : current?.enabled ?? true
+          const status = params.enabled ? (params.enabled === "no" ? "paused" : "active") : current?.status ?? "active"
+          const name = params.name?.trim() || current?.name
           const content = params.content?.trim() || current?.content
+
+          if (!name) {
+            throw new Error("Give name: a short name for the Rotina")
+          }
 
           if (!content) {
             throw new Error("Give content: the message you receive at each call")
           }
 
           const routine = current
-            ? update({ id: current.id, content, frequency, enabled })
-            : create({ botId: bot.id, content, frequency })
+            ? update({ id: current.id, name, content, frequency, status })
+            : create({ botId: bot.id, name, content, frequency })
 
-          return `Rotina ${routine.id} ${current ? "changed" : "created"}: "${routine.content}", ${describeFrequency(routine.frequency)}${routine.enabled ? "" : ", paused"}. Next call at ${routine.nextCallAt}.`
+          return `Rotina ${routine.id} ${current ? "changed" : "created"}: "${routine.name}", ${describeFrequency(routine.frequency)}${routine.status === "paused" ? ", paused" : ""}. Next call at ${routine.nextCallAt}.`
         },
       }, {
         name: "remove_routine",
@@ -264,7 +330,7 @@ export function createRoutines(input: {
           const routine = existing(params.id ?? "", bot.id)
           remove({ id: routine.id })
 
-          return `Rotina "${routine.content}" removed.`
+          return `Rotina "${routine.name}" removed.`
         },
       }]
     },
@@ -274,11 +340,11 @@ export function createRoutines(input: {
       }
 
       const routines = input.database.routines.listForBot(bot.id)
-      const lines = routines.map((routine) => `- ${routine.id}: "${routine.content}", ${describeFrequency(routine.frequency)}${routine.enabled ? "" : ", paused"}`)
+      const lines = routines.map((routine) => `- ${routine.id}: "${routine.name}" — ${routine.content}, ${describeFrequency(routine.frequency)}, ${routine.status}`)
 
       return [
         "A turn with cause \"routine\" is a scheduled call from one of your Rotinas, not from the person. Do what it asks and reply briefly; say \"nothing new\" when there is nothing to report.",
-        "Use the routine tool when the person asks you to check or do something on a schedule, to change how often you do it, or to be reminded or called once at a later time. A Rotina that runs once is removed by itself after its call. Use remove_routine to stop a repeating one for good.",
+        "Use the routine tool once when the person asks you to check or do something on a schedule. Give the Rotina a short name and express repeated calls as one schedule. A one-time Rotina remains listed as completed or failed after its call. Use remove_routine to remove one for good.",
         ...(lines.length > 0 ? ["Your Rotinas:", ...lines] : ["You have no Rotinas."]),
       ].join("\n")
     },

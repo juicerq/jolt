@@ -21,17 +21,19 @@ describe("BotMemory", () => {
   })
 
   test("lists each Lembrança with its Origem and a forget action", () => {
-    const markup = renderToStaticMarkup(<MemoryList memories={[memory({}), memory({ id: "m2", content: "Prefere respostas curtas", origin: "person", turnAuthor: null })]} busy={false} onForget={() => {}} />)
+    const markup = renderToStaticMarkup(<MemoryList memories={[memory({}), memory({ id: "m2", content: "Prefere respostas curtas", origin: "person", turnAuthor: null })]} busy={false} onEdit={() => {}} onForget={() => {}} />)
 
     expect(markup).toContain("Entrega relatórios em PDF")
     expect(markup).toContain("Aprendeu com você · 01/09/2026")
     expect(markup).toContain("Prefere respostas curtas")
     expect(markup).toContain("Você adicionou · 01/09/2026")
+    expect(markup.split('aria-label="Editar Lembrança"')).toHaveLength(3)
     expect(markup.split('aria-label="Esquecer Lembrança"')).toHaveLength(3)
   })
 
   test("a Memória do Líder reads without actions and an empty Memória says so", () => {
     expect(renderToStaticMarkup(<MemoryList memories={[memory({})]} busy={false} />)).not.toContain("Esquecer Lembrança")
+    expect(renderToStaticMarkup(<MemoryList memories={[memory({})]} busy={false} />)).not.toContain("Editar Lembrança")
     expect(renderToStaticMarkup(<MemoryList memories={[]} busy={false} />)).toContain("Nenhuma Lembrança ainda.")
   })
 })

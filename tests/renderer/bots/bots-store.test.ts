@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, discardDraft, forgetBot, nameDraft, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botsStore, discardDraft, forgetBot, nameDraft, openBotRoute, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
 
 describe("Bot draft", () => {
   beforeEach(() => {
-    botsStore.setState(() => ({ selectedBotId: null, draft: null, dialog: null, screen: null }))
+    botsStore.setState(() => ({ selectedBotId: null, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
   })
 
   test("creating a Bot opens an unnamed draft over the selected Bot without losing it", () => {
     selectBot("revisor")
     openCreateBot()
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: { name: "" }, dialog: null, screen: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", botRoute: { name: "chat" }, draft: { name: "" }, dialog: null, screen: null })
   })
 
   test("naming the draft keeps the name for the sidebar", () => {
@@ -33,7 +33,7 @@ describe("Bot draft", () => {
     openCreateBot()
     discardDraft()
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: null, dialog: null, screen: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", botRoute: { name: "chat" }, draft: null, dialog: null, screen: null })
   })
 
   test("forgetting the selected Bot leaves no Bot selected", () => {
@@ -54,6 +54,14 @@ describe("Bot draft", () => {
     openCreateBot()
     selectBot("revisor")
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", draft: null, dialog: null, screen: null })
+    expect(botsStore.state).toEqual({ selectedBotId: "revisor", botRoute: { name: "chat" }, draft: null, dialog: null, screen: null })
+  })
+
+  test("selecting a Bot opens the conversation", () => {
+    selectBot("revisor")
+    openBotRoute({ name: "settings" })
+    selectBot("revisor")
+
+    expect(botsStore.state.botRoute).toEqual({ name: "chat" })
   })
 })
