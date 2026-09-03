@@ -4,8 +4,9 @@ export function useEscape(onEscape: () => void) {
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
       const inSelect = event.target instanceof HTMLSelectElement
+      const popoverOpen = !!document.querySelector(":popover-open")
 
-      if (event.key === "Escape" && !inSelect) {
+      if (event.key === "Escape" && !inSelect && !popoverOpen) {
         onEscape()
       }
     }

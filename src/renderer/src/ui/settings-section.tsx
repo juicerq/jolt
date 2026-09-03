@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-export function BotSettingsSection({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+export function SettingsSection({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-4" aria-label={title}>
       <div className="flex items-center justify-between gap-3">

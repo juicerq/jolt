@@ -11,7 +11,7 @@ import { Field, fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
 import { Select } from "../ui/select"
 import { ToggleChip } from "../ui/toggle-chip"
-import { BotSettingsSection } from "./bot-settings-section"
+import { SettingsSection } from "../ui/settings-section"
 import { describeFrequency, weekdayLabels } from "./routine-frequency"
 
 type Draft = { content: string; form: Frequency["form"]; everyMinutes: string; days: Weekday[]; time: string; at: string }
@@ -72,7 +72,7 @@ export function BotRoutines({ bot, client }: { bot: Bot; client: EngineClient })
   const editingRoutine = routines?.find((routine) => routine.id === editing)
 
   return (
-    <BotSettingsSection title="Rotinas">
+    <SettingsSection title="Rotinas">
       {routines?.length === 0 && <p className="m-0 text-support text-muted">Nenhuma Rotina. {bot.name} só trabalha quando você chama.</p>}
       {routines && routines.length > 0 && (
         <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
@@ -93,7 +93,7 @@ export function BotRoutines({ bot, client }: { bot: Bot; client: EngineClient })
       {failure && <p className="m-0 text-support text-status-error">Falha nas Rotinas: {failure}</p>}
       {editing === "new" && <RoutineDialog title="Nova Rotina" initial={emptyDraft} pending={creating} submitLabel="Adicionar Rotina" onClose={() => setEditing(null)} onSubmit={(content, frequency) => create({ botId: bot.id, content, frequency })} />}
       {editingRoutine && <RoutineDialog title="Editar Rotina" initial={draftOf(editingRoutine)} pending={updating} submitLabel="Salvar Rotina" onClose={() => setEditing(null)} onSubmit={(content, frequency) => update({ id: editingRoutine.id, content, frequency, enabled: editingRoutine.enabled })} />}
-    </BotSettingsSection>
+    </SettingsSection>
   )
 }
 

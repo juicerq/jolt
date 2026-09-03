@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react"
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from "react"
 import { Tooltip, type TooltipPlacement, useTooltip } from "./tooltip"
 
 type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> & {
@@ -38,7 +38,7 @@ const toneClassNames = {
 
 const iconButtonClassName = "grid shrink-0 place-items-center p-0 transition-[color,background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
 
-export function IconButton({ children, className, iconSize = 17, label, position = "relative", shape = "rounded", size = 32, tone = "ghost", tooltipPlacement = "top", ...props }: IconButtonProps) {
+export function IconButton({ children, className, iconSize = 17, label, onClick, position = "relative", shape = "rounded", size = 32, tone = "ghost", tooltipPlacement = "top", ...props }: IconButtonProps) {
   const tooltip = useTooltip()
   const classes = [
     iconButtonClassName,
@@ -50,9 +50,14 @@ export function IconButton({ children, className, iconSize = 17, label, position
     className,
   ].filter(Boolean).join(" ")
 
+  function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    tooltip.hide()
+    onClick?.(event)
+  }
+
   return (
     <>
-      <button {...props} {...tooltip.anchorProps} className={classes} aria-label={label}>
+      <button {...props} {...tooltip.anchorProps} className={classes} aria-label={label} onClick={handleClick}>
         {children}
       </button>
       <Tooltip {...tooltip.popoverProps} placement={tooltipPlacement}>{label}</Tooltip>

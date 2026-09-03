@@ -112,6 +112,10 @@ _Evitar_: Log interno, pensamento, raciocínio
 O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
 
+**Detalhes do trabalho**:
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Jolt, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+_Evitar_: Passos do agente, apagar Atividade, Mensagem
+
 **Duração do pensamento**:
 A soma dos períodos em que o Fornecedor do Bot sinaliza pensamento durante uma execução. Ela só existe quando o Fornecedor expõe esse estado.
 _Evitar_: Tempo até a primeira resposta, duração total da execução

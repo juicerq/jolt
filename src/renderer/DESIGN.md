@@ -267,7 +267,11 @@ stay faint at rest and reach full ink on pointer or keyboard intent. A separate
 The sidebar holds the Bot list directly. It does not start with a team picker.
 Its top row combines Bot search with the quiet actions for creating a Project
 or Bot. Selection uses a tonal row, not a leading line, checkmark, or accent
-color.
+color. In the compact sidebar, search and the three actions form a centered 2×2
+icon grid; search opens its field beside the sidebar without resizing either
+persistent region. A quiet Settings row stays at the bottom while the Bot list
+scrolls. It uses the same tonal active state as the other sidebar destinations
+and becomes an icon with a tooltip in the compact sidebar.
 
 The conversation plane runs to the bottom and right window margins. It uses one
 24px outer radius and one outline. The content column stays readable instead of
@@ -318,7 +322,9 @@ Text buttons and form fields do not become pills.
 **Bot row.** A 32px Blobatar sits beside two text lines. The first line is the
 Bot name in control type and primary ink. The second line combines a 6px status
 light, a short state, and a clipped work summary in metadata type. Hover and
-selection use tone. The row keeps the same outline in every state.
+selection use tone. The row keeps the same outline in every state. In the
+compact sidebar, the name moves below the Blobatar in at most two metadata lines
+and the supporting line disappears.
 
 **Leader row.** It has the same anatomy as a Bot row and two disclosure states.
 Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes
@@ -367,7 +373,13 @@ summary with the same branching line as grouped team members in the sidebar,
 and the final step ends the line. The live stack has no parent above it, so its
 steps sit flush with the icon column without a branching line. Only a step's
 supporting line keeps a short left border, because it belongs to that step.
-Failed and unfinished actions do not count as completed work.
+Failed and unfinished actions do not count as completed work. Activity details
+are a global display preference and start hidden. When hidden, persisted
+activity renders nothing. A running turn shows three quiet pulsing dots below
+the latest message, without a visible label, and removes them for a permission
+request, Plugin request, failure, or completed response. Showing the details
+restores the complete live stack and persisted disclosures; hiding never
+deletes the recorded Activity.
 
 **New Bot.** Creating a Bot happens inside the conversation plane instead of a
 dialog. The form shows a 77px Blobatar and one borderless name field on a raised
@@ -402,6 +414,13 @@ everything but the sentence. The destructive action sits last, after a
 divider, as an outlined error-ink button with a trash icon. Committing it
 swaps the button for one sentence naming what disappears, a text cancel, and
 an outlined error-ink confirm. Closing lives in the edge tab and Escape.
+
+**App settings.** Settings is a page on the conversation plane with the same
+centered 560px column, title anatomy, edge-tab close action, and Escape behavior
+as Plugins. Sections use the settings section anatomy without a surrounding
+card. Each preference saves when changed. Conversation contains the global
+switch for showing Activity details; it is off by default and explains that
+hidden details remain recorded.
 
 **Edge tab.** The Bot's actions on the conversation plane hide inside a small
 tab hugging the plane's right edge at mid-height: a raised half-rounded tongue

@@ -8,13 +8,13 @@ import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
 import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
+import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { lineClassName, revealClassName } from "./bot-form"
 import { BotColleagues } from "./bot-colleagues"
 import { BotMemory } from "./bot-memory"
 import { BotPlugins } from "./bot-plugins"
 import { BotRoutines } from "./bot-routines"
-import { BotSettingsSection } from "./bot-settings-section"
 import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { WorkspaceHint } from "./workspace-hint"
@@ -107,10 +107,10 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
               <input className={`${headerLineClassName} text-control font-medium text-secondary`} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" title="Resultado esperado" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} />
             </div>
           </header>
-          <BotSettingsSection title="Função">
+          <SettingsSection title="Função">
             <Field label="Descrição" optional><textarea className={`${fieldControlClassName} field-sizing-content max-h-48 min-h-20 resize-none font-normal`} placeholder="Responsabilidades, limites e forma de entrega" rows={3} value={draft.description} disabled={confirmingRemoval} onChange={(event) => patch({ description: event.target.value })} /></Field>
-          </BotSettingsSection>
-          <BotSettingsSection title="Trabalho">
+          </SettingsSection>
+          <SettingsSection title="Trabalho">
             {leader
               ? (
                 <Field label="Vínculo" as="div">
@@ -132,7 +132,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
               <DirectoryPicker value={draft.workingDirectoryOverride} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => patch({ workingDirectoryOverride: "" })} />
               <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={draft.workingDirectoryOverride} />
             </Field>
-          </BotSettingsSection>
+          </SettingsSection>
           {failure && <p className="m-0 text-support text-status-error">Falha nas configurações: {failure}</p>}
         </form>
         {!bot.temporary && <BotRoutines bot={bot} client={client} />}

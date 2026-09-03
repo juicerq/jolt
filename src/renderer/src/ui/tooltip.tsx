@@ -37,6 +37,7 @@ export function useTooltip() {
     focusProps: { onFocus: showOnKeyboardFocus, onBlur: hide },
     anchorProps: { style: { anchorName } satisfies CSSProperties, onPointerEnter: showAfterDelay, onPointerLeave: hide, onFocus: showOnKeyboardFocus, onBlur: hide },
     popoverProps: { anchorName, ref: popoverRef },
+    hide,
   }
 }
 

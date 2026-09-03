@@ -2,7 +2,7 @@ import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { Plugin } from "../../../shared/plugins"
-import { closePlugins } from "../bots/bots-store"
+import { closeWorkspaceScreen } from "../bots/bots-store"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
@@ -16,7 +16,7 @@ import { PluginStepView, pluginStepLabel } from "./plugin-step"
 export function PluginsScreen({ client }: { client: EngineClient }) {
   const [adding, setAdding] = useState(false)
   const { data, error, isPending } = useQuery(client.query.plugins.list.queryOptions())
-  useEscape(closePlugins)
+  useEscape(closeWorkspaceScreen)
 
   return (
     <>
@@ -35,7 +35,7 @@ export function PluginsScreen({ client }: { client: EngineClient }) {
         </div>
       </section>
       <ChatEdgeTab>
-        <IconButton iconSize={16} type="button" label="Fechar Plugins" tooltipPlacement="left" onClick={closePlugins}><XMarkIcon aria-hidden="true" /></IconButton>
+        <IconButton iconSize={16} type="button" label="Fechar Plugins" tooltipPlacement="left" onClick={closeWorkspaceScreen}><XMarkIcon aria-hidden="true" /></IconButton>
       </ChatEdgeTab>
       {adding && <AddPluginDialog client={client} onClose={() => setAdding(false)} />}
     </>

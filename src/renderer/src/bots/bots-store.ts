@@ -11,7 +11,7 @@ type BotsState = {
   selectedBotId: string | null
   draft: BotDraft | null
   dialog: "create-project" | null
-  screen: "plugins" | null
+  screen: "plugins" | "settings" | null
 }
 
 export const botsStore = new Store<BotsState>({
@@ -33,7 +33,11 @@ export function openPlugins() {
   botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
 }
 
-export function closePlugins() {
+export function openSettings() {
+  botsStore.setState((state) => ({ ...state, screen: "settings", draft: null, dialog: null }))
+}
+
+export function closeWorkspaceScreen() {
   botsStore.setState((state) => ({ ...state, screen: null }))
 }
 
