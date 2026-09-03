@@ -41,6 +41,8 @@ type ActivityStatus = "running" | "aborting" | "failed"
 type StageMode = "compact" | "current" | "history" | "solo"
 type StageStatus = "running" | "done" | "failed" | "denied"
 
+const activityStageConnectorClassName = "before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden"
+
 const activityStageIconStatusClassNames: Record<StageStatus, string> = {
   running: "animate-pulse text-secondary [animation-duration:1200ms] motion-reduce:animate-none",
   done: "text-muted",
@@ -112,12 +114,12 @@ function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botNam
   const currentIndex = status === "aborting" ? -1 : steps.length - 1
 
   return (
-    <div className="-mx-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[620px] gap-1 text-support text-muted" role="status" aria-label={label}>
+    <div className="-mr-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[620px] gap-1 pl-3 text-support text-muted" role="status" aria-label={label}>
       {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
       {status === "aborting" && (
-        <div className="grid min-w-0 gap-1.5 px-[7px] py-[5px]" aria-current="step">
+        <div className={`relative grid min-w-0 gap-1.5 px-[7px] py-[5px] ${activityStageConnectorClassName}`} aria-current="step">
           <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">
             <span className="mt-px size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" role="status" aria-label="Em andamento" />
             <strong className="text-support font-medium text-secondary">Interrompendo resposta…</strong>
@@ -136,9 +138,9 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   const hasDetailList = details.length > 1
   const detailClassName = prose ? "text-support text-muted" : "font-mono text-metadata text-muted [overflow-wrap:anywhere] whitespace-pre-wrap"
   const stageModeClasses: Record<Exclude<StageMode, "solo">, string> = {
-    compact: "px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none",
-    current: "gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none",
-    history: "gap-0.5 px-[7px] py-[5px] before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden",
+    compact: `${activityStageConnectorClassName} px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none`,
+    current: `${activityStageConnectorClassName} gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none`,
+    history: `${activityStageConnectorClassName} gap-0.5 px-[7px] py-[5px]`,
   }
   const heading = (
     <>
@@ -176,8 +178,8 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
             </details>
           )
         : <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">{heading}</div>}
-      {mode !== "compact" && step.type === "thinking" && step.content.trim() && <ThinkingTrace className={mode === "history" ? "ml-[23px] pt-0.5" : "ml-[23px] border-l border-outline pl-3"} content={step.content} />}
-      {mode !== "compact" && details.length === 1 && <ActivityDetail className={`ml-[23px] block ${detailClassName} ${mode === "history" ? "pt-0.5" : "border-l border-outline py-1 pl-3"}`} prose={prose}>{details[0]}</ActivityDetail>}
+      {mode !== "compact" && step.type === "thinking" && step.content.trim() && <ThinkingTrace className={mode === "history" ? "ml-[23px] pt-0.5" : `${chatGuideClassName} ml-[23px] pl-4`} content={step.content} />}
+      {mode !== "compact" && details.length === 1 && <ActivityDetail className={`ml-[23px] block ${detailClassName} ${mode === "history" ? "pt-0.5" : chatGuideClassName + " py-1 pl-4"}`} prose={prose}>{details[0]}</ActivityDetail>}
     </div>
   )
 }
