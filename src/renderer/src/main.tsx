@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./app"
+import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./styles.css"
@@ -16,6 +17,7 @@ if (!root) {
 const connection = await window.desktop.getEngineConnection()
 const engineClient = createEngineClient(connection)
 subscribeChatEvents({ client: engineClient, queryClient })
+window.desktop.onTurnNotificationOpened(selectBot)
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>

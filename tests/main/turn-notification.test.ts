@@ -59,9 +59,9 @@ class WaylandWindow extends EventEmitter {
 
 test("clicar no aviso traz a janela existente para frente no Wayland", () => {
   const window = new WaylandWindow()
-  const notifications = createTurnNotifications({ window, icon: "/icon.png" })
+  const notifications = createTurnNotifications({ window, icon: "/icon.png", openConversation() {} })
 
-  notifications.show({ title: "Marina", body: "Terminou o turno" })
+  notifications.show({ botId: "bot-marina", title: "Marina", body: "Terminou o turno" })
   FakeNotification.latest?.emit("click")
 
   expect(window.minimized).toBe(false)
@@ -74,9 +74,9 @@ test("clicar no aviso traz a janela existente para frente no Wayland", () => {
 test("clicar no aviso restaura uma janela minimizada antes de focá-la", () => {
   const window = new WaylandWindow()
   window.minimized = true
-  const notifications = createTurnNotifications({ window, icon: "/icon.png" })
+  const notifications = createTurnNotifications({ window, icon: "/icon.png", openConversation() {} })
 
-  notifications.show({ title: "Marina", body: "Terminou o turno" })
+  notifications.show({ botId: "bot-marina", title: "Marina", body: "Terminou o turno" })
   FakeNotification.latest?.emit("click")
 
   expect(window.minimized).toBe(false)
@@ -87,9 +87,9 @@ test("clicar no aviso restaura uma janela minimizada antes de focá-la", () => {
 
 test("clicar em um aviso antigo ignora uma janela que já foi destruída", () => {
   const window = new WaylandWindow()
-  const notifications = createTurnNotifications({ window, icon: "/icon.png" })
+  const notifications = createTurnNotifications({ window, icon: "/icon.png", openConversation() {} })
 
-  notifications.show({ title: "Marina", body: "Terminou o turno" })
+  notifications.show({ botId: "bot-marina", title: "Marina", body: "Terminou o turno" })
   window.destroyed = true
   FakeNotification.latest?.emit("click")
 
@@ -98,9 +98,9 @@ test("clicar em um aviso antigo ignora uma janela que já foi destruída", () =>
 
 test("o chime do Jolt substitui o som nativo do aviso", () => {
   const window = new WaylandWindow()
-  const notifications = createTurnNotifications({ window, icon: "/icon.png" })
+  const notifications = createTurnNotifications({ window, icon: "/icon.png", openConversation() {} })
 
-  notifications.show({ title: "Marina", body: "Terminou o turno" })
+  notifications.show({ botId: "bot-marina", title: "Marina", body: "Terminou o turno" })
 
   expect(FakeNotification.latest?.options).toEqual({ title: "Marina", body: "Terminou o turno", icon: "/icon.png", silent: true })
 })

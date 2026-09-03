@@ -70,11 +70,13 @@ function createToolRegistrar(botId: string) {
 
 export function createEventNormalizer() {
   let lastReason: "stop" | "aborted" | "error" = "error"
+  let lastError: string | undefined
   let interrupted = false
 
   function normalize(event: AgentSessionEvent): PiRuntimeEvent | undefined {
     if (event.type === "agent_start") {
       lastReason = "error"
+      lastError = undefined
       interrupted = false
 
       return { type: "started" }
@@ -113,12 +115,13 @@ export function createEventNormalizer() {
       const reason = event.message.stopReason
 
       lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
+      lastError = event.message.errorMessage?.trim().slice(0, 500) || undefined
     }
 
     if (event.type === "agent_settled") {
       const reason = interrupted && lastReason !== "stop" ? "aborted" : lastReason
 
-      return { type: "finished", reason }
+      return { type: "finished", reason, ...(reason === "error" && lastError ? { error: lastError } : {}) }
     }
 
     return undefined

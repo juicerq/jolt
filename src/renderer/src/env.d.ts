@@ -11,6 +11,7 @@ declare global {
       closeWindow(): Promise<void>
       openInBrowser(url: string): Promise<void>
       notifyTurnFinished(notification: TurnNotification): Promise<void>
+      onTurnNotificationOpened(listener: (botId: string) => void): void
     }
   }
 }

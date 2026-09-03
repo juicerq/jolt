@@ -148,7 +148,7 @@ function ChatMessage({ avatarIdentities, bot, message, names, tasks }: { avatarI
       {message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
       <ChatStamped name={bot.name} time={time} anchor="text">
         {message.content && <ChatContent content={message.content} />}
-        {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} />}
+        {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} />}
       </ChatStamped>
     </article>
   )

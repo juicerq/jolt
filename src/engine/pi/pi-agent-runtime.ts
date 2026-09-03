@@ -15,7 +15,7 @@ export type PiRuntimeEvent =
   | { type: "tool-finished"; callId: string; tool: string; failed: boolean; denied?: boolean; error?: string }
   | { type: "permission-requested"; request: PermissionRequest }
   | { type: "permission-resolved"; requestId: string }
-  | { type: "finished"; reason: "stop" | "aborted" | "error" }
+  | { type: "finished"; reason: "stop" | "aborted" | "error"; error?: string }
 
 export type ToolInputSchema = {
   type: "object"

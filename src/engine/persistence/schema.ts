@@ -72,6 +72,7 @@ export const messages = snakeCase.table("messages", {
   images: text({ mode: "json" }).$type<ConversationMessage["images"]>().notNull().default(sql`'[]'`),
   activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
   ending: text({ enum: ["aborted", "failed", "closed"] }).$type<ConversationMessage["ending"]>(),
+  error: text(),
   createdAt: text().notNull(),
 }, (table) => [
   index("messages_bot_position").on(table.botId, table.position),

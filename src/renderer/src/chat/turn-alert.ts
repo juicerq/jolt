@@ -13,18 +13,18 @@ const bodyLimit = 120
 let chime: AudioContext | undefined
 let markdown: ReturnType<typeof buildMarkdownParser> | undefined
 
-export async function alertTurnFinished({ bot, reason, response }: { bot: Pick<Bot, "name"> | undefined; reason: FinishReason; response?: string }) {
+export async function alertTurnFinished({ bot, reason, response, error }: { bot: Pick<Bot, "id" | "name"> | undefined; reason: FinishReason; response?: string; error?: string }) {
   if (!bot || reason === "aborted" || document.hasFocus()) {
     return
   }
 
-  await window.desktop.notifyTurnFinished({ title: bot.name, body: notificationBody(reason, response) })
+  await window.desktop.notifyTurnFinished({ botId: bot.id, title: bot.name, body: notificationBody(reason, response, error) })
   await playChime()
 }
 
-function notificationBody(reason: FinishReason, response: string | undefined) {
+function notificationBody(reason: FinishReason, response: string | undefined, error: string | undefined) {
   if (reason === "error") {
-    return "O turno falhou"
+    return error ? `O turno falhou: ${error}` : "O turno falhou"
   }
 
   const text = response ? plainText(response) : ""

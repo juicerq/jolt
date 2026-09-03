@@ -100,7 +100,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       invalidateTeam(),
-      alertTurnFinished({ bot, reason: event.reason, response }).catch((alertError: unknown) => {
+      alertTurnFinished({ bot, reason: event.reason, response, ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
         console.error("O aviso do turno falhou", alertError)
       }),
     ])

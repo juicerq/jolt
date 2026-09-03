@@ -12,6 +12,7 @@ import whatsappMessages from "../../../drizzle/20260903011817_whatsapp-messages/
 import whatsappContacts from "../../../drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
 import colleagues from "../../../drizzle/20260903112334_colleagues/migration.sql" with { type: "text" }
 import botAvatarSeed from "../../../drizzle/20260903142103_burly_maestro/migration.sql" with { type: "text" }
+import messageError from "../../../drizzle/20260903145043_thin_greymalkin/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -27,4 +28,5 @@ export const migrations = [
   { name: "20260903021111_whatsapp-contacts", timestamp: 1788401471000, sql: whatsappContacts },
   { name: "20260903112334_colleagues", timestamp: 1788434614000, sql: colleagues },
   { name: "20260903142103_burly_maestro", timestamp: 1788445263000, sql: botAvatarSeed },
+  { name: "20260903145043_thin_greymalkin", timestamp: 1788447043000, sql: messageError },
 ] satisfies MigrationsJournal

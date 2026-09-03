@@ -51,35 +51,35 @@ describe("aviso de turno terminado", () => {
   })
 
   test("toca o som e avisa com o nome do Bot e o começo da resposta", async () => {
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "stop", response: "  Resposta\npronta  " })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "stop", response: "  Resposta\npronta  " })
 
-    expect(notified).toEqual([{ title: "Marina", body: "Resposta pronta" }])
+    expect(notified).toEqual([{ botId: "bot-marina", title: "Marina", body: "Resposta pronta" }])
     expect(tones).toEqual([660, 880])
   })
 
   test("avisa com texto puro, sem a marcação do Markdown", async () => {
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "stop", response: "## Resultado\n\n- Revisei o **módulo** de `cobranca`" })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "stop", response: "## Resultado\n\n- Revisei o **módulo** de `cobranca`" })
 
-    expect(notified).toEqual([{ title: "Marina", body: "Resultado Revisei o módulo de cobranca" }])
+    expect(notified).toEqual([{ botId: "bot-marina", title: "Marina", body: "Resultado Revisei o módulo de cobranca" }])
   })
 
   test("remove a marcação GFM que a conversa renderiza", async () => {
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "stop", response: "~~Rascunho~~ Resultado final" })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "stop", response: "~~Rascunho~~ Resultado final" })
 
-    expect(notified).toEqual([{ title: "Marina", body: "Rascunho Resultado final" }])
+    expect(notified).toEqual([{ botId: "bot-marina", title: "Marina", body: "Rascunho Resultado final" }])
   })
 
   test("não avisa quando a pessoa está na janela", async () => {
     focused = true
 
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "stop", response: "Resposta pronta" })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "stop", response: "Resposta pronta" })
 
     expect(notified).toEqual([])
     expect(tones).toEqual([])
   })
 
   test("não avisa um turno que a pessoa interrompeu", async () => {
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "aborted", response: "Resposta parcial" })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "aborted", response: "Resposta parcial" })
 
     expect(notified).toEqual([])
     expect(tones).toEqual([])
@@ -93,8 +93,8 @@ describe("aviso de turno terminado", () => {
   })
 
   test("avisa a falha do turno no lugar da resposta", async () => {
-    await alertTurnFinished({ bot: { name: "Marina" }, reason: "error", response: "Resposta parcial" })
+    await alertTurnFinished({ bot: { id: "bot-marina", name: "Marina" }, reason: "error", response: "Resposta parcial" })
 
-    expect(notified).toEqual([{ title: "Marina", body: "O turno falhou" }])
+    expect(notified).toEqual([{ botId: "bot-marina", title: "Marina", body: "O turno falhou" }])
   })
 })

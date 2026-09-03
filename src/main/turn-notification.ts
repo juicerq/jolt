@@ -5,11 +5,11 @@ type NotificationWindow = Pick<BrowserWindow, "flashFrame" | "focus" | "isDestro
   on(event: "focus", listener: () => void): unknown
 }
 
-export function createTurnNotifications({ window, icon }: { window: NotificationWindow; icon: string }) {
+export function createTurnNotifications({ window, icon, openConversation }: { window: NotificationWindow; icon: string; openConversation(botId: string): void }) {
   window.on("focus", () => window.flashFrame(false))
 
   return {
-    show({ title, body }: TurnNotification) {
+    show({ botId, title, body }: TurnNotification) {
       const destroyed = window.isDestroyed()
       const supported = Notification.isSupported()
 
@@ -32,6 +32,7 @@ export function createTurnNotifications({ window, icon }: { window: Notification
 
         window.focus()
         window.flashFrame(false)
+        openConversation(botId)
       })
       notification.show()
       window.flashFrame(true)

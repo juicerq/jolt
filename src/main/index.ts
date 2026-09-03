@@ -64,7 +64,11 @@ app.whenReady().then(async () => {
   })
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
-  const notifications = createTurnNotifications({ window, icon })
+  const notifications = createTurnNotifications({
+    window,
+    icon,
+    openConversation: (botId) => window.webContents.send("notification:open-conversation", botId),
+  })
 
   ipcMain.handle("notification:turn-finished", (_event, raw: unknown) => notifications.show(parse(turnNotification, raw)))
   ipcMain.handle("window:minimize", () => window.minimize())
