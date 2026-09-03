@@ -78,6 +78,10 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
         finishThinking()
       }
 
+      if (runtimeEvent.type === "message-finished") {
+        return { type: "message-finished" }
+      }
+
       return parse(conversationSchemas.event, runtimeEvent)
     },
     takeSnapshot(): ConversationActivity {
