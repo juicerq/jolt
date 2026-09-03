@@ -14,7 +14,7 @@ export function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, 
   const listed = pluginsWithAccounts(plugins)
 
   if (listed.length === 0) {
-    return <p className="m-0 text-support text-muted">Nenhuma Conta conectada ainda. Peça ao Bot na conversa ou conecte na tela de Plugins.</p>
+    return <p className="m-0 text-support font-normal text-muted">Nenhuma Conta conectada ainda. Peça ao Bot na conversa ou conecte na tela de Plugins.</p>
   }
 
   return (
@@ -48,7 +48,7 @@ export function BotPlugins({ bot, client }: { bot: Bot; client: EngineClient }) 
   return (
     <SettingsSection title="Plugins">
       <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
-        <p className="m-0 text-support text-muted">{bot.temporary ? `Um Integrante temporário usa só as Contas que o Líder passou ao contratar.` : `${bot.name} usa as Contas que você ligar aqui. A Permissão do Bot vale para essas ferramentas também.`}</p>
+        <p className="m-0 text-support font-normal text-muted">{bot.temporary ? `Um Integrante temporário usa só as Contas que o Líder passou ao contratar.` : `${bot.name} usa as Contas que você ligar aqui. A Permissão do Bot vale para essas ferramentas também.`}</p>
         {data && <BotPluginList bot={bot} plugins={data.plugins} busy={isPending || bot.temporary} onGrant={(accountId, granted) => grant({ botId: bot.id, accountId, granted })} />}
         {failure && <p className="m-0 text-support text-status-error">Falha nos Plugins: {failure}</p>}
       </div>

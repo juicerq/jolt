@@ -15,7 +15,7 @@ export function colleaguesOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "
 
 export function BotColleagueList({ bot, colleagues, busy, onRevoke }: { bot: Pick<Bot, "name">; colleagues: Bot[]; busy: boolean; onRevoke: (colleagueBotId: string) => void }) {
   if (colleagues.length === 0) {
-    return <p className="m-0 text-support text-muted">Nenhum Colega. Mencione um Bot com @ na conversa para apresentá-lo a {bot.name}.</p>
+    return <p className="m-0 text-support font-normal text-muted">Nenhum Colega. Mencione um Bot com @ na conversa para apresentá-lo a {bot.name}.</p>
   }
 
   return (
@@ -44,7 +44,7 @@ export function BotColleagues({ bot, client, groups }: { bot: Bot; client: Engin
   return (
     <SettingsSection title="Colegas">
       <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
-        <p className="m-0 text-support text-muted">{bot.name} pode abrir uma Tarefa para estes Bots. Cada um segue a própria Permissão.</p>
+        <p className="m-0 text-support font-normal text-muted">{bot.name} pode abrir uma Tarefa para estes Bots. Cada um segue a própria Permissão.</p>
         <BotColleagueList bot={bot} colleagues={colleaguesOf(groups, bot)} busy={isPending} onRevoke={(colleagueBotId) => revoke({ botId: bot.id, colleagueBotId })} />
         {error && <p className="m-0 text-support text-status-error">Falha nos Colegas: {error.message}</p>}
       </div>
