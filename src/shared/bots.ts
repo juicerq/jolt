@@ -28,7 +28,7 @@ const storedBot = z.strictObject({
 })
 const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean(), colleagueIds: z.array(id) })
 const colleague = z.strictObject({ botId: id, colleagueBotId: id })
-const createFields = { name: id, avatarSeed: avatarSeed.optional(), provider: providerName, function: botFunction, workingDirectoryOverride: workingDirectory.optional() }
+const createFields = { name: id, avatarSeed: avatarSeed.optional(), provider: providerName, function: botFunction.optional(), workingDirectoryOverride: workingDirectory.optional() }
 const createInput = z.union([
   z.strictObject({ ...createFields, projectId: id.optional() }),
   z.strictObject({ ...createFields, leaderBotId: id }),

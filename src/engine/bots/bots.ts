@@ -130,7 +130,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         name: input.name,
         avatarSeed: input.avatarSeed ?? defaultBotAvatarSeed(input.name),
         provider: input.provider,
-        function: input.function,
+        function: input.function ?? { outcome: "Ajudar no que você precisar" },
         temporary: false,
         memoryEnabled: true,
         effort: "medium",

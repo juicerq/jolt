@@ -29,6 +29,7 @@ import { ChatMentionChip } from "./chat-mention-chip"
 import { type ChatMention, knownChatMentions, mentionedBotIds, splitChatMentions } from "./chat-mentions"
 import { ChatPermissionRequest } from "./chat-permission-request"
 import { finishConversationOpen } from "./chat-open-span"
+import { chatGreeting } from "./chat-greetings"
 import { ChatRoutineCall } from "./chat-routine-call"
 import { ChatTurnEnding } from "./chat-turn-ending"
 
@@ -214,9 +215,9 @@ function ChatClosed({ bot }: { bot: Bot }) {
 function EmptyChat({ bot }: { bot: Bot }) {
   return (
     <div className="m-auto flex max-w-[520px] flex-col items-center text-center text-support text-secondary">
-      <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={bot.avatarSeed} size={64} alt="" />
-      <h2 className="mt-4 mb-1.5 text-title font-semibold text-primary">Converse com {bot.name}</h2>
-      <p className="m-0 max-w-[48ch] leading-[1.6]">{bot.function.outcome}</p>
+      <Blobatar className="size-[77px] flex-none" name={bot.avatarSeed} size={77} alt="" />
+      <h2 className="mt-4 mb-1.5 text-title font-semibold text-primary">{bot.name}</h2>
+      <p className="m-0 max-w-[48ch] text-body leading-[1.6] text-secondary">{chatGreeting(bot.id)}</p>
     </div>
   )
 }

@@ -31,7 +31,7 @@ const chatStatusClassNames: Record<ChatStatus, string> = {
   error: "bg-status-error",
 }
 
-const teamAvatarPositionClassNames = ["top-0 left-[9px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
+const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
 
 const teamAvatarHoverClassNames = [
   "group-hover/stack:-translate-y-0.5",
@@ -108,7 +108,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 function DraftRow({ draft }: { draft: BotDraft }) {
   return (
     <div className="mr-2 mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
-      <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={botDraftAvatarSeed(draft)} size={32} alt="" />
+      <Blobatar className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
@@ -243,7 +243,7 @@ function MemberItem({ member, selected, status }: { member: Bot; selected: boole
 }
 
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
-  const avatarSizeClassName = members?.length ? "h-[34px] w-10.5 min-w-10.5" : teamLeader ? "h-[34px] w-10.5 min-w-10.5 items-center justify-center" : "size-8 min-w-8"
+  const avatarSizeClassName = members?.length ? "h-[41px] w-[51px] min-w-[51px]" : teamLeader ? "h-[41px] w-[51px] min-w-[51px] items-center justify-center" : "size-[38px] min-w-[38px]"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
 
@@ -259,7 +259,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
           <span className="relative flex shrink-0">
             <BotAvatar bot={bot} members={members} />
-            <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+            <span className={`absolute right-0.5 bottom-0.5 z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
           </span>
         </span>
       ) : (
@@ -280,9 +280,9 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   if (!members || members.length === 0) {
     return (
       <Blobatar
-        className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus"
+        className="grid size-[38px] shrink-0 place-items-center text-support font-extrabold text-focus"
         name={bot.avatarSeed}
-        size={32}
+        size={38}
         alt=""
       />
     )
@@ -291,12 +291,12 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   const avatars = [bot, ...members].slice(0, 3)
 
   return (
-    <span className="group/stack relative block h-[34px] w-10.5 min-w-10.5 shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
+    <span className="group/stack relative block h-[41px] w-[51px] min-w-[51px] shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
       {avatars.map((avatar, index) => (
         <Blobatar
-          className={`absolute size-6 shrink-0 rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
+          className={`absolute size-[29px] shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
           name={avatar.avatarSeed}
-          size={24}
+          size={29}
           alt=""
           key={avatar.id}
         />

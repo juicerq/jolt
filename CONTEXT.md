@@ -5,7 +5,7 @@ Este contexto define como uma pessoa cria Bots, conversa com eles e permite que 
 ## Linguagem
 
 **Bot**:
-Um participante com identidade, Função, contexto, memória e histórico próprios. Um Bot pode existir sem pertencer a um Projeto ou Time.
+Um participante com identidade, Função, contexto, memória e histórico próprios. A pessoa cria um Bot apenas com o nome e pode definir sua Função depois; um Bot pode existir sem pertencer a um Projeto ou Time.
 _Evitar_: Agente, assistente
 
 **Líder**:

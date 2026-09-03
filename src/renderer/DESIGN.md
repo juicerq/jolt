@@ -370,17 +370,20 @@ supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work.
 
 **New Bot.** Creating a Bot happens inside the conversation plane instead of a
-dialog, as a three-step flow: a 64px Blobatar, the name as a borderless title
-line, the outcome as a borderless support line, then a 280px column with the
-link select, the folder chip, and the single primary action. Committed lines
-stay quiet at rest and gain the hover surface hugging their text. A ghost close
-action sits in the top-right corner.
+dialog. The form shows a 64px Blobatar and one borderless name field. The single
+primary action appears after the name has content, and Enter submits it. Success
+opens the new conversation immediately. A ghost close action sits in the
+top-right corner.
+
+An empty Bot conversation shows the Bot identity and one greeting chosen from
+the built-in greeting set. The greeting is presentation, not a persisted
+message, because the Bot has not run yet.
 
 **Bot settings.** Editing a Bot is a page on the conversation plane: one
-centered 560px column, like New Bot. The header reuses the New Bot lines beside
-the 64px Blobatar: the name as a borderless title line and the expected outcome
-as a borderless control line, left-aligned, each gaining the hover surface
-hugging its text. Below come sections labeled in uppercase label type: Função
+centered 560px column. The header places two lines beside the 64px Blobatar:
+the name as a borderless title line and the expected outcome as a borderless
+control line, left-aligned, each gaining the hover surface hugging its text.
+Below come sections labeled in uppercase label type: Função
 with the description, Trabalho, Rotinas, Memória. Every other field shows its
 label. Vínculo shows the Leader as a 32px Blobatar beside its name. The form
 has no footer: while it holds unsaved changes, a bar pinned to the bottom of
