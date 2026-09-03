@@ -5,12 +5,16 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
 import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
 import { parse } from "../shared/parse"
+import { turnNotification } from "../shared/turn-notification"
 import { EngineProcess } from "./engine-process/engine-process"
 import { loadSecretKey } from "./secret-key"
+import { createTurnNotifications } from "./turn-notification"
 
 if (process.env.JOLT_USER_DATA) {
   app.setPath("userData", process.env.JOLT_USER_DATA)
 }
+
+app.setName("Jolt")
 
 const environmentFile = join(app.getAppPath(), ".env")
 
@@ -18,6 +22,7 @@ if (!app.isPackaged && existsSync(environmentFile)) {
   process.loadEnvFile(environmentFile)
 }
 
+const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", "jolt-engine")
   : join(app.getAppPath(), "dist-engine", "jolt-engine")
@@ -50,7 +55,7 @@ app.whenReady().then(async () => {
     width: 1100,
     height: 760,
     frame: false,
-    icon: join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png"),
+    icon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -59,6 +64,9 @@ app.whenReady().then(async () => {
   })
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
+  const notifications = createTurnNotifications({ window, icon })
+
+  ipcMain.handle("notification:turn-finished", (_event, raw: unknown) => notifications.show(parse(turnNotification, raw)))
   ipcMain.handle("window:minimize", () => window.minimize())
   ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
   ipcMain.handle("window:close", () => window.close())

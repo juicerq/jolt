@@ -171,11 +171,15 @@ export function dismissChatRun(botId: string) {
 }
 
 export function settleChatRun(botId: string, status: "available" | "completed" | "error") {
+  const response = chatStore.state.runs[botId]?.responseContent
+
   chatStore.setState((state) => ({
     ...state,
     runs: { ...state.runs, [botId]: undefined },
     statuses: { ...state.statuses, [botId]: status },
   }))
+
+  return response
 }
 
 function updateDraft(botId: string, update: (draft: ChatDraft) => ChatDraft) {
