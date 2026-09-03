@@ -61,6 +61,25 @@ describe("database", () => {
     expect(messageColumns).toContain("activity")
   })
 
+  test("saves a WhatsApp history batch atomically", async () => {
+    const { database, observability } = setup()
+    database.accounts.create({ id: "account", pluginId: "whatsapp", label: "5511999999999", state: "connected", secret: "secret", tools: [], checkedAt: "2026-09-03T10:00:00.000Z" })
+    const base = { accountId: "account", chatId: "chat", senderName: "Pedro", fromMe: false, sentAt: "2026-09-03T10:00:00.000Z" }
+
+    database.whatsappMessages.saveMany([
+      { ...base, id: "first", content: "old" },
+      { ...base, id: "second", content: "second", sentAt: "2026-09-03T10:01:00.000Z" },
+      { ...base, id: "first", content: "updated" },
+    ])
+
+    expect(database.whatsappMessages.readChat("account", "chat", 10).map(({ id, content }) => ({ id, content }))).toEqual([
+      { id: "first", content: "updated" },
+      { id: "second", content: "second" },
+    ])
+    database.close()
+    await observability.flush()
+  })
+
   test("keeps Notas pending until curated and resolves the Origem of each Lembrança", async () => {
     const { bot, database, observability } = setup()
     const createdAt = new Date().toISOString()

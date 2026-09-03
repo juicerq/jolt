@@ -156,13 +156,14 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
       socket.ev.on("messaging-history.set", (history) => {
         remember(history.contacts)
         remember(history.chats.map((chat) => ({ id: chat.id, name: chat.name })))
-
-        for (const message of history.messages) {
+        const messages = history.messages.flatMap((message) => {
           const row = incoming(message, names)
 
-          if (row) {
-            store(row)
-          }
+          return row && session.accountId ? [{ ...row, accountId: session.accountId }] : []
+        })
+
+        if (messages.length > 0) {
+          input.database.whatsappMessages.saveMany(messages)
         }
       })
 

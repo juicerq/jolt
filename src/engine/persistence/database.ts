@@ -391,6 +391,13 @@ export function openDatabase(path: string, observability: Observability) {
           return message
         })
       },
+      saveMany(messages: WhatsappSavedMessage[]) {
+        return observability.span({ name: "database.whatsappmessagesavebatch", attributes: { count: messages.length } }, () => database.transaction((transaction) => {
+          for (const message of messages) {
+            transaction.insert(whatsappMessages).values(message).onConflictDoUpdate({ target: whatsappMessages.id, set: message }).run()
+          }
+        }))
+      },
       saveContact(contact: WhatsappContact) {
         return observability.span({ name: "database.whatsappcontactsave" }, () => {
           database.insert(whatsappContacts).values(contact).onConflictDoUpdate({ target: [whatsappContacts.accountId, whatsappContacts.jid], set: { name: contact.name } }).run()
