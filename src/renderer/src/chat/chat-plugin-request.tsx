@@ -41,7 +41,7 @@ export function ChatPluginRequest({ botId, client, request }: { botId: string; c
   const connectLabel = request.accounts.length > 0 ? "Outra Conta" : "Conectar"
 
   return (
-    <section className="order-first col-span-full mx-1 mb-1 flex min-w-0 flex-col gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-awaiting-decision)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-awaiting-decision)_8%,var(--color-surface-raised))] p-3" aria-label="Pedido de Plugin">
+    <section className="flex min-w-0 flex-col gap-3" aria-label="Pedido de Plugin">
       <div className="min-w-0">
         <p className="m-0 text-control font-semibold text-primary">{pluginRequestTitle(request)}</p>
         <p className="mt-0.5 mb-0 text-support text-secondary">{connection.isPending ? "O Bot continua assim que a Conta conectar." : pluginRequestDetail(request)}</p>

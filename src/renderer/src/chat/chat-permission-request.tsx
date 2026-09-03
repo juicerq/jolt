@@ -56,7 +56,7 @@ export function ChatPermissionRequest({ botId, client, request, remaining }: { b
   })
 
   return (
-    <section ref={sectionRef} className="mt-3.5 grid w-[min(600px,calc(100vw-380px))] gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-awaiting-decision)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-awaiting-decision)_8%,var(--color-surface-raised))] p-3 outline-none" aria-label="Pedido de permissão" tabIndex={-1}>
+    <section ref={sectionRef} className="grid min-w-0 gap-3 outline-none" aria-label="Pedido de permissão" tabIndex={-1}>
       <div className="grid min-w-0 gap-1.5">
         <strong className="text-control font-semibold text-primary">{label}</strong>
         {request.tool === "bash" ? <PermissionCommand request={request} /> : <PermissionDetails request={request} details={details} />}

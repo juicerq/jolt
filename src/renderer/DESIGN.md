@@ -278,7 +278,10 @@ The conversation plane runs to the bottom and right window margins. It uses one
 expanding with the window: messages top out near 720px, and the prompt follows
 the same horizontal center.
 
-The message list scrolls while the prompt remains visible. New content follows
+The message list scrolls at the full height of the conversation while the prompt
+floats 22px from the bottom. The list ends with clearance equal to the prompt's
+current height plus 12px, so an expanding prompt never covers the latest message.
+The editor stops growing at 160px and then scrolls internally. New content follows
 the end while the reader is within 312px of it. Farther up, the position stays
 fixed and a quiet return-to-end button appears above the prompt. Empty, loading,
 streaming, interrupted, and failed states keep the same geometry. A state change

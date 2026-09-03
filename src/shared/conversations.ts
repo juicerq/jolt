@@ -5,10 +5,22 @@ import { pluginSchemas } from "./plugins"
 import type { Frequency } from "./routines"
 import type { TaskStatus } from "./tasks"
 
+export const sendMessageTool = "send_message"
+
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine"])
 const optionalId = id.nullable()
 const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMimeTypes) })
+const messageQuestionOption = z.strictObject({
+  value: id.max(100),
+  label: id.max(80),
+  description: id.max(160).optional(),
+})
+const messageQuestion = z.strictObject({
+  options: z.array(messageQuestionOption).min(2).max(12),
+  allowOther: z.boolean(),
+})
+const messageReply = z.strictObject({ messageId: id, optionValue: id.max(100) })
 const conversationTool = z.strictObject({
   callId: id,
   name: id,
@@ -40,14 +52,18 @@ const message = z.strictObject({
   taskId: optionalId,
   content: z.string(),
   images: z.array(messageImage),
+  question: messageQuestion.nullable().optional(),
+  replyTo: messageReply.nullable().optional(),
   activity: conversationActivity.nullable(),
   ending: turnEnding.nullable(),
   error: z.string().min(1).max(500).nullish(),
   createdAt: id,
 })
-const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, content: true, images: true })
+const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, content: true, images: true, replyTo: true })
+const messageToolInput = z.strictObject({ content: z.string().trim().min(1), question: messageQuestion.optional() })
 const startedEvent = z.strictObject({ type: z.literal("started"), message: incomingMessage })
 const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
+const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
 const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
 const thinkingStartedEvent = z.strictObject({ type: z.literal("thinking-started") })
 const thinkingFinishedEvent = z.strictObject({ type: z.literal("thinking-finished"), durationMs: z.int().positive() })
@@ -75,6 +91,7 @@ const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.en
 const event = z.discriminatedUnion("type", [
   startedEvent,
   textEvent,
+  messageFinishedEvent,
   thinkingStartedEvent,
   thinkingEvent,
   thinkingFinishedEvent,
@@ -99,7 +116,8 @@ export const conversationSchemas = {
   compactionResult,
   historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
   history,
-  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), mentionedBotIds: z.array(id).default([]) }),
+  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), replyTo: messageReply.nullable().default(null), mentionedBotIds: z.array(id).default([]) }),
+  messageToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),
@@ -109,6 +127,8 @@ export const conversationSchemas = {
 
 export type ConversationMessage = z.infer<typeof message>
 export type MessageImage = z.infer<typeof messageImage>
+export type MessageQuestion = z.infer<typeof messageQuestion>
+export type MessageReply = z.infer<typeof messageReply>
 export type TurnEnding = z.infer<typeof turnEnding>
 export type ConversationEvent = z.infer<typeof event>
 export type FinishReason = z.infer<typeof finishedEvent>["reason"]

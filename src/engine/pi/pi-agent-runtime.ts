@@ -8,6 +8,7 @@ import type { PiPermissionPolicy } from "./pi-permissions"
 export type PiRuntimeEvent =
   | { type: "started" }
   | { type: "text"; text: string }
+  | { type: "message-finished"; reason?: "aborted" | "error"; error?: string }
   | { type: "thinking-started" }
   | { type: "thinking"; text: string }
   | { type: "thinking-finished" }

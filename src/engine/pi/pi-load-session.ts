@@ -4,6 +4,7 @@ const chunkDelayMs = 15
 const chunkLength = 24
 
 const thinking = "Preciso ler o módulo de cobrança, comparar as três funções e escolher a que mantém a interface atual. Vou verificar os testes antes de responder."
+const progress = "Encontrei dois pontos no cálculo. Vou comparar o impacto antes de fechar a recomendação."
 
 const response = [
   "## Resultado da revisão",
@@ -46,25 +47,29 @@ function chunks(text: string) {
   return parts
 }
 
-function scriptedTurn(): PiRuntimeEvent[] {
+type ScriptedEvent = PiRuntimeEvent | { type: "send-message"; callId: string; content: string }
+
+function scriptedTurn(): ScriptedEvent[] {
   return [
     { type: "started" },
     { type: "thinking-started" },
     ...chunks(thinking).map((text): PiRuntimeEvent => ({ type: "thinking", text })),
     { type: "thinking-finished" },
+    { type: "send-message", callId: "send-1", content: progress },
     { type: "tool-started", callId: "read-1", tool: "read", detail: "src/billing/invoice.ts" },
     { type: "tool-finished", callId: "read-1", tool: "read", failed: false },
     { type: "tool-started", callId: "bash-1", tool: "bash", detail: "bun test tests/billing" },
     { type: "tool-finished", callId: "bash-1", tool: "bash", failed: false },
-    ...chunks(response.repeat(4)).map((text): PiRuntimeEvent => ({ type: "text", text })),
+    { type: "send-message", callId: "send-2", content: response.repeat(4) },
     { type: "finished", reason: "stop" },
   ]
 }
 
 export function createPiLoadSessionFactory(): PiSessionFactory {
   return {
-    async open(): Promise<PiSession> {
+    async open(input): Promise<PiSession> {
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
+      const messageTool = input.customTools?.find((tool) => tool.name === "send_message")
       let aborted = false
 
       return {
@@ -80,6 +85,20 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
             }
 
             await Bun.sleep(chunkDelayMs)
+
+            if (event.type === "send-message") {
+              for (const listener of listeners) {
+                listener({ type: "tool-started", callId: event.callId, tool: "send_message" })
+              }
+
+              await messageTool?.execute({ content: event.content })
+
+              for (const listener of listeners) {
+                listener({ type: "tool-finished", callId: event.callId, tool: "send_message", failed: false })
+              }
+
+              continue
+            }
 
             for (const listener of listeners) {
               listener(event)

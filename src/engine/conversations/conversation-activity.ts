@@ -80,8 +80,8 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
 
       return parse(conversationSchemas.event, runtimeEvent)
     },
-    snapshot(): ConversationActivity {
-      return {
+    takeSnapshot(): ConversationActivity {
+      const snapshot = {
         steps: steps.flatMap((step): ConversationActivity["steps"] => {
           if (step.type === "thinking") {
             const { startedAt, ...thinkingStep } = step
@@ -94,6 +94,11 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           return tools.length > 0 ? [{ type: "tool", name: step.name, tools }] : []
         }),
       }
+
+      thinkingStartedAt = undefined
+      steps = []
+
+      return snapshot
     },
   }
 

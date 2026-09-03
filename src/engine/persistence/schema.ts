@@ -70,6 +70,8 @@ export const messages = snakeCase.table("messages", {
   taskId: text().references(() => tasks.id, { onDelete: "set null" }),
   content: text().notNull(),
   images: text({ mode: "json" }).$type<ConversationMessage["images"]>().notNull().default(sql`'[]'`),
+  question: text({ mode: "json" }).$type<ConversationMessage["question"]>(),
+  replyTo: text({ mode: "json" }).$type<ConversationMessage["replyTo"]>(),
   activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
   ending: text({ enum: ["aborted", "failed", "closed"] }).$type<ConversationMessage["ending"]>(),
   error: text(),

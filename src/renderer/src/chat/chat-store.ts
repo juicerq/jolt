@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store"
-import type { ConversationActivity, IncomingMessage } from "../../../shared/conversations"
+import type { ConversationActivity, ConversationMessage, IncomingMessage } from "../../../shared/conversations"
 import type { PermissionRequest } from "../../../shared/permissions"
 import type { PluginRequest } from "../../../shared/plugins"
 import type { ChatCommandName } from "./chat-commands"
@@ -17,6 +17,7 @@ export type ChatActivityStep =
 
 export type ChatRun = {
   message: IncomingMessage
+  completedMessages: ConversationMessage[]
   responseContent: string
   steps: ChatActivityStep[]
   waitingMessage: string
@@ -34,7 +35,7 @@ type ChatState = {
   statuses: Record<string, ChatStatus | undefined>
 }
 
-export type ChatStatus = "available" | "working" | "awaiting-decision" | "waiting" | "completed" | "error"
+export type ChatStatus = "available" | "working" | "awaiting-decision" | "awaiting-response" | "waiting" | "completed" | "error"
 
 export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: [] }
 
@@ -65,7 +66,7 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
+      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -73,6 +74,14 @@ export function startChatRun(botId: string, message: IncomingMessage) {
 
 export function appendChatText(botId: string, text: string) {
   updateRun(botId, (run) => ({ ...run, responseContent: `${run.responseContent}${text}` }))
+}
+
+export function finishChatMessage(botId: string, message?: ConversationMessage) {
+  if (!message) {
+    return
+  }
+
+  updateRun(botId, (run) => ({ ...run, completedMessages: [...run.completedMessages, message], responseContent: "", steps: [] }))
 }
 
 export function startChatThinking(botId: string) {
@@ -171,12 +180,19 @@ export function dismissChatRun(botId: string) {
 }
 
 export function settleChatRun(botId: string, status: "available" | "completed" | "error") {
-  const response = chatStore.state.runs[botId]?.responseContent
+  const run = chatStore.state.runs[botId]
+
+  if (!run) {
+    return undefined
+  }
+
+  const response = run?.responseContent || run?.completedMessages.at(-1)?.content
+  const finalStatus = status === "completed" && run?.completedMessages.at(-1)?.question ? "awaiting-response" : status
 
   chatStore.setState((state) => ({
     ...state,
     runs: { ...state.runs, [botId]: undefined },
-    statuses: { ...state.statuses, [botId]: status },
+    statuses: { ...state.statuses, [botId]: finalStatus },
   }))
 
   return response

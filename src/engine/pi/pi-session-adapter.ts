@@ -13,6 +13,7 @@ import {
 import type { TSchema } from "@earendil-works/pi-ai"
 import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
+import { createMessageProtocolExtension } from "./pi-message-protocol"
 import { createPermissionExtension } from "./pi-permissions"
 import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
@@ -113,9 +114,12 @@ export function createEventNormalizer() {
 
     if (event.type === "message_end" && event.message.role === "assistant") {
       const reason = event.message.stopReason
+      const terminalReason = terminalMessageReason(reason)
 
       lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
       lastError = event.message.errorMessage?.trim().slice(0, 500) || undefined
+
+      return terminalReason ? { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) } : undefined
     }
 
     if (event.type === "agent_settled") {
@@ -133,6 +137,18 @@ export function createEventNormalizer() {
       interrupted = true
     },
   }
+}
+
+function terminalMessageReason(reason: string) {
+  if (reason === "aborted") {
+    return "aborted" as const
+  }
+
+  if (reason === "error" || reason === "length") {
+    return "error" as const
+  }
+
+  return undefined
 }
 
 function summarizeToolInput(input: unknown, field?: string) {
@@ -212,7 +228,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy), registrar.extension],
+        extensionFactories: [createMessageProtocolExtension(), createPermissionExtension(input.policy), registrar.extension],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,

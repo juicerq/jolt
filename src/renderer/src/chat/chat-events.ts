@@ -6,6 +6,7 @@ import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
   appendChatText,
   appendChatThinking,
+  finishChatMessage,
   finishChatThinking,
   finishChatTool,
   requestChatPermission,
@@ -48,6 +49,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     if (event.type === "started") {
       startChatRun(botId, event.message)
       void invalidateTeam().catch(() => undefined)
+      return
+    }
+
+    if (event.type === "message-finished") {
+      finishChatMessage(botId, event.message)
       return
     }
 

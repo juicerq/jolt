@@ -3,6 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
 import type { BotPermissionMode } from "../../shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
+import { sendMessageTool } from "../../shared/conversations"
 import { connectPluginTool } from "../../shared/plugins"
 import { delegateTool, transferTool } from "../../shared/tasks"
 
@@ -18,7 +19,7 @@ export type PiPermissionPolicy =
   | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
-const exemptTools = new Set([connectPluginTool, delegateTool, transferTool])
+const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, sendMessageTool])
 const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
 const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
 
@@ -27,7 +28,7 @@ export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[])
     return tools
   }
 
-  return tools.filter((tool) => observationTools.has(tool))
+  return tools.filter((tool) => observationTools.has(tool) || tool === sendMessageTool)
 }
 
 export async function pathIsInside(root: string, path: unknown) {

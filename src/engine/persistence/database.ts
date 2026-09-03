@@ -38,6 +38,8 @@ const messageColumns = {
   taskId: messages.taskId,
   content: messages.content,
   images: messages.images,
+  question: messages.question,
+  replyTo: messages.replyTo,
   activity: messages.activity,
   ending: messages.ending,
   error: messages.error,
@@ -121,6 +123,13 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     conversations: {
+      get(messageId: string) {
+        return observability.span({ name: "database.conversationmessageget" }, () => {
+          const row = database.select(messageColumns).from(messages).where(eq(messages.id, messageId)).get()
+
+          return row ? parse(conversationSchemas.message, row) : undefined
+        })
+      },
       history(botId: string, page: { before?: string; limit: number }) {
         return observability.span({ name: "database.conversationhistory", context: { botId } }, () => {
           const cursor = page.before ? database.select({ position: messages.position }).from(messages).where(and(eq(messages.botId, botId), eq(messages.id, page.before))).get() : undefined

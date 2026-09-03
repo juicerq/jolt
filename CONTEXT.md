@@ -108,6 +108,26 @@ _Evitar_: Memória compartilhada, memória do Projeto
 A linha cronológica das mensagens trocadas pelo Bot com a pessoa, o Líder e outros Bots.
 _Evitar_: Log interno, pensamento, raciocínio
 
+**Mensagem**:
+Um envio deliberado e persistido na Conversa do Bot, materializado exclusivamente a partir do conteúdo passado a `send_message`. Um Turno pode produzir várias Mensagens; texto comum do Fornecedor não aparece na Conversa.
+_Evitar_: Turno, Atividade, fragmento de streaming
+
+**Pergunta**:
+Uma Mensagem final em que o Bot apresenta opções conhecidas e espera a escolha da pessoa antes de continuar. A Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
+_Evitar_: Formulário, Pedido de permissão, interrupção
+
+**Resposta**:
+Uma Mensagem da pessoa que escolhe uma Opção de uma Pergunta e inicia um novo Turno. Ela preserva o vínculo com a Pergunta mesmo depois que a Conversa é reaberta.
+_Evitar_: Decisão, retorno da ferramenta
+
+**Opção**:
+Uma escolha estruturada e persistida dentro de uma Pergunta, com valor estável, rótulo e uma descrição opcional.
+_Evitar_: Ação, botão, item do select
+
+**Abertura**:
+A primeira Mensagem de um trabalho com ações. Confirma o que o Bot entendeu e nomeia o primeiro passo antes de qualquer ferramenta executar.
+_Evitar_: Resultado, status genérico
+
 **Atividade**:
 O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
 _Evitar_: Mensagem, pensamento não exposto, raciocínio

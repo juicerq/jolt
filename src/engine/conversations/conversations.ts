@@ -6,7 +6,7 @@ import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "../../shared/routines"
-import { conversationSchemas, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type TurnContext, type TurnEnding } from "../../shared/conversations"
+import { conversationSchemas, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type TurnContext, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
@@ -58,6 +58,7 @@ export function createConversations(input: {
   const compactions = new Map<string, Promise<void>>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const waitingOn = new Map<string, string>()
+  const messageSenders = new Map<string, (content: string, question: MessageQuestion | null) => void>()
   const delegation = createDelegation({
     bots: input.bots,
     tasks: input.tasks,
@@ -70,6 +71,63 @@ export function createConversations(input: {
   const extensions: BotExtension[] = [delegation, ...input.extensions]
 
   closeUnanswered()
+
+  function createMessageTool(botId: string): PiTool {
+    return {
+      name: sendMessageTool,
+      description: "Send one complete message to the person immediately. Call this whenever you want words to appear in the conversation. You may call it several times during one turn.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          content: { type: "string", description: "The complete message the person will receive" },
+          question: {
+            type: "object",
+            description: "A choice the person must make. Sending a question ends your turn.",
+            properties: {
+              options: {
+                type: "array",
+                minItems: 2,
+                maxItems: 12,
+                items: {
+                  type: "object",
+                  properties: {
+                    value: { type: "string", description: "A short stable value for this option" },
+                    label: { type: "string", description: "The option shown to the person" },
+                    description: { type: "string", description: "Optional detail that distinguishes this option" },
+                  },
+                  required: ["value", "label"],
+                  additionalProperties: false,
+                },
+              },
+              allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
+            },
+            required: ["options", "allowOther"],
+            additionalProperties: false,
+          },
+        },
+        required: ["content"],
+        additionalProperties: false,
+      },
+      async execute(params: Record<string, unknown>) {
+        const { content, question = null } = parse(conversationSchemas.messageToolInput, params)
+        const send = messageSenders.get(botId)
+
+        if (question && new Set(question.options.map((option) => option.value)).size !== question.options.length) {
+          throw new Error("Question option values must be unique")
+        }
+
+        if (!send) {
+          throw new Error("No active conversation turn")
+        }
+
+        send(content, question)
+
+        return question
+          ? "Question sent. Stop now and wait for the person to answer in a new turn."
+          : "Message sent. If this completed the request, stop now without writing a confirmation."
+      },
+    }
+  }
 
   function workingDirectoryInstructions(bot: Bot) {
     const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
@@ -95,7 +153,7 @@ export function createConversations(input: {
     const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
 
     for (const message of unanswered) {
-      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", images: [], activity: null, ending: "closed", createdAt: new Date().toISOString() })
+      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", images: [], question: null, replyTo: null, activity: null, ending: "closed", createdAt: new Date().toISOString() })
     }
 
     input.observability.event({ name: "conversation.closeunanswered", attributes: { count: unanswered.length } })
@@ -113,7 +171,7 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const customTools = extensions.flatMap((extension) => extension.tools(bot))
+    const customTools = [createMessageTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
     const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
     const instructions = [
       `You are ${bot.name}, a Bot inside Jolt.`,
@@ -152,7 +210,7 @@ export function createConversations(input: {
   }
 
   function incoming(message: ConversationMessage): IncomingMessage {
-    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content, images: message.images }
+    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content, images: message.images, replyTo: message.replyTo }
   }
 
   function contextFor(message: ConversationMessage, routine?: RoutineCall): TurnContext {
@@ -283,7 +341,7 @@ export function createConversations(input: {
     const settled = new Promise<void>((resolve) => {
       settle = resolve
     })
-    const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, taskId: message.taskId ?? current?.message.taskId ?? null, activity: null, ending: null, createdAt: new Date().toISOString() }
+    const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, taskId: message.taskId ?? current?.message.taskId ?? null, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
     active.set(botId, { message: opened, settled })
 
     return {
@@ -328,13 +386,21 @@ export function createConversations(input: {
 
     const queue = createQueue<ConversationEvent>()
     let finished = false
-    let response = ""
+    let responseBytes = 0
+    let terminalMessageFinished = false
     const activity = createConversationActivityRecorder(incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
+    messageSenders.set(botId, (content, question) => publishMessage(content, null, undefined, question))
     input.observability.event({ name: "conversation.started", context: { botId, provider: "codex" } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === sendMessageTool) {
+        eventCount++
+
+        return
+      }
+
       let deliveredEvent = activity.record(runtimeEvent)
 
       eventCount++
@@ -344,12 +410,20 @@ export function createConversations(input: {
         input.observability.event({ name: "conversation.firstevent", context: { botId, provider: "codex" } })
       }
 
-      if (deliveredEvent.type === "started") {
-        response = ""
+      if (deliveredEvent.type === "text") {
+        return
       }
 
-      if (deliveredEvent.type === "text") {
-        response += deliveredEvent.text
+      if (deliveredEvent.type === "message-finished") {
+        const ending = runtimeEvent.type === "message-finished" && runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
+        const error = runtimeEvent.type === "message-finished" ? runtimeEvent.error : undefined
+
+        if (ending) {
+          publishMessage("", ending, error)
+        }
+        terminalMessageFinished = ending !== null
+
+        return
       }
 
       if (deliveredEvent.type === "finished") {
@@ -374,38 +448,55 @@ export function createConversations(input: {
     function finish(reason: FinishReason, error?: unknown) {
       const ending = turnEndings[reason]
       const errorMessage = reason === "error" ? describeError(error) : undefined
-      const worthKeeping = ending !== null || response.length > 0
 
-      if (worthKeeping) {
-        try {
-          input.database.conversations.append({
-            id: crypto.randomUUID(),
-            botId,
-            author: "bot",
-            authorBotId: botId,
-            taskId: turn.message.taskId,
-            content: response,
-            images: [],
-            activity: activity.snapshot(),
-            ending,
-            ...(errorMessage ? { error: errorMessage } : {}),
-            createdAt: new Date().toISOString(),
-          })
-        } catch (persistError) {
-          input.observability.event({ name: "conversation.persistencefailed", context: { botId, provider: "codex" }, error: persistError })
-        }
+      if (!terminalMessageFinished && ending) {
+        publishMessage("", ending, errorMessage)
       }
 
       finished = true
       input.observability.event({
         name: "conversation.finished",
-        attributes: { state: reason, count: eventCount, bytes: Buffer.byteLength(response) },
+        attributes: { state: reason, count: eventCount, bytes: responseBytes },
         context: { botId, provider: "codex" },
         ...(error ? { error } : {}),
       })
       turn.release()
+      messageSenders.delete(botId)
       unsubscribe()
       options?.signal?.removeEventListener("abort", interrupt)
+    }
+
+    function publishMessage(content: string, ending: TurnEnding | null, error?: string, question: MessageQuestion | null = null) {
+      const message: ConversationMessage = {
+        id: crypto.randomUUID(),
+        botId,
+        author: "bot",
+        authorBotId: botId,
+        taskId: turn.message.taskId,
+        content,
+        images: [],
+        question,
+        replyTo: null,
+        activity: activity.takeSnapshot(),
+        ending,
+        ...(error ? { error } : {}),
+        createdAt: new Date().toISOString(),
+      }
+
+      try {
+        input.database.conversations.append(message)
+      } catch (persistError) {
+        input.observability.event({ name: "conversation.persistencefailed", context: { botId, provider: "codex" }, error: persistError })
+      }
+
+      responseBytes += Buffer.byteLength(content)
+
+      const event: ConversationEvent = { type: "message-finished", message }
+
+      queue.push(event)
+      deliver(botId, event)
+
+      return message
     }
 
     while (!finished || queue.size > 0) {
@@ -500,21 +591,34 @@ export function createConversations(input: {
       }
     },
     async send(rawInput: unknown) {
-      const { botId, content, images, mentionedBotIds } = parse(conversationSchemas.sendInput, rawInput)
-      const empty = content.length === 0 && images.length === 0
+      const { botId, content, images, replyTo, mentionedBotIds } = parse(conversationSchemas.sendInput, rawInput)
+      const empty = content.length === 0 && images.length === 0 && !replyTo
 
       if (empty) {
         throw new Error("Message is empty")
+      }
+
+      let resolvedContent = content
+
+      if (replyTo) {
+        const questionMessage = input.database.conversations.get(replyTo.messageId)
+        const option = questionMessage?.question?.options.find((candidate) => candidate.value === replyTo.optionValue)
+
+        if (!questionMessage || questionMessage.botId !== botId || questionMessage.author !== "bot" || !option) {
+          throw new Error("Question option is no longer available")
+        }
+
+        resolvedContent = option.label
       }
 
       for (const mentionedBotId of mentionedBotIds) {
         input.bots.addColleague(botId, mentionedBotId)
       }
 
-      await start(botId, { author: "person", authorBotId: null, taskId: null, content, images })
+      await start(botId, { author: "person", authorBotId: null, taskId: null, content: resolvedContent, images, replyTo })
     },
     async call(routine: RoutineCall) {
-      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [] }, { routine })
+      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [], replyTo: null }, { routine })
     },
     async abort(rawInput: unknown) {
       const { botId } = parse(conversationSchemas.botInput, rawInput)
