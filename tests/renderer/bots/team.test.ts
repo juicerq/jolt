@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { findTeamBot, teamNames, teamOf } from "@src/renderer/src/bots/team"
+import { findTeamBot, teamAvatarIdentities, teamNames, teamOf } from "@src/renderer/src/bots/team"
 import type { ProjectGroups } from "@src/shared/projects"
 import type { Bot } from "@src/shared/bots"
 
 function bot(id: string, name: string, leaderBotId: string | null = null, closed = false): Bot {
-  return { id, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed, colleagueIds: [] }
+  return { id, avatarSeed: `jolt:new:${name}`, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed, colleagueIds: [] }
 }
 
 const groups: ProjectGroups = {
@@ -24,6 +24,11 @@ describe("Team", () => {
   test("names every Bot of the team", () => {
     expect(teamNames(groups)).toEqual({ l1: "Coordenador", m1: "Pesquisador", m2: "Redator", u1: "Leve" })
     expect(teamNames(undefined)).toEqual({})
+  })
+
+  test("keeps the avatar identity with every Bot name", () => {
+    expect(teamAvatarIdentities(groups).m1).toEqual({ name: "Pesquisador", avatarSeed: "jolt:new:Pesquisador" })
+    expect(teamAvatarIdentities(undefined)).toEqual({})
   })
 
   test("a team has the leader and only the open members", () => {

@@ -8,12 +8,12 @@ import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
 import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
+import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { lineClassName, revealClassName } from "./bot-form"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
 import { BotPlugins } from "./bot-plugins"
-import { BotSettingsSection } from "./bot-settings-section"
 import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { WorkspaceHint } from "./workspace-hint"
@@ -97,7 +97,7 @@ export function BotSettings({ bot, client, onClose, onOpenRoutines, onOpenMemory
     <BotPage label={`Configurações de ${bot.name}`} footer={change ? <BotPageSaveBar form="bot-settings" complete={change.complete} saving={saving} {...(saveError ? { failure: `Falha ao salvar o Bot: ${saveError.message}` } : {})} onDiscard={() => setDraft(draftOf(bot))} /> : undefined}>
       <form className="flex flex-col gap-8" id="bot-settings" onSubmit={handleSubmit}>
         <header className="flex items-center gap-4">
-          <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={`jolt:${bot.id}:${bot.name}`} size={64} alt="" />
+          <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={bot.avatarSeed} size={64} alt="" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <label className="sr-only" htmlFor="bot-settings-name">Nome</label>
             <input className={`${headerLineClassName} text-title font-semibold text-primary placeholder:font-normal`} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} />
@@ -105,15 +105,15 @@ export function BotSettings({ bot, client, onClose, onOpenRoutines, onOpenMemory
             <input className={`${headerLineClassName} text-control font-medium text-secondary`} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" title="Resultado esperado" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} />
           </div>
         </header>
-        <BotSettingsSection title="Função">
+        <SettingsSection title="Função">
           <Field label="Descrição" optional><textarea className={`${fieldControlClassName} field-sizing-content max-h-48 min-h-20 resize-none font-normal`} placeholder="Responsabilidades, limites e forma de entrega" rows={3} value={draft.description} disabled={confirmingRemoval} onChange={(event) => patch({ description: event.target.value })} /></Field>
-        </BotSettingsSection>
-        <BotSettingsSection title="Trabalho">
+        </SettingsSection>
+        <SettingsSection title="Trabalho">
           {leader
             ? (
               <Field label="Vínculo" as="div">
                 <div className="flex items-center gap-3">
-                  <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:${leader.id}:${leader.name}`} size={32} alt="" />
+                  <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={leader.avatarSeed} size={32} alt="" />
                   <p className="m-0 text-control font-medium text-secondary">Integrante de {leader.name}</p>
                 </div>
               </Field>
@@ -130,7 +130,7 @@ export function BotSettings({ bot, client, onClose, onOpenRoutines, onOpenMemory
             <DirectoryPicker value={draft.workingDirectoryOverride} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => patch({ workingDirectoryOverride: "" })} />
             <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={draft.workingDirectoryOverride} />
           </Field>
-        </BotSettingsSection>
+        </SettingsSection>
         {failure && <p className="m-0 text-support text-status-error">Falha nas configurações: {failure}</p>}
       </form>
       <div className="flex gap-2">

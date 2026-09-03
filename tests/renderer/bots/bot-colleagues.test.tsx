@@ -5,7 +5,7 @@ import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 
 function bot(id: string, name: string, colleagueIds: string[] = []): Bot {
-  return { id, leaderBotId: null, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed: false, colleagueIds }
+  return { id, avatarSeed: `jolt:new:${name}`, leaderBotId: null, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed: false, colleagueIds }
 }
 
 const atlas = bot("atlas", "Atlas", ["emailer", "ghost"])

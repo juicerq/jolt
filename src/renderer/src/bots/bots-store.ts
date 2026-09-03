@@ -1,4 +1,5 @@
 import { Store } from "@tanstack/react-store"
+import { defaultBotAvatarSeed, randomBotAvatarSeed } from "../../../shared/bot-avatar"
 import { beginConversationOpen } from "../chat/chat-open-span"
 
 export type BotRoute =
@@ -8,12 +9,17 @@ export type BotRoute =
   | { name: "memory" }
   | { name: "routine"; id: "new" | string }
 
+export type BotDraft = {
+  avatarSeed: string | null
+  name: string
+}
+
 type BotsState = {
   selectedBotId: string | null
   botRoute: BotRoute
-  draft: { name: string } | null
+  draft: BotDraft | null
   dialog: "create-project" | null
-  screen: "plugins" | null
+  screen: "plugins" | "settings" | null
 }
 
 export const botsStore = new Store<BotsState>({
@@ -40,7 +46,11 @@ export function openPlugins() {
   botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
 }
 
-export function closePlugins() {
+export function openSettings() {
+  botsStore.setState((state) => ({ ...state, screen: "settings", draft: null, dialog: null }))
+}
+
+export function closeWorkspaceScreen() {
   botsStore.setState((state) => ({ ...state, screen: null }))
 }
 
@@ -49,11 +59,20 @@ export function forgetBot(botId: string) {
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { name: "" }, screen: null }))
+  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { avatarSeed: null, name: "" }, screen: null }))
 }
 
 export function nameDraft(name: string) {
-  botsStore.setState((state) => ({ ...state, draft: { name } }))
+  botsStore.setState((state) => ({ ...state, draft: state.draft ? { ...state.draft, name } : null }))
+}
+
+export function regenerateDraftAvatar() {
+  const avatarSeed = randomBotAvatarSeed()
+  botsStore.setState((state) => ({ ...state, draft: state.draft ? { ...state.draft, avatarSeed } : null }))
+}
+
+export function botDraftAvatarSeed(draft: BotDraft) {
+  return draft.avatarSeed ?? defaultBotAvatarSeed(draft.name)
 }
 
 export function discardDraft() {

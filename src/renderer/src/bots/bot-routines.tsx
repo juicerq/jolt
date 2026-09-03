@@ -4,9 +4,9 @@ import type { Bot } from "../../../shared/bots"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
+import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
-import { BotSettingsSection } from "./bot-settings-section"
 import { describeFrequency } from "./routine-frequency"
 
 export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: Bot; client: EngineClient; onClose: () => void; onCreate: () => void; onEdit: (id: string) => void }) {
@@ -25,7 +25,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
   return (
     <BotPage label={`Rotinas de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
-      <BotSettingsSection title="Rotinas">
+      <SettingsSection title="Rotinas">
         {routines?.length === 0 && <p className="m-0 text-support text-muted">Nenhuma Rotina. {bot.name} só trabalha quando você chama.</p>}
         {routines && routines.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
@@ -39,7 +39,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
                 {(routine.status === "active" || routine.status === "paused") && <IconButton iconSize={14} size={28} type="button" disabled={busy} label={routine.status === "active" ? "Pausar Rotina" : "Retomar Rotina"} onClick={() => update({ id: routine.id, name: routine.name, content: routine.content, frequency: routine.frequency, status: routine.status === "active" ? "paused" : "active" })}>{routine.status === "active" ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>}
                 <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Editar Rotina" onClick={() => onEdit(routine.id)}><PencilIcon aria-hidden="true" /></IconButton>
                 <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Remover Rotina" onClick={() => {
-                  if ((routine.status === "completed" || window.confirm("Remover a Rotina e todas as suas execuções futuras?"))) {
+                  if (routine.status === "completed" || window.confirm("Remover a Rotina e todas as suas execuções futuras?")) {
                     remove({ id: routine.id })
                   }
                 }}><TrashIcon aria-hidden="true" /></IconButton>
@@ -49,7 +49,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
         )}
         <Button className="inline-flex items-center gap-2 self-start" variant="secondary" type="button" disabled={busy} onClick={onCreate}><PlusIcon className="size-4" aria-hidden="true" />Nova Rotina</Button>
         {failure && <p className="m-0 text-support text-status-error">Falha nas Rotinas: {failure}</p>}
-      </BotSettingsSection>
+      </SettingsSection>
     </BotPage>
   )
 }

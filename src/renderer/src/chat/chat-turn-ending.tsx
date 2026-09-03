@@ -7,11 +7,13 @@ const labels: Record<TurnEnding, (botName: string) => string> = {
   closed: (botName) => `O app fechou durante a resposta de ${botName}`,
 }
 
-export function ChatTurnEnding({ botName, ending }: { botName: string; ending: TurnEnding }) {
+export function ChatTurnEnding({ botName, ending, error }: { botName: string; ending: TurnEnding; error?: string }) {
+  const detail = ending === "failed" && error ? `: ${error}` : ""
+
   return (
-    <p className="m-0 mt-3 grid w-fit grid-cols-[16px_auto] items-center gap-[7px] text-support text-muted [&_svg]:stroke-[1.75]">
+    <p className="m-0 mt-3 grid w-fit max-w-[720px] grid-cols-[16px_auto] items-center gap-[7px] text-support text-muted [&_svg]:stroke-[1.75]">
       <NoSymbolIcon className="size-4" aria-hidden="true" />
-      <span>{labels[ending](botName)}</span>
+      <span>{labels[ending](botName)}{detail}</span>
     </p>
   )
 }

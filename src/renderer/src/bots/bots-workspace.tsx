@@ -2,6 +2,7 @@ import { useSelector } from "@tanstack/react-store"
 import { PluginsScreen } from "../plugins/plugins-screen"
 import { CreateProjectDialog } from "../projects/create-project-dialog"
 import { ProjectsSidebar } from "../projects/projects-sidebar"
+import { SettingsScreen } from "../settings/settings-screen"
 import type { EngineClient } from "../engine-client"
 import { BotChat } from "./bot-chat"
 import { botsStore } from "./bots-store"
@@ -18,8 +19,12 @@ export function BotsWorkspace({ client }: { client: EngineClient }) {
       return <PluginsScreen client={client} />
     }
 
+    if (screen === "settings") {
+      return <SettingsScreen />
+    }
+
     if (draft) {
-      return <NewBot client={client} />
+      return <NewBot client={client} draft={draft} />
     }
 
     return <BotChat key={selectedBotId ?? "no-bot"} client={client} botId={selectedBotId} />

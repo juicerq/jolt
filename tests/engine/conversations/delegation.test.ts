@@ -99,8 +99,8 @@ function setup() {
 
   async function team() {
     const leader = await bots.create({ name: "Atlas", provider: "codex", function: botFunction })
-    const member = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
-    const other = database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const member = database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Calo", leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const other = database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Dara", leaderBotId: leader.id, projectId: null, name: "Dara", provider: "codex", function: { ...botFunction, outcome: "Telas desenhadas" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
     return { leader, member, other }
   }
@@ -350,7 +350,7 @@ describe("delegation", () => {
   test("a mention refuses a member, a temporary Bot, and the Bot itself", async () => {
     const environment = setup()
     const { leader, member } = await environment.team()
-    const temporary = environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Revisor", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: true, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    const temporary = environment.database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Revisor", leaderBotId: leader.id, projectId: null, name: "Revisor", provider: "codex", function: botFunction, workingDirectoryOverride: null, temporary: true, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
     const other = await environment.bots.create({ name: "Zeta", provider: "codex", function: botFunction })
 
     expect(() => environment.conversations.send({ botId: other.id, content: "@Calo", images: [], mentionedBotIds: [member.id] })).toThrow("Calo is a member of a team and cannot be a Colega")
@@ -523,7 +523,7 @@ describe("delegation", () => {
     await environment.turn(leader.id, "Oi")
 
     expect(environment.sessions.get(leader.id)?.instructions).not.toContain("- Calo")
-    environment.database.bots.create({ id: crypto.randomUUID(), leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+    environment.database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Calo", leaderBotId: leader.id, projectId: null, name: "Calo", provider: "codex", function: { ...botFunction, outcome: "Testes cobertos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
     await environment.turn(leader.id, "Delegue")
 

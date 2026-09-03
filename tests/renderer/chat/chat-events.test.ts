@@ -25,6 +25,8 @@ import { testDirectory } from "../../support/test-directory"
 
 const directory = testDirectory("jolt-chat-events-")
 
+Object.defineProperty(globalThis, "document", { configurable: true, value: { hasFocus: () => true } })
+
 function setup() {
   const system = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), system.observability)

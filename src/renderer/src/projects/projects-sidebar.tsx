@@ -1,16 +1,16 @@
 import { Blobatar } from "@blobatar/react"
-import { ChevronDownIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { useState } from "react"
+import { useId, useRef, useState, type ReactNode } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
-import { botAvatarName } from "../bots/bot-avatar"
-import { botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
+import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
+import { InlineAction } from "../ui/inline-action"
 import { Tooltip, useTooltip } from "../ui/tooltip"
 
 const chatStatusLabels: Record<ChatStatus, string> = {
@@ -31,7 +31,7 @@ const chatStatusClassNames: Record<ChatStatus, string> = {
   error: "bg-status-error",
 }
 
-const teamAvatarPositionClassNames = ["top-0 left-[9px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
+const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
 
 const teamAvatarHoverClassNames = [
   "group-hover/stack:-translate-y-0.5",
@@ -43,6 +43,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
+  const settingsOpen = useSelector(botsStore, (state) => state.screen === "settings")
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const [search, setSearch] = useState("")
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -52,25 +53,21 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 
   return (
     <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
-      <div className="mr-2 mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:mx-0 max-[720px]:self-start max-[720px]:justify-center">
+      <div className="mr-2 mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:hidden">
         <BotSearch value={search} onChange={setSearch} />
         <div className="flex gap-1">
-          <IconButton iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
-            <FolderIcon aria-hidden="true" />
-          </IconButton>
-          <IconButton iconSize={16} size={28} type="button" label="Criar Bot" onClick={openCreateBot}>
-            <UserPlusIcon aria-hidden="true" />
-          </IconButton>
-          <IconButton className={pluginsOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
-            <PuzzlePieceIcon aria-hidden="true" />
-          </IconButton>
+          <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
         </div>
+      </div>
+      <div className="mb-3 hidden grid-cols-2 gap-1 self-center max-[720px]:grid">
+        <CompactBotSearch value={search} onChange={setSearch} />
+        <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
       </div>
       {error && <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>}
       {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
-      {draft && <DraftRow name={draft.name} />}
+      {draft && <DraftRow draft={draft} />}
       {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
-        <SidebarEmpty title="Nenhum Bot">Crie um Bot ou Projeto para começar.</SidebarEmpty>
+        <SidebarEmpty title="Nenhum Bot"><InlineAction type="button" onClick={openCreateBot}>Crie um Bot</InlineAction> ou Projeto para começar.</SidebarEmpty>
       )}
       {data && query && !hasVisibleBots && <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>}
       {visibleData && hasVisibleBots && (
@@ -101,23 +98,92 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
           )}
         </nav>
       )}
+      <SidebarSettingsButton active={settingsOpen} />
     </aside>
   )
 }
 
-function DraftRow({ name }: { name: string }) {
+function SidebarTopActions({ draftOpen, pluginsOpen }: { draftOpen: boolean; pluginsOpen: boolean }) {
+  return (
+    <>
+      <IconButton iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
+        <FolderIcon aria-hidden="true" />
+      </IconButton>
+      <IconButton className={draftOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Criar Bot" aria-pressed={draftOpen} onClick={openCreateBot}>
+        <UserPlusIcon aria-hidden="true" />
+      </IconButton>
+      <IconButton className={pluginsOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
+        <PuzzlePieceIcon aria-hidden="true" />
+      </IconButton>
+    </>
+  )
+}
+
+function CompactBotSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const popoverId = `sidebar-search-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  function handleOpen() {
+    requestAnimationFrame(() => inputRef.current?.focus())
+  }
+
+  return (
+    <>
+      <IconButton className={value ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Buscar Bots" aria-pressed={!!value} popoverTarget={popoverId} tooltipPlacement="right" onClick={handleOpen}>
+        <MagnifyingGlassIcon aria-hidden="true" />
+      </IconButton>
+      <div className="inset-auto top-2 left-24 m-0 w-56 rounded-xl border border-outline bg-surface-raised p-1.5 shadow-[0_2px_6px_rgb(0_0_0/28%),0_12px_32px_rgb(0_0_0/32%)]" id={popoverId} popover="auto" onKeyDown={(event) => event.key === "Escape" && event.stopPropagation()}>
+        <label className="relative flex items-center">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />
+          <input
+            className="box-border h-8 w-full rounded-lg border border-outline bg-canvas py-0 pr-2.5 pl-8 text-control text-primary placeholder:text-muted hover:border-outline-strong focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+            type="search"
+            ref={inputRef}
+            aria-label="Buscar Bots"
+            placeholder="Buscar Bots"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </label>
+      </div>
+    </>
+  )
+}
+
+function SidebarSettingsButton({ active }: { active: boolean }) {
+  const tooltip = useTooltip()
+
+  return (
+    <div className="mr-2 mt-auto pt-2 max-[720px]:mr-0">
+      <button
+        {...tooltip.anchorProps}
+        className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active max-[720px]:justify-center max-[720px]:px-0 ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
+        type="button"
+        aria-label="Configurações"
+        aria-pressed={active}
+        onClick={openSettings}
+      >
+        <Cog6ToothIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="max-[720px]:hidden">Configurações</span>
+      </button>
+      <div className="min-[721px]:hidden"><Tooltip {...tooltip.popoverProps} placement="right">Configurações</Tooltip></div>
+    </div>
+  )
+}
+
+function DraftRow({ draft }: { draft: BotDraft }) {
   return (
     <div className="mr-2 mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
-      <Blobatar className="size-8 min-w-8 rounded-[10px] border border-outline-strong bg-surface-raised" name={`jolt:new:${name}`} size={32} alt="" />
+      <Blobatar className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
-        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{name || "Novo Bot"}</strong>
+        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
       </span>
     </div>
   )
 }
 
-function SidebarEmpty({ children, title }: { children: string; title: string }) {
+function SidebarEmpty({ children, title }: { children: ReactNode; title: string }) {
   return (
     <div className="flex min-h-45 flex-col items-center justify-center gap-1.5 text-center text-support text-secondary">
       <strong className="text-section font-semibold text-primary">{title}</strong>
@@ -243,13 +309,13 @@ function MemberItem({ member, selected, status }: { member: Bot; selected: boole
 }
 
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
-  const avatarSizeClassName = members?.length ? "h-[34px] w-10.5 min-w-10.5" : teamLeader ? "h-[34px] w-10.5 min-w-10.5 items-center justify-center" : "size-8 min-w-8"
+  const avatarSizeClassName = members?.length ? "h-[41px] w-[51px] min-w-[51px]" : teamLeader ? "h-[41px] w-[51px] min-w-[51px] items-center justify-center" : "size-[38px] min-w-[38px]"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
 
   return (
     <button
-      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:justify-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
+      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:flex-col max-[720px]:justify-center max-[720px]:gap-1.5 max-[720px]:px-1.5 ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5 max-[720px]:pr-1.5" : ""}`}
       type="button"
       aria-current={selected ? "true" : undefined}
       onClick={() => selectBot(bot.id)}
@@ -259,7 +325,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
           <span className="relative flex shrink-0">
             <BotAvatar bot={bot} members={members} />
-            <span className={`absolute right-[-2px] bottom-[-2px] z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
+            <span className={`absolute right-0.5 bottom-0.5 z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
           </span>
         </span>
       ) : (
@@ -268,9 +334,9 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         </span>
       )}
       {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
-      <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden text-ellipsis whitespace-nowrap max-[720px]:hidden">
-        <strong className="text-control font-semibold text-primary">{bot.name}</strong>
-        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>
+      <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden max-[720px]:w-full max-[720px]:flex-none max-[720px]:gap-0 max-[720px]:text-center">
+        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary max-[720px]:line-clamp-2 max-[720px]:whitespace-normal max-[720px]:text-metadata max-[720px]:[overflow-wrap:anywhere]">{bot.name}</strong>
+        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted max-[720px]:hidden">{describeMember(bot)}</small>
       </span>
     </button>
   )
@@ -280,9 +346,9 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   if (!members || members.length === 0) {
     return (
       <Blobatar
-        className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus"
-        name={botAvatarName(bot)}
-        size={32}
+        className="grid size-[38px] shrink-0 place-items-center text-support font-extrabold text-focus"
+        name={bot.avatarSeed}
+        size={38}
         alt=""
       />
     )
@@ -291,12 +357,12 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   const avatars = [bot, ...members].slice(0, 3)
 
   return (
-    <span className="group/stack relative block h-[34px] w-10.5 min-w-10.5 shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
+    <span className="group/stack relative block h-[41px] w-[51px] min-w-[51px] shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
       {avatars.map((avatar, index) => (
         <Blobatar
-          className={`absolute size-6 shrink-0 rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
-          name={botAvatarName(avatar)}
-          size={24}
+          className={`absolute size-[29px] shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
+          name={avatar.avatarSeed}
+          size={29}
           alt=""
           key={avatar.id}
         />

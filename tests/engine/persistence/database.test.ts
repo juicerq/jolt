@@ -10,7 +10,7 @@ const directory = testDirectory("jolt-database-")
 function setup() {
   const { observability } = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(directory, "logs"), development: false })
   const database = openDatabase(join(directory, `${crypto.randomUUID()}.sqlite`), observability)
-  const bot = database.bots.create({ id: crypto.randomUUID(), leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: { outcome: "Answer" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
+  const bot = database.bots.create({ id: crypto.randomUUID(), avatarSeed: "jolt:new:Atlas", leaderBotId: null, projectId: null, name: "Atlas", provider: "codex", function: { outcome: "Answer" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: new Date().toISOString() })
 
   return { bot, database, observability }
 }
@@ -24,7 +24,7 @@ describe("database", () => {
       development: false,
     })
     const database = openDatabase(databasePath, observability)
-    expect(database.migrationState()).toEqual(["20260901132949_initial-schema", "20260901184631_routines", "20260901200730_memory", "20260901224322_message-images", "20260901225418_bot-effort", "20260901225922_bot-model", "20260902153823_bot-permission", "20260902190240_plugins", "20260902235222_multi-account-access", "20260903011817_whatsapp-messages", "20260903021111_whatsapp-contacts", "20260903112334_colleagues", "20260903162419_consolidated-routines"])
+    expect(database.migrationState()).toEqual(["20260901132949_initial-schema", "20260901184631_routines", "20260901200730_memory", "20260901224322_message-images", "20260901225418_bot-effort", "20260901225922_bot-model", "20260902153823_bot-permission", "20260902190240_plugins", "20260902235222_multi-account-access", "20260903011817_whatsapp-messages", "20260903021111_whatsapp-contacts", "20260903112334_colleagues", "20260903142103_burly_maestro", "20260903145043_thin_greymalkin", "20260903162419_consolidated-routines"])
     database.close()
     const sqlite = new Database(databasePath)
     const migration = sqlite.query<{ count: number }, []>("select count(*) as count from __drizzle_migrations").get()
@@ -45,12 +45,13 @@ describe("database", () => {
     sqlite.close()
     await observability.flush()
 
-    expect(migration?.count).toBe(13)
+    expect(migration?.count).toBe(15)
     expect(bots?.name).toBe("bots")
     expect(projects?.name).toBe("projects")
     expect(conversations?.name).toBe("conversations")
     expect(messages?.name).toBe("messages")
     expect(botColumns).toContain("function")
+    expect(botColumns).toContain("avatar_seed")
     expect(botColumns).toContain("project_id")
     expect(botColumns).toContain("working_directory_override")
     expect(botColumns).toContain("temporary")

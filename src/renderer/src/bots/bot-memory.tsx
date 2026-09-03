@@ -8,11 +8,11 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
+import { SettingsSection } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
 import { revealClassName } from "./bot-form"
 import { BotPage, BotPageIdentity } from "./bot-page"
-import { BotSettingsSection } from "./bot-settings-section"
 
 const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", bot: "Aprendeu com outro Bot" }
 
@@ -127,10 +127,10 @@ export function BotMemory({ bot, client, leader, onClose }: { bot: Bot; client: 
 
 function TemporaryMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
   return (
-    <BotSettingsSection title="Memória">
+    <SettingsSection title="Memória">
       <p className="m-0 text-support text-muted">Um Integrante temporário não tem Memória própria.{leader && ` Ele lê o que ${leader.name} sabe.`}</p>
       {leader && <TeamMemory leader={leader} client={client} />}
-    </BotSettingsSection>
+    </SettingsSection>
   )
 }
 
@@ -173,15 +173,15 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
 
   if (!bot.memoryEnabled) {
     return (
-      <BotSettingsSection title="Memória" action={toggle}>
+      <SettingsSection title="Memória" action={toggle}>
         <p className="m-0 text-support text-muted">{state}</p>
         {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
-      </BotSettingsSection>
+      </SettingsSection>
     )
   }
 
   return (
-    <BotSettingsSection title="Memória" action={toggle}>
+    <SettingsSection title="Memória" action={toggle}>
       <p className="m-0 text-support text-muted">{state}</p>
       {memories && <MemoryList memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
       {memories && memories.length > 0 && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
@@ -204,6 +204,6 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
       )}
       {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
       {leader && <TeamMemory leader={leader} client={client} />}
-    </BotSettingsSection>
+    </SettingsSection>
   )
 }

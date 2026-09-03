@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { parseArgs } from "node:util"
+import { defaultBotAvatarSeed } from "../../shared/bot-avatar"
 import type { StoredBot } from "../../shared/bots"
 import type { ConversationActivity, ConversationMessage } from "../../shared/conversations"
 import type { Task } from "../../shared/tasks"
@@ -157,6 +158,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
       leaderBotId,
       projectId: null,
       name,
+      avatarSeed: defaultBotAvatarSeed(name),
       provider: "codex",
       function: { outcome: `Entregar o trabalho de ${name} com histórico de carga para medir a interface.` },
       workingDirectoryOverride: null,

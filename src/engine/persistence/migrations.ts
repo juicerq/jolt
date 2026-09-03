@@ -11,6 +11,8 @@ import multiAccountAccess from "../../../drizzle/20260902235222_multi-account-ac
 import whatsappMessages from "../../../drizzle/20260903011817_whatsapp-messages/migration.sql" with { type: "text" }
 import whatsappContacts from "../../../drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
 import colleagues from "../../../drizzle/20260903112334_colleagues/migration.sql" with { type: "text" }
+import botAvatarSeed from "../../../drizzle/20260903142103_burly_maestro/migration.sql" with { type: "text" }
+import messageError from "../../../drizzle/20260903145043_thin_greymalkin/migration.sql" with { type: "text" }
 import consolidatedRoutines from "../../../drizzle/20260903162419_consolidated-routines/migration.sql" with { type: "text" }
 
 export const migrations = [
@@ -26,5 +28,7 @@ export const migrations = [
   { name: "20260903011817_whatsapp-messages", timestamp: 1788398297000, sql: whatsappMessages },
   { name: "20260903021111_whatsapp-contacts", timestamp: 1788401471000, sql: whatsappContacts },
   { name: "20260903112334_colleagues", timestamp: 1788434614000, sql: colleagues },
+  { name: "20260903142103_burly_maestro", timestamp: 1788445263000, sql: botAvatarSeed },
+  { name: "20260903145043_thin_greymalkin", timestamp: 1788447043000, sql: messageError },
   { name: "20260903162419_consolidated-routines", timestamp: 1788459859000, sql: consolidatedRoutines },
 ] satisfies MigrationsJournal

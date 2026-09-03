@@ -4,7 +4,7 @@ import type { Plugin } from "../../../shared/plugins"
 import type { EngineClient } from "../engine-client"
 import { PluginAccountRow } from "../plugins/plugin-account-row"
 import { Switch } from "../ui/switch"
-import { BotSettingsSection } from "./bot-settings-section"
+import { SettingsSection } from "../ui/settings-section"
 
 export function pluginsWithAccounts(plugins: Plugin[]) {
   return plugins.filter((plugin) => plugin.accounts.length > 0)
@@ -46,10 +46,10 @@ export function BotPlugins({ bot, client }: { bot: Bot; client: EngineClient }) 
   const failure = listError?.message ?? grantError?.message
 
   return (
-    <BotSettingsSection title="Plugins">
+    <SettingsSection title="Plugins">
       <p className="m-0 text-support text-muted">{bot.temporary ? `Um Integrante temporário usa só as Contas que o Líder passou ao contratar.` : `${bot.name} usa as Contas que você ligar aqui. A Permissão do Bot vale para essas ferramentas também.`}</p>
       {data && <BotPluginList bot={bot} plugins={data.plugins} busy={isPending || bot.temporary} onGrant={(accountId, granted) => grant({ botId: bot.id, accountId, granted })} />}
       {failure && <p className="m-0 text-support text-status-error">Falha nos Plugins: {failure}</p>}
-    </BotSettingsSection>
+    </SettingsSection>
   )
 }

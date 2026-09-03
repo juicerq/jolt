@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query"
 import type { BotConversationEvent, FinishReason } from "../../../shared/conversations"
+import { findTeamBot } from "../bots/team"
 import type { EngineClient } from "../engine-client"
 import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
@@ -16,6 +17,7 @@ import {
   startChatThinking,
   startChatTool,
 } from "./chat-store"
+import { alertTurnFinished } from "./turn-alert"
 
 const reconnectDelayMs = 1_000
 const chunkFlushDelayMs = 100
@@ -90,12 +92,18 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       return
     }
 
+    const projectsQuery = client.query.projects.list.queryOptions()
+    const bot = findTeamBot(queryClient.getQueryData(projectsQuery.queryKey), botId)
+    const response = settleChatRun(botId, settledStatuses[event.reason])
+
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       invalidateTeam(),
+      alertTurnFinished({ bot, reason: event.reason, response, ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
+        console.error("O aviso do turno falhou", alertError)
+      }),
     ])
-    settleChatRun(botId, settledStatuses[event.reason])
   }
 
   async function invalidateTeam() {

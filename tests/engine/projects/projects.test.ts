@@ -57,6 +57,7 @@ describe("projects", () => {
       leaderBotId: assigned.id,
       projectId: project.id,
       name: "Calo",
+      avatarSeed: "jolt:new:Calo",
       provider: "codex",
       function: botInput.function,
       workingDirectoryOverride: null,

@@ -40,6 +40,7 @@ const messageColumns = {
   images: messages.images,
   activity: messages.activity,
   ending: messages.ending,
+  error: messages.error,
   createdAt: messages.createdAt,
 }
 

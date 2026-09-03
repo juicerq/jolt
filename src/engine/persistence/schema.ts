@@ -20,6 +20,7 @@ export const bots = snakeCase.table("bots", {
   leaderBotId: text().references((): AnySQLiteColumn => bots.id, { onDelete: "cascade" }),
   projectId: text().references(() => projects.id, { onDelete: "set null" }),
   name: text().notNull(),
+  avatarSeed: text().notNull(),
   provider: text({ enum: ["codex"] }).notNull(),
   function: text({ mode: "json" }).$type<StoredBot["function"]>().notNull(),
   workingDirectoryOverride: text(),
@@ -71,6 +72,7 @@ export const messages = snakeCase.table("messages", {
   images: text({ mode: "json" }).$type<ConversationMessage["images"]>().notNull().default(sql`'[]'`),
   activity: text({ mode: "json" }).$type<ConversationMessage["activity"]>(),
   ending: text({ enum: ["aborted", "failed", "closed"] }).$type<ConversationMessage["ending"]>(),
+  error: text(),
   createdAt: text().notNull(),
 }, (table) => [
   index("messages_bot_position").on(table.botId, table.position),

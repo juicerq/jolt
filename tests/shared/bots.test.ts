@@ -12,7 +12,7 @@ const input = {
 
 describe("bot boundary", () => {
   test("a stored Bot carries its Esforço and the update input only accepts the three levels", () => {
-    const stored = { id: "b1", leaderBotId: null, projectId: null, name: "Marina", provider: "codex" as const, function: { outcome: "Contratos prontos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "high" as const, model: null, permissionMode: "ask" as const, createdAt: "2026-09-01T12:00:00.000Z" }
+    const stored = { id: "b1", avatarSeed: "jolt:b1:Marina", leaderBotId: null, projectId: null, name: "Marina", provider: "codex" as const, function: { outcome: "Contratos prontos" }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "high" as const, model: null, permissionMode: "ask" as const, createdAt: "2026-09-01T12:00:00.000Z" }
 
     expect(botSchemas.storedBot.parse(stored)).toEqual(stored)
     expect(() => botSchemas.storedBot.parse({ ...stored, effort: "off" })).toThrow()
@@ -27,6 +27,12 @@ describe("bot boundary", () => {
       projectId: "project-1",
       workingDirectoryOverride: "/projects/jolt",
     })
+  })
+
+  test("accepts the avatar chosen while creating a Bot", () => {
+    const avatarSeed = `jolt:${crypto.randomUUID()}`
+
+    expect(botSchemas.createInput.parse({ ...input, avatarSeed })).toEqual({ ...input, avatarSeed })
   })
 
   test("accepts a Função without a description and rejects the old four fields", () => {

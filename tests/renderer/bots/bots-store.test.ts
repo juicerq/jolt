@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, discardDraft, forgetBot, nameDraft, openBotRoute, openCreateBot, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botDraftAvatarSeed, botsStore, discardDraft, forgetBot, nameDraft, openBotRoute, openCreateBot, regenerateDraftAvatar, selectBot } from "@src/renderer/src/bots/bots-store"
 
 describe("Bot draft", () => {
   beforeEach(() => {
@@ -10,22 +10,43 @@ describe("Bot draft", () => {
     selectBot("revisor")
     openCreateBot()
 
-    expect(botsStore.state).toEqual({ selectedBotId: "revisor", botRoute: { name: "chat" }, draft: { name: "" }, dialog: null, screen: null })
+    expect(botsStore.state.selectedBotId).toBe("revisor")
+    expect(botsStore.state.draft?.name).toBe("")
+    expect(botsStore.state.draft?.avatarSeed).toBeNull()
   })
 
   test("naming the draft keeps the name for the sidebar", () => {
     openCreateBot()
     nameDraft("Testador")
 
-    expect(botsStore.state.draft).toEqual({ name: "Testador" })
+    expect(botsStore.state.draft?.name).toBe("Testador")
+  })
+
+  test("the default avatar follows the Bot name", () => {
+    openCreateBot()
+    nameDraft("Testador")
+
+    expect(botDraftAvatarSeed(botsStore.state.draft!)).toBe("jolt:new:Testador")
   })
 
   test("creating a Bot again keeps the draft in progress", () => {
     openCreateBot()
     nameDraft("Testador")
+    const avatarSeed = botsStore.state.draft!.avatarSeed
     openCreateBot()
 
-    expect(botsStore.state.draft).toEqual({ name: "Testador" })
+    expect(botsStore.state.draft).toEqual({ avatarSeed, name: "Testador" })
+  })
+
+  test("generating another avatar keeps the draft and changes its stable seed", () => {
+    openCreateBot()
+    nameDraft("Testador")
+    const firstSeed = botDraftAvatarSeed(botsStore.state.draft!)
+
+    regenerateDraftAvatar()
+
+    expect(botsStore.state.draft?.name).toBe("Testador")
+    expect(botDraftAvatarSeed(botsStore.state.draft!)).not.toBe(firstSeed)
   })
 
   test("discarding the draft returns to the selected Bot", () => {

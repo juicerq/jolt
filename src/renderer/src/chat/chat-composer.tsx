@@ -4,7 +4,6 @@ import { useSelector } from "@tanstack/react-store"
 import { type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent, useId, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { MessageImage } from "../../../shared/conversations"
-import { botAvatarName } from "../bots/bot-avatar"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
@@ -37,7 +36,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
   const choices: ChatMenuChoice[] = suggestions.length > 0
     ? suggestions.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
-    : mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: botAvatarName({ id: mention.botId, name: mention.name }) }))
+    : mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
   const menuOpen = choices.length > 0 && draft.content !== dismissedContent && !run
   const active = Math.min(highlighted, choices.length - 1)
   const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
@@ -105,7 +104,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     const mention = mentions[index]
 
     if (mention) {
-      addChatDraftMention(bot.id, applyChatMention(draft.content, mention), { botId: mention.botId, name: mention.name })
+      addChatDraftMention(bot.id, applyChatMention(draft.content, mention), { botId: mention.botId, name: mention.name, avatarSeed: mention.avatarSeed })
     }
   }
 

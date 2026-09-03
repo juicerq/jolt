@@ -6,10 +6,10 @@ import { weekdays } from "../../../shared/weekdays"
 import type { EngineClient } from "../engine-client"
 import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
+import { SettingsSection } from "../ui/settings-section"
 import { ToggleChip } from "../ui/toggle-chip"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
-import { BotSettingsSection } from "./bot-settings-section"
 import { emptyRoutineDraft, frequencyForms, frequencyOf, routineDraftOf, type RoutineDraft } from "./routine-draft"
 import { weekdayLabels } from "./routine-frequency"
 
@@ -91,11 +91,11 @@ function RoutineForm({ bot, creating, initial, pending, failure, submitLabel, on
     <BotPage label={`${submitLabel} de ${bot.name}`} footer={footer}>
       <BotPageIdentity bot={bot} />
       <form className="flex flex-col gap-8" id="routine-editor" onSubmit={handleSubmit}>
-        <BotSettingsSection title="Rotina">
+        <SettingsSection title="Rotina">
           <Field label="Nome"><input className={fieldControlClassName} autoFocus placeholder="Verificação comercial" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></Field>
           <Field label="Pedido"><textarea className={`${fieldControlClassName} field-sizing-content max-h-40 min-h-20 resize-none font-normal`} placeholder="Verifique a caixa de entrada e me avise do que precisa de resposta" rows={3} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} /></Field>
           <Field label="Frequência" as="div">
-            <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[1000px]:grid-cols-[1fr_auto]">
               <label>
                 <span className="sr-only">Forma da Frequência</span>
                 <Select value={draft.form} onChange={(event) => setDraft({ ...draft, form: frequencyForms[event.target.value] ?? "interval" })}>
@@ -115,7 +115,7 @@ function RoutineForm({ bot, creating, initial, pending, failure, submitLabel, on
             )}
             {draft.form === "interval" && <div className="grid grid-cols-2 gap-2"><Field label="Das"><input className={fieldControlClassName} type="time" value={draft.startTime} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} /></Field><Field label="Até"><input className={fieldControlClassName} type="time" value={draft.endTime} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} /></Field></div>}
           </Field>
-        </BotSettingsSection>
+        </SettingsSection>
       </form>
     </BotPage>
   )

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { renderToStaticMarkup } from "react-dom/server"
 import { ChatEditor } from "@src/renderer/src/chat/chat-editor"
 
-const mentions = [{ botId: "emailer", name: "Emailer" }]
+const mentions = [{ botId: "emailer", name: "Emailer", avatarSeed: "jolt:new:Emailer" }]
 
 function markup(content: string) {
   return renderToStaticMarkup(

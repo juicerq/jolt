@@ -5,7 +5,7 @@ Este contexto define como uma pessoa cria Bots, conversa com eles e permite que 
 ## Linguagem
 
 **Bot**:
-Um participante com identidade, Função, contexto, memória e histórico próprios. Um Bot pode existir sem pertencer a um Projeto ou Time.
+Um participante com identidade, Função, contexto, memória e histórico próprios. A pessoa cria um Bot apenas com o nome e pode definir sua Função depois; um Bot pode existir sem pertencer a um Projeto ou Time.
 _Evitar_: Agente, assistente
 
 **Líder**:
@@ -111,6 +111,10 @@ _Evitar_: Log interno, pensamento, raciocínio
 **Atividade**:
 O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
+
+**Detalhes do trabalho**:
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Jolt, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+_Evitar_: Passos do agente, apagar Atividade, Mensagem
 
 **Duração do pensamento**:
 A soma dos períodos em que o Fornecedor do Bot sinaliza pensamento durante uma execução. Ela só existe quando o Fornecedor expõe esse estado.
