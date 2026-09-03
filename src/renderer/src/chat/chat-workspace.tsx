@@ -25,7 +25,8 @@ import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 import { earlierMessageBatch, flattenHistory, historyPageInput, olderHistoryPage, recentMessageLimit, windowHistory } from "./chat-history-window"
 import { ChatMemberResult, memberResultKind } from "./chat-member-result"
-import { mentionedBotIds } from "./chat-mentions"
+import { ChatMentionChip } from "./chat-mention-chip"
+import { type ChatMention, knownChatMentions, mentionedBotIds, splitChatMentions } from "./chat-mentions"
 import { ChatPermissionRequest } from "./chat-permission-request"
 import { finishConversationOpen } from "./chat-open-span"
 import { ChatRoutineCall } from "./chat-routine-call"
@@ -138,7 +139,7 @@ function ChatMessage({ bot, message, names, tasks }: { bot: Bot; message: Conver
   const time = formatMessageTime(message.createdAt)
 
   if (message.author === "person") {
-    return <PersonBubble time={time} content={message.content} images={message.images} />
+    return <PersonBubble time={time} content={message.content} images={message.images} mentions={knownChatMentions(names)} />
   }
 
   return (
@@ -152,7 +153,7 @@ function ChatMessage({ bot, message, names, tasks }: { bot: Bot; message: Conver
   )
 }
 
-function PersonBubble({ time, content, images }: { time: string; content: string; images: MessageImage[] }) {
+function PersonBubble({ time, content, images, mentions }: { time: string; content: string; images: MessageImage[]; mentions: ChatMention[] }) {
   return (
     <ChatStamped className="flex max-w-[min(640px,84%)] flex-col gap-2 self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" name="Você" time={time} side="left" anchor="bubble">
       {images.length > 0 && (
@@ -160,14 +161,18 @@ function PersonBubble({ time, content, images }: { time: string; content: string
           {images.map((image, index) => <img key={`${index}-${image.data.length}`} className="block max-h-60 max-w-full rounded-lg border border-outline-strong object-contain" src={messageImageSource(image)} alt={`Imagem ${index + 1}`} />)}
         </div>
       )}
-      {content && <p className="m-0 whitespace-pre-wrap text-body text-primary">{content}</p>}
+      {content && (
+        <p className="m-0 whitespace-pre-wrap text-body text-primary">
+          {splitChatMentions(content, mentions).map((segment, index) => (segment.mention ? <ChatMentionChip key={`${index}-${segment.text}`} mention={segment.mention} /> : segment.text))}
+        </p>
+      )}
     </ChatStamped>
   )
 }
 
 function ChatRunMessage({ bot, names, run, tasks }: { bot: Bot; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
   if (run.message.author === "person") {
-    return <PersonBubble time="Agora" content={run.message.content} images={run.message.images} />
+    return <PersonBubble time="Agora" content={run.message.content} images={run.message.images} mentions={knownChatMentions(names)} />
   }
 
   if (run.message.author === "routine") {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { applyChatMention, mentionCandidates, mentionedBotIds, suggestChatMentions } from "@src/renderer/src/chat/chat-mentions"
+import { applyChatMention, knownChatMentions, mentionCandidates, mentionedBotIds, splitChatMentions, suggestChatMentions } from "@src/renderer/src/chat/chat-mentions"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 
@@ -55,5 +55,35 @@ describe("mentioned Bots on send", () => {
 
     expect(mentionedBotIds("@Emailer manda e @Emailer confirma", mentions)).toEqual(["emailer"])
     expect(mentionedBotIds("sem menção", mentions)).toEqual([])
+  })
+})
+
+describe("splitting a message into mentions", () => {
+  const mentions = [{ botId: "emailer", name: "Emailer" }, { botId: "email", name: "Email" }]
+
+  test("wraps each mention and keeps the text around it", () => {
+    expect(splitChatMentions("use o @Emailer para o Pedro", mentions)).toEqual([
+      { text: "use o " },
+      { text: "@Emailer", mention: { botId: "emailer", name: "Emailer" } },
+      { text: " para o Pedro" },
+    ])
+  })
+
+  test("prefers the longest name so a shorter one never eats it", () => {
+    expect(splitChatMentions("@Emailer", mentions)).toEqual([{ text: "@Emailer", mention: { botId: "emailer", name: "Emailer" } }])
+  })
+
+  test("leaves an unknown name and a bare at sign alone", () => {
+    expect(splitChatMentions("@Ninguem e ana@example.com", mentions)).toEqual([{ text: "@Ninguem e ana@example.com" }])
+  })
+
+  test("returns nothing for an empty message", () => {
+    expect(splitChatMentions("", mentions)).toEqual([])
+  })
+})
+
+describe("known mentions", () => {
+  test("turns the Bot names into mentions", () => {
+    expect(knownChatMentions({ emailer: "Emailer" })).toEqual([{ botId: "emailer", name: "Emailer" }])
   })
 })

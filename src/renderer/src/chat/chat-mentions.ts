@@ -6,6 +6,8 @@ export type ChatMention = { botId: string; name: string }
 
 export type ChatMentionSuggestion = ChatMention & { detail: string }
 
+export type ChatMentionSegment = { text: string; mention?: ChatMention }
+
 const mentionWord = /(?:^|\s)@(\S*)$/
 
 export function mentionCandidates(groups: ProjectGroups | undefined, bot: Pick<Bot, "id" | "name" | "colleagueIds">): ChatMentionSuggestion[] {
@@ -28,6 +30,52 @@ export function applyChatMention(content: string, mention: ChatMention) {
   return content.replace(/@\S*$/, `@${mention.name} `)
 }
 
+export function knownChatMentions(names: Record<string, string>): ChatMention[] {
+  return Object.entries(names).map(([botId, name]) => ({ botId, name }))
+}
+
+export function activeChatMentions(content: string, mentions: ChatMention[]) {
+  const seen = new Set<string>()
+
+  return mentions.filter((mention) => {
+    if (seen.has(mention.botId) || !content.includes(`@${mention.name}`)) {
+      return false
+    }
+
+    seen.add(mention.botId)
+
+    return true
+  })
+}
+
 export function mentionedBotIds(content: string, mentions: ChatMention[]) {
-  return [...new Set(mentions.filter((mention) => content.includes(`@${mention.name}`)).map((mention) => mention.botId))]
+  return activeChatMentions(content, mentions).map((mention) => mention.botId)
+}
+
+export function splitChatMentions(content: string, mentions: ChatMention[]): ChatMentionSegment[] {
+  const longestFirst = [...mentions].sort((first, second) => second.name.length - first.name.length)
+  const segments: ChatMentionSegment[] = []
+  let text = ""
+  let index = 0
+
+  while (index < content.length) {
+    const mention = content[index] === "@" ? longestFirst.find((candidate) => content.startsWith(`@${candidate.name}`, index)) : undefined
+
+    if (!mention) {
+      text += content[index]
+      index += 1
+
+      continue
+    }
+
+    if (text) {
+      segments.push({ text })
+      text = ""
+    }
+
+    segments.push({ text: `@${mention.name}`, mention })
+    index += mention.name.length + 1
+  }
+
+  return text ? [...segments, { text }] : segments
 }

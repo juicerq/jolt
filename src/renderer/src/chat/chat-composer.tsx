@@ -1,7 +1,7 @@
 import { ArrowUpIcon, PaperClipIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useId, useRef, useState } from "react"
+import { type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent, useId, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { MessageImage } from "../../../shared/conversations"
 import { botAvatarName } from "../bots/bot-avatar"
@@ -11,6 +11,7 @@ import { menuCardClassName } from "../ui/menu"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
+import { ChatEditor } from "./chat-editor"
 import { applyChatMention, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
@@ -77,11 +78,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     void handleSend()
   }
 
-  function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
+  function handleChange(content: string) {
     resetCommand()
     setHighlighted(0)
 
-    const started = startCommand(event.target.value)
+    const started = startCommand(content)
 
     if (started) {
       setChatDraftCommand(bot.id, started.command, started.content)
@@ -89,7 +90,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
-    setChatDraftContent(bot.id, event.target.value)
+    setChatDraftContent(bot.id, content)
   }
 
   function pickChoice(index: number) {
@@ -108,7 +109,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     }
   }
 
-  function handleMenuKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+  function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault()
       setHighlighted((active + 1) % choices.length)
@@ -136,7 +137,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     }
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, atStart: boolean) {
     if (event.nativeEvent.isComposing) {
       return
     }
@@ -146,8 +147,6 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
       return
     }
-
-    const atStart = event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === 0
 
     if (draft.command && event.key === "Backspace" && atStart) {
       event.preventDefault()
@@ -162,15 +161,6 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
     event.preventDefault()
     void handleSend()
-  }
-
-  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    if (event.clipboardData.files.length === 0) {
-      return
-    }
-
-    event.preventDefault()
-    void attachFiles(event.clipboardData.files)
   }
 
   function handleDragOver(event: DragEvent<HTMLFormElement>) {
@@ -205,23 +195,20 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
-      <label className="sr-only" htmlFor={`prompt-${bot.id}`}>{draft.command ? `Texto do Comando ${draft.command}` : `Mensagem para ${bot.name}`}</label>
       <div className="order-first col-span-full flex min-w-0 items-start gap-1.5">
         {draft.command && <ChatComposerCommand command={draft.command} disabled={busy} onRemove={() => setChatDraftCommand(bot.id, undefined, draft.content)} />}
-        <textarea
-          className="field-sizing-content box-border max-h-40 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-1 text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none min-h-[25px] py-0"
+        <ChatEditor
           id={`prompt-${bot.id}`}
+          content={draft.content}
+          mentions={draft.mentions}
           placeholder={draft.command ? chatCommandPlaceholders[draft.command] : `Converse com ${bot.name}...`}
-          value={draft.content}
-          rows={1}
+          label={draft.command ? `Texto do Comando ${draft.command}` : `Mensagem para ${bot.name}`}
           disabled={busy}
-          role="combobox"
-          aria-expanded={menuOpen}
-          aria-controls={menuOpen ? menuId : undefined}
-          aria-autocomplete="list"
+          menuOpen={menuOpen}
+          menuId={menuId}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
+          onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
       <ChatModelEffort bot={bot} client={client} disabled={busy} />
@@ -248,7 +235,7 @@ function sendLabel(command: ChatCommand | null, pending: boolean) {
 function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCommandName; disabled: boolean; onRemove(): void }) {
   return (
     <button
-      className="flex h-[25px] shrink-0 items-center gap-1 rounded-md border-0 bg-surface-hover px-2 text-metadata font-medium text-secondary transition-colors duration-150 hover:bg-surface-active hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none [&>svg]:size-3 [&>svg]:stroke-2"
+      className="flex h-[25px] shrink-0 items-center gap-1 rounded-md border border-outline-strong bg-surface-hover px-2 text-metadata font-medium text-secondary transition-colors duration-150 hover:bg-surface-active hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none [&>svg]:size-3 [&>svg]:stroke-2"
       type="button"
       disabled={disabled}
       aria-label={`Remover o Comando ${command}`}
