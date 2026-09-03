@@ -150,6 +150,12 @@ export function createEngineRouter(
           () => bots.remove(input),
         ),
       ),
+      removeColleague: operations.bots.removeColleague.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.botcolleagueremove", context: observationContext(context) },
+          () => bots.removeColleague(input),
+        ),
+      ),
     },
     conversations: {
       history: operations.conversations.history.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
@@ -193,10 +199,10 @@ export function createEngineRouter(
       ),
     },
     tasks: {
-      listForLeader: operations.tasks.listForLeader.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+      listForBot: operations.tasks.listForBot.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.tasklist", context: observationContext(context) },
-          () => tasks.listForLeader(input),
+          () => tasks.listForBot(input),
         ),
       ),
     },

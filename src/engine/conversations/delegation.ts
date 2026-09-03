@@ -1,6 +1,6 @@
 import type { Bot } from "../../shared/bots"
 import type { ConversationEvent, ConversationMessage, IncomingMessage } from "../../shared/conversations"
-import type { Task } from "../../shared/tasks"
+import { delegateTool, transferTool, type Task } from "../../shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
@@ -9,39 +9,45 @@ import type { createTasks } from "../tasks/tasks"
 
 type Outcome = { reason: "stop" | "aborted" | "error"; response: string }
 
+const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
+const calledRule = "Other Bots can send you a Tarefa. Reply directly to whoever sent it. A direct order from the person prevails over any Tarefa; if the person changes or interrupts your work, say so in your reply."
+
 export function createDelegation(input: {
   bots: ReturnType<typeof createBots>
   tasks: ReturnType<typeof createTasks>
   observability: Observability
-  runTurn(botId: string, message: IncomingMessage): AsyncGenerator<ConversationEvent>
+  runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): AsyncGenerator<ConversationEvent>
   active(botId: string): { taskId: string | null } | undefined
+  assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">): void
   inheritance(leader: Bot, references: string | undefined): BotInheritance[]
 }) {
   function members(leader: Pick<Bot, "id">) {
     return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
   }
 
-  function pickMember(leader: Bot, reference: string) {
-    const member = members(leader).find((candidate) => candidate.id === reference || candidate.name === reference)
-
-    if (!member) {
-      const known = reference ? input.bots.get({ id: reference }) : undefined
-
-      throw new Error(`${known?.name ?? (reference || "That Bot")} is not a member of ${leader.name}`)
-    }
-
-    if (input.active(member.id)) {
-      throw new Error(`${member.name} is already working`)
-    }
-
-    return member
+  function targets(bot: Bot) {
+    return [...members(bot), ...input.bots.colleagues(bot)]
   }
 
-  async function handoff(from: Bot, to: Bot, task: Task, content: string): Promise<Outcome> {
-    return input.observability.span({ name: "delegation.turn", context: { botId: to.id, leaderBotId: task.leaderBotId, taskId: task.id } }, async () => {
+  function pickTarget(caller: Bot, candidates: Bot[], reference: string) {
+    const target = candidates.find((candidate) => candidate.id === reference || candidate.name === reference)
+
+    if (!target) {
+      const known = reference ? input.bots.get({ id: reference }) : undefined
+
+      throw new Error(`${known?.name ?? (reference || "That Bot")} is not a member of your team nor a Colega of yours`)
+    }
+
+    input.assertCallable(caller, target)
+
+    return target
+  }
+
+  async function handoff(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal): Promise<Outcome> {
+    return input.observability.span({ name: "delegation.turn", context: { botId: to.id, callerBotId: task.callerBotId, taskId: task.id } }, async () => {
       const outcome: Outcome = { reason: "error", response: "" }
 
-      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, content, images: [] })) {
+      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, content, images: [] }, { signal })) {
         if (event.type === "text") {
           outcome.response += event.text
         }
@@ -79,8 +85,12 @@ export function createDelegation(input: {
 
   const statusByReason = { stop: "done", aborted: "interrupted", error: "failed" } as const
 
-  async function delegate(from: Bot, to: Bot, task: Task, content: string) {
-    const outcome = await handoff(from, to, task, content)
+  async function delegate(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal) {
+    const outcome = await handoff(from, to, task, content, signal).catch((error: unknown) => {
+      input.tasks.finish(task.id, "interrupted")
+
+      throw error
+    })
     input.tasks.finish(task.id, statusByReason[outcome.reason])
 
     return outcome
@@ -92,29 +102,45 @@ export function createDelegation(input: {
     await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome), images: [] }))
   }
 
-  async function assign(from: Bot, to: Bot, params: Record<string, string>) {
-    const task = input.tasks.create({ leaderBotId: from.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
+  async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
+    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
     const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
 
     if (params.wait === "no") {
       void deliverLater(from, to, task, content).catch((error) => {
-        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, leaderBotId: from.id, taskId: task.id }, error })
+        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
       })
 
       return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
     }
 
-    return describe(to, await delegate(from, to, task, content))
+    return describe(to, await delegate(from, to, task, content, signal))
+  }
+
+  function delegateTo(bot: Bot): PiCustomTool {
+    return {
+      name: delegateTool,
+      description: "Create a Tarefa and delegate it to a member of your team or to a Colega. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
+      parameters: {
+        bot: "Name or id of the member or Colega",
+        outcome: "Expected result of the Tarefa",
+        instructions: "Instructions for the Bot",
+        wait: waitParameter,
+      },
+      async execute(params, signal) {
+        return assign(bot, pickTarget(bot, targets(bot), params.bot ?? ""), params, signal)
+      },
+    }
   }
 
   return {
     tools(bot: Bot): PiCustomTool[] {
       if (bot.leaderBotId) {
-        return [{
-          name: "transfer",
-          description: "Hand your current Tarefa to another member of your team when their Function fits it better. The member replies to you; you still answer the Leader.",
-          parameters: { member: "Name or id of the member who receives the Tarefa", instructions: "What the member must do" },
-          async execute(params) {
+        const transfer: PiCustomTool = {
+          name: transferTool,
+          description: "Hand your current Tarefa to another member of your team when their Function fits it better. The member replies to you; you still answer whoever sent you the Tarefa.",
+          parameters: { bot: "Name or id of the member who receives the Tarefa", instructions: "What the member must do" },
+          async execute(params, signal) {
             const taskId = input.active(bot.id)?.taskId
             const task = taskId ? input.tasks.get(taskId) : undefined
 
@@ -128,18 +154,21 @@ export function createDelegation(input: {
               throw new Error("Leader not found")
             }
 
-            const to = pickMember(leader, params.member ?? "")
+            const to = pickTarget(bot, members(leader), params.bot ?? "")
 
             if (to.id === bot.id) {
               throw new Error("You already own this Tarefa")
             }
 
             input.tasks.transfer(task.id, to.id)
-            const outcome = await handoff(bot, to, { ...task, assigneeBotId: to.id }, params.instructions ?? "")
+            const outcome = await handoff(bot, to, { ...task, assigneeBotId: to.id }, params.instructions ?? "", signal)
 
             return describe(to, outcome)
           },
-        }]
+        }
+        const colleagues = input.bots.colleagues(bot)
+
+        return colleagues.length > 0 ? [transfer, delegateTo(bot)] : [transfer]
       }
 
       const hire: PiCustomTool = {
@@ -152,10 +181,10 @@ export function createDelegation(input: {
           permanent: "\"yes\" to keep the member on your team for future Tarefas. \"no\" for a temporary member that closes when this Tarefa ends.",
           outcome: "Expected result of the Tarefa",
           instructions: "Instructions for the member",
-          wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
+          wait: waitParameter,
           "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
         },
-        async execute(params) {
+        async execute(params, signal) {
           const inherited = input.inheritance(bot, params.plugins)
           const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
 
@@ -163,47 +192,48 @@ export function createDelegation(input: {
             inheritance.apply(to)
           }
 
-          return assign(bot, to, params)
+          return assign(bot, to, params, signal)
         },
       }
 
-      return [hire, {
-        name: "delegate",
-        description: "Create a Tarefa and delegate it to one member of your team. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
-        parameters: {
-          member: "Name or id of the member",
-          outcome: "Expected result of the Tarefa",
-          instructions: "Instructions for the member",
-          wait: "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from the member.",
-        },
-        async execute(params) {
-          return assign(bot, pickMember(bot, params.member ?? ""), params)
-        },
-      }]
+      return [hire, delegateTo(bot)]
     },
     instructions(bot: Bot) {
+      const colleagues = input.bots.colleagues(bot)
+      const colleagueLines = colleagues.length > 0
+        ? [
+          "Colegas you can call with the delegate tool, and the outcome each delivers:",
+          ...colleagues.map((colleague) => `- ${colleague.name}: ${colleague.function.outcome}`),
+          "A Colega is not on your team: it follows its own settings and the person can revoke it at any time.",
+        ]
+        : []
+
       if (bot.leaderBotId) {
         const leader = input.bots.get({ id: bot.leaderBotId })
 
         return [
-          `You are a member of the team led by ${leader?.name ?? "your Leader"}. Reply directly to whoever sent you the Tarefa.`,
-          "Authority order: the person, then the Leader, then you. A direct order from the person prevails over the Leader's instructions.",
-          "If the person changes or interrupts your work, say so in your reply to the Leader.",
+          `You are a member of the team led by ${leader?.name ?? "your Leader"}.`,
+          calledRule,
+          "Authority order: the person, then the Leader, then you.",
+          ...colleagueLines,
         ].join("\n")
       }
 
       const team = members(bot)
       const hiring = "Use the hire tool when nobody on your team fits a Tarefa: permanent yes when the Função will be needed again, no for a one-off member. Wait for the reply when you need it before your next step; otherwise continue and the reply arrives later as a message."
-
-      if (team.length === 0) {
-        return [hiring, "You remain responsible for the overall result. Orders from the person prevail over yours."].join("\n")
-      }
+      const teamLines = team.length > 0
+        ? [
+          "You lead a team. Each member and the outcome their Function delivers:",
+          ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
+          "Use the delegate tool to assign a Tarefa to the member whose Function fits it.",
+        ]
+        : []
 
       return [
-        "You lead a team. Each member and the outcome their Function delivers:",
-        ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
-        "Use the delegate tool to assign a Tarefa to the member whose Function fits it.",
+        calledRule,
+        ...teamLines,
         hiring,
+        ...colleagueLines,
         "You remain responsible for the overall result. Orders from the person prevail over yours.",
       ].join("\n")
     },

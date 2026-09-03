@@ -3,6 +3,7 @@ import type { ConversationActivity, IncomingMessage } from "../../../shared/conv
 import type { PermissionRequest } from "../../../shared/permissions"
 import type { PluginRequest } from "../../../shared/plugins"
 import type { ChatCommandName } from "./chat-commands"
+import type { ChatMention } from "./chat-mentions"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
 type ConversationStep = ConversationActivity["steps"][number]
@@ -25,7 +26,7 @@ export type ChatRun = {
   error?: string
 }
 
-export type ChatDraft = Pick<IncomingMessage, "content" | "images"> & { command?: ChatCommandName }
+export type ChatDraft = Pick<IncomingMessage, "content" | "images"> & { mentions: ChatMention[]; command?: ChatCommandName }
 
 type ChatState = {
   drafts: Record<string, ChatDraft>
@@ -35,7 +36,7 @@ type ChatState = {
 
 export type ChatStatus = "available" | "working" | "awaiting-decision" | "waiting" | "completed" | "error"
 
-export const emptyChatDraft: ChatDraft = { content: "", images: [] }
+export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: [] }
 
 export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {} })
 
@@ -44,7 +45,11 @@ export function setChatDraftContent(botId: string, content: string) {
 }
 
 export function setChatDraftCommand(botId: string, command: ChatCommandName | undefined, content: string) {
-  updateDraft(botId, (draft) => ({ images: draft.images, content, ...(command ? { command } : {}) }))
+  updateDraft(botId, (draft) => ({ images: draft.images, mentions: draft.mentions, content, ...(command ? { command } : {}) }))
+}
+
+export function addChatDraftMention(botId: string, content: string, mention: ChatMention) {
+  updateDraft(botId, (draft) => ({ ...draft, content, mentions: [...draft.mentions.filter((known) => known.botId !== mention.botId), mention] }))
 }
 
 export function addChatDraftImages(botId: string, images: ChatDraft["images"]) {

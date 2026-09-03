@@ -188,7 +188,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
   }
 
   function delegatedTurn(leader: StoredBot, member: StoredBot) {
-    const task: Task = { id: crypto.randomUUID(), leaderBotId: leader.id, assigneeBotId: member.id, outcome: pick(random, personPrompts), status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
+    const task: Task = { id: crypto.randomUUID(), callerBotId: leader.id, assigneeBotId: member.id, outcome: pick(random, personPrompts), status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
 
     database.tasks.create(task)
     append({ botId: member.id, author: "bot", authorBotId: leader.id, taskId: task.id, content: task.outcome, images: [], activity: null, ending: null })

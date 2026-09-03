@@ -26,8 +26,8 @@ describe("tasks", () => {
   test("a Tarefa left working by a previous Engine run is interrupted on startup", async () => {
     const environment = setup()
     const before = createTasks({ database: environment.database, observability: environment.observability })
-    const orphan = before.create({ leaderBotId: environment.leader.id, assigneeBotId: environment.member.id, outcome: "Rodar os testes" })
-    const finished = before.finish(before.create({ leaderBotId: environment.leader.id, assigneeBotId: environment.member.id, outcome: "Revisar" }).id, "done")
+    const orphan = before.create({ callerBotId: environment.leader.id, assigneeBotId: environment.member.id, outcome: "Rodar os testes" })
+    const finished = before.finish(before.create({ callerBotId: environment.leader.id, assigneeBotId: environment.member.id, outcome: "Revisar" }).id, "done")
 
     const after = createTasks({ database: environment.database, observability: environment.observability })
 

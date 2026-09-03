@@ -71,13 +71,31 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     return { leaderBotId: null, projectId: input.projectId ?? null, workingDirectoryOverride: input.workingDirectoryOverride ?? null }
   }
 
-  function present(storedBot: StoredBot, workingAssigneeIds = database.tasks.workingAssigneeIds()): Bot {
+  function colleagueIdsByBot(relations = database.colleagues.list()) {
+    const grouped = new Map<string, string[]>()
+
+    for (const relation of relations) {
+      grouped.set(relation.botId, [...(grouped.get(relation.botId) ?? []), relation.colleagueBotId])
+    }
+
+    return grouped
+  }
+
+  function present(storedBot: StoredBot, workingAssigneeIds = database.tasks.workingAssigneeIds(), colleagueIds = colleagueIdsByBot(database.colleagues.listForBot(storedBot.id))): Bot {
     const effectiveWorkingDirectory = storedBot.workingDirectoryOverride
       ?? projectWorkingDirectory(storedBot.projectId)
       ?? join(privateBotsDirectory, storedBot.id)
     const closed = storedBot.temporary && !workingAssigneeIds.has(storedBot.id)
 
-    return parse(botSchemas.bot, { ...storedBot, effectiveWorkingDirectory, closed })
+    return parse(botSchemas.bot, { ...storedBot, effectiveWorkingDirectory, closed, colleagueIds: colleagueIds.get(storedBot.id) ?? [] })
+  }
+
+  function list() {
+    const workingAssigneeIds = database.tasks.workingAssigneeIds()
+    const colleagueIds = colleagueIdsByBot()
+    const listedBots = database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds, colleagueIds))
+
+    return parse(botSchemas.botList, listedBots)
   }
 
   async function store(storedBot: StoredBot) {
@@ -138,17 +156,50 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         createdAt: new Date().toISOString(),
       })
     },
-    list() {
-      const workingAssigneeIds = database.tasks.workingAssigneeIds()
-      const listedBots = database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds))
-
-      return parse(botSchemas.botList, listedBots)
-    },
+    list,
     get(rawInput: unknown) {
       const input = parse(botSchemas.idInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
       return storedBot ? present(storedBot) : undefined
+    },
+    colleagues(bot: Pick<Bot, "id">) {
+      const colleagueIds = database.colleagues.listForBot(bot.id).map((relation) => relation.colleagueBotId)
+
+      return list().filter((candidate) => colleagueIds.includes(candidate.id))
+    },
+    addColleague(botId: string, colleagueBotId: string) {
+      const caller = database.bots.get(botId)
+      const target = database.bots.get(colleagueBotId)
+
+      if (!caller || !target) {
+        throw new Error("Bot not found")
+      }
+
+      if (caller.temporary) {
+        throw new Error(`${caller.name} is temporary and cannot have Colegas`)
+      }
+
+      if (target.id === caller.id) {
+        throw new Error(`${caller.name} cannot be its own Colega`)
+      }
+
+      if (target.leaderBotId) {
+        throw new Error(`${target.name} is a member of a team and cannot be a Colega`)
+      }
+
+      return observability.span(
+        { name: "bots.colleagueadd", context: { botId: caller.id } },
+        () => database.colleagues.set({ botId: caller.id, colleagueBotId: target.id }),
+      )
+    },
+    removeColleague(rawInput: unknown) {
+      const input = parse(botSchemas.colleagueInput, rawInput)
+      const removed = observability.span({ name: "bots.colleagueremove", context: { botId: input.botId } }, () => database.colleagues.remove(input.botId, input.colleagueBotId))
+
+      if (removed === 0) {
+        throw new Error("Colega not found")
+      }
     },
     async update(rawInput: unknown) {
       const input = parse(botSchemas.updateInput, rawInput)

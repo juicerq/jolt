@@ -1,10 +1,14 @@
 import { ArrowDownLeftIcon, ArrowDownRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline"
-import type { TaskStatus } from "../../../shared/tasks"
+import type { Task, TaskStatus } from "../../../shared/tasks"
 import { blurMouseClick } from "../ui/blur-mouse-click"
 import { ChatContent, chatChipClassName, chatGuideClassName } from "./chat-content"
 import { ChatStamp } from "./chat-stamp"
 
 type Kind = "result" | "assignment"
+
+export function memberResultKind(botId: string, task: Pick<Task, "assigneeBotId"> | undefined): Kind {
+  return task?.assigneeBotId === botId ? "assignment" : "result"
+}
 
 const resultLabels: Record<TaskStatus, (name: string) => string> = {
   working: (name) => `${name} retornou`,

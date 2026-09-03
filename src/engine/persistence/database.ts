@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite"
-import { and, asc, count, desc, eq, inArray, isNull, lt, max, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, isNull, lt, max, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
-import type { StoredBot } from "../../shared/bots"
+import type { Colleague, StoredBot } from "../../shared/bots"
 import { botSchemas } from "../../shared/bots"
 import type { Project } from "../../shared/projects"
 import { projectSchemas } from "../../shared/projects"
@@ -21,7 +21,7 @@ import type { Task } from "../../shared/tasks"
 import { taskSchemas } from "../../shared/tasks"
 import type { WhatsappContact, WhatsappSavedMessage } from "../../shared/whatsapp"
 import { whatsappSchemas } from "../../shared/whatsapp"
-import { accesses, accounts, bots, conversations, memories, messages, notes, plugins, projects, routines, tasks, whatsappContacts, whatsappMessages } from "./schema"
+import { accesses, accounts, bots, colleagues, conversations, memories, messages, notes, plugins, projects, routines, tasks, whatsappContacts, whatsappMessages } from "./schema"
 import { parse } from "../../shared/parse"
 
 const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
@@ -169,7 +169,7 @@ export function openDatabase(path: string, observability: Observability) {
     },
     tasks: {
       create(task: Task) {
-        return observability.span({ name: "database.taskcreate", context: { taskId: task.id, leaderBotId: task.leaderBotId, botId: task.assigneeBotId } }, () => {
+        return observability.span({ name: "database.taskcreate", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => {
           database.insert(tasks).values(task).run()
 
           return task
@@ -199,10 +199,28 @@ export function openDatabase(path: string, observability: Observability) {
           database.selectDistinct({ assigneeBotId: tasks.assigneeBotId }).from(tasks).where(eq(tasks.status, "working")).all().map((row) => row.assigneeBotId),
         ))
       },
-      listForLeader(leaderBotId: string) {
-        return observability.span({ name: "database.tasklist", context: { leaderBotId } }, () => parse(taskSchemas.taskList, 
-          database.select().from(tasks).where(eq(tasks.leaderBotId, leaderBotId)).orderBy(asc(tasks.createdAt), asc(insertion(tasks))).all(),
+      listForBot(botId: string) {
+        return observability.span({ name: "database.tasklist", context: { botId } }, () => parse(taskSchemas.taskList,
+          database.select().from(tasks).where(or(eq(tasks.callerBotId, botId), eq(tasks.assigneeBotId, botId))).orderBy(asc(tasks.createdAt), asc(insertion(tasks))).all(),
         ))
+      },
+    },
+    colleagues: {
+      list() {
+        return observability.span({ name: "database.colleaguelist" }, () => parse(botSchemas.colleagueList, database.select().from(colleagues).orderBy(asc(insertion(colleagues))).all()))
+      },
+      listForBot(botId: string) {
+        return observability.span({ name: "database.colleaguelistforbot", context: { botId } }, () => parse(botSchemas.colleagueList, database.select().from(colleagues).where(eq(colleagues.botId, botId)).orderBy(asc(insertion(colleagues))).all()))
+      },
+      set(colleague: Colleague) {
+        return observability.span({ name: "database.colleagueset", context: { botId: colleague.botId } }, () => {
+          database.insert(colleagues).values(colleague).onConflictDoNothing().run()
+
+          return colleague
+        })
+      },
+      remove(botId: string, colleagueBotId: string) {
+        return observability.span({ name: "database.colleagueremove", context: { botId } }, () => database.delete(colleagues).where(and(eq(colleagues.botId, botId), eq(colleagues.colleagueBotId, colleagueBotId))).run().changes)
       },
     },
     routines: {

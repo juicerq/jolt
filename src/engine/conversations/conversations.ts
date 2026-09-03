@@ -17,7 +17,7 @@ const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const workingDirectoryTools = "read, grep, find, ls, bash, edit and write act in this directory. Files you write go there. Mailboxes and other external data come through Plugins."
 const decisionRules: Record<Bot["permissionMode"], string> = {
   ask: [
-    "The person reviews each action before it runs. Every tool call except reads inside your working directory appears in the chat as a request, and the person chooses Permitir or Negar.",
+    "The person reviews each action before it runs. Every tool call except reads inside your working directory appears in the chat as a request, and the person chooses Permitir or Negar. Calling another Bot with delegate or transfer does not ask: the Bot you call follows its own permission mode.",
     "A denied call answers \"The person denied this action\". That is their decision, not an error. Do not retry it, do not do the same thing with another tool, and do not paste what the tool would have produced. Say in one line what you did not do and ask how they want to continue.",
     "Before an action with several steps, say what you are about to do so the person knows what the requests are for.",
   ].join("\n"),
@@ -51,12 +51,14 @@ export function createConversations(input: {
   const active = new Map<string, ActiveTurn>()
   const compactions = new Map<string, Promise<void>>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
+  const waitingOn = new Map<string, string>()
   const delegation = createDelegation({
     bots: input.bots,
     tasks: input.tasks,
     observability: input.observability,
     runTurn,
     active: (botId) => active.get(botId)?.message,
+    assertCallable,
     inheritance: (leader, references) => input.extensions.flatMap((extension) => extension.inheritance ? [extension.inheritance(leader, references)] : []),
   })
   const extensions: BotExtension[] = [delegation, ...input.extensions]
@@ -166,7 +168,7 @@ export function createConversations(input: {
         throw new Error("Tarefa context is missing")
       }
 
-      if (message.botId === task.leaderBotId) {
+      if (message.botId === task.callerBotId) {
         return { cause: "task-result", taskId: task.id, sender: { id: sender.id, name: sender.name }, outcome: task.outcome, status: task.status, ...moment }
       }
 
@@ -176,7 +178,66 @@ export function createConversations(input: {
     return { cause: "person", ...moment }
   }
 
-  async function claim(botId: string, message: IncomingMessage): Promise<{ message: ConversationMessage; release(): void }> {
+  function awaitedBy(botId: string) {
+    const waited = waitingOn.get(botId)
+    const assigned = Array.from(active).flatMap(([id, turn]) => {
+      const task = turn.message.author === "bot" && turn.message.taskId ? input.tasks.get(turn.message.taskId) : undefined
+
+      return turn.message.authorBotId === botId && task?.assigneeBotId === id ? [id] : []
+    })
+
+    return waited ? [waited, ...assigned] : assigned
+  }
+
+  function blockedBy(callerId: string, targetId: string) {
+    const seen = new Set<string>()
+    const pending = [targetId]
+
+    for (let node = pending.pop(); node; node = pending.pop()) {
+      if (node === callerId) {
+        return true
+      }
+
+      if (!seen.has(node)) {
+        seen.add(node)
+        pending.push(...awaitedBy(node))
+      }
+    }
+
+    return false
+  }
+
+  function assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">) {
+    const busy = active.has(target.id)
+
+    if (busy && blockedBy(caller.id, target.id)) {
+      throw new Error(`${target.name} is waiting for you to finish and cannot take a Tarefa from you now`)
+    }
+  }
+
+  function untilSettled(settled: Promise<void>, signal?: AbortSignal) {
+    if (!signal) {
+      return settled
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const interrupt = () => reject(new Error("The person interrupted you while you waited for that Bot"))
+
+      if (signal.aborted) {
+        interrupt()
+
+        return
+      }
+
+      signal.addEventListener("abort", interrupt, { once: true })
+      void settled.then(() => {
+        signal.removeEventListener("abort", interrupt)
+        resolve()
+      })
+    })
+  }
+
+  async function claim(botId: string, message: IncomingMessage, signal?: AbortSignal): Promise<{ message: ConversationMessage; release(): void }> {
     if (compactions.has(botId)) {
       throw new Error("Bot is compacting its Context")
     }
@@ -188,9 +249,19 @@ export function createConversations(input: {
     }
 
     if (current && message.author === "bot") {
-      await current.settled
+      const callerId = message.authorBotId ?? ""
+      const bot = input.bots.get({ id: botId })
 
-      return claim(botId, message)
+      assertCallable({ id: callerId }, { id: botId, name: bot?.name ?? botId })
+      waitingOn.set(callerId, botId)
+
+      try {
+        await untilSettled(current.settled, signal)
+      } finally {
+        waitingOn.delete(callerId)
+      }
+
+      return claim(botId, message, signal)
     }
 
     if (current?.message.author === "person") {
@@ -224,12 +295,16 @@ export function createConversations(input: {
     }
   }
 
-  async function* runTurn(botId: string, message: IncomingMessage, routine?: RoutineCall): AsyncGenerator<ConversationEvent> {
-    const turn = await claim(botId, message)
+  async function* runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; signal?: AbortSignal }): AsyncGenerator<ConversationEvent> {
+    const turn = await claim(botId, message, options?.signal)
     let context: TurnContext
 
     try {
-      context = contextFor(turn.message, routine)
+      if (options?.signal?.aborted) {
+        throw new Error("The person interrupted you before that Bot started")
+      }
+
+      context = contextFor(turn.message, options?.routine)
       await open(botId)
       input.database.conversations.append(turn.message)
     } catch (error) {
@@ -237,6 +312,13 @@ export function createConversations(input: {
 
       throw error
     }
+
+    const interrupt = () => {
+      void input.runtime.abort(botId).catch((error: unknown) => {
+        input.observability.event({ name: "conversation.abortfailed", context: { botId, provider: "codex" }, error })
+      })
+    }
+    options?.signal?.addEventListener("abort", interrupt, { once: true })
 
     const queue = createQueue<ConversationEvent>()
     let finished = false
@@ -313,6 +395,7 @@ export function createConversations(input: {
       })
       turn.release()
       unsubscribe()
+      options?.signal?.removeEventListener("abort", interrupt)
     }
 
     while (!finished || queue.size > 0) {
@@ -324,8 +407,8 @@ export function createConversations(input: {
     }
   }
 
-  async function start(botId: string, message: IncomingMessage, routine?: RoutineCall) {
-    const turn = runTurn(botId, message, routine)
+  async function start(botId: string, message: IncomingMessage, options?: { routine: RoutineCall }) {
+    const turn = runTurn(botId, message, options)
     await turn.next()
 
     void Array.fromAsync(turn)
@@ -407,17 +490,21 @@ export function createConversations(input: {
       }
     },
     async send(rawInput: unknown) {
-      const { botId, content, images } = parse(conversationSchemas.sendInput, rawInput)
+      const { botId, content, images, mentionedBotIds } = parse(conversationSchemas.sendInput, rawInput)
       const empty = content.length === 0 && images.length === 0
 
       if (empty) {
         throw new Error("Message is empty")
       }
 
+      for (const mentionedBotId of mentionedBotIds) {
+        input.bots.addColleague(botId, mentionedBotId)
+      }
+
       await start(botId, { author: "person", authorBotId: null, taskId: null, content, images })
     },
     async call(routine: RoutineCall) {
-      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [] }, routine)
+      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [] }, { routine })
     },
     async abort(rawInput: unknown) {
       const { botId } = parse(conversationSchemas.botInput, rawInput)

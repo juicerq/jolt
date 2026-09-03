@@ -5,6 +5,7 @@ import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
+import { botAvatarName } from "../bots/bot-avatar"
 import { botsStore, openCreateBot, openCreateProject, openPlugins, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -280,7 +281,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
     return (
       <Blobatar
         className="grid size-8 shrink-0 place-items-center rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus"
-        name={`jolt:${bot.id}:${bot.name}`}
+        name={botAvatarName(bot)}
         size={32}
         alt=""
       />
@@ -294,7 +295,7 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
       {avatars.map((avatar, index) => (
         <Blobatar
           className={`absolute size-6 shrink-0 rounded-[10px] border border-outline-strong bg-surface-raised text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
-          name={`jolt:${avatar.id}:${avatar.name}`}
+          name={botAvatarName(avatar)}
           size={24}
           alt=""
           key={avatar.id}

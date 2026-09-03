@@ -20,10 +20,10 @@ export function createTasks({ database, observability }: { database: AppDatabase
   observability.event({ name: "tasks.interruptorphans", attributes: { count: interruptedCount } })
 
   return {
-    create(input: Pick<Task, "leaderBotId" | "assigneeBotId" | "outcome">) {
+    create(input: Pick<Task, "callerBotId" | "assigneeBotId" | "outcome">) {
       const task: Task = { id: crypto.randomUUID(), ...input, status: "working", createdAt: new Date().toISOString(), finishedAt: null }
 
-      return observability.span({ name: "tasks.create", context: { taskId: task.id, leaderBotId: task.leaderBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
+      return observability.span({ name: "tasks.create", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
     },
     finish(id: string, status: Exclude<TaskStatus, "working">) {
       return observability.span({ name: "tasks.finish", attributes: { state: status }, context: { taskId: id } }, () => update(id, { status, finishedAt: new Date().toISOString() }))
@@ -34,10 +34,10 @@ export function createTasks({ database, observability }: { database: AppDatabase
     get(id: string) {
       return database.tasks.get(id)
     },
-    listForLeader(rawInput: unknown) {
-      const { leaderBotId } = parse(taskSchemas.leaderInput, rawInput)
+    listForBot(rawInput: unknown) {
+      const { botId } = parse(taskSchemas.botInput, rawInput)
 
-      return database.tasks.listForLeader(leaderBotId)
+      return database.tasks.listForBot(botId)
     },
   }
 }

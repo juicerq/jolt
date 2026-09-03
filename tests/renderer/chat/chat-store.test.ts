@@ -57,11 +57,11 @@ test("a draft keeps text and images per Bot until the person sends it", () => {
   addChatDraftImages(botId, [first, second])
   removeChatDraftImage(botId, 0)
 
-  expect(chatStore.state.drafts[botId]).toEqual({ content: "Veja as telas", images: [second] })
+  expect(chatStore.state.drafts[botId]).toEqual({ content: "Veja as telas", images: [second], mentions: [] })
 
   startChatRun(botId, { author: "person", authorBotId: null, taskId: null, content: "Veja as telas", images: [second] })
 
-  expect(chatStore.state.drafts[botId]).toEqual({ content: "", images: [] })
+  expect(chatStore.state.drafts[botId]).toEqual({ content: "", images: [], mentions: [] })
 })
 
 test("permission decisions remove only their own pending request", () => {

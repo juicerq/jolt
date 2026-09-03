@@ -10,6 +10,7 @@ import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
 import { useEscape } from "../ui/use-escape"
 import { lineClassName, revealClassName } from "./bot-form"
+import { BotColleagues } from "./bot-colleagues"
 import { BotMemory } from "./bot-memory"
 import { BotPlugins } from "./bot-plugins"
 import { BotRoutines } from "./bot-routines"
@@ -137,6 +138,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
         {!bot.temporary && <BotRoutines bot={bot} client={client} />}
         <BotMemory bot={bot} client={client} {...(leader ? { leader } : {})} />
         <BotPlugins bot={bot} client={client} />
+        {!bot.temporary && <BotColleagues bot={bot} client={client} groups={projectGroups} />}
         <section className="flex flex-col items-start gap-4 border-t border-outline pt-6" aria-label="Excluir Bot">
           {confirmingRemoval
             ? <BotRemoval bot={bot} members={members} removing={removing} failure={removeError?.message} onCancel={() => setConfirmingRemoval(false)} onConfirm={() => remove({ id: bot.id })} />

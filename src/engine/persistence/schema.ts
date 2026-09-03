@@ -41,13 +41,24 @@ export const conversations = snakeCase.table("conversations", {
 
 export const tasks = snakeCase.table("tasks", {
   id: text().primaryKey(),
-  leaderBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  callerBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   assigneeBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   outcome: text().notNull(),
   status: text({ enum: ["working", "done", "interrupted", "failed"] }).$type<Task["status"]>().notNull(),
   createdAt: text().notNull(),
   finishedAt: text(),
-}, (table) => [index("tasks_leader_bot_id").on(table.leaderBotId)])
+}, (table) => [
+  index("tasks_caller_bot_id").on(table.callerBotId),
+  index("tasks_assignee_bot_id").on(table.assigneeBotId),
+])
+
+export const colleagues = snakeCase.table("colleagues", {
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  colleagueBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+}, (table) => [
+  primaryKey({ columns: [table.botId, table.colleagueBotId] }),
+  index("colleagues_colleague_bot_id").on(table.colleagueBotId),
+])
 
 export const messages = snakeCase.table("messages", {
   id: text().primaryKey(),

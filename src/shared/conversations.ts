@@ -98,7 +98,7 @@ export const conversationSchemas = {
   compactionResult,
   historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
   history,
-  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage) }),
+  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), mentionedBotIds: z.array(id).default([]) }),
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),
