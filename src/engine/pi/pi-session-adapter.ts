@@ -5,6 +5,7 @@ import {
   defineTool,
   ModelRuntime,
   SessionManager,
+  SettingsManager,
   type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
@@ -224,6 +225,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         thinkingLevel: input.effort,
         resourceLoader: loader,
         sessionManager,
+        settingsManager: SettingsManager.inMemory({ compaction: { keepRecentTokens: 10_000 } }),
         customTools: (input.customTools ?? []).map(toPiTool),
       })
       result.session.setActiveToolsByName(input.tools)
