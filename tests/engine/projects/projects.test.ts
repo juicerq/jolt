@@ -66,7 +66,7 @@ describe("projects", () => {
     })
 
     expect(await projects.list()).toEqual({
-      projects: [{ ...project, bots: [{ ...assigned, members: [{ ...member, effectiveWorkingDirectory: defaultWorkingDirectory, closed: false }] }] }],
+      projects: [{ ...project, bots: [{ ...assigned, members: [{ ...member, effectiveWorkingDirectory: defaultWorkingDirectory, closed: false, colleagueIds: [] }] }] }],
       unassignedBots: [{ ...unassigned, members: [] }],
     })
     database.close()

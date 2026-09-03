@@ -4,7 +4,7 @@ import { useSelector } from "@tanstack/react-store"
 import { useCallback, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { ConversationMessage, MessageImage } from "../../../shared/conversations"
-import type { TaskStatus } from "../../../shared/tasks"
+import type { Task } from "../../../shared/tasks"
 import type { EngineClient } from "../engine-client"
 import { teamNames } from "../bots/team"
 import { Button } from "../ui/button"
@@ -24,7 +24,8 @@ import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
 import { earlierMessageBatch, flattenHistory, historyPageInput, olderHistoryPage, recentMessageLimit, windowHistory } from "./chat-history-window"
-import { ChatMemberResult } from "./chat-member-result"
+import { ChatMemberResult, memberResultKind } from "./chat-member-result"
+import { mentionedBotIds } from "./chat-mentions"
 import { ChatPermissionRequest } from "./chat-permission-request"
 import { finishConversationOpen } from "./chat-open-span"
 import { ChatRoutineCall } from "./chat-routine-call"
@@ -42,9 +43,9 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const messages = pages ? flattenHistory(pages.pages).messages : undefined
   const earlier = pages ? flattenHistory(pages.pages).earlier : 0
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
-  const { data: tasks } = useQuery(client.query.tasks.listForLeader.queryOptions({ input: { leaderBotId: bot.id } }))
+  const { data: tasks } = useQuery(client.query.tasks.listForBot.queryOptions({ input: { botId: bot.id } }))
   const names = teamNames(groups)
-  const taskStatuses = Object.fromEntries((tasks ?? []).map((task) => [task.id, task.status]))
+  const tasksById = Object.fromEntries((tasks ?? []).map((task) => [task.id, task]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
   const { visible, hidden } = windowHistory(messages ?? [], shown)
   const handleOpened = useCallback((section: HTMLElement | null) => {
@@ -57,7 +58,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
     const message = { content: draft.content.trim(), images: draft.images }
 
     startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message })
-    await client.raw.conversations.send({ botId: bot.id, ...message }).catch((sendError: unknown) => {
+    await client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, draft.mentions) }).catch((sendError: unknown) => {
       failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder")
     })
   }
@@ -89,8 +90,8 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {hidden + earlier > 0 && <ChatEarlierMessages hidden={hidden + earlier} loading={isFetchingNextPage} onShow={handleShowEarlier} />}
-        {visible.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} taskStatuses={taskStatuses} />)}
-        {messages && <ChatRunSlot bot={bot} client={client} names={names} taskStatuses={taskStatuses} empty={messages.length === 0} />}
+        {visible.map((message) => <ChatMessage key={message.id} bot={bot} message={message} names={names} tasks={tasksById} />)}
+        {messages && <ChatRunSlot bot={bot} client={client} names={names} tasks={tasksById} empty={messages.length === 0} />}
       </ChatScroller>
       {bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />}
     </section>
@@ -107,11 +108,11 @@ function ChatEarlierMessages({ hidden, loading, onShow }: { hidden: number; load
   )
 }
 
-function ChatRunSlot({ bot, client, names, taskStatuses, empty }: { bot: Bot; client: EngineClient; names: Record<string, string>; taskStatuses: Record<string, TaskStatus>; empty: boolean }) {
+function ChatRunSlot({ bot, client, names, tasks, empty }: { bot: Bot; client: EngineClient; names: Record<string, string>; tasks: Record<string, Task>; empty: boolean }) {
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
 
   if (run) {
-    return <ChatRun bot={bot} client={client} names={names} run={run} taskStatuses={taskStatuses} />
+    return <ChatRun bot={bot} client={client} names={names} run={run} tasks={tasks} />
   }
 
   if (empty) {
@@ -121,19 +122,13 @@ function ChatRunSlot({ bot, client, names, taskStatuses, empty }: { bot: Bot; cl
   return null
 }
 
-function memberMessageKind(bot: Pick<Bot, "leaderBotId">, message: Pick<ConversationMessage, "authorBotId">) {
-  if (message.authorBotId === bot.leaderBotId) {
-    return "assignment"
-  }
-
-  return "result"
-}
-
-function ChatMessage({ bot, message, names, taskStatuses }: { bot: Bot; message: ConversationMessage; names: Record<string, string>; taskStatuses: Record<string, TaskStatus> }) {
+function ChatMessage({ bot, message, names, tasks }: { bot: Bot; message: ConversationMessage; names: Record<string, string>; tasks: Record<string, Task> }) {
   const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
 
   if (fromOtherBot) {
-    return <ChatMemberResult kind={memberMessageKind(bot, message)} name={names[message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[message.taskId ?? ""]} time={formatMessageTime(message.createdAt)} content={message.content} />
+    const task = tasks[message.taskId ?? ""]
+
+    return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time={formatMessageTime(message.createdAt)} content={message.content} />
   }
 
   if (message.author === "routine") {
@@ -170,7 +165,7 @@ function PersonBubble({ time, content, images }: { time: string; content: string
   )
 }
 
-function ChatRunMessage({ bot, names, run, taskStatuses }: { bot: Bot; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
+function ChatRunMessage({ bot, names, run, tasks }: { bot: Bot; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
   if (run.message.author === "person") {
     return <PersonBubble time="Agora" content={run.message.content} images={run.message.images} />
   }
@@ -179,15 +174,17 @@ function ChatRunMessage({ bot, names, run, taskStatuses }: { bot: Bot; names: Re
     return <ChatRoutineCall botName={bot.name} time="Agora" content={run.message.content} open />
   }
 
-  return <ChatMemberResult kind={memberMessageKind(bot, run.message)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={taskStatuses[run.message.taskId ?? ""]} time="Agora" content={run.message.content} open />
+  const task = tasks[run.message.taskId ?? ""]
+
+  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time="Agora" content={run.message.content} open />
 }
 
-function ChatRun({ bot, client, names, run, taskStatuses }: { bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; taskStatuses: Record<string, TaskStatus> }) {
+function ChatRun({ bot, client, names, run, tasks }: { bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
   const request = run.permissionRequests[0]
 
   return (
     <>
-      <ChatRunMessage bot={bot} names={names} run={run} taskStatuses={taskStatuses} />
+      <ChatRunMessage bot={bot} names={names} run={run} tasks={tasks} />
       <article className="w-fit max-w-[720px] self-start">
         <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />
         {request && <ChatPermissionRequest botId={bot.id} client={client} request={request} remaining={run.permissionRequests.length - 1} />}

@@ -24,7 +24,8 @@ const storedBot = z.strictObject({
   permissionMode: botPermissionMode,
   createdAt: id,
 })
-const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean() })
+const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean(), colleagueIds: z.array(id) })
+const colleague = z.strictObject({ botId: id, colleagueBotId: id })
 const createFields = { name: id, provider: providerName, function: botFunction, workingDirectoryOverride: workingDirectory.optional() }
 const createInput = z.union([
   z.strictObject({ ...createFields, projectId: id.optional() }),
@@ -40,6 +41,9 @@ export const botSchemas = {
   createInput,
   hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean() }),
   idInput: z.strictObject({ id }),
+  colleagueInput: colleague,
+  colleague,
+  colleagueList: z.array(colleague),
   updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId, permissionMode: botPermissionMode }),
   updateExecutionInput,
   storedBot,
@@ -49,6 +53,7 @@ export const botSchemas = {
 }
 
 export type Bot = z.infer<typeof bot>
+export type Colleague = z.infer<typeof colleague>
 export type CreateBotInput = z.infer<typeof createInput>
 export type StoredBot = z.infer<typeof storedBot>
 export type BotEffort = z.infer<typeof botEffort>

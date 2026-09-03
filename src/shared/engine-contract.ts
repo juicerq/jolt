@@ -39,6 +39,7 @@ export const engineContract = {
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
     updateExecution: oc.input(botSchemas.updateExecutionInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/execution" }),
     remove: oc.input(botSchemas.idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
+    removeColleague: oc.input(botSchemas.colleagueInput).route({ method: "POST", path: "/bots/{botId}/colleagues/{colleagueBotId}/remove" }),
   },
   conversations: {
     history: oc.input(conversationSchemas.historyInput).output(conversationSchemas.history).route({ method: "GET", path: "/bots/{botId}/messages" }),
@@ -52,7 +53,7 @@ export const engineContract = {
     decide: oc.input(permissionSchemas.decideInput).route({ method: "POST", path: "/bots/{botId}/permission-requests/{requestId}" }),
   },
   tasks: {
-    listForLeader: oc.input(taskSchemas.leaderInput).output(taskSchemas.taskList).route({ method: "GET", path: "/bots/{leaderBotId}/tasks" }),
+    listForBot: oc.input(taskSchemas.botInput).output(taskSchemas.taskList).route({ method: "GET", path: "/bots/{botId}/tasks" }),
   },
   routines: {
     create: oc.input(routineSchemas.createInput).output(routineSchemas.routine).route({ method: "POST", path: "/routines" }),

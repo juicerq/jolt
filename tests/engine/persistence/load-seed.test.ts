@@ -19,7 +19,7 @@ describe("load seed", () => {
     expect(created.map((entry) => entry.name)).toEqual(["Leve", "Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Redator"])
     expect(created.find((entry) => entry.name === "Enorme")?.messages).toBe(3000)
     expect(bots.filter((bot) => bot.leaderBotId === leader?.id).map((bot) => bot.name)).toEqual(["Pesquisador", "Redator"])
-    expect(database.tasks.listForLeader(leader?.id ?? "")).toHaveLength(400)
+    expect(database.tasks.listForBot(leader?.id ?? "")).toHaveLength(400)
 
     const history = database.conversations.history(largest?.id ?? "", { limit: 500 }).messages
 

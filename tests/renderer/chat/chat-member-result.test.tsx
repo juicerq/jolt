@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { renderToStaticMarkup } from "react-dom/server"
-import { ChatMemberResult } from "@src/renderer/src/chat/chat-member-result"
+import { ChatMemberResult, memberResultKind } from "@src/renderer/src/chat/chat-member-result"
 
 describe("ChatMemberResult", () => {
   test("shows the member name and the Resultado label collapsed", () => {
@@ -27,6 +27,16 @@ describe("ChatMemberResult", () => {
     const markup = renderToStaticMarkup(<ChatMemberResult name="Calo" status="done" time="Agora" content="Chegando" open />)
 
     expect(markup).toMatch(/<details[^>]*\sopen/)
+  })
+})
+
+describe("memberResultKind", () => {
+  test("a message in the assignee's conversation is the Tarefa; anywhere else it is the result", () => {
+    const task = { assigneeBotId: "emailer" }
+
+    expect(memberResultKind("emailer", task)).toBe("assignment")
+    expect(memberResultKind("atlas", task)).toBe("result")
+    expect(memberResultKind("atlas", undefined)).toBe("result")
   })
 })
 

@@ -10,6 +10,7 @@ import plugins from "../../../drizzle/20260902190240_plugins/migration.sql" with
 import multiAccountAccess from "../../../drizzle/20260902235222_multi-account-access/migration.sql" with { type: "text" }
 import whatsappMessages from "../../../drizzle/20260903011817_whatsapp-messages/migration.sql" with { type: "text" }
 import whatsappContacts from "../../../drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
+import colleagues from "../../../drizzle/20260903112334_colleagues/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -23,4 +24,5 @@ export const migrations = [
   { name: "20260902235222_multi-account-access", timestamp: 1788393142000, sql: multiAccountAccess },
   { name: "20260903011817_whatsapp-messages", timestamp: 1788398297000, sql: whatsappMessages },
   { name: "20260903021111_whatsapp-contacts", timestamp: 1788401471000, sql: whatsappContacts },
+  { name: "20260903112334_colleagues", timestamp: 1788434614000, sql: colleagues },
 ] satisfies MigrationsJournal

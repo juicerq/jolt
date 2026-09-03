@@ -4,7 +4,7 @@ const id = z.string().min(1)
 const taskStatus = z.enum(["working", "done", "interrupted", "failed"])
 const task = z.strictObject({
   id,
-  leaderBotId: id,
+  callerBotId: id,
   assigneeBotId: id,
   outcome: id,
   status: taskStatus,
@@ -12,8 +12,11 @@ const task = z.strictObject({
   finishedAt: id.nullable(),
 })
 
+export const delegateTool = "delegate"
+export const transferTool = "transfer"
+
 export const taskSchemas = {
-  leaderInput: z.strictObject({ leaderBotId: id }),
+  botInput: z.strictObject({ botId: id }),
   task,
   taskList: z.array(task),
 }

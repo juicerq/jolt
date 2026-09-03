@@ -4,7 +4,7 @@ import type { ProjectGroups } from "@src/shared/projects"
 import type { Bot } from "@src/shared/bots"
 
 function bot(id: string, name: string, leaderBotId: string | null = null, closed = false): Bot {
-  return { id, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed }
+  return { id, leaderBotId, projectId: null, name, provider: "codex", function: { outcome: `Entregar ${name}` }, workingDirectoryOverride: null, temporary: false, memoryEnabled: true, effort: "medium", model: null, permissionMode: "ask", createdAt: "2026-09-01T12:00:00.000Z", effectiveWorkingDirectory: `/tmp/${id}`, closed, colleagueIds: [] }
 }
 
 const groups: ProjectGroups = {

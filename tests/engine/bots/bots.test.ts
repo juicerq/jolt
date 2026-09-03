@@ -42,6 +42,7 @@ describe("bots", () => {
       id: created.id,
       leaderBotId: null,
       projectId: null,
+      colleagueIds: [],
       ...input,
       workingDirectoryOverride: null,
       temporary: false,
@@ -205,6 +206,7 @@ describe("bots", () => {
     expect(await bots.get({ id: member.id })).toEqual({
       ...member,
       closed: false,
+      colleagueIds: [],
       projectId: nextProject.id,
       workingDirectoryOverride: memberOverride,
       effectiveWorkingDirectory: memberOverride,

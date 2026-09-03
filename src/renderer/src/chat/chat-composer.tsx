@@ -1,18 +1,21 @@
 import { ArrowUpIcon, PaperClipIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useId, useRef, useState } from "react"
 import type { Bot } from "../../../shared/bots"
 import type { MessageImage } from "../../../shared/conversations"
+import { botAvatarName } from "../bots/bot-avatar"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
-import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
+import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
+import { applyChatMention, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
 import { ChatPluginRequest } from "./chat-plugin-request"
-import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
+import { addChatDraftImages, addChatDraftMention, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
 
 type ChatComposerProps = {
   bot: Bot
@@ -29,8 +32,13 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
   const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft)
-  const menuOpen = suggestions.length > 0 && draft.content !== dismissedContent && !run
-  const active = Math.min(highlighted, suggestions.length - 1)
+  const { data: groups } = useQuery(client.query.projects.list.queryOptions())
+  const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
+  const choices: ChatMenuChoice[] = suggestions.length > 0
+    ? suggestions.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
+    : mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: botAvatarName({ id: mention.botId, name: mention.name }) }))
+  const menuOpen = choices.length > 0 && draft.content !== dismissedContent && !run
+  const active = Math.min(highlighted, choices.length - 1)
   const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
   const busy = !!run || commandPending
   const aborting = run?.status === "aborting"
@@ -84,27 +92,33 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     setChatDraftContent(bot.id, event.target.value)
   }
 
-  function pickCommand(index: number) {
+  function pickChoice(index: number) {
     const suggestion = suggestions[index]
 
-    if (!suggestion) {
+    if (suggestion) {
+      setChatDraftCommand(bot.id, suggestion.command, "")
+
       return
     }
 
-    setChatDraftCommand(bot.id, suggestion.command, "")
+    const mention = mentions[index]
+
+    if (mention) {
+      addChatDraftMention(bot.id, applyChatMention(draft.content, mention), { botId: mention.botId, name: mention.name })
+    }
   }
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault()
-      setHighlighted((active + 1) % suggestions.length)
+      setHighlighted((active + 1) % choices.length)
 
       return
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault()
-      setHighlighted((active - 1 + suggestions.length) % suggestions.length)
+      setHighlighted((active - 1 + choices.length) % choices.length)
 
       return
     }
@@ -118,7 +132,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
     if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey)) {
       event.preventDefault()
-      pickCommand(active)
+      pickChoice(active)
     }
   }
 
@@ -185,7 +199,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {menuOpen && <ChatCommandMenu id={menuId} suggestions={suggestions} highlighted={active} onHighlight={setHighlighted} onPick={pickCommand} />}
+      {menuOpen && <ChatCommandMenu id={menuId} label={suggestions.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
       {!menuOpen && (compacting || compacted || commandError) && <ChatCommandStatus compacting={compacting} compacted={compacted} error={commandError} />}
       {pluginRequest && <ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}

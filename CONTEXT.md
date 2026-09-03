@@ -13,7 +13,7 @@ Um Bot que possui ao menos um Integrante e responde pelo trabalho deles. Remover
 _Evitar_: Orquestrador, bot principal
 
 **Integrante**:
-Um Bot ligado a um único Líder, com Função, memória e histórico próprios. A pessoa o cria ou o Líder o contrata.
+Um Bot ligado a um único Líder, com Função, memória e histórico próprios. A pessoa o cria ou o Líder o contrata. Um Integrante pode ter Colegas, mas não pode ser Colega de ninguém.
 _Evitar_: Subagente, bot secundário, especialista
 
 **Integrante temporário**:
@@ -31,6 +31,10 @@ _Evitar_: Remover, deletar, encerrar, arquivar
 **Time**:
 A forma informal de chamar um Líder e seus Integrantes. Time não é uma entidade separada.
 _Evitar_: Objeto Time, grupo obrigatório
+
+**Colega**:
+Um Bot sem Líder que outro Bot pode chamar por uma Tarefa. A ligação vale numa direção só e não cria hierarquia: o Colega mantém Função, Memória, Permissão e Acessos próprios.
+_Evitar_: Contato, Integrante, parceiro
 
 **Projeto**:
 Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trabalho padrão. Todo Projeto possui uma Pasta de trabalho, mas um Bot pode substituí-la. Um Líder e seus Integrantes permanecem no mesmo Projeto; mover o Líder move o Time inteiro.
@@ -121,7 +125,7 @@ A variante do Fornecedor do Bot que executa o trabalho, como um modelo específi
 _Evitar_: Fornecedor, Conexão, versão
 
 **Permissão do Bot**:
-O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede.
+O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede. Chamar um Integrante ou um Colega nunca pede Decisão: vale a Permissão do Bot chamado.
 _Evitar_: Sandbox, acesso ao computador, autonomia
 
 **Pedido de permissão**:
@@ -136,8 +140,12 @@ _Evitar_: Grant, autorização permanente
 Uma instrução que a pessoa digita na Conversa começando com `/` e que age sobre o Bot em vez de virar Mensagem. Executar limpa o que foi digitado; `/lembrar` cria uma Lembrança e `/compactar` resume o Contexto atual sem alterar a Conversa ou a Memória, com instruções opcionais de foco.
 _Evitar_: Atalho, slash command, ação rápida
 
+**Menção**:
+O nome de um Bot que a pessoa escolhe com `@` ao escrever uma Mensagem, e que o torna Colega do Bot com quem ela conversa. É a única forma de apresentar um Bot a outro; a pessoa revoga nas configurações do Bot.
+_Evitar_: Marcação, tag, Comando
+
 **Tarefa**:
-Um trabalho com resultado esperado e um único Bot responsável.
+Um trabalho com resultado esperado e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
 _Evitar_: Mensagem, atividade
 
 **Resultado da Tarefa**:

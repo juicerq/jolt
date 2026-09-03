@@ -120,10 +120,13 @@ describe("Pi agent runtime", () => {
     expect(await authorizeToolCall(ask, "read", { path: "../outside.txt" }, "read-3")).toEqual({ allowed: true, asked: true })
     expect(await authorizeToolCall(ask, "note", { content: "Prefere PDF" }, "note-1")).toEqual({ allowed: true, asked: true })
     expect(await authorizeToolCall(ask, "connect_plugin", { plugin: "gmail" }, "connect-1")).toEqual({ allowed: true })
+    expect(await authorizeToolCall(ask, "delegate", { bot: "Calo", outcome: "Testes" }, "delegate-1")).toEqual({ allowed: true })
+    expect(await authorizeToolCall(ask, "transfer", { bot: "Dara", instructions: "Desenhe" }, "transfer-1")).toEqual({ allowed: true })
+    expect(await authorizeToolCall(ask, "hire", { name: "Revisor", outcome: "Revisão" }, "hire-1")).toEqual({ allowed: true, asked: true })
     expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "read-only" }, "connect_plugin", { plugin: "gmail" }, "connect-2")).toEqual({ allowed: false, reason: "missing_permission" })
     expect(await authorizeToolCall({ ...ask, request: async () => "denied" }, "bash", { command: "bun test" }, "bash-1")).toEqual({ allowed: false, reason: "person_denied" })
     expect(await authorizeToolCall({ botId: "atlas", allowedRoot: root, mode: "full" }, "remember", { content: "Prefere PDF" }, "remember-1")).toEqual({ allowed: true })
-    expect(requests).toEqual(["read", "note"])
+    expect(requests).toEqual(["read", "note", "hire"])
   })
 
   test("holds an Ask tool call until the person decides or aborts the turn", async () => {

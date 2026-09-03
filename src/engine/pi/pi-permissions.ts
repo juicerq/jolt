@@ -4,6 +4,7 @@ import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-ag
 import type { BotPermissionMode } from "../../shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
 import { connectPluginTool } from "../../shared/plugins"
+import { delegateTool, transferTool } from "../../shared/tasks"
 
 type PiPermissionPolicyBase = {
   botId: string
@@ -17,8 +18,9 @@ export type PiPermissionPolicy =
   | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
-const detailFields: Record<string, string> = { bash: "command", delegate: "member", hire: "name", note: "content", remove_routine: "id", routine: "content", transfer: "member" }
-const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", routine: "frequency", transfer: "instructions" }
+const exemptTools = new Set([connectPluginTool, delegateTool, transferTool])
+const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
+const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
 
 export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[]) {
   if (mode !== "read-only") {
@@ -101,7 +103,7 @@ export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string
     return { allowed: false as const, reason: observes ? "path_outside_root" as const : "missing_permission" as const }
   }
 
-  if (tool === connectPluginTool) {
+  if (exemptTools.has(tool)) {
     return { allowed: true as const }
   }
 
