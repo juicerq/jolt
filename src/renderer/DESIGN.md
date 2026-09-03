@@ -370,10 +370,11 @@ supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work.
 
 **New Bot.** Creating a Bot happens inside the conversation plane instead of a
-dialog. The form shows a 64px Blobatar and one borderless name field. The single
-primary action appears after the name has content, and Enter submits it. Success
-opens the new conversation immediately. A ghost close action sits in the
-top-right corner.
+dialog. The form shows a 77px Blobatar and one borderless name field on a raised
+surface. The single primary action appears after the name has content without
+moving the form, and Enter submits it. Success
+opens the new conversation immediately. Discarding uses the same collapsible
+right-edge action tab as the conversation and Bot settings.
 
 An empty Bot conversation shows the Bot identity and one greeting chosen from
 the built-in greeting set. The greeting is presentation, not a persisted

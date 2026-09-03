@@ -58,7 +58,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
           <IconButton iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
             <FolderIcon aria-hidden="true" />
           </IconButton>
-          <IconButton iconSize={16} size={28} type="button" label="Criar Bot" onClick={openCreateBot}>
+          <IconButton className={draft ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Criar Bot" aria-pressed={!!draft} onClick={openCreateBot}>
             <UserPlusIcon aria-hidden="true" />
           </IconButton>
           <IconButton className={pluginsOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
