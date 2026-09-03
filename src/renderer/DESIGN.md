@@ -443,15 +443,20 @@ Further requests remain queued and the card states how many are waiting.
 
 While the draft is a single word that starts with `/`, the Comando menu sits
 above the prompt, left-aligned, sharing the anatomy of the Modelo and Esforço
-menu: one row per Comando that matches the word, the Comando itself as the
-row text and what it does in muted metadata beside it. Arrow keys move the
-highlighted row, Tab or Enter completes the Comando in the prompt followed by
-one space, and Escape hides the menu until the text changes. Once the draft
-holds a space the menu is gone and the prompt reads as a Comando: Enter or the
-send action runs it instead of sending a Mensagem, and running it clears the
-prompt.
-Rows without a runnable action, such as `/lembrar` before any text, read as
-disabled and explain what is missing in muted metadata type.
+menu: one row per Comando that matches the word, the Comando name in sentence
+case without the slash as the row text and what it does in muted metadata
+beside it. Arrow keys move the highlighted row, Tab or Enter picks the
+Comando, and Escape hides the menu until the text changes.
+
+A picked Comando leaves the text and becomes a chip at the left of the text
+row, inside the prompt: the Comando name in metadata type on the hover surface,
+one line tall, ending in a small remove icon. The text beside it is the
+Comando's argument, and the placeholder names what that argument is. Typing a
+Comando in full and following it with a space produces the same chip. Enter or
+the send action runs the Comando instead of sending a Mensagem, and running it
+clears the prompt. Clicking the chip or pressing Backspace with the caret at
+the start of the text removes it and keeps what was typed. Send stays disabled
+while the Comando lacks what it needs, such as `lembrar` before any text.
 
 **Dialog.** A fixed header names the task and offers one ghost close action. A
 thin progress indicator appears only for a real multi-step flow. The body groups

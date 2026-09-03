@@ -7,12 +7,12 @@ import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
 import { ChatCommandMenu, useChatCommands } from "./chat-command-menu"
-import { completeChatCommand } from "./chat-commands"
+import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
 import { ChatPluginRequest } from "./chat-plugin-request"
-import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftContent } from "./chat-store"
+import { addChatDraftImages, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
 
 type ChatComposerProps = {
   bot: Bot
@@ -28,10 +28,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
-  const { suggestions, command, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft.content)
+  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft)
   const menuOpen = suggestions.length > 0 && draft.content !== dismissedContent && !run
   const active = Math.min(highlighted, suggestions.length - 1)
-  const empty = draft.content.trim().length === 0 && draft.images.length === 0
+  const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
   const busy = !!run || commandPending
   const aborting = run?.status === "aborting"
   const pluginRequest = run?.pluginRequests[0]
@@ -52,10 +52,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     }
 
     if (command) {
-      const ran = await runCommand(command).catch(() => false)
+      const ran = await runCommand(command).then(() => true).catch(() => false)
 
       if (ran) {
-        setChatDraftContent(bot.id, "")
+        setChatDraftCommand(bot.id, undefined, "")
       }
 
       return
@@ -72,6 +72,15 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
     resetCommand()
     setHighlighted(0)
+
+    const started = startCommand(event.target.value)
+
+    if (started) {
+      setChatDraftCommand(bot.id, started.command, started.content)
+
+      return
+    }
+
     setChatDraftContent(bot.id, event.target.value)
   }
 
@@ -82,7 +91,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
-    setChatDraftContent(bot.id, completeChatCommand(suggestion))
+    setChatDraftCommand(bot.id, suggestion.command, "")
   }
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -120,6 +129,15 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
     if (menuOpen) {
       handleMenuKeyDown(event)
+
+      return
+    }
+
+    const atStart = event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === 0
+
+    if (draft.command && event.key === "Backspace" && atStart) {
+      event.preventDefault()
+      setChatDraftCommand(bot.id, undefined, draft.content)
 
       return
     }
@@ -173,28 +191,58 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
-      <label className="sr-only" htmlFor={`prompt-${bot.id}`}>Mensagem para {bot.name}</label>
-      <textarea
-        className="field-sizing-content box-border max-h-40 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-1 text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none order-first col-span-full min-h-[25px] py-0"
-        id={`prompt-${bot.id}`}
-        placeholder={`Converse com ${bot.name}...`}
-        value={draft.content}
-        rows={1}
-        disabled={busy}
-        role="combobox"
-        aria-expanded={menuOpen}
-        aria-controls={menuOpen ? menuId : undefined}
-        aria-autocomplete="list"
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-      />
+      <label className="sr-only" htmlFor={`prompt-${bot.id}`}>{draft.command ? `Texto do Comando ${draft.command}` : `Mensagem para ${bot.name}`}</label>
+      <div className="order-first col-span-full flex min-w-0 items-start gap-1.5">
+        {draft.command && <ChatComposerCommand command={draft.command} disabled={busy} onRemove={() => setChatDraftCommand(bot.id, undefined, draft.content)} />}
+        <textarea
+          className="field-sizing-content box-border max-h-40 min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border-0 bg-transparent px-1 text-body text-primary placeholder:text-muted disabled:opacity-60 focus-visible:outline-none min-h-[25px] py-0"
+          id={`prompt-${bot.id}`}
+          placeholder={draft.command ? chatCommandPlaceholders[draft.command] : `Converse com ${bot.name}...`}
+          value={draft.content}
+          rows={1}
+          disabled={busy}
+          role="combobox"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          aria-autocomplete="list"
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+        />
+      </div>
       <ChatModelEffort bot={bot} client={client} disabled={busy} />
       <ChatPermission bot={bot} client={client} disabled={busy} />
       {run
         ? <IconButton className="col-start-5" iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty || commandPending} label={commandPending ? "Executando Comando" : "Enviar mensagem"} tooltipPlacement="top"><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty || commandPending} label={sendLabel(command, commandPending)} tooltipPlacement="top"><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </form>
+  )
+}
+
+function sendLabel(command: ChatCommand | null, pending: boolean) {
+  if (pending) {
+    return "Executando Comando"
+  }
+
+  if (command) {
+    return `Executar o Comando ${command.command}`
+  }
+
+  return "Enviar mensagem"
+}
+
+function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCommandName; disabled: boolean; onRemove(): void }) {
+  return (
+    <button
+      className="flex h-[25px] shrink-0 items-center gap-1 rounded-md border-0 bg-surface-hover px-2 text-metadata font-medium text-secondary transition-colors duration-150 hover:bg-surface-active hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none [&>svg]:size-3 [&>svg]:stroke-2"
+      type="button"
+      disabled={disabled}
+      aria-label={`Remover o Comando ${command}`}
+      onClick={onRemove}
+    >
+      <span className="first-letter:uppercase">{command}</span>
+      <XMarkIcon aria-hidden="true" />
+    </button>
   )
 }
 

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { completeChatCommand, parseChatCommand, suggestChatCommands } from "@src/renderer/src/chat/chat-commands"
-import type { ChatCommand } from "@src/renderer/src/chat/chat-commands"
+import { buildChatCommand, startedChatCommand, suggestChatCommands } from "@src/renderer/src/chat/chat-commands"
+import type { ChatCommand, ChatCommandName } from "@src/renderer/src/chat/chat-commands"
 
 const enabled = { memoryEnabled: true }
 
@@ -11,11 +11,11 @@ test("/ offers every available Comando", () => {
   ])
 })
 
-test.each(["/l", "/LEM", "/lembrar"])("%s offers /lembrar while the Comando word is being typed", (content) => {
+test.each(["/l", "/LEM", "/lembrar"])("%s offers lembrar while the Comando word is being typed", (content) => {
   expect(suggestChatCommands(content, enabled)).toEqual([{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }])
 })
 
-test.each(["/c", "/COM", "/compactar"])("%s offers /compactar while the Comando word is being typed", (content) => {
+test.each(["/c", "/COM", "/compactar"])("%s offers compactar while the Comando word is being typed", (content) => {
   expect(suggestChatCommands(content, enabled)).toEqual([{ command: "compactar", detail: "Resume o Contexto do Bot com instruções opcionais" }])
 })
 
@@ -27,32 +27,43 @@ test("the menu is absent when the Bot's Memória is off", () => {
   expect(suggestChatCommands("/", { memoryEnabled: false })).toEqual([{ command: "compactar", detail: "Resume o Contexto do Bot com instruções opcionais" }])
 })
 
-test("completing a suggestion writes the Comando and one space", () => {
-  expect(completeChatCommand({ command: "lembrar", detail: "" })).toBe("/lembrar ")
+test.each<[string, { command: ChatCommandName; content: string }]>([
+  ["/lembrar ", { command: "lembrar", content: "" }],
+  ["/lembrar Prefere respostas curtas", { command: "lembrar", content: "Prefere respostas curtas" }],
+  ["/COMPACTAR  preserve decisões", { command: "compactar", content: " preserve decisões" }],
+  ["/compactar\nduas linhas", { command: "compactar", content: "duas linhas" }],
+])("%s starts a Comando and keeps the rest as the draft text", (content, started) => {
+  expect(startedChatCommand(content, enabled)).toEqual(started)
 })
 
-test.each<[string, string]>([
-  ["/lembrar  Prefere respostas curtas ", "Prefere respostas curtas"],
-  ["/lembrar", ""],
-  ["/lembrar ", ""],
-  ["/LEMBRAR duas\nlinhas", "duas\nlinhas"],
-])("%s parses as a /lembrar Comando", (content, remembered) => {
-  expect(parseChatCommand(content, enabled)).toEqual({ command: "lembrar", content: remembered })
+test.each(["/lembrar", "/compactar", "olá", "/lem algo", "/lembrarx algo", " /lembrar algo"])("%s starts no Comando", (content) => {
+  expect(startedChatCommand(content, enabled)).toBeNull()
+})
+
+test("a Comando does not start when the Bot's Memória is off", () => {
+  expect(startedChatCommand("/lembrar algo", { memoryEnabled: false })).toBeNull()
+  expect(startedChatCommand("/compactar algo", { memoryEnabled: false })).toEqual({ command: "compactar", content: "algo" })
 })
 
 test.each<[string, ChatCommand]>([
-  ["/compactar", { command: "compactar" }],
-  ["/compactar ", { command: "compactar" }],
-  ["/COMPACTAR  preserve decisões e\ntarefas pendentes ", { command: "compactar", instructions: "preserve decisões e\ntarefas pendentes" }],
-])("%s parses as a /compactar Comando", (content, command) => {
-  expect(parseChatCommand(content, enabled)).toEqual(command)
+  ["", { command: "compactar" }],
+  ["   ", { command: "compactar" }],
+  ["  preserve decisões e\ntarefas pendentes ", { command: "compactar", instructions: "preserve decisões e\ntarefas pendentes" }],
+])("compactar with %p builds a Comando", (content, command) => {
+  expect(buildChatCommand("compactar", content, enabled)).toEqual(command)
 })
 
-test.each(["olá", "/lem", "/lembrarx algo", " /lembrar algo"])("%s is not a Comando", (content) => {
-  expect(parseChatCommand(content, enabled)).toBeNull()
+test.each<[string, ChatCommand]>([
+  [" Prefere respostas curtas ", { command: "lembrar", content: "Prefere respostas curtas" }],
+  ["duas\nlinhas", { command: "lembrar", content: "duas\nlinhas" }],
+])("lembrar with %p builds a Comando", (content, command) => {
+  expect(buildChatCommand("lembrar", content, enabled)).toEqual(command)
 })
 
-test("a Comando is plain text when the Bot's Memória is off", () => {
-  expect(parseChatCommand("/lembrar algo", { memoryEnabled: false })).toBeNull()
-  expect(parseChatCommand("/compactar preserve X", { memoryEnabled: false })).toEqual({ command: "compactar", instructions: "preserve X" })
+test.each(["", "   "])("lembrar with %p has nothing to run", (content) => {
+  expect(buildChatCommand("lembrar", content, enabled)).toBeNull()
+})
+
+test("lembrar has nothing to run when the Bot's Memória is off", () => {
+  expect(buildChatCommand("lembrar", "algo", { memoryEnabled: false })).toBeNull()
 })

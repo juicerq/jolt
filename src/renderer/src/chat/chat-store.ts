@@ -2,6 +2,7 @@ import { Store } from "@tanstack/react-store"
 import type { ConversationActivity, IncomingMessage } from "../../../shared/conversations"
 import type { PermissionRequest } from "../../../shared/permissions"
 import type { PluginRequest } from "../../../shared/plugins"
+import type { ChatCommandName } from "./chat-commands"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 
 type ConversationStep = ConversationActivity["steps"][number]
@@ -24,7 +25,7 @@ export type ChatRun = {
   error?: string
 }
 
-export type ChatDraft = Pick<IncomingMessage, "content" | "images">
+export type ChatDraft = Pick<IncomingMessage, "content" | "images"> & { command?: ChatCommandName }
 
 type ChatState = {
   drafts: Record<string, ChatDraft>
@@ -40,6 +41,10 @@ export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: 
 
 export function setChatDraftContent(botId: string, content: string) {
   updateDraft(botId, (draft) => ({ ...draft, content }))
+}
+
+export function setChatDraftCommand(botId: string, command: ChatCommandName | undefined, content: string) {
+  updateDraft(botId, (draft) => ({ images: draft.images, content, ...(command ? { command } : {}) }))
 }
 
 export function addChatDraftImages(botId: string, images: ChatDraft["images"]) {

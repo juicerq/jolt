@@ -54,7 +54,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }, [bot.id, client, isFetchedAfterMount, messages])
 
   async function handleSend(draft: ChatDraft) {
-    const message = { ...draft, content: draft.content.trim() }
+    const message = { content: draft.content.trim(), images: draft.images }
 
     startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message })
     await client.raw.conversations.send({ botId: bot.id, ...message }).catch((sendError: unknown) => {
