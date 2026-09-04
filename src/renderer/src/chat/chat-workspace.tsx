@@ -1,10 +1,10 @@
-import { Blobatar } from "@blobatar/react"
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useCallback, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ConversationMessage, MessageImage, MessageReply } from "@src/shared/conversations"
 import type { Task } from "@src/shared/tasks"
+import { BotFace } from "../bots/bot-face"
 import type { EngineClient } from "../engine-client"
 import { appSettingsStore } from "../settings/app-settings-store"
 import { teamAvatarIdentities, teamNames } from "../bots/team"
@@ -306,7 +306,7 @@ function ChatClosed({ bot }: { bot: Bot }) {
 function EmptyChat({ bot }: { bot: Bot }) {
   return (
     <div className="m-auto flex max-w-[520px] flex-col items-center text-center text-support text-secondary">
-      <Blobatar className="size-[77px] flex-none" name={bot.avatarSeed} size={77} alt="" />
+      <BotFace className="size-[77px] flex-none" name={bot.avatarSeed} botId={bot.id} size={77} />
       <h2 className="mt-4 mb-1.5 text-title font-semibold text-primary">{bot.name}</h2>
       <p className="m-0 max-w-[48ch] text-body leading-[1.6] text-secondary">{chatGreeting(bot.id)}</p>
     </div>

@@ -1,10 +1,10 @@
-import { Blobatar } from "@blobatar/react"
 import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useId, useRef, useState, type ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
+import { BotFace } from "../bots/bot-face"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -206,7 +206,7 @@ function SidebarSettingsButton({ active }: { active: boolean }) {
 function DraftRow({ draft }: { draft: BotDraft }) {
   return (
     <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
-      <Blobatar className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} alt="" />
+      <BotFace className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
@@ -389,11 +389,11 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
 function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   if (!members || members.length === 0) {
     return (
-      <Blobatar
+      <BotFace
         className="grid size-[38px] shrink-0 place-items-center text-support font-extrabold text-focus"
         name={bot.avatarSeed}
+        botId={bot.id}
         size={38}
-        alt=""
       />
     )
   }
@@ -403,11 +403,11 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
   return (
     <span className="group/stack relative block h-[41px] w-[51px] min-w-[51px] shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
       {avatars.map((avatar, index) => (
-        <Blobatar
+        <BotFace
           className={`absolute size-[29px] shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
           name={avatar.avatarSeed}
+          botId={avatar.id}
           size={29}
-          alt=""
           key={avatar.id}
         />
       ))}
