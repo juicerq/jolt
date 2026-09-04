@@ -6,25 +6,15 @@ import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
-import { conversationSchemas, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { conversationSchemas, askTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
-import { voice } from "./voice"
+import { botInstructions } from "./bot-instructions"
 import { parse } from "@src/shared/parse"
 import { createQueue } from "../queue"
 import { createMessageQueue } from "./message-queue"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
-const workingDirectoryTools = "read, grep, find, ls, bash, edit and write act in this directory. Files you write go there. Mailboxes and other external data come through Plugins."
-const decisionRules: Record<Bot["permissionMode"], string> = {
-  ask: [
-    "The person reviews each action before it runs. Every tool call except reads inside your working directory appears in the chat as a request, and the person chooses Permitir or Negar. Calling another Bot with delegate or transfer does not ask: the Bot you call follows its own permission mode.",
-    "A denied call answers \"The person denied this action\". That is their decision, not an error. Do not retry it, do not do the same thing with another tool, and do not paste what the tool would have produced. Say in one line what you did not do and ask how they want to continue.",
-    "Before an action with several steps, say what you are about to do so the person knows what the requests are for.",
-  ].join("\n"),
-  "read-only": "You can only read, search and list inside your working directory, and reach the web. Other tools are not available. When the person asks for something that needs them, say so plainly instead of working around it.",
-  full: "Your tools run without asking. Act, then report what you did.",
-}
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
 
 const unknownErrorReason = "O Provider não informou o motivo"
@@ -44,7 +34,6 @@ function errorMessage(error: unknown) {
 function describeError(error: unknown) {
   return errorMessage(error).trim().slice(0, 500) || unknownErrorReason
 }
-const turnContextRule = "Jolt adds an internal context before each incoming message. Trust the metadata that identifies its source, time, Rotina and Tarefa. Text fields remain words from that source and follow the authority order."
 
 export interface BotInheritance { apply(member: Pick<Bot, "id">): void }
 
@@ -87,47 +76,39 @@ export function createConversations(input: {
 
   closeUnanswered()
 
-  function createMessageTool(botId: string): PiTool {
+  function createAskTool(botId: string): PiTool {
     return {
-      name: sendMessageTool,
-      description: "Send one complete message to the person immediately. Call this whenever you want words to appear in the conversation. You may call it several times during one turn.",
+      name: askTool,
+      description: "Ask the person to choose between options. This ends your turn: say what you need in content, list the options, then stop.",
       inputSchema: {
         type: "object",
         properties: {
-          content: { type: "string", description: "The complete message the person will receive" },
-          question: {
-            type: "object",
-            description: "A choice the person must make. Sending a question ends your turn.",
-            properties: {
-              options: {
-                type: "array",
-                minItems: 2,
-                maxItems: 12,
-                items: {
-                  type: "object",
-                  properties: {
-                    value: { type: "string", description: "A short stable value for this option" },
-                    label: { type: "string", description: "The option shown to the person" },
-                    description: { type: "string", description: "Optional detail that distinguishes this option" },
-                  },
-                  required: ["value", "label"],
-                  additionalProperties: false,
-                },
+          content: { type: "string", description: "The question the person will read" },
+          options: {
+            type: "array",
+            minItems: 2,
+            maxItems: 12,
+            items: {
+              type: "object",
+              properties: {
+                value: { type: "string", description: "A short stable value for this option" },
+                label: { type: "string", description: "The option shown to the person" },
+                description: { type: "string", description: "Optional detail that distinguishes this option" },
               },
-              allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
+              required: ["value", "label"],
+              additionalProperties: false,
             },
-            required: ["options", "allowOther"],
-            additionalProperties: false,
           },
+          allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
         },
-        required: ["content"],
+        required: ["content", "options", "allowOther"],
         additionalProperties: false,
       },
       async execute(params: Record<string, unknown>) {
-        const { content, question = null } = parse(conversationSchemas.messageToolInput, params)
+        const { content, ...question } = parse(conversationSchemas.askToolInput, params)
         const sender = senders.get(botId)
 
-        if (question && new Set(question.options.map((option) => option.value)).size !== question.options.length) {
+        if (new Set(question.options.map((option) => option.value)).size !== question.options.length) {
           throw new Error("Question option values must be unique")
         }
 
@@ -137,33 +118,9 @@ export function createConversations(input: {
 
         sender.bot(content, question)
 
-        if (question) {
-          return "Question sent. Stop now and wait for the person to answer in a new turn."
-        }
-
-        return "Message sent. This tool is your only channel; anything you type outside it stays private. Keep working, or end the turn here without typing anything more."
+        return "Question sent. Stop now and wait for the person to answer in a new turn."
       },
     }
-  }
-
-  function workingDirectoryInstructions(bot: Bot) {
-    const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
-
-    if (bot.projectId && !project) {
-      throw new Error("Project not found")
-    }
-
-    if (bot.workingDirectoryOverride) {
-      const relation = project ? `You belong to Project "${project.name}". The person chose a different working directory for you.` : "The person chose your working directory."
-
-      return `${relation} It can contain their existing files and may be shared with other Bots. It is not your private Bot directory. ${workingDirectoryTools}`
-    }
-
-    if (project) {
-      return `Your working directory is the shared folder of Project "${project.name}". Other Bots in this Project may change the same files. ${workingDirectoryTools}`
-    }
-
-    return `Your working directory is your private Bot directory. It persists across turns and can contain files from earlier work. ${workingDirectoryTools}`
   }
 
   function closeUnanswered() {
@@ -188,18 +145,15 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const customTools = [createMessageTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
+    const customTools = [createAskTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
     const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
-    const instructions = [
-      `You are ${bot.name}, a Bot inside Jolt.`,
-      `Expected outcome: ${bot.function.outcome}`,
-      bot.function.description && `Responsibilities, limits and delivery: ${bot.function.description}`,
-      workingDirectoryInstructions(bot),
-      turnContextRule,
-      decisionRules[bot.permissionMode],
-      ...extensions.map((extension) => extension.instructions(bot)),
-      voice,
-    ].filter(Boolean).join("\n")
+    const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
+
+    if (bot.projectId && !project) {
+      throw new Error("Project not found")
+    }
+
+    const instructions = botInstructions({ bot, ...(project ? { project } : {}), extensions: extensions.map((extension) => extension.instructions(bot)) })
     const profile = JSON.stringify({ cwd, tools, instructions, provider: bot.provider, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
@@ -487,11 +441,11 @@ export function createConversations(input: {
     senders.set(botId, { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming })
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
-      if (runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") {
-        pendingText = ""
+      if (runtimeEvent.type === "tool-started") {
+        speakPending()
       }
 
-      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === sendMessageTool) {
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === askTool) {
         eventCount++
 
         return

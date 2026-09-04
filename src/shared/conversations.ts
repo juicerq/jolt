@@ -5,7 +5,7 @@ import { pluginSchemas } from "./plugins"
 import type { Frequency } from "./routines"
 import type { TaskStatus } from "./tasks"
 
-export const sendMessageTool = "send_message"
+export const askTool = "ask"
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine"])
@@ -67,7 +67,7 @@ const message = z.strictObject({
   createdAt: id,
 })
 const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, content: true, images: true, replyTo: true })
-const messageToolInput = z.strictObject({ content: z.string().trim().min(1), question: messageQuestion.optional() })
+const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
 const startedEvent = z.strictObject({ type: z.literal("started"), message: incomingMessage })
 const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
 const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
@@ -134,7 +134,7 @@ export const conversationSchemas = {
   sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), replyTo: messageReply.nullable().default(null), mentionedBotIds: z.array(id).default([]), deliver: z.enum(["queue", "now"]).default("queue") }),
   queueInput: z.strictObject({ botId: id, id }),
   queuedMessage,
-  messageToolInput,
+  askToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),

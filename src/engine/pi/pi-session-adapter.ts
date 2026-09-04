@@ -12,7 +12,6 @@ import {
 import type { TSchema } from "@earendil-works/pi-ai"
 import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
-import { createMessageProtocolExtension } from "./pi-message-protocol"
 import { createPermissionExtension } from "./pi-permissions"
 import type { PiModels } from "./pi-models"
 import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
@@ -245,7 +244,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createMessageProtocolExtension(), createPermissionExtension(input.policy), registrar.extension],
+        extensionFactories: [createPermissionExtension(input.policy), registrar.extension],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,

@@ -47,29 +47,26 @@ function chunks(text: string) {
   return parts
 }
 
-type ScriptedEvent = PiRuntimeEvent | { type: "send-message"; callId: string; content: string }
-
-function scriptedTurn(): ScriptedEvent[] {
+function scriptedTurn(): PiRuntimeEvent[] {
   return [
     { type: "started" },
     { type: "thinking-started" },
     ...chunks(thinking).map((text): PiRuntimeEvent => ({ type: "thinking", text })),
     { type: "thinking-finished" },
-    { type: "send-message", callId: "send-1", content: progress },
+    ...chunks(progress).map((text): PiRuntimeEvent => ({ type: "text", text })),
     { type: "tool-started", callId: "read-1", tool: "read", detail: "src/billing/invoice.ts" },
     { type: "tool-finished", callId: "read-1", tool: "read", failed: false },
     { type: "tool-started", callId: "bash-1", tool: "bash", detail: "bun test tests/billing" },
     { type: "tool-finished", callId: "bash-1", tool: "bash", failed: false },
-    { type: "send-message", callId: "send-2", content: response.repeat(4) },
+    ...chunks(response.repeat(4)).map((text): PiRuntimeEvent => ({ type: "text", text })),
     { type: "finished", reason: "stop" },
   ]
 }
 
 export function createPiLoadSessionFactory(): PiSessionFactory {
   return {
-    async open(input): Promise<PiSession> {
+    async open(): Promise<PiSession> {
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
-      const messageTool = input.customTools?.find((tool) => tool.name === "send_message")
       let aborted = false
 
       return {
@@ -85,20 +82,6 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
             }
 
             await Bun.sleep(chunkDelayMs)
-
-            if (event.type === "send-message") {
-              for (const listener of listeners) {
-                listener({ type: "tool-started", callId: event.callId, tool: "send_message" })
-              }
-
-              await messageTool?.execute({ content: event.content })
-
-              for (const listener of listeners) {
-                listener({ type: "tool-finished", callId: event.callId, tool: "send_message", failed: false })
-              }
-
-              continue
-            }
 
             for (const listener of listeners) {
               listener(event)
