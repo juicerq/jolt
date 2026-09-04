@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from "electron"
+import { ipcMain, View, type BrowserWindow } from "electron"
 import { z } from "zod"
 import { browserBounds, type BrowserRequest, type BrowserState } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
@@ -9,6 +9,7 @@ export class Browser {
   private focusedBotId: string | null = null
   private readonly timer: ReturnType<typeof setInterval>
   private capturing = false
+  private readonly stackingAnchor = new View()
 
   constructor(private readonly window: BrowserWindow) {
     const handle = (name: string, action: (raw: unknown) => unknown) => {
@@ -27,7 +28,9 @@ export class Browser {
       const page = this.page(botId)
 
       for (const other of this.pages.values()) {
-        other.minimize()
+        if (other !== page) {
+          other.minimize()
+        }
       }
 
       await page.takeControl()
@@ -51,6 +54,7 @@ export class Browser {
         }
 
         page.show(bounds)
+        window.contentView.addChildView(this.stackingAnchor)
       }
     })
     handle("resume", (raw) => {

@@ -48,7 +48,7 @@ export function BrowserPanel() {
           <IconButton label="Maximizar ou restaurar janela" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.toggleMaximizeWindow())}><Square2StackIcon aria-hidden="true" /></IconButton>
           <IconButton label="Fechar navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
         </header>
-        <div ref={viewport} className="min-h-0 flex-1 bg-canvas" />
+        <div key={focused.botId} ref={viewport} className="min-h-0 flex-1 bg-canvas" />
         <footer className="flex shrink-0 items-center justify-between gap-4 pt-4">
           <p className="text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`}</p>
           <Button className="max-w-1/2 whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : `Devolver para ${focused.botName}`}</Button>
