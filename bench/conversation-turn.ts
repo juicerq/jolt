@@ -13,15 +13,21 @@ function isFinishedTurn(item: Observation) {
 interface ProfileNode { id: number; callFrame: { functionName: string } }
 interface TraceEvent { name?: string; pid?: number; args?: { data?: { cpuProfile?: { nodes?: ProfileNode[]; samples?: number[] }; timeDeltas?: number[] } } }
 
-function summarize(trace: { traceEvents: TraceEvent[] }) {
-  const chunks = trace.traceEvents.filter((event) => event.name === "ProfileChunk")
+const idleFrames = new Set(["(idle)", "(program)", "(garbage collector)"])
+
+function busiestPid(chunks: TraceEvent[]) {
   const perProcess = new Map<number, number>()
 
   for (const chunk of chunks) {
     perProcess.set(chunk.pid ?? 0, (perProcess.get(chunk.pid ?? 0) ?? 0) + (chunk.args?.data?.timeDeltas?.length ?? 0))
   }
 
-  const pid = [...perProcess.entries()].toSorted((left, right) => right[1] - left[1])[0]?.[0]
+  return [...perProcess.entries()].toSorted((left, right) => right[1] - left[1])[0]?.[0]
+}
+
+function summarize(trace: { traceEvents: TraceEvent[] }) {
+  const chunks = trace.traceEvents.filter((event) => event.name === "ProfileChunk")
+  const pid = busiestPid(chunks)
   const nodes = new Map<number, ProfileNode>()
   let busyUs = 0
   let wallUs = 0
@@ -39,7 +45,7 @@ function summarize(trace: { traceEvents: TraceEvent[] }) {
       const name = nodes.get(sample)?.callFrame.functionName
       wallUs += delta
 
-      if (name !== "(idle)" && name !== "(program)" && name !== "(garbage collector)") {
+      if (!name || !idleFrames.has(name)) {
         busyUs += delta
       }
     })

@@ -37,9 +37,13 @@ const kindLabels: Record<string, string> = {
   videoMessage: "video",
 }
 
+function writtenText(content: ReturnType<typeof normalizeMessageContent>) {
+  return content?.conversation ?? content?.extendedTextMessage?.text ?? content?.imageMessage?.caption ?? content?.videoMessage?.caption ?? content?.documentMessage?.caption
+}
+
 export function textOf(message: WAMessage) {
   const content = normalizeMessageContent(message.message)
-  const written = content?.conversation ?? content?.extendedTextMessage?.text ?? content?.imageMessage?.caption ?? content?.videoMessage?.caption ?? content?.documentMessage?.caption
+  const written = writtenText(content)
 
   if (written) {
     return written
