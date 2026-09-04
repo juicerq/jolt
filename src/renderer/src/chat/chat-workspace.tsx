@@ -176,14 +176,20 @@ function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, me
     return <PersonBubble time={time} content={message.content} images={message.images} mentions={knownChatMentions(avatarIdentities)} />
   }
 
+  return <BotBubble activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} time={time} {...(answer ? { answer } : {})} {...(onQuestionAnswer ? { onQuestionAnswer } : {})} />
+}
+
+function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: (messageId: string, optionValue: string) => Promise<boolean> }) {
   if (!activityDetailsVisible && !message.content && !message.ending) {
     return null
   }
 
+  const bubble = message.content || message.ending
+
   return (
     <article className="w-fit max-w-[720px] self-start">
       {activityDetailsVisible && message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
-      <ChatStamped className={message.content || message.ending ? "chat-bot-bubble" : ""} copy={message.content} name={bot.name} time={time} anchor={message.content || message.ending ? "bubble" : "text"}>
+      <ChatStamped className={bubble ? "chat-bot-bubble" : ""} copy={message.content} name={bot.name} time={time} anchor={bubble ? "bubble" : "text"}>
         {message.content && <ChatContent content={message.content} />}
         {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValue={answer?.optionValue} interactive={!!onQuestionAnswer && !bot.closed} onAnswer={onQuestionAnswer ?? unavailableQuestionAnswer} />}
         {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} />}

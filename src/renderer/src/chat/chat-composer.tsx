@@ -10,10 +10,10 @@ import { menuCardClassName } from "../ui/menu"
 
 export const promptWidthClassName = "mx-auto w-[min(680px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
-import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName } from "./chat-commands"
+import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
-import { applyChatMention, mentionCandidates, suggestChatMentions } from "./chat-mentions"
+import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
 import { addChatDraftImages, addChatDraftMention, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
@@ -23,6 +23,23 @@ interface ChatComposerProps {
   client: EngineClient
   onAbort(): void
   onSend(draft: ChatDraft, deliver: "queue" | "now"): void
+}
+
+function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSuggestion[]): ChatMenuChoice[] {
+  if (commands.length > 0) {
+    return commands.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
+  }
+
+  return mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
+}
+
+function ChatComposerActions({ command, working, aborting, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; working: boolean; aborting: boolean; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
+  return (
+    <div className="col-start-5 flex items-center gap-2">
+      {working && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>}
+      <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked} label={sendLabel({ command, pending, working, blocked })} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>
+    </div>
+  )
 }
 
 export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps) {
@@ -36,9 +53,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
   const commands = run ? [] : suggestions
-  const choices: ChatMenuChoice[] = commands.length > 0
-    ? commands.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
-    : mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
+  const choices = menuChoices(commands, mentions)
   const menuOpen = choices.length > 0 && draft.content !== dismissedContent
   const active = Math.min(highlighted, choices.length - 1)
   const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
@@ -214,10 +229,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       </div>
       <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
       <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
-      <div className="col-start-5 flex items-center gap-2">
-        {run && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>}
-        <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || commandPending || commandBlocked} label={sendLabel({ command, pending: commandPending, working: !!run, blocked: commandBlocked })} tooltipPlacement="top" onClick={(event) => void handleSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>
-      </div>
+      <ChatComposerActions command={command} working={!!run} aborting={aborting} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
     </form>
   )
 }

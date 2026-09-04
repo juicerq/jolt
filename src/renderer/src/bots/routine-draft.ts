@@ -6,8 +6,8 @@ export const emptyRoutineDraft: RoutineDraft = { name: "", content: "", form: "i
 
 export const frequencyForms: Record<string, Frequency["form"]> = { interval: "interval", "fixed-time": "fixed-time", once: "once" }
 
-type FrequencyField = "minutes" | "days" | "window" | "times" | "at"
-type FrequencyResult = { frequency: Frequency; error?: never; field?: never } | { frequency?: never; error: string; field: FrequencyField }
+export type FrequencyField = "minutes" | "days" | "window" | "times" | "at"
+export type FrequencyResult = { frequency: Frequency; error?: never; field?: never } | { frequency?: never; error: string; field: FrequencyField }
 
 function localDateTime(iso: string) {
   const at = new Date(iso)

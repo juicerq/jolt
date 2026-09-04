@@ -134,6 +134,18 @@ function TemporaryMemory({ client, leader }: { client: EngineClient; leader?: Pi
   )
 }
 
+function MemoryClearConfirmation({ note, clearing, onCancel, onConfirm }: { note: string; clearing: boolean; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className={`${revealClassName} flex flex-col items-start gap-4`}>
+      <p className="m-0 text-control font-medium text-secondary">{note}</p>
+      <div className="flex gap-2">
+        <Button variant="text" type="button" autoFocus disabled={clearing} onClick={onCancel}>Cancelar</Button>
+        <Button variant="danger" type="button" disabled={clearing} onClick={onConfirm}>{clearing ? "Limpando..." : "Limpar a Memória"}</Button>
+      </div>
+    </div>
+  )
+}
+
 function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState("")
@@ -155,8 +167,8 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
     queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
   } }))
   const content = draft.trim()
-  const busy = adding || updating || forgetting || clearing || toggling
-  const failure = listError?.message ?? addError?.message ?? updateError?.message ?? forgetError?.message ?? clearError?.message ?? toggleError?.message
+  const busy = [adding, updating, forgetting, clearing, toggling].some(Boolean)
+  const failure = [listError, addError, updateError, forgetError, clearError, toggleError].find(Boolean)?.message
   const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não lê nem anota, nem o que o Líder sabe. Nada foi apagado.`
 
   function handleAdd(event: FormEvent<HTMLFormElement>) {
@@ -193,15 +205,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
         <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={busy || confirmingClear || !content}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
       </form>
       {memories && memories.length > 0 && !confirmingClear && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
-      {memories && confirmingClear && (
-        <div className={`${revealClassName} flex flex-col items-start gap-4`}>
-          <p className="m-0 text-control font-medium text-secondary">{clearNote(bot, memories.length)}</p>
-          <div className="flex gap-2">
-            <Button variant="text" type="button" autoFocus disabled={clearing} onClick={() => setConfirmingClear(false)}>Cancelar</Button>
-            <Button variant="danger" type="button" disabled={clearing} onClick={() => clear({ botId: bot.id })}>{clearing ? "Limpando..." : "Limpar a Memória"}</Button>
-          </div>
-        </div>
-      )}
+      {memories && confirmingClear && <MemoryClearConfirmation note={clearNote(bot, memories.length)} clearing={clearing} onCancel={() => setConfirmingClear(false)} onConfirm={() => clear({ botId: bot.id })} />}
       {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
       {leader && <TeamMemory leader={leader} client={client} />}
     </SettingsSection>

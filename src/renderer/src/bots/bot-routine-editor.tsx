@@ -10,7 +10,7 @@ import { SettingsSection } from "../ui/settings-section"
 import { ToggleChip } from "../ui/toggle-chip"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
-import { emptyRoutineDraft, frequencyForms, frequencyResultOf, routineDraftOf, type RoutineDraft } from "./routine-draft"
+import { emptyRoutineDraft, frequencyForms, frequencyResultOf, routineDraftOf, type FrequencyField, type FrequencyResult, type RoutineDraft } from "./routine-draft"
 import { weekdayLabels } from "./routine-frequency"
 
 export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot; client: EngineClient; routineId: string; onClose: () => void }) {
@@ -61,12 +61,25 @@ export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot
   return <RoutineForm bot={bot} creating={creating} initial={routine ? routineDraftOf(routine) : emptyRoutineDraft} pending={creatingRoutine || updating} failure={createError?.message ?? updateError?.message} submitLabel={creating ? "Adicionar Rotina" : "Salvar Rotina"} onClose={onClose} onSubmit={handleSave} />
 }
 
+function invalidField(result: FrequencyResult, field: FrequencyField) {
+  if (result.field !== field) {
+    return { className: "", props: { "aria-invalid": false } }
+  }
+
+  return { className: "border-status-error focus-visible:border-status-error focus-visible:ring-status-error", props: { "aria-invalid": true, "aria-describedby": "routine-frequency-error" } }
+}
+
 function RoutineForm({ bot, creating, initial, pending, failure, submitLabel, onClose, onSubmit }: { bot: Bot; creating: boolean; initial: RoutineDraft; pending: boolean; failure?: string; submitLabel: string; onClose: () => void; onSubmit: (name: string, content: string, frequency: Frequency) => void }) {
   const [draft, setDraft] = useState(initial)
   const content = draft.content.trim()
   const name = draft.name.trim()
   const frequencyResult = frequencyResultOf(draft)
   const frequency = frequencyResult.frequency
+  const minutesField = invalidField(frequencyResult, "minutes")
+  const timesField = invalidField(frequencyResult, "times")
+  const atField = invalidField(frequencyResult, "at")
+  const daysField = invalidField(frequencyResult, "days")
+  const windowField = invalidField(frequencyResult, "window")
   const complete = !!name && !!content && !!frequency
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
   const footer = creating || dirty
@@ -105,16 +118,16 @@ function RoutineForm({ bot, creating, initial, pending, failure, submitLabel, on
                   <option value="once">Uma vez</option>
                 </Select>
               </label>
-              {draft.form === "interval" && <label className="flex items-center gap-2 text-control font-normal text-secondary"><span className="sr-only">Minutos</span><input className={`${fieldControlClassName} w-20 ${frequencyResult.field === "minutes" ? "border-status-error focus-visible:border-status-error focus-visible:ring-status-error" : ""}`} type="number" min={1} step={1} value={draft.everyMinutes} aria-invalid={frequencyResult.field === "minutes"} aria-describedby={frequencyResult.field === "minutes" ? "routine-frequency-error" : undefined} onChange={(event) => setDraft({ ...draft, everyMinutes: event.target.value })} />minutos</label>}
-              {draft.form === "fixed-time" && <label className="flex items-center gap-2 text-control font-normal text-secondary"><span className="sr-only">Horários</span><input className={`${fieldControlClassName} w-44 ${frequencyResult.field === "times" ? "border-status-error focus-visible:border-status-error focus-visible:ring-status-error" : ""}`} placeholder="09:00, 14:00" value={draft.times} aria-invalid={frequencyResult.field === "times"} aria-describedby={frequencyResult.field === "times" ? "routine-frequency-error" : undefined} onChange={(event) => setDraft({ ...draft, times: event.target.value })} /></label>}
-              {draft.form === "once" && <label className="flex items-center gap-2 text-control font-normal text-secondary">em<span className="sr-only">Data e hora</span><input className={`${fieldControlClassName} w-48 ${frequencyResult.field === "at" ? "border-status-error focus-visible:border-status-error focus-visible:ring-status-error" : ""}`} type="datetime-local" value={draft.at} aria-invalid={frequencyResult.field === "at"} aria-describedby={frequencyResult.field === "at" ? "routine-frequency-error" : undefined} onChange={(event) => setDraft({ ...draft, at: event.target.value })} /></label>}
+              {draft.form === "interval" && <label className="flex items-center gap-2 text-control font-normal text-secondary"><span className="sr-only">Minutos</span><input className={`${fieldControlClassName} w-20 ${minutesField.className}`} type="number" min={1} step={1} value={draft.everyMinutes} {...minutesField.props} onChange={(event) => setDraft({ ...draft, everyMinutes: event.target.value })} />minutos</label>}
+              {draft.form === "fixed-time" && <label className="flex items-center gap-2 text-control font-normal text-secondary"><span className="sr-only">Horários</span><input className={`${fieldControlClassName} w-44 ${timesField.className}`} placeholder="09:00, 14:00" value={draft.times} {...timesField.props} onChange={(event) => setDraft({ ...draft, times: event.target.value })} /></label>}
+              {draft.form === "once" && <label className="flex items-center gap-2 text-control font-normal text-secondary">em<span className="sr-only">Data e hora</span><input className={`${fieldControlClassName} w-48 ${atField.className}`} type="datetime-local" value={draft.at} {...atField.props} onChange={(event) => setDraft({ ...draft, at: event.target.value })} /></label>}
             </div>
             {draft.form !== "once" && (
-              <div className="flex gap-1" role="group" aria-label="Dias da semana" aria-invalid={frequencyResult.field === "days"} aria-describedby={frequencyResult.field === "days" ? "routine-frequency-error" : undefined}>
+              <div className="flex gap-1" role="group" aria-label="Dias da semana" {...daysField.props}>
                 {weekdays.map((day) => <ToggleChip className="flex-1 px-0" pressed={draft.days.includes(day)} key={day} onClick={() => toggleDay(day)}>{weekdayLabels[day]}</ToggleChip>)}
               </div>
             )}
-            {draft.form === "interval" && <div className="grid grid-cols-2 gap-2"><Field label="Das"><input className={`${fieldControlClassName} ${frequencyResult.field === "window" ? "border-status-error focus-visible:border-status-error focus-visible:ring-status-error" : ""}`} type="time" value={draft.startTime} aria-invalid={frequencyResult.field === "window"} aria-describedby={frequencyResult.field === "window" ? "routine-frequency-error" : undefined} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} /></Field><Field label="Até"><input className={`${fieldControlClassName} ${frequencyResult.field === "window" ? "border-status-error focus-visible:border-status-error focus-visible:ring-status-error" : ""}`} type="time" value={draft.endTime} aria-invalid={frequencyResult.field === "window"} aria-describedby={frequencyResult.field === "window" ? "routine-frequency-error" : undefined} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} /></Field></div>}
+            {draft.form === "interval" && <div className="grid grid-cols-2 gap-2"><Field label="Das"><input className={`${fieldControlClassName} ${windowField.className}`} type="time" value={draft.startTime} {...windowField.props} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} /></Field><Field label="Até"><input className={`${fieldControlClassName} ${windowField.className}`} type="time" value={draft.endTime} {...windowField.props} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} /></Field></div>}
             {frequencyResult.error && <p className="m-0 text-support font-normal text-status-error" id="routine-frequency-error">{frequencyResult.error}</p>}
           </Field>
         </SettingsSection>
