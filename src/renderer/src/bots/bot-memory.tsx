@@ -119,13 +119,13 @@ export function BotMemory({ bot, client, leader, onClose }: { bot: Bot; client: 
     <BotPage label={`Memórias de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       {bot.temporary
-        ? <TemporaryMemory bot={bot} client={client} {...(leader ? { leader } : {})} />
+        ? <TemporaryMemory client={client} {...(leader ? { leader } : {})} />
         : <OwnMemory bot={bot} client={client} {...(leader ? { leader } : {})} />}
     </BotPage>
   )
 }
 
-function TemporaryMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
+function TemporaryMemory({ client, leader }: { client: EngineClient; leader?: Pick<Bot, "id" | "name"> }) {
   return (
     <SettingsSection title="Memória">
       <p className="m-0 text-support text-muted">Um Integrante temporário não tem Memória própria.{leader && ` Ele lê o que ${leader.name} sabe.`}</p>

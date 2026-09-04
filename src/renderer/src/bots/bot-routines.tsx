@@ -18,9 +18,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
   const listOptions = client.query.routines.list.queryOptions({ input: { botId: bot.id } })
   const { data: routines, error: listError } = useQuery(listOptions)
   const refresh = () => queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
-  const settled = { onSuccess() {
-    refresh()
-  } }
+  const settled = { onSuccess: refresh }
   const { mutate: update, isPending: updating, error: updateError } = useMutation(client.query.routines.update.mutationOptions(settled))
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.routines.remove.mutationOptions({ onSuccess() {
     refresh()

@@ -31,7 +31,7 @@ export function ChatContent({ content, streaming = false }: { content: string; s
 
 function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const code = isValidElement<{ children?: ReactNode; className?: string }>(children) ? children : undefined
-  const content = String(code?.props.children ?? "").replace(/\n$/, "")
+  const content = [code?.props.children].flat().filter((part) => typeof part === "string").join("").replace(/\n$/, "")
   const highlightedContent = highlightChatCode(content, code?.props.className)
   const codeContent = highlightedContent
     ? <code className={code?.props.className} dangerouslySetInnerHTML={{ __html: highlightedContent }} />

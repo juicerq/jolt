@@ -31,7 +31,7 @@ export function createChatStreamBuffer({ delayMs, flush }: { delayMs: number; fl
     },
     drain,
     drainAll() {
-      for (const botId of [...pending.keys()]) {
+      for (const botId of pending.keys()) {
         drain(botId)
       }
     },

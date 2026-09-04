@@ -7,7 +7,7 @@ export type BotRoute =
   | { name: "settings" }
   | { name: "routines" }
   | { name: "memory" }
-  | { name: "routine"; id: "new" | string }
+  | { name: "routine"; id: string }
 
 export interface BotDraft {
   avatarSeed: string | null

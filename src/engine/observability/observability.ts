@@ -9,7 +9,6 @@ import {
   type NormalizedObservationError,
   type ExternalObservationSpan,
   type Observation,
-  type ObservationAttributes,
   type ObservationContext,
 } from "../../shared/observability/observation"
 import { parse } from "../../shared/parse"

@@ -5,7 +5,6 @@ import { connectCdp } from "./cdp"
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: "9222" } } })
 const cdp = await connectCdp(values.port)
 const text = z.string()
-const numbers = z.array(z.string())
 const checks: { name: string; ok: boolean; detail: string }[] = []
 
 async function snapshot() {

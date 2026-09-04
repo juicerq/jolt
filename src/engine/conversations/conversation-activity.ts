@@ -88,7 +88,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
       const snapshot = {
         steps: steps.flatMap((step): ConversationActivity["steps"] => {
           if (step.type === "thinking") {
-            const { startedAt, ...thinkingStep } = step
+            const { startedAt: _startedAt, ...thinkingStep } = step
 
             return thinkingStep.content || thinkingStep.durationMs ? [thinkingStep] : []
           }

@@ -1,5 +1,5 @@
 import type { Bot } from "../../shared/bots"
-import type { ConversationEvent, ConversationMessage, IncomingMessage } from "../../shared/conversations"
+import type { ConversationEvent, IncomingMessage } from "../../shared/conversations"
 import { delegateTool, transferTool, type Task } from "../../shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"

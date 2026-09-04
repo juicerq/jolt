@@ -13,7 +13,7 @@ import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
 import { emptyRoutineDraft, frequencyForms, frequencyResultOf, routineDraftOf, type RoutineDraft } from "./routine-draft"
 import { weekdayLabels } from "./routine-frequency"
 
-export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot; client: EngineClient; routineId: "new" | string; onClose: () => void }) {
+export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot; client: EngineClient; routineId: string; onClose: () => void }) {
   const creating = routineId === "new"
   const queryClient = useQueryClient()
   const listOptions = client.query.routines.list.queryOptions({ input: { botId: bot.id } })
