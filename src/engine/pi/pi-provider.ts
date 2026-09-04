@@ -1,54 +1,108 @@
-import type { ProviderAvailability, ProviderModels } from "../../shared/providers"
+import { parse } from "../../shared/parse"
+import { providerConnectInput, providerDisconnectInput, type ProviderAvailability, type ProviderModels, type ProviderName } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
+import { detectOpencodeKey } from "./opencode-key"
+import { piProviders, type PiModels } from "./pi-models"
 
-type AvailableModel = { id: string; name: string }
+const providerNames = Object.keys(piProviders) as ProviderName[]
 
-export const codexDefaultModelId = "gpt-5.6-luna"
+type Discovery = { availability: ProviderAvailability; models: ProviderModels }
 
-export function createPiProvider(
-  observability: Observability,
-  findAvailableModels = async (): Promise<readonly AvailableModel[]> => {
-    const { ModelRuntime } = await import("@earendil-works/pi-coding-agent")
-    const runtime = await ModelRuntime.create({ signal: AbortSignal.timeout(15_000) })
-
-    return runtime.getAvailable("openai-codex")
-  },
-  modelId = codexDefaultModelId,
-) {
+export function createPiProvider(observability: Observability, models: PiModels) {
   let providers: ProviderAvailability[] = []
-  let models: ProviderModels[] = []
+  let catalogs: ProviderModels[] = []
   let pending: Promise<ProviderAvailability[]> | undefined
+  let revision = 0
+
+  async function discover(provider: ProviderName): Promise<Discovery> {
+    const catalog = piProviders[provider]
+    const shared = { provider, name: catalog.name, connection: catalog.connection }
+    const detectedKey = catalog.connection === "api-key" && !!await detectOpencodeKey()
+    const available = await observability.span(
+      { name: "provider.discovery", context: { provider } },
+      () => models.available(provider),
+    ).catch(() => undefined)
+
+    if (!available) {
+      return { availability: { ...shared, status: "incompatible", detectedKey }, models: { provider, name: catalog.name, default: catalog.defaultModelId, models: [] } }
+    }
+
+    const status = available.some((model) => model.id === catalog.defaultModelId) ? "available" as const : "unauthenticated" as const
+
+    return {
+      availability: { ...shared, status, detectedKey },
+      models: { provider, name: catalog.name, default: catalog.defaultModelId, models: available.map(({ id, name }) => ({ id, name })) },
+    }
+  }
 
   async function refresh() {
-    const status = await observability.span(
-      { name: "provider.discovery", context: { provider: "codex" } },
-      async () => {
-        const available = await findAvailableModels()
+    const current = ++revision
+    const discovered = await Promise.all(providerNames.map(discover))
 
-        models = [{ provider: "codex", default: modelId, models: available.map(({ id, name }) => ({ id, name })) }]
+    if (current !== revision) {
+      return providers
+    }
 
-        return available.some((model) => model.id === modelId) ? "available" as const : "unauthenticated" as const
-      },
-    ).catch(() => "incompatible" as const)
-
-    providers = [{ provider: "codex", status }]
+    providers = discovered.map((entry) => entry.availability)
+    catalogs = discovered.filter((entry) => entry.availability.status === "available").map((entry) => entry.models)
 
     return providers
   }
 
+  function list() {
+    pending ??= refresh().finally(() => {
+      pending = undefined
+    })
+
+    return pending
+  }
+
+  function rediscover() {
+    pending = refresh().finally(() => {
+      pending = undefined
+    })
+
+    return pending
+  }
+
+  function keyProvider(provider: ProviderName) {
+    const catalog = piProviders[provider]
+
+    if (catalog.connection !== "api-key") {
+      throw new Error(`${catalog.name} does not use an API key`)
+    }
+
+    return catalog
+  }
+
   return {
-    list() {
-      pending ??= refresh().finally(() => {
-        pending = undefined
-      })
-
-      return pending
-    },
+    list,
     async models() {
-      await this.list()
+      await list()
 
-      return structuredClone(models)
+      return structuredClone(catalogs)
     },
     current: () => structuredClone(providers),
+    async connect(rawInput: unknown) {
+      const input = parse(providerConnectInput, rawInput)
+      const catalog = keyProvider(input.provider)
+      const key = input.key ?? await detectOpencodeKey()
+
+      if (!key) {
+        throw new Error(`No ${catalog.name} key found on this computer`)
+      }
+
+      await observability.span({ name: "provider.connect", context: { provider: input.provider } }, () => models.setKey(input.provider, key))
+
+      return rediscover()
+    },
+    async disconnect(rawInput: unknown) {
+      const input = parse(providerDisconnectInput, rawInput)
+      keyProvider(input.provider)
+
+      await observability.span({ name: "provider.disconnect", context: { provider: input.provider } }, () => models.removeKey(input.provider))
+
+      return rediscover()
+    },
   }
 }

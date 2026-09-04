@@ -186,7 +186,7 @@ export function createConversations(input: {
       ...extensions.map((extension) => extension.instructions(bot)),
       voice,
     ].filter(Boolean).join("\n")
-    const profile = JSON.stringify({ cwd, tools, instructions, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
+    const profile = JSON.stringify({ cwd, tools, instructions, provider: bot.provider, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
       return
@@ -197,6 +197,7 @@ export function createConversations(input: {
       botId,
       cwd,
       tools,
+      provider: bot.provider,
       effort: bot.effort,
       model: bot.model,
       permissionMode: bot.permissionMode,
@@ -375,7 +376,7 @@ export function createConversations(input: {
       sender.person(queuedIncoming(queued))
     }).catch((error: unknown) => {
       messageQueue.restore(botId, queued)
-      input.observability.event({ name: "conversation.steerfailed", context: { botId, provider: "codex" }, error })
+      input.observability.event({ name: "conversation.steerfailed", context: { botId }, error })
     })
 
     publishQueue(botId)
@@ -423,7 +424,7 @@ export function createConversations(input: {
     await start(botId, queuedIncoming(taken)).catch((error: unknown) => {
       messageQueue.restore(botId, taken)
       publishQueue(botId)
-      input.observability.event({ name: "conversation.queuefailed", context: { botId, provider: "codex" }, error })
+      input.observability.event({ name: "conversation.queuefailed", context: { botId }, error })
     })
   }
 
@@ -447,7 +448,7 @@ export function createConversations(input: {
 
     const interrupt = () => {
       void input.runtime.abort(botId).catch((error: unknown) => {
-        input.observability.event({ name: "conversation.abortfailed", context: { botId, provider: "codex" }, error })
+        input.observability.event({ name: "conversation.abortfailed", context: { botId }, error })
       })
     }
     options?.signal?.addEventListener("abort", interrupt, { once: true })
@@ -456,17 +457,24 @@ export function createConversations(input: {
     let finished = false
     let responseBytes = 0
     let terminalMessageFinished = false
+    let spoke = false
+    let pendingText = ""
     const activity = createConversationActivityRecorder(incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
     senders.set(botId, { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming })
-    input.observability.event({ name: "conversation.started", context: { botId, provider: "codex" } })
+    input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
       if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === sendMessageTool) {
+        spoke = true
         eventCount++
 
         return
+      }
+
+      if (runtimeEvent.type === "tool-started") {
+        pendingText = ""
       }
 
       let deliveredEvent = activity.record(runtimeEvent)
@@ -475,19 +483,23 @@ export function createConversations(input: {
 
       if (!receivedFirstEvent) {
         receivedFirstEvent = true
-        input.observability.event({ name: "conversation.firstevent", context: { botId, provider: "codex" } })
+        input.observability.event({ name: "conversation.firstevent", context: { botId } })
         void flushQueue(botId).catch((error: unknown) => {
-          input.observability.event({ name: "conversation.steerfailed", context: { botId, provider: "codex" }, error })
+          input.observability.event({ name: "conversation.steerfailed", context: { botId }, error })
         })
       }
 
       if (deliveredEvent.type === "text") {
+        pendingText += deliveredEvent.text
+
         return
       }
 
       if (deliveredEvent.type === "message-finished") {
         const ending = runtimeEvent.type === "message-finished" && runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
         const error = runtimeEvent.type === "message-finished" ? runtimeEvent.error : undefined
+
+        speakPending()
 
         if (ending) {
           publishMessage("", ending, error)
@@ -520,6 +532,8 @@ export function createConversations(input: {
       const ending = turnEndings[reason]
       const errorMessage = reason === "error" ? describeError(error) : undefined
 
+      speakPending()
+
       if (!terminalMessageFinished && ending) {
         publishMessage("", ending, errorMessage)
       }
@@ -528,13 +542,26 @@ export function createConversations(input: {
       input.observability.event({
         name: "conversation.finished",
         attributes: { state: reason, count: eventCount, bytes: responseBytes },
-        context: { botId, provider: "codex" },
+        context: { botId },
         ...(error ? { error } : {}),
       })
       turn.release()
       senders.delete(botId)
       unsubscribe()
       options?.signal?.removeEventListener("abort", interrupt)
+    }
+
+    function speakPending() {
+      const content = pendingText.trim()
+
+      pendingText = ""
+
+      if (spoke || !content) {
+        return
+      }
+
+      spoke = true
+      publishMessage(content, null)
     }
 
     function publishIncoming(incoming: IncomingMessage) {
@@ -568,7 +595,7 @@ export function createConversations(input: {
       try {
         input.database.conversations.append(message)
       } catch (persistError) {
-        input.observability.event({ name: "conversation.persistencefailed", context: { botId, provider: "codex" }, error: persistError })
+        input.observability.event({ name: "conversation.persistencefailed", context: { botId }, error: persistError })
       }
 
       responseBytes += Buffer.byteLength(content)

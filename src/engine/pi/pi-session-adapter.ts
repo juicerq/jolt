@@ -3,7 +3,6 @@ import {
   createAgentSession,
   DefaultResourceLoader,
   defineTool,
-  ModelRuntime,
   SessionManager,
   SettingsManager,
   type AgentSessionEvent,
@@ -15,6 +14,7 @@ import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createMessageProtocolExtension } from "./pi-message-protocol"
 import { createPermissionExtension } from "./pi-permissions"
+import type { PiModels } from "./pi-models"
 import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content" }
@@ -211,27 +211,10 @@ function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?
   return SessionManager.open(sessionPath, sessionsDirectory, cwd)
 }
 
-export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; modelId: string }): PiSessionFactory {
-  let resources: Promise<{ modelRuntime: ModelRuntime; models: Awaited<ReturnType<ModelRuntime["getAvailable"]>> }> | undefined
-
-  async function loadResources() {
-    const modelRuntime = await ModelRuntime.create({ signal: AbortSignal.timeout(15_000) })
-    const models = await modelRuntime.getAvailable("openai-codex")
-
-    return { modelRuntime, models }
-  }
-
+export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; models: PiModels }): PiSessionFactory {
   return {
     async open(input) {
-      resources ??= loadResources()
-      const { modelRuntime, models } = await resources
-      const modelId = input.model ?? options.modelId
-      const model = models.find((candidate) => candidate.id === modelId)
-
-      if (!model) {
-        throw new Error(`Pi did not find the Codex model ${modelId}`)
-      }
-
+      const { model, modelRuntime } = await options.models.resolve(input.provider, input.model)
       const registrar = createToolRegistrar(input.botId)
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,

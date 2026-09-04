@@ -64,7 +64,7 @@ export function createDiagnostics(options: DiagnosticsOptions) {
       return "unknown" as const
     }
 
-    return { codex: state("codex") }
+    return { codex: state("codex"), opencode: state("opencode") }
   }
 
   function get() {

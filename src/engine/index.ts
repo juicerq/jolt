@@ -19,7 +19,8 @@ import { createPlugins } from "./plugins/plugins"
 import { createSecrets } from "./plugins/secrets"
 import { createPiAgentRuntime, deferPiSessionFactory } from "./pi/pi-agent-runtime"
 import { createPiLoadSessionFactory } from "./pi/pi-load-session"
-import { codexDefaultModelId, createPiProvider } from "./pi/pi-provider"
+import { createPiModels } from "./pi/pi-models"
+import { createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
 import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
@@ -107,7 +108,8 @@ const piWarmDelayMs = 1_000
 const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
-const providers = createPiProvider(observationSystem.observability)
+const piModels = createPiModels()
+const providers = createPiProvider(observationSystem.observability, piModels)
 const bots = createBots({
   database,
   observability: observationSystem.observability,
@@ -119,13 +121,13 @@ const projects = createProjects({ database, observability: observationSystem.obs
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")
 const loadProvider = environment.BOT_TEAMS_LOAD_PROVIDER === "true"
 const deferredPiSessionFactory = deferPiSessionFactory(() =>
-  observationSystem.observability.span({ name: "pi.sdkload", context: { provider: "codex" } }, async () => {
+  observationSystem.observability.span({ name: "pi.sdkload" }, async () => {
     const { createPiSessionFactory } = await import("./pi/pi-session-adapter")
 
     return createPiSessionFactory({
       agentDirectory: join(piDirectory, "agent"),
       sessionsDirectory: join(piDirectory, "sessions"),
-      modelId: codexDefaultModelId,
+      models: piModels,
     })
   }))
 const piSessionFactory = loadProvider ? createPiLoadSessionFactory() : deferredPiSessionFactory

@@ -1,14 +1,16 @@
 import { XMarkIcon } from "@heroicons/react/24/outline"
 import { useSelector } from "@tanstack/react-store"
 import { closeWorkspaceScreen } from "../bots/bots-store"
+import type { EngineClient } from "../engine-client"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import { IconButton } from "../ui/icon-button"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
 import { appSettingsStore, setActivityDetailsVisible } from "./app-settings-store"
+import { ProviderConnections } from "./provider-connections"
 
-export function SettingsScreen() {
+export function SettingsScreen({ client }: { client: EngineClient }) {
   const activityDetailsVisible = useSelector(appSettingsStore, (state) => state.activityDetailsVisible)
   useEscape(closeWorkspaceScreen)
 
@@ -29,6 +31,7 @@ export function SettingsScreen() {
               <Switch checked={activityDetailsVisible} aria-label="Mostrar detalhes do trabalho" onChange={setActivityDetailsVisible} />
             </div>
           </SettingsSection>
+          <ProviderConnections client={client} />
         </div>
       </section>
       <ChatEdgeTab>

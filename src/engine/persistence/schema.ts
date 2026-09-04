@@ -21,7 +21,7 @@ export const bots = snakeCase.table("bots", {
   projectId: text().references(() => projects.id, { onDelete: "set null" }),
   name: text().notNull(),
   avatarSeed: text().notNull(),
-  provider: text({ enum: ["codex"] }).notNull(),
+  provider: text({ enum: ["codex", "opencode"] }).$type<StoredBot["provider"]>().notNull(),
   function: text({ mode: "json" }).$type<StoredBot["function"]>().notNull(),
   workingDirectoryOverride: text(),
   temporary: integer({ mode: "boolean" }).notNull().default(false),

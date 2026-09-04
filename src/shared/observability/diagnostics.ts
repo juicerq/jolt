@@ -18,6 +18,7 @@ export const diagnosticsReport = z.strictObject({
   }),
   authentication: z.strictObject({
     codex: authenticationState,
+    opencode: authenticationState,
   }),
   failures: z.array(observation),
   operations: z.array(z.strictObject({

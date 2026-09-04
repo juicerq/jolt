@@ -40,7 +40,7 @@ export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraf
     }
 
     nameDraft(name)
-    mutate({ name, avatarSeed: botDraftAvatarSeed({ ...draft, name }), provider: "codex" })
+    mutate({ name, avatarSeed: botDraftAvatarSeed({ ...draft, name }) })
   }
 
   return (
@@ -65,7 +65,7 @@ export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraf
             {hasName && <Button className={`${revealClassName} h-full w-full`} type="submit" disabled={isPending || !executorAvailable}>{isPending ? "Criando..." : "Criar"}</Button>}
           </div>
           {providersError && <p className="m-0 text-support text-status-error">Falha ao verificar executores: {providersError.message}</p>}
-          {!providersPending && !providersError && !executorAvailable && <p className="m-0 text-support text-status-warning">Entre no Pi com sua assinatura do Codex para criar um Bot.</p>}
+          {!providersPending && !providersError && !executorAvailable && <p className="m-0 text-support text-status-warning">Conecte um Fornecedor nas Configurações para criar um Bot.</p>}
           {error && <p className="m-0 text-support text-status-error">Falha ao criar o Bot: {error.message}</p>}
         </form>
       </section>

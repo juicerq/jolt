@@ -108,13 +108,14 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
   }
 
   return {
-    run(bot: Pick<Bot, "id" | "name" | "function" | "effort" | "model">, cwd: string, notes: Note[]) {
+    run(bot: Pick<Bot, "id" | "name" | "function" | "provider" | "effort" | "model">, cwd: string, notes: Note[]) {
       return input.observability.span({ name: "memory.curate", context: { botId: bot.id }, attributes: { count: notes.length } }, async () => {
         const customTools = tools(bot.id, notes)
         const session = await input.sessionFactory.open({
           botId: bot.id,
           cwd,
           tools: customTools.map((tool) => tool.name),
+          provider: bot.provider,
           effort: bot.effort,
           model: bot.model,
           policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },

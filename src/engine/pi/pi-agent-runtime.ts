@@ -2,6 +2,7 @@ import type { BotEffort } from "../../shared/bots"
 import type { BotPermissionMode } from "../../shared/bot-permissions"
 import type { ConversationCompactionResult, MessageImage, TurnContext } from "../../shared/conversations"
 import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
+import type { ProviderName } from "../../shared/providers"
 import type { Observability } from "../observability/observability"
 import type { PiPermissionPolicy } from "./pi-permissions"
 
@@ -66,19 +67,22 @@ export function toolLabels(tools: PiTool[]) {
   return Object.fromEntries(tools.flatMap((tool) => tool.label ? [[tool.name, tool.label]] : []))
 }
 
+export type PiSessionInput = {
+  botId: string
+  cwd: string
+  tools: string[]
+  provider: ProviderName
+  effort: BotEffort
+  model: string | null
+  policy: PiPermissionPolicy
+  customTools?: PiTool[]
+  sessionFile?: string
+  instructions?: string
+  ephemeral?: boolean
+}
+
 export type PiSessionFactory = {
-  open(input: {
-    botId: string
-    cwd: string
-    tools: string[]
-    effort: BotEffort
-    model: string | null
-    policy: PiPermissionPolicy
-    customTools?: PiTool[]
-    sessionFile?: string
-    instructions?: string
-    ephemeral?: boolean
-  }): Promise<PiSession>
+  open(input: PiSessionInput): Promise<PiSession>
 }
 
 export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): PiSessionFactory & { warm(): Promise<PiSessionFactory> } {
@@ -101,7 +105,7 @@ export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): Pi
 }
 
 export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observability: Observability) {
-  const sessions = new Map<string, { session: PiSession; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
+  const sessions = new Map<string, { session: PiSession; provider: ProviderName; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
   const pending = new Map<string, { botId: string; request: PermissionRequest; resolve(decision: PermissionDecision): void }>()
   const denied = new Set<string>()
 
@@ -153,7 +157,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   }
 
   return {
-    async open(input: { botId: string; cwd: string; tools: string[]; effort: BotEffort; model: string | null; permissionMode: BotPermissionMode; customTools?: PiTool[]; sessionFile?: string; instructions?: string }) {
+    async open(input: Omit<PiSessionInput, "policy"> & { permissionMode: BotPermissionMode }) {
       close(input.botId)
       const policy: PiPermissionPolicy = {
         botId: input.botId,
@@ -171,28 +175,28 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
           deliver(input.botId, { type: "permission-requested", request })
         }),
       }
-      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: "codex" } }, () => sessionFactory.open({ ...input, policy }))
+      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: input.provider } }, () => sessionFactory.open({ ...input, policy }))
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
       let receivedFirstEvent = false
       const unsubscribe = session.subscribe((event) => {
         if (!receivedFirstEvent) {
           receivedFirstEvent = true
-          observability.event({ name: "pi.firstevent", context: { botId: input.botId, provider: "codex" } })
+          observability.event({ name: "pi.firstevent", context: { botId: input.botId, provider: input.provider } })
         }
 
         if (event.type === "tool-started" || event.type === "tool-finished") {
-          observability.event({ name: "pi.toolevent", attributes: { state: event.type }, context: { botId: input.botId, provider: "codex" } })
+          observability.event({ name: "pi.toolevent", attributes: { state: event.type }, context: { botId: input.botId, provider: input.provider } })
         }
 
         if (event.type === "compaction-started") {
-          observability.event({ name: "pi.compactionstarted", attributes: { reason: event.reason }, context: { botId: input.botId, provider: "codex" } })
+          observability.event({ name: "pi.compactionstarted", attributes: { reason: event.reason }, context: { botId: input.botId, provider: input.provider } })
         }
 
         for (const listener of listeners) {
           listener(annotate(input.botId, policy, event))
         }
       })
-      sessions.set(input.botId, { session, policy, unsubscribe, listeners })
+      sessions.set(input.botId, { session, provider: input.provider, policy, unsubscribe, listeners })
 
       return { sessionFile: session.sessionFile }
     },
@@ -214,7 +218,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         throw new Error("Pi session not found")
       }
 
-      return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(prompt))
+      return observability.span({ name: "pi.turn", context: { botId, provider: entry.provider } }, () => entry.session.prompt(prompt))
     },
     async steer(botId: string, input: Pick<PiPrompt, "content" | "images">) {
       const entry = sessions.get(botId)
@@ -223,7 +227,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         throw new Error("Pi session not found")
       }
 
-      return observability.span({ name: "pi.steer", context: { botId, provider: "codex" } }, () => entry.session.steer(input))
+      return observability.span({ name: "pi.steer", context: { botId, provider: entry.provider } }, () => entry.session.steer(input))
     },
     async compact(botId: string, customInstructions?: string) {
       const entry = sessions.get(botId)
@@ -232,7 +236,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         throw new Error("Pi session not found")
       }
 
-      return observability.span({ name: "pi.compact", context: { botId, provider: "codex" } }, () => entry.session.compact(customInstructions))
+      return observability.span({ name: "pi.compact", context: { botId, provider: entry.provider } }, () => entry.session.compact(customInstructions))
     },
     addTools(botId: string, tools: PiTool[]) {
       const entry = sessions.get(botId)
@@ -257,7 +261,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
 
       denyPending(botId)
 
-      return observability.span({ name: "pi.abort", context: { botId, provider: "codex" } }, () => entry.session.abort())
+      return observability.span({ name: "pi.abort", context: { botId, provider: entry.provider } }, () => entry.session.abort())
     },
     resolvePermission({ botId, requestId, decision }: { botId: string; requestId: string; decision: PermissionDecision }) {
       const key = pendingKey(botId, requestId)

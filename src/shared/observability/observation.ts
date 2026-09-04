@@ -1,9 +1,9 @@
 import { z } from "zod"
+import { providerName } from "../providers"
 
 const id = z.string().min(1)
 
 export const observationName = z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/)
-const provider = z.literal("codex")
 const outcome = z.enum(["ok", "error"])
 const level = z.enum(["info", "error"])
 
@@ -31,7 +31,7 @@ export const observationContext = z.strictObject({
   projectId: id.optional(),
   taskId: id.optional(),
   pluginId: id.optional(),
-  provider: provider.optional(),
+  provider: providerName.optional(),
 })
 
 export const normalizedObservationError = z.strictObject({
@@ -57,7 +57,7 @@ const baseObservation = {
   projectId: id.optional(),
   taskId: id.optional(),
   pluginId: id.optional(),
-  provider: provider.optional(),
+  provider: providerName.optional(),
 }
 
 const eventObservation = z.strictObject({

@@ -90,6 +90,18 @@ export function createEngineRouter(
           () => providers.models(),
         ),
       ),
+      connect: operations.providers.connect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.providerconnect", context: observationContext(context) },
+          () => providers.connect(input),
+        ),
+      ),
+      disconnect: operations.providers.disconnect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.providerdisconnect", context: observationContext(context) },
+          () => providers.disconnect(input),
+        ),
+      ),
     },
     projects: {
       create: operations.projects.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>

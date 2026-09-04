@@ -2,7 +2,7 @@ import { eventIterator, oc } from "@orpc/contract"
 import { z } from "zod"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan } from "./observability/observation"
-import { providerAvailabilityList, providerModelsList } from "./providers"
+import { providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
@@ -27,6 +27,8 @@ export const engineContract = {
   providers: {
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
     models: oc.output(providerModelsList).route({ method: "GET", path: "/providers/models" }),
+    connect: oc.input(providerConnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/connect" }),
+    disconnect: oc.input(providerDisconnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/disconnect" }),
   },
   projects: {
     create: oc.input(projectSchemas.createInput).output(projectSchemas.project).route({ method: "POST", path: "/projects" }),

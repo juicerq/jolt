@@ -111,7 +111,7 @@ export function openDatabase(path: string, observability: Observability) {
           return row ? parse(botSchemas.storedBot, row) : undefined
         })
       },
-      updateExecution(id: string, changes: Pick<StoredBot, "effort"> | Pick<StoredBot, "model"> | Pick<StoredBot, "permissionMode">) {
+      updateExecution(id: string, changes: Pick<StoredBot, "effort"> | Pick<StoredBot, "provider" | "model"> | Pick<StoredBot, "permissionMode">) {
         return observability.span({ name: "database.botexecutionupdate", context: { botId: id } }, () => {
           const row = database.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
 

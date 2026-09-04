@@ -20,7 +20,7 @@ export function BotsWorkspace({ client }: { client: EngineClient }) {
     }
 
     if (screen === "settings") {
-      return <SettingsScreen />
+      return <SettingsScreen client={client} />
     }
 
     if (draft) {

@@ -22,7 +22,7 @@ function executionChange(input: BotExecutionSettingInput) {
   }
 
   if (input.setting === "model") {
-    return { model: input.value }
+    return { provider: input.value.provider, model: input.value.model }
   }
 
   return { permissionMode: input.value }
@@ -112,10 +112,10 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     async create(rawInput: unknown) {
       const input = parse(botSchemas.createInput, rawInput)
       const availableProviders = await providers.list()
-      const selectedProvider = availableProviders.find((provider) => provider.provider === input.provider)
+      const selectedProvider = availableProviders.find((provider) => provider.status === "available")
 
-      if (selectedProvider?.status !== "available") {
-        throw new Error(`Provider ${input.provider} is not available`)
+      if (!selectedProvider) {
+        throw new Error("No Provider is connected")
       }
 
       const workspace = workspaceFor(input)
@@ -129,7 +129,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         ...workspace,
         name: input.name,
         avatarSeed: input.avatarSeed ?? defaultBotAvatarSeed(input.name),
-        provider: input.provider,
+        provider: selectedProvider.provider,
         function: input.function ?? { outcome: "Ajudar no que você precisar" },
         temporary: false,
         memoryEnabled: true,

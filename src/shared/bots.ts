@@ -28,14 +28,14 @@ const storedBot = z.strictObject({
 })
 const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean(), colleagueIds: z.array(id) })
 const colleague = z.strictObject({ botId: id, colleagueBotId: id })
-const createFields = { name: id, avatarSeed: avatarSeed.optional(), provider: providerName, function: botFunction.optional(), workingDirectoryOverride: workingDirectory.optional() }
+const createFields = { name: id, avatarSeed: avatarSeed.optional(), function: botFunction.optional(), workingDirectoryOverride: workingDirectory.optional() }
 const createInput = z.union([
   z.strictObject({ ...createFields, projectId: id.optional() }),
   z.strictObject({ ...createFields, leaderBotId: id }),
 ])
 const updateExecutionInput = z.discriminatedUnion("setting", [
   z.strictObject({ id, setting: z.literal("effort"), value: botEffort }),
-  z.strictObject({ id, setting: z.literal("model"), value: optionalId }),
+  z.strictObject({ id, setting: z.literal("model"), value: z.strictObject({ provider: providerName, model: id }) }),
   z.strictObject({ id, setting: z.literal("permissionMode"), value: botPermissionMode }),
 ])
 
