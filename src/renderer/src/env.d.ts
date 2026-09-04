@@ -1,9 +1,17 @@
+import type { BrowserState, BrowserBounds } from "@src/shared/browser"
 import type { EngineConnection } from "@src/shared/engine-ipc"
 import type { TurnNotification } from "@src/shared/turn-notification"
 
 declare global {
   interface Window {
     desktop: {
+      getBrowserState(): Promise<BrowserState>
+      takeBrowserControl(botId: string): Promise<void>
+      setBrowserBounds(bounds: BrowserBounds): Promise<void>
+      resumeBrowser(botId: string): Promise<void>
+      minimizeBrowser(): Promise<void>
+      closeBrowser(botId: string): Promise<void>
+      onBrowserState(listener: (state: BrowserState) => void): void
       getEngineConnection(): Promise<EngineConnection>
       chooseWorkingDirectory(): Promise<string | null>
       minimizeWindow(): Promise<void>

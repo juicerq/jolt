@@ -1,3 +1,5 @@
+import { browserReply } from "../shared/browser"
+import { createBrowser } from "./browser/browser"
 import { RPCHandler } from "@orpc/server/fetch"
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
 import { z } from "zod"
@@ -55,6 +57,10 @@ let mainState: ProcessState = "unknown"
 let mainShutdown: { timestamp: string; startedAt: number } | undefined
 
 process.on("message", (message) => {
+  if (browserReply.safeParse(message).success) {
+    return
+  }
+
   try {
     const input = parse(forwardedObservation, message)
 
@@ -141,6 +147,7 @@ const deferredPiSessionFactory = deferPiSessionFactory(() =>
 const piSessionFactory = loadProvider ? createPiLoadSessionFactory() : deferredPiSessionFactory
 const piRuntime = createPiAgentRuntime(piSessionFactory, observationSystem.observability)
 const tasks = createTasks({ database, observability: observationSystem.observability })
+const browser = createBrowser()
 const conversations = createConversations({
   database,
   bots,
@@ -148,6 +155,7 @@ const conversations = createConversations({
   runtime: piRuntime,
   observability: observationSystem.observability,
   extensions: [
+    { tools: (bot) => browser.tools(bot), instructions: () => "Use browser for interactive websites and authenticated work. It shares a persistent site session with the person. Use handoff for login or human intervention and wait for control to return. Close your browser page when done." },
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
     { tools: (bot) => webSearch.tools(bot), instructions: () => webSearch.instructions() },
