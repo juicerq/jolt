@@ -12,6 +12,8 @@ import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
 import { describeFrequency } from "./routine-frequency"
 
+const routineStatusSuffixes: Record<Routine["status"], string> = { active: "", paused: " · pausada", completed: " · concluída", failed: " · falhou" }
+
 export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: Bot; client: EngineClient; onClose: () => void; onCreate: () => void; onEdit: (id: string) => void }) {
   const [removingRoutine, setRemovingRoutine] = useState<Routine>()
   const queryClient = useQueryClient()
@@ -39,7 +41,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
               <li className="flex items-center gap-2 py-2.5 first:pt-0" key={routine.id}>
                 <div className="min-w-0 flex-1">
                   <p className={`m-0 text-control font-medium ${routine.status === "active" ? "text-primary" : "text-muted"}`}>{routine.name}</p>
-                  <p className="m-0 text-support text-muted">{describeFrequency(routine.frequency)}{routine.status === "paused" ? " · pausada" : routine.status === "completed" ? " · concluída" : routine.status === "failed" ? " · falhou" : ""}</p>
+                  <p className="m-0 text-support text-muted">{describeFrequency(routine.frequency)}{routineStatusSuffixes[routine.status]}</p>
                   <details className="group mt-1 text-support text-secondary">
                     <summary className="-mx-2 flex cursor-pointer list-none items-start gap-2 rounded-lg px-2 py-1 hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                       <span className="line-clamp-2 min-w-0 flex-1 whitespace-pre-wrap group-open:line-clamp-none">{routine.content}</span>

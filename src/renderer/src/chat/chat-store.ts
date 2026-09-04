@@ -137,6 +137,18 @@ export function startChatTool(botId: string, { callId, tool: name, label, detail
   })
 }
 
+function finishedToolStatus(failed: boolean, denied?: boolean) {
+  if (denied) {
+    return "denied" as const
+  }
+
+  if (failed) {
+    return "failed" as const
+  }
+
+  return "done" as const
+}
+
 export function finishChatTool(botId: string, callId: string, failed: boolean, error?: string, denied?: boolean) {
   updateRun(botId, (run) => ({
     ...run,
@@ -144,7 +156,7 @@ export function finishChatTool(botId: string, callId: string, failed: boolean, e
       ? {
           ...step,
           tools: step.tools.map((tool) => tool.callId === callId
-            ? { ...tool, status: denied ? "denied" as const : failed ? "failed" as const : "done" as const, ...(error ? { error } : {}) }
+            ? { ...tool, status: finishedToolStatus(failed, denied), ...(error ? { error } : {}) }
             : tool),
         }
       : step),

@@ -10,9 +10,21 @@ export const weekdayLabels: Record<Weekday, string> = {
   sunday: "Dom",
 }
 
+function describeCadence(everyMinutes: number) {
+  if (everyMinutes === 60) {
+    return "de hora em hora"
+  }
+
+  if (everyMinutes === 1) {
+    return "a cada minuto"
+  }
+
+  return `a cada ${everyMinutes} minutos`
+}
+
 export function describeFrequency(frequency: Frequency) {
   if (frequency.form === "interval") {
-    const cadence = frequency.everyMinutes === 60 ? "de hora em hora" : frequency.everyMinutes === 1 ? "a cada minuto" : `a cada ${frequency.everyMinutes} minutos`
+    const cadence = describeCadence(frequency.everyMinutes)
 
     return `${frequency.days.map((day) => weekdayLabels[day]).join(", ")} · ${cadence} · ${frequency.startTime}–${frequency.endTime}`
   }

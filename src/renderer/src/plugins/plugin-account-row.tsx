@@ -2,8 +2,20 @@ import type { ReactNode } from "react"
 import type { PluginAccount } from "../../../shared/plugins"
 import { accountStateClassNames, accountStateLabels } from "./account-states"
 
+function describeBotUsage(count: number) {
+  if (count === 0) {
+    return "Nenhum Bot usa"
+  }
+
+  if (count === 1) {
+    return "1 Bot usa"
+  }
+
+  return `${count} Bots usam`
+}
+
 export function describeAccount(account: Pick<PluginAccount, "state" | "botIds">) {
-  const bots = account.botIds.length === 0 ? "Nenhum Bot usa" : account.botIds.length === 1 ? "1 Bot usa" : `${account.botIds.length} Bots usam`
+  const bots = describeBotUsage(account.botIds.length)
 
   return `${accountStateLabels[account.state]} · ${bots}`
 }

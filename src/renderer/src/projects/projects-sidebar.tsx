@@ -340,8 +340,20 @@ function MemberItem({ member, selected, status }: { member: Bot; selected: boole
   )
 }
 
+function avatarSize(members: Bot[] | undefined, teamLeader: boolean) {
+  if (members?.length) {
+    return "h-[41px] w-[51px] min-w-[51px]"
+  }
+
+  if (teamLeader) {
+    return "h-[41px] w-[51px] min-w-[51px] items-center justify-center"
+  }
+
+  return "size-[38px] min-w-[38px]"
+}
+
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
-  const avatarSizeClassName = members?.length ? "h-[41px] w-[51px] min-w-[51px]" : teamLeader ? "h-[41px] w-[51px] min-w-[51px] items-center justify-center" : "size-[38px] min-w-[38px]"
+  const avatarSizeClassName = avatarSize(members, teamLeader)
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
 

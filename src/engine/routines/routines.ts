@@ -7,6 +7,18 @@ import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
 import { parse } from "../../shared/parse"
 
+function statusFrom(enabled: string | undefined, current: Routine["status"] | undefined) {
+  if (!enabled) {
+    return current ?? "active"
+  }
+
+  if (enabled === "no") {
+    return "paused"
+  }
+
+  return "active"
+}
+
 const minute = 60_000
 const longestWait = 60 * minute
 
@@ -304,7 +316,7 @@ export function createRoutines(input: {
         async execute(params) {
           const current = params.id ? existing(params.id, bot.id) : undefined
           const frequency = frequencyFrom(params, current)
-          const status = params.enabled ? (params.enabled === "no" ? "paused" : "active") : current?.status ?? "active"
+          const status = statusFrom(params.enabled, current?.status)
           const name = params.name?.trim() || current?.name
           const content = params.content?.trim() || current?.content
 
