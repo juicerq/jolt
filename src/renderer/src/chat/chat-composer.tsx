@@ -36,8 +36,9 @@ function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSug
 function ChatComposerActions({ command, working, aborting, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; working: boolean; aborting: boolean; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
   return (
     <div className="col-start-5 flex items-center gap-2">
-      {working && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>}
-      <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked} label={sendLabel({ command, pending, working, blocked })} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>
+      {working && (empty || blocked)
+        ? <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={abortLabel({ aborting, blocked })} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
+        : <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked} label={sendLabel({ command, pending, working, blocked })} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </div>
   )
 }
@@ -172,6 +173,13 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
+    if (event.key === "Escape" && run) {
+      event.preventDefault()
+      onAbort()
+
+      return
+    }
+
     if (event.key !== "Enter" || event.shiftKey) {
       return
     }
@@ -234,6 +242,18 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   )
 }
 
+function abortLabel({ aborting, blocked }: { aborting: boolean; blocked: boolean }) {
+  if (aborting) {
+    return "Interrompendo resposta"
+  }
+
+  if (blocked) {
+    return "Interromper resposta · remova o Comando para enfileirar"
+  }
+
+  return "Interromper resposta · escreva para enfileirar"
+}
+
 function sendLabel({ command, pending, working, blocked }: { command: ChatCommand | null; pending: boolean; working: boolean; blocked: boolean }) {
   if (pending) {
     return "Executando Comando"
@@ -248,7 +268,7 @@ function sendLabel({ command, pending, working, blocked }: { command: ChatComman
   }
 
   if (working) {
-    return "Enfileirar mensagem · Ctrl+Enter adianta"
+    return "Enfileirar mensagem · Ctrl+Enter adianta · Esc interrompe"
   }
 
   return "Enviar mensagem"

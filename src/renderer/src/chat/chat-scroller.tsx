@@ -1,5 +1,5 @@
 import { ArrowDownIcon } from "@heroicons/react/24/outline"
-import { type PropsWithChildren, type ReactNode, startTransition, type UIEvent, useCallback, useRef, useState } from "react"
+import { type ClipboardEvent, type PropsWithChildren, type ReactNode, startTransition, type UIEvent, useCallback, useRef, useState } from "react"
 import { getChatScrollMode } from "./chat-scroll"
 
 const scrollAnchoringMinimumTop = 1
@@ -125,11 +125,22 @@ export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChi
     viewport.scrollTo({ top: viewport.scrollHeight })
   }
 
+  function handleCopy(event: ClipboardEvent<HTMLDivElement>) {
+    const text = getSelection()?.toString().replace(/\n{3,}/g, "\n\n").trim()
+
+    if (!text) {
+      return
+    }
+
+    event.preventDefault()
+    event.clipboardData.setData("text/plain", text)
+  }
+
   return (
     <div className="relative col-start-1 row-start-1 min-h-0 min-w-0">
       <div className="flex h-full min-h-0 max-h-none flex-col gap-0 overflow-x-hidden overflow-y-auto p-0" ref={attachViewport} onScroll={handleScroll} aria-live="polite">
         <div className="box-border flex min-h-full flex-none flex-col pt-16 pb-[22px]" ref={attachContent}>
-          <div className="mx-auto flex w-full max-w-[768px] flex-1 flex-col gap-3 px-10 max-[700px]:px-5">{children}</div>
+          <div className="mx-auto flex w-full max-w-[768px] flex-1 flex-col gap-3 px-10 max-[700px]:px-5" onCopy={handleCopy}>{children}</div>
           <div className="sticky bottom-[22px] z-[2] mt-3 flex-none">
             {showEndButton && <button className="absolute bottom-full left-1/2 mb-3 inline-flex h-[34px] w-auto -translate-x-1/2 items-center justify-center gap-1.5 rounded-full border border-outline-strong bg-surface-raised px-3 text-control font-medium text-secondary shadow-[0_8px_24px_rgb(0_0_0_/_28%)] hover:bg-surface-hover hover:text-primary active:scale-96 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface [&_svg]:size-4 [&_svg]:stroke-[1.75]" type="button" onClick={handleGoToEnd}><ArrowDownIcon aria-hidden="true" /><span>Ir para o fim</span></button>}
             {footer}

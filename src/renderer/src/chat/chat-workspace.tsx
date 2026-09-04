@@ -58,6 +58,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const tasksById = Object.fromEntries((tasks ?? []).map((task) => [task.id, task]))
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
   const { visible, hidden } = windowHistory(messages ?? [], shown)
+  const shownIds = new Set(visible.map((message) => message.id))
   const answersByQuestionId = Object.fromEntries((messages ?? []).flatMap((message) => message.replyTo ? [[message.replyTo.messageId, message.replyTo]] : []))
   const handleOpened = useCallback((section: HTMLElement | null) => {
     if (section && messages) {
@@ -66,7 +67,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }, [bot.id, client, isFetchedAfterMount, messages])
 
   async function sendPersonInput(message: { content: string; images: MessageImage[]; replyTo: MessageReply | null }, mentions: ChatDraft["mentions"]) {
-    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message })
+    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message }, "")
 
     return client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, mentions) }).then(() => true).catch((sendError: unknown) => {
       failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder")
@@ -125,7 +126,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {error && <ChatError message={error.message} />}
         {isFetchingNextPage && <ChatEarlierLoading />}
         {visible.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasksById} onQuestionAnswer={handleQuestionAnswer} />)}
-        {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} tasks={tasksById} empty={messages.length === 0} />}
+        {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} tasks={tasksById} shownIds={shownIds} empty={messages.length === 0} />}
       </ChatScroller>
     </section>
   )
@@ -139,11 +140,11 @@ function ChatEarlierLoading() {
   )
 }
 
-function ChatRunSlot({ activityDetailsVisible, avatarIdentities, bot, client, names, tasks, empty }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; tasks: Record<string, Task>; empty: boolean }) {
+function ChatRunSlot({ activityDetailsVisible, avatarIdentities, bot, client, names, tasks, shownIds, empty }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; tasks: Record<string, Task>; shownIds: Set<string>; empty: boolean }) {
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
 
   if (run) {
-    return <ChatRun activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} run={run} tasks={tasks} />
+    return <ChatRun activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} run={run} tasks={tasks} shown={shownIds.has(run.messageId)} />
   }
 
   if (empty) {
@@ -241,7 +242,7 @@ function ChatRunMessage({ activityDetailsVisible, avatarIdentities, bot, names, 
   return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time="Agora" content={run.message.content} open />
 }
 
-function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names, run, tasks }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
+function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names, run, tasks, shown }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task>; shown: boolean }) {
   const permissionRequest = run.permissionRequests[0]
   const pluginRequest = run.pluginRequests[0]
   const awaitingDecision = !!permissionRequest || !!pluginRequest
@@ -249,7 +250,7 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
 
   return (
     <>
-      <ChatRunMessage activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />
+      {!shown && <ChatRunMessage activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />}
       {run.completedMessages.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
       <article className="flex w-fit max-w-[720px] flex-col gap-3 self-start">
         {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
