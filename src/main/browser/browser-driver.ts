@@ -31,8 +31,8 @@ export class BrowserDriver {
       env: { PATH: process.env.PATH, HOME: app.getPath("home"), SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, AGENT_BROWSER_DEFAULT_TIMEOUT: "20000", AGENT_BROWSER_MAX_OUTPUT: "30000", AGENT_BROWSER_CONTENT_BOUNDARIES: "1", AGENT_BROWSER_IDLE_TIMEOUT_MS: "300000" },
     })
     this.active = running.catch(() => {})
-    const result = await running.catch(() => {
-      throw new Error("The browser command failed or timed out. Take a fresh snapshot before deciding whether to retry.")
+    const result = await running.catch((error: NodeJS.ErrnoException) => {
+      throw new Error(`The browser command failed (${error.code ?? error.name}). Take a fresh snapshot before deciding whether to retry.`)
     })
     const parsed = parse(response, JSON.parse(result.stdout))
 

@@ -28,6 +28,7 @@ extraResources:
   - from: dist-engine
     to: engine
 npmRebuild: false
+afterPack: ./scripts/after-pack.ts
 publish:
   provider: github
   owner: juicerq
