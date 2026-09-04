@@ -11,8 +11,9 @@
   "trustedDependencies": ["electron"],
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
-    "dev": "bun run build:engine && electron-vite dev",
-    "dev:load": "JOLT_USER_DATA=$PWD/.jolt-load JOLT_LOAD_PROVIDER=true bun run dev",
+    "dev": "JOLT_USER_DATA=$PWD/.jolt-dev bun run dev:run",
+    "dev:load": "JOLT_USER_DATA=$PWD/.jolt-load JOLT_LOAD_PROVIDER=true bun run dev:run",
+    "dev:run": "bun run build:engine && electron-vite dev",
     "seed:load": "bun src/engine/persistence/load-seed.ts",
     "bench:open": "bun bench/conversation-open.ts",
     "bench:turn": "bun bench/conversation-turn.ts",

@@ -11,5 +11,6 @@ logs/
 *.log
 .DS_Store
 .jolt-load/
+.jolt-dev/
 .env
 release/
