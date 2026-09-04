@@ -55,7 +55,7 @@ export function ChatCommandMenu({ id, label, choices, highlighted, onHighlight, 
   return (
     <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-h-72 max-w-full overflow-y-auto`} id={id} role="listbox" aria-label={label}>
       {choices.map((choice, index) => (
-        <MenuOption key={choice.key} label={choice.label} detail={choice.detail} icon={choice.avatar ? <Blobatar className="size-5 shrink-0 rounded-md border border-outline-strong bg-surface-raised" name={choice.avatar} size={20} alt="" /> : undefined} selected={index === highlighted} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
+        <MenuOption key={choice.key} label={choice.label} detail={choice.detail} icon={choice.avatar ? <Blobatar className="size-5 shrink-0" name={choice.avatar} size={20} alt="" /> : undefined} selected={index === highlighted} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
       ))}
     </div>
   )

@@ -18,7 +18,7 @@ export function BotPage({ label, children, footer }: { label: string; children: 
 export function BotPageIdentity({ bot }: { bot: Bot }) {
   return (
     <header className="flex items-center gap-4">
-      <Blobatar className="size-16 flex-none rounded-[18px] border border-outline-strong bg-surface-raised" name={bot.avatarSeed} size={64} alt="" />
+      <Blobatar className="size-16 flex-none" name={bot.avatarSeed} size={64} alt="" />
       <div className="min-w-0 flex-1">
         <h2 className="m-0 text-title font-semibold text-primary">{bot.name}</h2>
         <p className="m-0 mt-1 text-control font-medium text-secondary">{bot.function.outcome}</p>

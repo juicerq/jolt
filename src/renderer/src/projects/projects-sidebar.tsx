@@ -57,7 +57,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
 
   return (
     <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
-      <div className="mr-2 mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:hidden">
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:hidden">
         <BotSearch value={search} onChange={setSearch} />
         <div className="flex gap-1">
           <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
@@ -75,7 +75,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
       )}
       {data && query && !hasVisibleBots && <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>}
       {visibleData && hasVisibleBots && (
-        <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2 max-[720px]:block" aria-label="Projetos e Bots">
+        <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto max-[720px]:block" aria-label="Projetos e Bots">
           {visibleData.projects.map((project) => (
             <section className="[&+&]:mt-5" key={project.id} aria-labelledby={`project-${project.id}`}>
               <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
@@ -166,7 +166,7 @@ function SidebarUpdateButton() {
   }
 
   return (
-    <div className="mr-2 max-[720px]:mr-0">
+    <div className="min-w-0">
       <Button
         {...tooltip.anchorProps}
         className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-[720px]:justify-center max-[720px]:px-0"
@@ -186,7 +186,7 @@ function SidebarSettingsButton({ active }: { active: boolean }) {
   const tooltip = useTooltip()
 
   return (
-    <div className="mr-2 max-[720px]:mr-0">
+    <div className="min-w-0">
       <button
         {...tooltip.anchorProps}
         className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active max-[720px]:justify-center max-[720px]:px-0 ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
@@ -205,7 +205,7 @@ function SidebarSettingsButton({ active }: { active: boolean }) {
 
 function DraftRow({ draft }: { draft: BotDraft }) {
   return (
-    <div className="mr-2 mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
+    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
       <Blobatar className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} alt="" />
       <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
