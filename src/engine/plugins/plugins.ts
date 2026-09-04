@@ -24,6 +24,7 @@ interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; s
 const builtInPlugins: Catalogued[] = [
   { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },
   { id: "whatsapp", kind: "whatsapp", name: "WhatsApp", builtIn: true },
+  { id: "github", kind: "github", name: "GitHub", builtIn: true },
 ]
 
 const accountProperty = { type: "string", description: "Label of the Conta to use. Send it whenever you use more than one Conta of this Plugin. When it is not clear which Conta the person means, ask them before you call." } as const

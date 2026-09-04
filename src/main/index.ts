@@ -34,6 +34,7 @@ const engine = new EngineProcess({
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
   ...(process.env.JOLT_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.JOLT_GOOGLE_CLIENT_ID, ...(process.env.JOLT_GOOGLE_CLIENT_SECRET ? { secret: process.env.JOLT_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
+  ...(process.env.JOLT_GITHUB_RELAY_URL ? { githubRelayUrl: process.env.JOLT_GITHUB_RELAY_URL } : {}),
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,

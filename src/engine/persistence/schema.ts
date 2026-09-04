@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm"
-import { index, integer, primaryKey, snakeCase, text } from "drizzle-orm/sqlite-core"
+import { index, integer, primaryKey, snakeCase, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "@src/shared/bots"
 import type { ConversationMessage } from "@src/shared/conversations"
@@ -7,6 +7,7 @@ import type { Note, StoredMemory } from "@src/shared/memory"
 import type { StoredAccount, StoredPlugin } from "@src/shared/plugins"
 import type { Routine } from "@src/shared/routines"
 import type { Task } from "@src/shared/tasks"
+import type { Trigger, TriggerRun } from "@src/shared/triggers"
 
 export const projects = snakeCase.table("projects", {
   id: text().primaryKey(),
@@ -65,9 +66,10 @@ export const messages = snakeCase.table("messages", {
   id: text().primaryKey(),
   botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   position: integer().notNull(),
-  author: text({ enum: ["person", "bot", "routine"] }).$type<ConversationMessage["author"]>().notNull(),
+  author: text({ enum: ["person", "bot", "routine", "trigger"] }).$type<ConversationMessage["author"]>().notNull(),
   authorBotId: text().references(() => bots.id, { onDelete: "set null" }),
   taskId: text().references(() => tasks.id, { onDelete: "set null" }),
+  triggerRunId: text(),
   content: text().notNull(),
   images: text({ mode: "json" }).$type<ConversationMessage["images"]>().notNull().default(sql`'[]'`),
   question: text({ mode: "json" }).$type<ConversationMessage["question"]>(),
@@ -79,6 +81,7 @@ export const messages = snakeCase.table("messages", {
 }, (table) => [
   index("messages_bot_position").on(table.botId, table.position),
   index("messages_task_id").on(table.taskId),
+  index("messages_trigger_run_id").on(table.triggerRunId),
 ])
 
 export const routines = snakeCase.table("routines", {
@@ -97,7 +100,7 @@ export const notes = snakeCase.table("notes", {
   id: text().primaryKey(),
   botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   content: text().notNull(),
-  turnAuthor: text({ enum: ["person", "bot", "routine"] }).$type<Note["turnAuthor"]>().notNull(),
+  turnAuthor: text({ enum: ["person", "bot", "routine", "trigger"] }).$type<Note["turnAuthor"]>().notNull(),
   taskId: text().references(() => tasks.id, { onDelete: "set null" }),
   messageId: text().references(() => messages.id, { onDelete: "set null" }),
   createdAt: text().notNull(),
@@ -136,6 +139,41 @@ export const accesses = snakeCase.table("accesses", {
 }, (table) => [
   primaryKey({ columns: [table.botId, table.accountId] }),
   index("accesses_account_id").on(table.accountId),
+])
+
+export const triggers = snakeCase.table("triggers", {
+  id: text().primaryKey(),
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  accountId: text().notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  source: text({ enum: ["github"] }).$type<Trigger["source"]>().notNull(),
+  name: text().notNull(),
+  event: text({ enum: ["issues", "issue_comment", "pull_request", "pull_request_review", "pull_request_review_comment", "check_run"] }).$type<Trigger["event"]>().notNull(),
+  actions: text({ mode: "json" }).$type<Trigger["actions"]>().notNull(),
+  repositories: text({ mode: "json" }).$type<Trigger["repositories"]>().notNull(),
+  labels: text({ mode: "json" }).$type<Trigger["labels"]>().notNull(),
+  instruction: text().notNull(),
+  includeOwnEvents: integer({ mode: "boolean" }).notNull().default(false),
+  status: text({ enum: ["active", "paused"] }).$type<Trigger["status"]>().notNull().default("active"),
+  createdAt: text().notNull(),
+}, (table) => [
+  index("triggers_bot_id").on(table.botId),
+  index("triggers_account_id").on(table.accountId),
+])
+
+export const triggerRuns = snakeCase.table("trigger_runs", {
+  id: text().primaryKey(),
+  triggerId: text().notNull().references(() => triggers.id, { onDelete: "cascade" }),
+  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
+  deliveryId: text().notNull(),
+  event: text({ mode: "json" }).$type<TriggerRun["event"]>().notNull(),
+  status: text({ enum: ["queued", "running", "completed", "failed", "ignored"] }).$type<TriggerRun["status"]>().notNull(),
+  error: text(),
+  createdAt: text().notNull(),
+  startedAt: text(),
+  finishedAt: text(),
+}, (table) => [
+  uniqueIndex("trigger_runs_trigger_delivery").on(table.triggerId, table.deliveryId),
+  index("trigger_runs_bot_status").on(table.botId, table.status, table.createdAt),
 ])
 
 export const whatsappContacts = snakeCase.table("whatsapp_contacts", {

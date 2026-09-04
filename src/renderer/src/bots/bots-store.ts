@@ -6,6 +6,7 @@ export type BotRoute =
   | { name: "chat" }
   | { name: "settings" }
   | { name: "routines" }
+  | { name: "triggers" }
   | { name: "memory" }
   | { name: "routine"; id: string }
 

@@ -10,6 +10,7 @@ import type { createPlugins } from "../plugins/plugins"
 import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
+import type { createTriggers } from "../triggers/triggers"
 import type { PermissionDecisionInput } from "@src/shared/permissions"
 
 interface EngineContext { traceId?: string; spanId?: string }
@@ -48,6 +49,7 @@ export function createEngineRouter(
   conversations: ReturnType<typeof createConversations>,
   tasks: ReturnType<typeof createTasks>,
   routines: ReturnType<typeof createRoutines>,
+  triggers: ReturnType<typeof createTriggers>,
   memory: ReturnType<typeof createMemory>,
   permissions: { decide(input: PermissionDecisionInput): void },
   plugins: ReturnType<typeof createPlugins>,
@@ -255,6 +257,16 @@ export function createEngineRouter(
           () => routines.remove(input),
         ),
       ),
+    },
+    triggers: {
+      create: operations.triggers.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span({ name: "orpc.triggercreate", context: observationContext(context) }, () => triggers.create(input))),
+      list: operations.triggers.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span({ name: "orpc.triggerlist", context: observationContext(context) }, () => triggers.list(input))),
+      update: operations.triggers.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span({ name: "orpc.triggerupdate", context: observationContext(context) }, () => triggers.update(input))),
+      remove: operations.triggers.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span({ name: "orpc.triggerremove", context: observationContext(context) }, () => triggers.remove(input))),
     },
     memory: {
       list: operations.memory.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>

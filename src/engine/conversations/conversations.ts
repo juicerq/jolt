@@ -6,6 +6,7 @@ import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
+import type { Trigger, TriggerRun } from "@src/shared/triggers"
 import { conversationSchemas, askTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
@@ -47,6 +48,7 @@ export interface BotExtension {
 interface ActiveTurn { message: ConversationMessage; settled: Promise<void> }
 interface TurnSender { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
+interface TriggerCall { trigger: Trigger; run: TriggerRun }
 
 export function createConversations(input: {
   database: AppDatabase
@@ -127,7 +129,7 @@ export function createConversations(input: {
     const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
 
     for (const message of unanswered) {
-      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, content: "", images: [], question: null, replyTo: null, activity: null, ending: "closed", createdAt: new Date().toISOString() })
+      input.database.conversations.append({ id: crypto.randomUUID(), botId: message.botId, author: "bot", authorBotId: message.botId, taskId: message.taskId, triggerRunId: message.triggerRunId, content: "", images: [], question: null, replyTo: null, activity: null, ending: "closed", createdAt: new Date().toISOString() })
     }
 
     input.observability.event({ name: "conversation.closeunanswered", attributes: { count: unanswered.length } })
@@ -182,18 +184,26 @@ export function createConversations(input: {
   }
 
   function incoming(message: ConversationMessage): IncomingMessage {
-    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, content: message.content, images: message.images, replyTo: message.replyTo }
+    return { author: message.author, authorBotId: message.authorBotId, taskId: message.taskId, triggerRunId: message.triggerRunId, content: message.content, images: message.images, replyTo: message.replyTo }
   }
 
-  function contextFor(message: ConversationMessage, routine?: RoutineCall): TurnContext {
+  function contextFor(message: ConversationMessage, options?: { routine?: RoutineCall; trigger?: TriggerCall }): TurnContext {
     const moment = { startedAt: message.createdAt, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }
 
     if (message.author === "routine") {
-      if (!routine) {
+      if (!options?.routine) {
         throw new Error("Rotina context is missing")
       }
 
-      return { cause: "routine", routineId: routine.id, frequency: routine.frequency, scheduledFor: routine.nextCallAt, ...moment }
+      return { cause: "routine", routineId: options.routine.id, frequency: options.routine.frequency, scheduledFor: options.routine.nextCallAt, ...moment }
+    }
+
+    if (message.author === "trigger") {
+      if (!options?.trigger || message.triggerRunId !== options.trigger.run.id) {
+        throw new Error("Gatilho context is missing")
+      }
+
+      return { cause: "trigger", triggerId: options.trigger.trigger.id, triggerRunId: options.trigger.run.id, event: options.trigger.run.event, ...moment }
     }
 
     if (message.author === "bot") {
@@ -288,7 +298,7 @@ export function createConversations(input: {
 
     const current = active.get(botId)
 
-    if (current && message.author === "routine") {
+    if (current && (message.author === "routine" || message.author === "trigger")) {
       throw new Error("Bot is already working")
     }
 
@@ -344,7 +354,7 @@ export function createConversations(input: {
   }
 
   function queuedIncoming(queued: QueuedMessage): IncomingMessage {
-    return { author: "person", authorBotId: null, taskId: null, content: queued.content, images: queued.images, replyTo: null }
+    return { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: queued.content, images: queued.images, replyTo: null }
   }
 
   async function steerQueued(botId: string, sender: TurnSender, queued: QueuedMessage) {
@@ -404,7 +414,7 @@ export function createConversations(input: {
     })
   }
 
-  async function* runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; signal?: AbortSignal }): AsyncGenerator<ConversationEvent> {
+  async function* runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; trigger?: TriggerCall; signal?: AbortSignal }): AsyncGenerator<ConversationEvent> {
     const turn = await claim(botId, message, options?.signal)
     let context: TurnContext
 
@@ -413,7 +423,7 @@ export function createConversations(input: {
         throw new Error("The person interrupted you before that Bot started")
       }
 
-      context = contextFor(turn.message, options?.routine)
+      context = contextFor(turn.message, options)
       await open(botId)
       input.database.conversations.append(turn.message)
     } catch (error) {
@@ -536,7 +546,7 @@ export function createConversations(input: {
     }
 
     function publishIncoming(incoming: IncomingMessage) {
-      const message: ConversationMessage = { id: crypto.randomUUID(), botId, ...incoming, taskId: turn.message.taskId, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
+      const message: ConversationMessage = { id: crypto.randomUUID(), botId, ...incoming, taskId: turn.message.taskId, triggerRunId: turn.message.triggerRunId, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
 
       input.database.conversations.append(message)
 
@@ -553,6 +563,7 @@ export function createConversations(input: {
         author: "bot",
         authorBotId: botId,
         taskId: turn.message.taskId,
+        triggerRunId: turn.message.triggerRunId,
         content,
         images: [],
         question,
@@ -704,7 +715,7 @@ export function createConversations(input: {
         input.bots.addColleague(botId, mentionedBotId)
       }
 
-      const message: IncomingMessage = { author: "person", authorBotId: null, taskId: null, content: resolvedContent, images, replyTo }
+      const message: IncomingMessage = { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: resolvedContent, images, replyTo }
 
       if (!active.has(botId)) {
         await start(botId, message)
@@ -757,7 +768,16 @@ export function createConversations(input: {
       publishQueue(botId)
     },
     async call(routine: RoutineCall) {
-      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [], replyTo: null }, { routine })
+      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, triggerRunId: null, content: routine.content, images: [], replyTo: null }, { routine })
+    },
+    async callTrigger(call: TriggerCall) {
+      const message: IncomingMessage = { author: "trigger", authorBotId: null, taskId: null, triggerRunId: call.run.id, content: call.trigger.instruction, images: [], replyTo: null }
+      const events = await Array.fromAsync(runTurn(call.trigger.botId, message, { trigger: call }))
+      const finished = events.findLast((event): event is Extract<ConversationEvent, { type: "finished" }> => event.type === "finished")
+
+      if (finished?.reason !== "stop") {
+        throw new Error(finished?.error ?? "Gatilho turn did not finish")
+      }
     },
     async abort(rawInput: unknown) {
       const { botId } = parse(conversationSchemas.botInput, rawInput)

@@ -14,7 +14,7 @@ import { useEscape } from "../ui/use-escape"
 import { revealClassName } from "./bot-form"
 import { BotPage, BotPageIdentity } from "./bot-page"
 
-const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", bot: "Aprendeu com outro Bot" }
+const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", trigger: "Aprendeu em um Gatilho", bot: "Aprendeu com outro Bot" }
 
 function describeOrigin(memory: Pick<Memory, "origin" | "turnAuthor" | "createdAt">) {
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))

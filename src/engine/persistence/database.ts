@@ -21,7 +21,9 @@ import type { Task } from "@src/shared/tasks"
 import { taskSchemas } from "@src/shared/tasks"
 import type { WhatsappContact, WhatsappSavedMessage } from "@src/shared/whatsapp"
 import { whatsappSchemas } from "@src/shared/whatsapp"
-import { accesses, accounts, bots, colleagues, conversations, memories, messages, notes, plugins, projects, routines, tasks, whatsappContacts, whatsappMessages } from "./schema"
+import type { Trigger, TriggerRun } from "@src/shared/triggers"
+import { triggerSchemas } from "@src/shared/triggers"
+import { accesses, accounts, bots, colleagues, conversations, memories, messages, notes, plugins, projects, routines, tasks, triggerRuns, triggers, whatsappContacts, whatsappMessages } from "./schema"
 import { parse, parseOptional } from "@src/shared/parse"
 
 const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
@@ -36,6 +38,7 @@ const messageColumns = {
   author: messages.author,
   authorBotId: messages.authorBotId,
   taskId: messages.taskId,
+  triggerRunId: messages.triggerRunId,
   content: messages.content,
   images: messages.images,
   question: messages.question,
@@ -267,6 +270,48 @@ export function openDatabase(path: string, observability: Observability) {
       },
       remove(id: string) {
         return observability.span({ name: "database.routineremove" }, () => database.delete(routines).where(eq(routines.id, id)).run().changes)
+      },
+    },
+    triggers: {
+      create(trigger: Trigger) {
+        return observability.span({ name: "database.triggercreate", context: { botId: trigger.botId } }, () => {
+          database.insert(triggers).values(trigger).run()
+
+          return trigger
+        })
+      },
+      get(id: string) {
+        return observability.span({ name: "database.triggerget" }, () => parseOptional(triggerSchemas.trigger, database.select().from(triggers).where(eq(triggers.id, id)).get()))
+      },
+      listForBot(botId: string) {
+        return observability.span({ name: "database.triggerlist", context: { botId } }, () => parse(triggerSchemas.triggerList, database.select().from(triggers).where(eq(triggers.botId, botId)).orderBy(asc(triggers.createdAt), asc(insertion(triggers))).all()))
+      },
+      listActive() {
+        return observability.span({ name: "database.triggerlistactive" }, () => parse(triggerSchemas.triggerList, database.select().from(triggers).where(eq(triggers.status, "active")).orderBy(asc(triggers.createdAt), asc(insertion(triggers))).all()))
+      },
+      update(id: string, changes: Pick<Trigger, "name" | "event" | "actions" | "repositories" | "labels" | "instruction" | "includeOwnEvents" | "status">) {
+        return observability.span({ name: "database.triggerupdate" }, () => parseOptional(triggerSchemas.trigger, database.update(triggers).set(changes).where(eq(triggers.id, id)).returning().get()))
+      },
+      remove(id: string) {
+        return observability.span({ name: "database.triggerremove" }, () => database.delete(triggers).where(eq(triggers.id, id)).run().changes)
+      },
+    },
+    triggerRuns: {
+      create(run: TriggerRun) {
+        return observability.span({ name: "database.triggerruncreate", context: { botId: run.botId } }, () => {
+          const created = database.insert(triggerRuns).values(run).onConflictDoNothing().returning().get()
+
+          return parseOptional(triggerSchemas.triggerRun, created)
+        })
+      },
+      listQueued() {
+        return observability.span({ name: "database.triggerrunqueued" }, () => parse(triggerSchemas.triggerRunList, database.select().from(triggerRuns).where(eq(triggerRuns.status, "queued")).orderBy(asc(triggerRuns.createdAt), asc(insertion(triggerRuns))).all()))
+      },
+      update(id: string, changes: Partial<Pick<TriggerRun, "status" | "error" | "startedAt" | "finishedAt">>) {
+        return observability.span({ name: "database.triggerrunupdate" }, () => parseOptional(triggerSchemas.triggerRun, database.update(triggerRuns).set(changes).where(eq(triggerRuns.id, id)).returning().get()))
+      },
+      requeueRunning() {
+        return observability.span({ name: "database.triggerrunrequeue" }, () => database.update(triggerRuns).set({ status: "queued", startedAt: null }).where(eq(triggerRuns.status, "running")).run().changes)
       },
     },
     notes: {
