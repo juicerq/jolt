@@ -13,4 +13,8 @@ contextBridge.exposeInMainWorld("desktop", {
   onTurnNotificationOpened: (listener: (botId: string) => void): void => {
     ipcRenderer.on("notification:open-conversation", (_event, botId: string) => listener(botId))
   },
+  installUpdate: (): Promise<void> => ipcRenderer.invoke("update:install"),
+  onUpdateReady: (listener: () => void): void => {
+    ipcRenderer.on("update:ready", () => listener())
+  },
 })

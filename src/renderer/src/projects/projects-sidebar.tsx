@@ -1,5 +1,5 @@
 import { Blobatar } from "@blobatar/react"
-import { ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useId, useRef, useState, type ReactNode } from "react"
@@ -9,6 +9,8 @@ import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreate
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
+import { appUpdateStore } from "../settings/app-update-store"
+import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { InlineAction } from "../ui/inline-action"
 import { Tooltip, useTooltip } from "../ui/tooltip"
@@ -100,7 +102,10 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
           )}
         </nav>
       )}
-      <SidebarSettingsButton active={settingsOpen} />
+      <div className="mt-auto flex flex-col gap-1 pt-2">
+        <SidebarUpdateButton />
+        <SidebarSettingsButton active={settingsOpen} />
+      </div>
     </aside>
   )
 }
@@ -152,11 +157,36 @@ function CompactBotSearch({ value, onChange }: { value: string; onChange: (value
   )
 }
 
+function SidebarUpdateButton() {
+  const updateReady = useSelector(appUpdateStore, (state) => state.updateReady)
+  const tooltip = useTooltip()
+
+  if (!updateReady) {
+    return null
+  }
+
+  return (
+    <div className="mr-2 max-[720px]:mr-0">
+      <Button
+        {...tooltip.anchorProps}
+        className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-[720px]:justify-center max-[720px]:px-0"
+        type="button"
+        aria-label="Atualizar e reiniciar"
+        onClick={() => window.desktop.installUpdate()}
+      >
+        <ArrowPathIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="max-[720px]:hidden">Atualizar e reiniciar</span>
+      </Button>
+      <div className="min-[721px]:hidden"><Tooltip {...tooltip.popoverProps} placement="right">Atualizar e reiniciar</Tooltip></div>
+    </div>
+  )
+}
+
 function SidebarSettingsButton({ active }: { active: boolean }) {
   const tooltip = useTooltip()
 
   return (
-    <div className="mr-2 mt-auto pt-2 max-[720px]:mr-0">
+    <div className="mr-2 max-[720px]:mr-0">
       <button
         {...tooltip.anchorProps}
         className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active max-[720px]:justify-center max-[720px]:px-0 ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}

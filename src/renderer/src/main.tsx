@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client"
 import { App } from "./app"
 import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
+import { markUpdateReady } from "./settings/app-update-store"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./styles.css"
 
@@ -18,6 +19,7 @@ const connection = await window.desktop.getEngineConnection()
 const engineClient = createEngineClient(connection)
 subscribeChatEvents({ client: engineClient, queryClient })
 window.desktop.onTurnNotificationOpened(selectBot)
+window.desktop.onUpdateReady(markUpdateReady)
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>

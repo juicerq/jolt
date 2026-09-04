@@ -73,6 +73,7 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle("notification:turn-finished", (_event, raw: unknown) => notifications.show(parse(turnNotification, raw)))
+  ipcMain.handle("update:install", () => electronUpdater.autoUpdater.quitAndInstall())
   ipcMain.handle("window:minimize", () => window.minimize())
   ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
   ipcMain.handle("window:close", () => window.close())
@@ -114,13 +115,14 @@ app.whenReady().then(async () => {
     const { autoUpdater } = electronUpdater
 
     autoUpdater.on("update-downloaded", ({ version }) => {
+      window.webContents.send("update:ready")
       engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
     })
     autoUpdater.on("error", (error) => {
       engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
     })
 
-    await autoUpdater.checkForUpdatesAndNotify()
+    await autoUpdater.checkForUpdates()
   }
 })
 
