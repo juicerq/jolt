@@ -27,6 +27,7 @@ export interface PluginAdapter {
   tools?(): ToolDescriptor[]
   connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step: (step: PluginStep) => void }): PluginConnection
   resume?(account: PluginAccountSession): void
+  disconnect?(account: PluginAccountSession): Promise<void>
   execute(account: PluginAccountSession, tool: ToolDescriptor, input: Record<string, unknown>, signal?: AbortSignal): Promise<string>
   stop(accountId: string): Promise<void>
 }

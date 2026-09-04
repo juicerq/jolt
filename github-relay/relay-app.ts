@@ -83,7 +83,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       console.error(error)
       return "Request failed"
     })
-    .get("/health", () => ({ status: "ready" }))
+    .get("/health", () => ({ status: input.github.authorizationConfigured ? "ready" : "needs-configuration" }))
     .post("/v1/connections", ({ request, set }) => {
       if (!input.github.authorizationConfigured) {
         set.status = 503
@@ -158,6 +158,12 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       input.database.authorize(params.installationId, bearer(request))
 
       return input.github.token(params.installationId)
+    }, {
+      params: t.Object({ installationId: t.String({ minLength: 1 }) }),
+    })
+    .delete("/v1/installations/:installationId/connection", ({ params, request, set }) => {
+      input.database.revoke(params.installationId, bearer(request))
+      set.status = 204
     }, {
       params: t.Object({ installationId: t.String({ minLength: 1 }) }),
     })

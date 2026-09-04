@@ -633,6 +633,7 @@ export function createPlugins(input: {
         throw new Error("Remove the Plugin to disconnect it")
       }
 
+      await input.adapters[plugin.kind].disconnect?.(sessionFor(account))
       await input.adapters[plugin.kind].stop(account.id)
       input.database.accounts.remove(account.id)
 

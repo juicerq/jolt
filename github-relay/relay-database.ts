@@ -62,7 +62,8 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
   const deliveriesStatement = database.prepare<DeliveryRow, [string, number, string]>("SELECT cursor, payload FROM deliveries WHERE installation_id = ? AND cursor > ? AND received_at >= ? ORDER BY cursor LIMIT 100")
   const saveDeliveryStatement = database.prepare("INSERT OR IGNORE INTO deliveries (delivery_id, installation_id, payload, received_at) VALUES (?, ?, ?, ?)")
   const deleteExpiredDeliveriesStatement = database.prepare("DELETE FROM deliveries WHERE julianday(received_at) < julianday('now', '-7 days')")
-  const deleteExpiredConnectionsStatement = database.prepare("DELETE FROM connections WHERE status = 'pending' AND julianday(created_at) < julianday('now', '-1 day')")
+  const deleteExpiredConnectionsStatement = database.prepare("DELETE FROM connections WHERE status = 'pending' AND julianday(created_at) <= julianday('now', '-10 minutes')")
+  const revokeConnectionStatement = database.prepare("DELETE FROM connections WHERE installation_id = ? AND relay_token_hash = ?")
   const pendingConnectionsStatement = database.prepare<{ count: number }, []>("SELECT count(*) AS count FROM connections WHERE status = 'pending'")
 
   function clean() {
@@ -152,6 +153,9 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     },
     authorize(installationId: string, token: string) {
       return authorizedConnection(installationId, token)
+    },
+    revoke(installationId: string, token: string) {
+      revokeConnectionStatement.run(installationId, secrets.hash(token))
     },
     events(installationId: string, token: string, after: number) {
       const connection = authorizedConnection(installationId, token)

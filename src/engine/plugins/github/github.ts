@@ -266,6 +266,15 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
       return { connected, cancel: () => controller.abort() }
     },
     resume,
+    async disconnect(account) {
+      const credentials = decodeCredentials(account.secret)
+      const url = new URL(`/v1/installations/${encodeURIComponent(credentials.installationId)}/connection`, credentials.relayUrl)
+      const response = await fetch(url, { method: "DELETE", headers: { authorization: `Bearer ${credentials.relayToken}` }, signal: AbortSignal.timeout(15_000) })
+
+      if (!response.ok) {
+        throw new Error(`GitHub relay could not revoke this connection: ${response.status}`)
+      }
+    },
     async execute(account, tool, raw) {
       const operation = operations[tool.name]
 

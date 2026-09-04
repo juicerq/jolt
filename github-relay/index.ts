@@ -18,7 +18,7 @@ const environmentSchema = z.object({
   GITHUB_RELAY_DATABASE_PATH: z.string().min(1),
   GITHUB_RELAY_HOSTNAME: z.string().min(1).default("127.0.0.1"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(8787),
-})
+}).refine((value) => !!value.GITHUB_APP_CLIENT_ID === !!value.GITHUB_APP_CLIENT_SECRET, { message: "GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET must be configured together" })
 const environment = parse(environmentSchema, process.env)
 
 async function loadPrivateKey() {
