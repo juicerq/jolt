@@ -2,6 +2,7 @@ import { access, stat } from "node:fs/promises"
 import { constants, existsSync } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
+import electronUpdater from "electron-updater"
 import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
 import { parse } from "../shared/parse"
@@ -108,6 +109,19 @@ app.whenReady().then(async () => {
   await starting
   await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
   await loading
+
+  if (app.isPackaged) {
+    const { autoUpdater } = electronUpdater
+
+    autoUpdater.on("update-downloaded", ({ version }) => {
+      engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
+    })
+    autoUpdater.on("error", (error) => {
+      engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
+    })
+
+    await autoUpdater.checkForUpdatesAndNotify()
+  }
 })
 
 let engineStopped = false

@@ -14,6 +14,7 @@ export const observationAttributes = z.strictObject({
   method: z.string().optional(),
   port: z.number().optional(),
   process: z.string().optional(),
+  reason: z.string().optional(),
   runtime: z.string().optional(),
   state: z.string().optional(),
   status: z.string().optional(),

@@ -1,6 +1,6 @@
 {
   "name": "jolt",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Times de Bots que trabalham no seu computador",
   "author": "Jolt",
@@ -46,6 +46,7 @@
     "baileys": "^7.0.0-rc14",
     "blobatar": "^2.7.0",
     "drizzle-orm": "1.0.0-rc.4",
+    "electron-updater": "^6.8.9",
     "hast-util-to-jsx-runtime": "2.3.6",
     "highlight.js": "10.7.3",
     "qrcode.react": "^4.2.0",
