@@ -231,6 +231,11 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
 
   return {
     kind: "github",
+    accountIdentity(secret) {
+      const credentials = decodeCredentials(secret)
+
+      return `${new URL(credentials.relayUrl).origin}/${credentials.installationId}`
+    },
     availability() {
       if (!input.relayUrl) {
         return { available: false, reason: "O relay do GitHub não está configurado" }

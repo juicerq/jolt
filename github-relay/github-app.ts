@@ -8,7 +8,7 @@ const id = z.union([z.int(), z.string().min(1)]).transform(String)
 const installation = z.looseObject({ id, account: z.looseObject({ id, login: z.string().min(1), type: z.enum(["User", "Organization"]) }), suspended_at: z.string().nullable() })
 const oauthToken = z.looseObject({ access_token: z.string().min(1) })
 const githubUser = z.looseObject({ id })
-const accountType = z.looseObject({ type: z.enum(["User", "Organization"]) })
+const installations = z.looseObject({ installations: z.array(installation) })
 const membership = z.looseObject({ role: z.string(), state: z.string() })
 const installationToken = z.looseObject({ token: z.string().min(1), expires_at: z.string().min(1) }).transform((value) => ({ token: value.token, expiresAt: value.expires_at }))
 const label = z.union([z.string().min(1), z.looseObject({ name: z.string().min(1) })]).transform((value) => typeof value === "string" ? value : value.name)
@@ -84,6 +84,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
   async function appJson<Schema extends z.ZodType>(schema: Schema, path: string, init?: RequestInit): Promise<z.output<Schema>> {
     const response = await fetch(new URL(path, "https://api.github.com"), {
       ...init,
+      signal: AbortSignal.timeout(15_000),
       headers: {
         accept: "application/vnd.github+json",
         authorization: `Bearer ${jwt()}`,
@@ -101,48 +102,48 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
     return parse(schema, body)
   }
 
+  async function userRequest(userToken: string, path: string) {
+    return await fetch(new URL(path, "https://api.github.com"), {
+      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
+      signal: AbortSignal.timeout(15_000),
+    })
+  }
+
+  async function userJson<Schema extends z.ZodType>(schema: Schema, userToken: string, path: string) {
+    const response = await userRequest(userToken, path)
+
+    if (!response.ok) {
+      throw new Error("Unauthorized")
+    }
+
+    return parse(schema, await response.json())
+  }
+
+  async function ownsInstallation(userToken: string, userId: string, current: z.output<typeof installation>) {
+    if (current.suspended_at) {
+      return false
+    }
+
+    if (current.account.type === "User") {
+      return current.account.id === userId
+    }
+
+    const response = await userRequest(userToken, `/user/memberships/orgs/${encodeURIComponent(current.account.login)}`)
+
+    if (response.status === 404) {
+      return false
+    }
+
+    if (!response.ok) {
+      throw new Error("Unauthorized")
+    }
+
+    const access = parse(membership, await response.json())
+
+    return access.role === "admin" && access.state === "active"
+  }
+
   return {
-    connectionUrl(state: string) {
-      if (!input.authorization) {
-        throw new Error("GitHub user authorization is not configured")
-      }
-
-      const url = new URL("/github/connect", input.authorization.callbackUrl)
-      url.searchParams.set("state", state)
-
-      return url.toString()
-    },
-    async findInstallation(account: string) {
-      const response = await fetch(new URL(`/users/${encodeURIComponent(account)}`, "https://api.github.com"), {
-        headers: { accept: "application/vnd.github+json", "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
-        signal: AbortSignal.timeout(15_000),
-      })
-
-      if (response.status === 404) {
-        return
-      }
-
-      if (!response.ok) {
-        throw new Error(`GitHub returned ${response.status}`)
-      }
-
-      const owner = parse(accountType, await response.json())
-      const resource = owner.type === "User" ? "users" : "orgs"
-      const installed = await fetch(new URL(`/${resource}/${encodeURIComponent(account)}/installation`, "https://api.github.com"), {
-        headers: { accept: "application/vnd.github+json", authorization: `Bearer ${jwt()}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
-        signal: AbortSignal.timeout(15_000),
-      })
-
-      if (installed.status === 404) {
-        return
-      }
-
-      if (!installed.ok) {
-        throw new Error(`GitHub returned ${installed.status}`)
-      }
-
-      return parse(installation, await installed.json())
-    },
     authorizationConfigured: !!input.authorization,
     authorizationUrl(state: string, verifier: string) {
       if (!input.authorization) {
@@ -158,7 +159,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
 
       return url.toString()
     },
-    async authorizeInstallation(code: string, verifier: string, installationId: string) {
+    async exchangeAuthorization(code: string, verifier: string) {
       if (!input.authorization) {
         throw new Error("Unauthorized")
       }
@@ -175,39 +176,35 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
         throw new Error("Unauthorized")
       }
 
-      const userToken = exchanged.data.access_token
+      return exchanged.data.access_token
+    },
+    async installations(userToken: string) {
+      const user = await userJson(githubUser, userToken, "/user")
+      const available: { id: string; accountLogin: string }[] = []
 
-      async function userJson<Schema extends z.ZodType>(schema: Schema, path: string) {
-        const result = await fetch(new URL(path, "https://api.github.com"), {
-          headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
-          signal: AbortSignal.timeout(15_000),
-        })
+      for (let page = 1; ; page += 1) {
+        const result = await userJson(installations, userToken, `/user/installations?per_page=100&page=${page}`)
 
-        if (!result.ok) {
-          throw new Error("Unauthorized")
+        for (const current of result.installations) {
+          const allowed = await ownsInstallation(userToken, user.id, current)
+
+          if (allowed) {
+            available.push({ id: current.id, accountLogin: current.account.login })
+          }
         }
 
-        return parse(schema, await result.json())
+        if (result.installations.length < 100) {
+          return available
+        }
       }
-
+    },
+    async authorizeInstallation(userToken: string, installationId: string) {
+      const user = await userJson(githubUser, userToken, "/user")
       const current = await appJson(installation, `/app/installations/${encodeURIComponent(installationId)}`)
+      const allowed = await ownsInstallation(userToken, user.id, current)
 
-      if (current.suspended_at) {
+      if (!allowed) {
         throw new Error("Unauthorized")
-      }
-
-      if (current.account.type === "User") {
-        const user = await userJson(githubUser, "/user")
-
-        if (user.id !== current.account.id) {
-          throw new Error("Unauthorized")
-        }
-      } else {
-        const access = await userJson(membership, `/user/memberships/orgs/${encodeURIComponent(current.account.login)}`)
-
-        if (access.role !== "admin" || access.state !== "active") {
-          throw new Error("Unauthorized")
-        }
       }
 
       return { id: current.id, accountLogin: current.account.login }

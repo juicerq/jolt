@@ -9,7 +9,9 @@ O relay recebe webhooks e entrega eventos e tokens de instalação ao Jolt. Para
 - Webhook URL: `https://joltgithub.duckdns.org/github/webhook`
 - Para organizações: permissão de organização `Members: read`.
 
-O fluxo abre uma página do relay. Para uma instalação existente, a pessoa informa a conta pessoal ou organização e segue para OAuth. O relay consulta a instalação no GitHub e confirma ownership após a autorização; informar o nome da conta não concede acesso. Para instalar em uma conta nova, a página oferece o link de instalação e pede OAuth depois do setup. Não habilite a opção de pedir autorização OAuth durante a instalação: este relay controla essa etapa depois do setup, com estado próprio e PKCE.
+O fluxo começa no OAuth do GitHub. Depois do login, o relay lista as instalações que a pessoa pode administrar. Uma instalação conecta automaticamente; várias mostram a escolha da conta. Sem instalações disponíveis, o relay abre a instalação do App e aproveita o login no retorno, sem pedir nickname nem repetir OAuth. Não habilite a opção de pedir autorização OAuth durante a instalação: o relay controla a autorização com estado próprio e PKCE.
+
+A listagem percorre a paginação do GitHub e exclui instalações suspensas, contas de terceiros e organizações onde a pessoa não é administradora ativa. A escolha e o retorno da instalação confirmam novamente o ownership antes de liberar acesso.
 
 O Client ID é diferente do App ID. Configure `GITHUB_APP_CLIENT_ID` e `GITHUB_APP_CLIENT_SECRET` no ambiente do relay. O client secret fica apenas na VPS. A chave privada do App continua necessária para emitir tokens da instalação.
 
@@ -17,7 +19,9 @@ Sem o par OAuth, o relay recebe webhooks, mas rejeita novas conexões com HTTP 5
 
 ## Conexões e recuperação
 
-O callback OAuth expira após dez minutos e só pode concluir uma conexão uma vez. O relay rejeita credenciais criadas antes da verificação de ownership; essas Contas precisam ser reconectadas.
+A tentativa expira após dez minutos. O callback OAuth só pode ser consumido uma vez e troca o estado antes da seleção. O token de usuário fica cifrado na VPS durante a tentativa e é apagado ao concluir a conexão. Cancelamento e expiração encerram a espera do Jolt. O relay rejeita credenciais criadas antes da verificação de ownership; essas Contas precisam ser reconectadas.
+
+Reconectar a mesma instalação no mesmo relay renova a Conta local, revoga a credencial anterior e preserva seus Acessos, sem criar outra Conta.
 
 Desconectar uma Conta revoga sua credencial no relay antes de apagá-la no Jolt. Tokens de instalação já emitidos pelo GitHub continuam válidos até a expiração informada pelo GitHub.
 

@@ -15,6 +15,7 @@ interface ConnectionRow {
   created_at: string
   authorization_verifier: string | null
   authorization_verified: number
+  authorization_token: string | null
 }
 
 interface DeliveryRow { cursor: number; payload: string }
@@ -53,11 +54,17 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     })()
   }
 
+  if (!columns.some((column) => column.name === "authorization_token")) {
+    database.run("ALTER TABLE connections ADD COLUMN authorization_token TEXT")
+  }
+
   const createConnectionStatement = database.prepare("INSERT INTO connections (id, state, connection_token_hash, status, created_at) VALUES (?, ?, ?, 'pending', ?)")
   const connectionByIdStatement = database.prepare<ConnectionRow, [string]>("SELECT * FROM connections WHERE id = ?")
   const connectionByStateStatement = database.prepare<ConnectionRow, [string]>("SELECT * FROM connections WHERE state = ?")
-  const beginAuthorizationStatement = database.prepare("UPDATE connections SET state = ?, installation_id = ?, authorization_verifier = ?, created_at = ? WHERE id = ? AND status = 'pending'")
-  const completeConnectionStatement = database.prepare("UPDATE connections SET status = 'connected', installation_id = ?, account_login = ?, relay_token_hash = ?, relay_token_sealed = ?, authorization_verified = 1, authorization_verifier = NULL WHERE id = ? AND status = 'pending'")
+  const beginAuthorizationStatement = database.prepare("UPDATE connections SET state = ?, installation_id = NULL, authorization_token = NULL, authorization_verifier = ?, created_at = ? WHERE id = ? AND status = 'pending'")
+  const finishAuthorizationStatement = database.prepare("UPDATE connections SET state = ?, authorization_verifier = NULL, authorization_token = ? WHERE id = ? AND status = 'pending'")
+  const cancelConnectionStatement = database.prepare("DELETE FROM connections WHERE state = ? AND status = 'pending'")
+  const completeConnectionStatement = database.prepare("UPDATE connections SET status = 'connected', installation_id = ?, account_login = ?, relay_token_hash = ?, relay_token_sealed = ?, authorization_verified = 1, authorization_verifier = NULL, authorization_token = NULL WHERE id = ? AND status = 'pending'")
   const authorizeInstallationStatement = database.prepare<ConnectionRow, [string, string]>("SELECT * FROM connections WHERE installation_id = ? AND relay_token_hash = ? AND status = 'connected' AND authorization_verified = 1 ORDER BY created_at DESC LIMIT 1")
   const deliveriesStatement = database.prepare<DeliveryRow, [string, number, string]>("SELECT cursor, payload FROM deliveries WHERE installation_id = ? AND cursor > ? AND received_at >= ? ORDER BY cursor LIMIT 100")
   const saveDeliveryStatement = database.prepare("INSERT OR IGNORE INTO deliveries (delivery_id, installation_id, payload, received_at) VALUES (?, ?, ?, ?)")
@@ -92,8 +99,8 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
   }
 
   return {
-    pending(state: string) {
-      pending(state)
+    cancel(state: string) {
+      cancelConnectionStatement.run(state)
     },
     createConnection() {
       clean()
@@ -115,6 +122,7 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
       }
 
       if (connection.status === "pending") {
+        pending(connection.state)
         return { status: "pending" as const }
       }
 
@@ -128,26 +136,47 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
 
       return { status: "connected" as const, installationId: connection.installation_id, accountLogin: connection.account_login, relayToken: secrets.open(connection.relay_token_sealed) }
     },
-    beginAuthorization(state: string, installationId: string) {
+    beginAuthorization(state: string) {
       const connection = pending(state)
       const authorization = { state: secrets.issue(), verifier: secrets.issue() }
-      beginAuthorizationStatement.run(authorization.state, installationId, secrets.seal(authorization.verifier), new Date().toISOString(), connection.id)
+      beginAuthorizationStatement.run(authorization.state, secrets.seal(authorization.verifier), new Date().toISOString(), connection.id)
 
       return authorization
     },
     authorization(state: string) {
       const connection = pending(state)
 
-      if (!connection.installation_id || !connection.authorization_verifier) {
+      if (!connection.authorization_verifier) {
         throw new Error("Unauthorized")
       }
 
-      return { installationId: connection.installation_id, verifier: secrets.open(connection.authorization_verifier) }
+      return { verifier: secrets.open(connection.authorization_verifier) }
+    },
+    finishAuthorization(state: string, userToken: string) {
+      const connection = pending(state)
+
+      if (!connection.authorization_verifier) {
+        throw new Error("Unauthorized")
+      }
+
+      const nextState = secrets.issue()
+      finishAuthorizationStatement.run(nextState, secrets.seal(userToken), connection.id)
+
+      return nextState
+    },
+    authenticated(state: string) {
+      const connection = pending(state)
+
+      if (!connection.authorization_token) {
+        throw new Error("Unauthorized")
+      }
+
+      return secrets.open(connection.authorization_token)
     },
     complete(state: string, installationId: string, accountLogin: string) {
       const connection = pending(state)
 
-      if (connection.installation_id !== installationId || !connection.authorization_verifier) {
+      if (!connection.authorization_token) {
         throw new Error("Unauthorized")
       }
 
