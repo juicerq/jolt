@@ -179,6 +179,28 @@ The signature is this shift from one avatar to three. It explains the product
 model without a badge, tree, team switcher, or extra navigation level. Blobatar
 gives every Bot a stable face. Color never replaces the avatar as identity.
 
+Bot faces keep their original SVG silhouettes and colors, with eyes enlarged
+20% around each eye's center. They breathe gently and blink briefly at uneven
+intervals, with timings offset by identity.
+Occasional sideways glances move the eyes first, then slightly turn the body.
+The farther eye compresses more to suggest a rounded face; long forward-facing
+pauses separate the glances. A seeded 25–46 second cycle holds two short glances,
+with the eyes leading the body by roughly 125–230ms. Each identity has its own
+direction, blink timing, breathing pace, and working rhythm. Work reduces glance
+travel to a quarter; waiting and errors ease it to zero over 240ms instead of
+snapping the face forward.
+Working narrows the eyes into concentration and adds a gentle sway. Waiting for
+a decision or response, interrupting, and error states stop ambient glances and
+body movement while keeping the blink. An error lowers and tilts the eyes into
+concern, without anger, shaking, or changing the Bot's color. A visible transition
+to completed briefly squints the eyes with a small lift, then returns to rest;
+opening an already-completed Bot does not replay it. Faces never follow the
+cursor or spin, and use no 3D rendering. The movement scales with the avatar,
+so sidebar faces stay quieter than large identities. Motion uses SVG transforms
+without changing layout or adding a frame, and is disabled by reduced motion.
+Animated SVG roots use `will-change: contents` so Chromium redraws their vector
+contents instead of softening the face through cached transform layers.
+
 The interface stays dark, warm, and restrained. Large rounded planes separate
 the persistent workspace. Controls stay quiet until the pointer or keyboard
 reaches them. The user's message, the Bot's answer, and the prompt are the

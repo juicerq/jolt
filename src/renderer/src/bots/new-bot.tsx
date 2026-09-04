@@ -1,7 +1,7 @@
-import { Blobatar } from "@blobatar/react"
 import { ArrowPathIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
+import { BotFace } from "./bot-face"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
@@ -48,7 +48,7 @@ export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraf
       <section className="relative grid h-full min-h-0 overflow-y-auto bg-surface" aria-label="Novo Bot">
         <form className="m-auto flex w-[min(520px,calc(100%-48px))] flex-col items-center gap-2 py-12 text-center" onSubmit={handleSubmit}>
           <div className="relative">
-            <Blobatar className="size-[77px] flex-none" name={avatarSeed} size={77} alt="" />
+            <BotFace className="size-[77px] flex-none" name={avatarSeed} size={77} />
             <IconButton className="right-1 bottom-1" iconSize={13} position="absolute" shape="circle" size={24} tone="raised" type="button" label="Gerar outro avatar" tooltipPlacement="right" onClick={regenerateAvatar}><ArrowPathIcon key={avatarRevision} className={avatarRevision > 0 ? "animate-spin [animation-duration:280ms] [animation-iteration-count:1] [animation-timing-function:cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none" : ""} aria-hidden="true" /></IconButton>
           </div>
           <label className="sr-only" htmlFor="new-bot-name">Nome do Bot</label>

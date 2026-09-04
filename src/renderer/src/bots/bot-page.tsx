@@ -1,6 +1,6 @@
-import { Blobatar } from "@blobatar/react"
 import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
+import { BotFace } from "./bot-face"
 import { Button } from "../ui/button"
 import { revealClassName } from "./bot-form"
 
@@ -18,7 +18,7 @@ export function BotPage({ label, children, footer }: { label: string; children: 
 export function BotPageIdentity({ bot }: { bot: Bot }) {
   return (
     <header className="flex items-center gap-4">
-      <Blobatar className="size-16 flex-none" name={bot.avatarSeed} size={64} alt="" />
+      <BotFace className="size-16 flex-none" name={bot.avatarSeed} botId={bot.id} size={64} />
       <div className="min-w-0 flex-1">
         <h2 className="m-0 text-title font-semibold text-primary">{bot.name}</h2>
         <p className="m-0 mt-1 text-control font-medium text-secondary">{bot.function.outcome}</p>

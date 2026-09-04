@@ -1,8 +1,8 @@
-import { Blobatar } from "@blobatar/react"
 import { LinkIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "@src/shared/bots"
+import { BotFace } from "./bot-face"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
@@ -98,7 +98,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
     <BotPage label={`Configurações de ${bot.name}`} footer={change ? <BotPageSaveBar form="bot-settings" complete={change.complete} saving={saving} {...(saveError ? { failure: `Falha ao salvar o Bot: ${saveError.message}` } : {})} onDiscard={() => setDraft(draftOf(bot))} /> : undefined}>
       <form className="flex flex-col gap-8" id="bot-settings" onSubmit={handleSubmit}>
         <header className="flex items-center gap-4">
-          <Blobatar className="size-16 flex-none" name={bot.avatarSeed} size={64} alt="" />
+          <BotFace className="size-16 flex-none" name={bot.avatarSeed} botId={bot.id} size={64} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <label className="sr-only" htmlFor="bot-settings-name">Nome</label>
             <input className={`${headerLineClassName} text-title font-semibold text-primary placeholder:font-normal`} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} />
@@ -117,7 +117,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
               ? (
                 <Field label="Vínculo" as="div">
                   <div className="flex items-center gap-3">
-                    <Blobatar className="size-8 min-w-8" name={leader.avatarSeed} size={32} alt="" />
+                    <BotFace className="size-8 min-w-8" name={leader.avatarSeed} botId={leader.id} size={32} />
                     <p className="m-0 text-control font-medium text-secondary">Integrante de {leader.name}</p>
                   </div>
                 </Field>

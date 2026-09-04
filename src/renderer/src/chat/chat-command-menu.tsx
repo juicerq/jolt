@@ -1,6 +1,6 @@
-import { Blobatar } from "@blobatar/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Bot } from "@src/shared/bots"
+import { BotFace } from "../bots/bot-face"
 import type { EngineClient } from "../engine-client"
 import { MenuOption, menuCardClassName } from "../ui/menu"
 import { buildChatCommand, type ChatCommand, startedChatCommand, suggestChatCommands } from "./chat-commands"
@@ -55,7 +55,7 @@ export function ChatCommandMenu({ id, label, choices, highlighted, onHighlight, 
   return (
     <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-h-72 max-w-full overflow-y-auto`} id={id} role="listbox" aria-label={label}>
       {choices.map((choice, index) => (
-        <MenuOption key={choice.key} label={choice.label} detail={choice.detail} icon={choice.avatar ? <Blobatar className="size-5 shrink-0" name={choice.avatar} size={20} alt="" /> : undefined} selected={index === highlighted} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
+        <MenuOption key={choice.key} label={choice.label} detail={choice.detail} icon={choice.avatar ? <BotFace className="size-5 shrink-0" name={choice.avatar} size={20} /> : undefined} selected={index === highlighted} onSelect={() => onPick(index)} onHover={() => onHighlight(index)} />
       ))}
     </div>
   )
