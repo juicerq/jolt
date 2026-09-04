@@ -55,6 +55,7 @@ const request = z.strictObject({
   pluginName: id,
   accounts: z.array(account.pick({ id: true, label: true, state: true })),
   connectable: z.boolean(),
+  connecting: z.boolean(),
 })
 
 export const pluginSchemas = {

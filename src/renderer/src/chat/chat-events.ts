@@ -15,6 +15,7 @@ import {
   resetChatQueues,
   resolveChatPlugin,
   setChatCompacting,
+  setChatPluginStep,
   setChatQueue,
   settleChatRun,
   startChatRun,
@@ -97,6 +98,16 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "plugin-requested") {
       requestChatPlugin(botId, event.request)
+      return
+    }
+
+    if (event.type === "plugin-step") {
+      setChatPluginStep(botId, event.requestId, event.step)
+
+      if (event.step.type === "browser") {
+        void window.desktop.openInBrowser(event.step.url).catch(() => {})
+      }
+
       return
     }
 
