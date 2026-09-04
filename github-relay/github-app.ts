@@ -1,11 +1,14 @@
-import { createHmac, createPrivateKey, sign, timingSafeEqual } from "node:crypto"
+import { createHash, createHmac, createPrivateKey, sign, timingSafeEqual } from "node:crypto"
 import { z } from "zod"
 import { parse } from "@src/shared/parse"
 import { triggerSchemas } from "@src/shared/triggers"
 
 const githubApiVersion = "2026-03-10"
 const id = z.union([z.int(), z.string().min(1)]).transform(String)
-const installation = z.looseObject({ id, account: z.looseObject({ login: z.string().min(1) }), suspended_at: z.string().nullable() })
+const installation = z.looseObject({ id, account: z.looseObject({ id, login: z.string().min(1), type: z.enum(["User", "Organization"]) }), suspended_at: z.string().nullable() })
+const oauthToken = z.looseObject({ access_token: z.string().min(1) })
+const githubUser = z.looseObject({ id })
+const membership = z.looseObject({ role: z.string(), state: z.string() })
 const installationToken = z.looseObject({ token: z.string().min(1), expires_at: z.string().min(1) }).transform((value) => ({ token: value.token, expiresAt: value.expires_at }))
 const label = z.union([z.string().min(1), z.looseObject({ name: z.string().min(1) })]).transform((value) => typeof value === "string" ? value : value.name)
 const subject = z.looseObject({
@@ -64,7 +67,7 @@ function eventActivity(event: string, payload: z.output<typeof webhook>) {
   return eventSubject(event, payload)
 }
 
-export function createGithubApp(input: { appId: string; appSlug: string; privateKey: string; webhookSecret: string }) {
+export function createGithubApp(input: { appId: string; appSlug: string; privateKey: string; webhookSecret: string; authorization?: { clientId: string; clientSecret: string; callbackUrl: string } }) {
   const privateKey = createPrivateKey(input.privateKey.replaceAll("\\n", "\n"))
 
   function jwt() {
@@ -98,20 +101,80 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
   }
 
   return {
+    authorizationConfigured: !!input.authorization,
+    authorizationUrl(state: string, verifier: string) {
+      if (!input.authorization) {
+        throw new Error("GitHub user authorization is not configured")
+      }
+
+      const url = new URL("https://github.com/login/oauth/authorize")
+      url.searchParams.set("client_id", input.authorization.clientId)
+      url.searchParams.set("redirect_uri", input.authorization.callbackUrl)
+      url.searchParams.set("state", state)
+      url.searchParams.set("code_challenge", createHash("sha256").update(verifier).digest("base64url"))
+      url.searchParams.set("code_challenge_method", "S256")
+
+      return url.toString()
+    },
+    async authorizeInstallation(code: string, verifier: string, installationId: string) {
+      if (!input.authorization) {
+        throw new Error("Unauthorized")
+      }
+
+      const response = await fetch("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({ client_id: input.authorization.clientId, client_secret: input.authorization.clientSecret, redirect_uri: input.authorization.callbackUrl, code, code_verifier: verifier }),
+        signal: AbortSignal.timeout(15_000),
+      })
+      const exchanged = oauthToken.safeParse(await response.json())
+
+      if (!response.ok || !exchanged.success) {
+        throw new Error("Unauthorized")
+      }
+
+      const userToken = exchanged.data.access_token
+
+      async function userJson<Schema extends z.ZodType>(schema: Schema, path: string) {
+        const result = await fetch(new URL(path, "https://api.github.com"), {
+          headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
+          signal: AbortSignal.timeout(15_000),
+        })
+
+        if (!result.ok) {
+          throw new Error("Unauthorized")
+        }
+
+        return parse(schema, await result.json())
+      }
+
+      const current = await appJson(installation, `/app/installations/${encodeURIComponent(installationId)}`)
+
+      if (current.suspended_at) {
+        throw new Error("Unauthorized")
+      }
+
+      if (current.account.type === "User") {
+        const user = await userJson(githubUser, "/user")
+
+        if (user.id !== current.account.id) {
+          throw new Error("Unauthorized")
+        }
+      } else {
+        const access = await userJson(membership, `/user/memberships/orgs/${encodeURIComponent(current.account.login)}`)
+
+        if (access.role !== "admin" || access.state !== "active") {
+          throw new Error("Unauthorized")
+        }
+      }
+
+      return { id: current.id, accountLogin: current.account.login }
+    },
     installUrl(state: string) {
       const url = new URL(`https://github.com/apps/${encodeURIComponent(input.appSlug)}/installations/new`)
       url.searchParams.set("state", state)
 
       return url.toString()
-    },
-    async installation(installationId: string) {
-      const current = await appJson(installation, `/app/installations/${encodeURIComponent(installationId)}`)
-
-      if (current.suspended_at) {
-        throw new Error("The GitHub installation is suspended")
-      }
-
-      return { id: current.id, accountLogin: current.account.login }
     },
     token(installationId: string) {
       return appJson(installationToken, `/app/installations/${encodeURIComponent(installationId)}/access_tokens`, { method: "POST", body: "{}" })

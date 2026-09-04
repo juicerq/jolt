@@ -2,6 +2,10 @@ import { Elysia, t } from "elysia"
 import type { GithubApp } from "./github-app"
 import type { RelayDatabase } from "./relay-database"
 
+const connectionWindowMs = 60_000
+const connectionsPerWindow = 10
+const maximumConnectionSources = 1_000
+
 function bearer(request: Request) {
   const authorization = request.headers.get("authorization")
 
@@ -21,6 +25,36 @@ function connectedPage(accountLogin: string) {
 }
 
 export function createRelayApp(input: { database: RelayDatabase; github: GithubApp }) {
+  const connectionAttempts = new Map<string, { count: number; resetAt: number }>()
+
+  function acceptsConnection(request: Request) {
+    const now = Date.now()
+    const address = request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || request.headers.get("x-real-ip") || "direct"
+    const current = connectionAttempts.get(address)
+
+    if (!current || current.resetAt <= now) {
+      for (const [source, attempt] of connectionAttempts) {
+        if (attempt.resetAt <= now) {
+          connectionAttempts.delete(source)
+        }
+      }
+
+      if (!connectionAttempts.has(address) && connectionAttempts.size >= maximumConnectionSources) {
+        return false
+      }
+
+      connectionAttempts.set(address, { count: 1, resetAt: now + connectionWindowMs })
+      return true
+    }
+
+    if (current.count >= connectionsPerWindow) {
+      return false
+    }
+
+    current.count += 1
+    return true
+  }
+
   return new Elysia()
     .onAfterHandle(({ set }) => {
       set.headers["cache-control"] = "no-store"
@@ -50,8 +84,24 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       return "Request failed"
     })
     .get("/health", () => ({ status: "ready" }))
-    .post("/v1/connections", ({ set }) => {
+    .post("/v1/connections", ({ request, set }) => {
+      if (!input.github.authorizationConfigured) {
+        set.status = 503
+        return "GitHub user authorization is not configured"
+      }
+
+      if (!acceptsConnection(request)) {
+        set.status = 429
+        return "Too many connection attempts"
+      }
+
       const connection = input.database.createConnection()
+
+      if (!connection) {
+        set.status = 503
+        return "Connection capacity reached"
+      }
+
       set.status = 201
 
       return { connectionId: connection.id, connectionToken: connection.token, installUrl: input.github.installUrl(connection.state) }
@@ -59,14 +109,27 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
     .get("/v1/connections/:connectionId", ({ params, request }) => input.database.connection(params.connectionId, bearer(request)), {
       params: t.Object({ connectionId: t.String({ minLength: 1 }) }),
     })
-    .get("/github/setup", async ({ query, set }) => {
-      const installation = await input.github.installation(query.installation_id)
+    .get("/github/setup", ({ query, set }) => {
+      if (!input.github.authorizationConfigured) {
+        set.status = 503
+        return "GitHub user authorization is not configured"
+      }
+
+      const authorization = input.database.beginAuthorization(query.state, query.installation_id)
+      set.status = 302
+      set.headers.location = input.github.authorizationUrl(authorization.state, authorization.verifier)
+    }, {
+      query: t.Object({ state: t.String({ minLength: 1 }), installation_id: t.String({ pattern: "^[0-9]+$" }) }),
+    })
+    .get("/github/authorize", async ({ query, set }) => {
+      const authorization = input.database.authorization(query.state)
+      const installation = await input.github.authorizeInstallation(query.code, authorization.verifier, authorization.installationId)
       input.database.complete(query.state, installation.id, installation.accountLogin)
       set.headers["content-type"] = "text/html; charset=utf-8"
 
       return connectedPage(installation.accountLogin)
     }, {
-      query: t.Object({ state: t.String({ minLength: 1 }), installation_id: t.String({ minLength: 1 }) }),
+      query: t.Object({ state: t.String({ minLength: 1 }), code: t.String({ minLength: 1 }) }),
     })
     .post("/github/webhook", async ({ request, set }) => {
       const body = await request.text()

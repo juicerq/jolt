@@ -21,7 +21,7 @@ const pullRequest = z.looseObject({ number: z.int(), title: z.string(), body: z.
 const pullRequestFile = z.looseObject({ filename: z.string(), status: z.string(), additions: z.int(), deletions: z.int(), patch: z.string().optional() })
 const pullRequestFiles = z.array(pullRequestFile)
 const checkRun = z.looseObject({ name: z.string(), status: z.string(), conclusion: z.string().nullable(), html_url: z.url().nullable() })
-const checkRuns = z.looseObject({ check_runs: z.array(checkRun) })
+const checkRuns = z.looseObject({ check_runs: z.array(checkRun) }).transform((value) => value.check_runs)
 const createdPullRequest = pullRequest
 const createdComment = z.looseObject({ html_url: z.url() })
 
@@ -130,6 +130,25 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
     return parse(schema, body)
   }
 
+  async function githubPages<Item>(account: PluginAccountSession, schema: z.ZodType<Item[]>, path: string) {
+    const values: Item[] = []
+    let page = 1
+
+    while (true) {
+      const url = new URL(path, "https://api.github.com")
+      url.searchParams.set("per_page", "100")
+      url.searchParams.set("page", String(page))
+      const current = await githubJson(account, schema, `${url.pathname}${url.search}`)
+      values.push(...current)
+
+      if (current.length < 100) {
+        return values
+      }
+
+      page += 1
+    }
+  }
+
   async function poll(account: PluginAccountSession, signal: AbortSignal) {
     let credentials = decodeCredentials(account.secret)
 
@@ -175,7 +194,7 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
 
   const operations: Record<string, (account: PluginAccountSession, raw: Record<string, unknown>) => Promise<string>> = {
     async github_repositories(account) {
-      const repositories = await githubJson(account, githubSchemas.repositories, "/installation/repositories?per_page=100")
+      const repositories = await githubPages(account, githubSchemas.repositories, "/installation/repositories")
 
       return JSON.stringify(repositories)
     },
@@ -190,11 +209,11 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
       const path = `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/pulls/${details.number}`
       const current = await githubJson(account, pullRequest, path)
       const [files, checks] = await Promise.all([
-        githubJson(account, pullRequestFiles, `${path}/files?per_page=100`),
-        githubJson(account, checkRuns, `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/commits/${encodeURIComponent(current.head.sha)}/check-runs?per_page=100`),
+        githubPages(account, pullRequestFiles, `${path}/files`),
+        githubPages(account, checkRuns, `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/commits/${encodeURIComponent(current.head.sha)}/check-runs`),
       ])
 
-      return JSON.stringify({ ...current, files, checks: checks.check_runs })
+      return JSON.stringify({ ...current, files, checks })
     },
     async github_comment(account, raw) {
       const details = parse(commentInput, raw)

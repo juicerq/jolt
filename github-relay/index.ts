@@ -8,6 +8,8 @@ import { createRelaySecrets } from "./relay-secrets"
 const environmentSchema = z.object({
   GITHUB_APP_ID: z.string().min(1),
   GITHUB_APP_SLUG: z.string().min(1),
+  GITHUB_APP_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
   GITHUB_WEBHOOK_SECRET: z.string().min(32),
@@ -34,7 +36,7 @@ async function loadPrivateKey() {
 const privateKey = await loadPrivateKey()
 const secrets = createRelaySecrets(environment.GITHUB_RELAY_SECRET_KEY)
 const database = openRelayDatabase(environment.GITHUB_RELAY_DATABASE_PATH, secrets)
-const github = createGithubApp({ appId: environment.GITHUB_APP_ID, appSlug: environment.GITHUB_APP_SLUG, privateKey, webhookSecret: environment.GITHUB_WEBHOOK_SECRET })
+const github = createGithubApp({ appId: environment.GITHUB_APP_ID, appSlug: environment.GITHUB_APP_SLUG, privateKey, webhookSecret: environment.GITHUB_WEBHOOK_SECRET, ...(environment.GITHUB_APP_CLIENT_ID && environment.GITHUB_APP_CLIENT_SECRET ? { authorization: { clientId: environment.GITHUB_APP_CLIENT_ID, clientSecret: environment.GITHUB_APP_CLIENT_SECRET, callbackUrl: new URL("/github/authorize", environment.GITHUB_RELAY_BASE_URL).toString() } } : {}) })
 const app = createRelayApp({ database, github })
 const server = Bun.serve({ hostname: environment.GITHUB_RELAY_HOSTNAME, port: environment.PORT, fetch: app.fetch })
 

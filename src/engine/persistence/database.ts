@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite"
-import { and, asc, count, desc, eq, inArray, isNull, lt, max, or, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, isNull, lt, max, notExists, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
@@ -310,8 +310,14 @@ export function openDatabase(path: string, observability: Observability) {
       update(id: string, changes: Partial<Pick<TriggerRun, "status" | "error" | "startedAt" | "finishedAt">>) {
         return observability.span({ name: "database.triggerrunupdate" }, () => parseOptional(triggerSchemas.triggerRun, database.update(triggerRuns).set(changes).where(eq(triggerRuns.id, id)).returning().get()))
       },
-      requeueRunning() {
-        return observability.span({ name: "database.triggerrunrequeue" }, () => database.update(triggerRuns).set({ status: "queued", startedAt: null }).where(eq(triggerRuns.status, "running")).run().changes)
+      recoverRunning(finishedAt: string) {
+        return observability.span({ name: "database.triggerrunrecover" }, () => database.transaction((transaction) => {
+          const turnStarted = transaction.select({ value: sql`1` }).from(messages).where(eq(messages.triggerRunId, triggerRuns.id))
+          const requeued = transaction.update(triggerRuns).set({ status: "queued", startedAt: null }).where(and(eq(triggerRuns.status, "running"), notExists(turnStarted))).run().changes
+          const interrupted = transaction.update(triggerRuns).set({ status: "failed", error: "Jolt stopped during this Disparo", finishedAt }).where(eq(triggerRuns.status, "running")).run().changes
+
+          return { requeued, interrupted }
+        }))
       },
     },
     notes: {

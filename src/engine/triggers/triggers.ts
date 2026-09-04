@@ -51,7 +51,7 @@ export function createTriggers(input: {
   const draining = new Set<string>()
   let retryTimer: ReturnType<typeof setTimeout> | undefined
 
-  input.database.triggerRuns.requeueRunning()
+  input.database.triggerRuns.recoverRunning(new Date().toISOString())
 
   function existing(id: string, botId?: string) {
     const trigger = input.database.triggers.get(id)
@@ -73,6 +73,10 @@ export function createTriggers(input: {
 
       return [account]
     })
+  }
+
+  function hasAccess(trigger: Trigger) {
+    return input.database.accesses.listForBot(trigger.botId).some((access) => access.accountId === trigger.accountId)
   }
 
   function accountFor(botId: string, requested: string | undefined, current?: Trigger) {
@@ -164,7 +168,7 @@ export function createTriggers(input: {
 
         const trigger = input.database.triggers.get(run.triggerId)
 
-        if (trigger?.status !== "active") {
+        if (trigger?.status !== "active" || !hasAccess(trigger)) {
           input.database.triggerRuns.update(run.id, { status: "ignored", finishedAt: new Date().toISOString() })
           continue
         }
@@ -197,7 +201,7 @@ export function createTriggers(input: {
     const now = new Date().toISOString()
 
     for (const trigger of input.database.triggers.listActive()) {
-      if (!matches(trigger, accountId, event)) {
+      if (!hasAccess(trigger) || !matches(trigger, accountId, event)) {
         continue
       }
 
