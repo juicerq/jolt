@@ -463,7 +463,7 @@ export function openDatabase(path: string, observability: Observability) {
           .all()).reverse())
       },
     },
-    migrationState() {
+    migrationState: () => {
       return observability.span({ name: "database.transaction" }, () => database.all<{ name: string }>(sql`SELECT name FROM __drizzle_migrations ORDER BY id`).map((entry) => entry.name))
     },
     close() {

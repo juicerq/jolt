@@ -92,7 +92,7 @@ function ProviderConnectionRow({ provider, client }: { provider: ProviderAvailab
   )
 }
 
-function ConnectProviderDialog({ name, onClose, onConnect }: { name: string; onClose: () => void; onConnect(key: string): void }) {
+function ConnectProviderDialog({ name, onClose, onConnect }: { name: string; onClose: () => void; onConnect: (key: string) => void }) {
   const [key, setKey] = useState("")
   const trimmed = key.trim()
 

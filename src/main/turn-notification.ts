@@ -5,7 +5,7 @@ type NotificationWindow = Pick<BrowserWindow, "flashFrame" | "focus" | "isDestro
   on(event: "focus", listener: () => void): unknown
 }
 
-export function createTurnNotifications({ window, icon, openConversation }: { window: NotificationWindow; icon: string; openConversation(botId: string): void }) {
+export function createTurnNotifications({ window, icon, openConversation }: { window: NotificationWindow; icon: string; openConversation: (botId: string) => void }) {
   window.on("focus", () => window.flashFrame(false))
 
   return {

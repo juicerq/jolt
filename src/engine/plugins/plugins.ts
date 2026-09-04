@@ -19,7 +19,7 @@ interface PendingRequest { botId: string; request: PluginRequest; resolve(outcom
 
 type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
-interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest(): PluginStep | undefined; cancel(): void }
+interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest: () => PluginStep | undefined; cancel: () => void }
 
 const builtInPlugins: Catalogued[] = [
   { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },

@@ -12,7 +12,7 @@ interface ChatQuestionProps {
   question: MessageQuestion
   answerValue?: string
   interactive: boolean
-  onAnswer(messageId: string, optionValue: string): Promise<boolean>
+  onAnswer: (messageId: string, optionValue: string) => Promise<boolean>
 }
 
 export function ChatQuestion({ botId, messageId, question, answerValue, interactive, onAnswer }: ChatQuestionProps) {

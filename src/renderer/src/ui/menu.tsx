@@ -19,8 +19,8 @@ interface MenuOptionProps {
   selected: boolean
   standard?: boolean
   disabled?: boolean
-  onSelect(): void
-  onHover?(): void
+  onSelect: () => void
+  onHover?: () => void
 }
 
 export function MenuOption({ label, detail, icon, selected, standard = false, disabled = false, onSelect, onHover }: MenuOptionProps) {

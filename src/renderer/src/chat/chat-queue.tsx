@@ -42,7 +42,7 @@ function reportQueueError(error: unknown) {
   console.error("A Fila não aceitou a ação", error)
 }
 
-function ChatQueueRow({ message, busy, onPromote, onRemove }: { message: QueuedMessage; busy: boolean; onPromote(): void; onRemove(): void }) {
+function ChatQueueRow({ message, busy, onPromote, onRemove }: { message: QueuedMessage; busy: boolean; onPromote: () => void; onRemove: () => void }) {
   const preview = message.content.trim()
 
   return (

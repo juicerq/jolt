@@ -137,7 +137,7 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
   return {
     authorizationUrl: authorizationUrl.toString(),
     credentials,
-    cancel() {
+    cancel: () => {
       void server.stop(true)
       settle?.reject(new Error("Connection cancelled"))
     },

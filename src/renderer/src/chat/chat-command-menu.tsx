@@ -47,8 +47,8 @@ interface ChatCommandMenuProps {
   label: string
   choices: ChatMenuChoice[]
   highlighted: number
-  onHighlight(index: number): void
-  onPick(index: number): void
+  onHighlight: (index: number) => void
+  onPick: (index: number) => void
 }
 
 export function ChatCommandMenu({ id, label, choices, highlighted, onHighlight, onPick }: ChatCommandMenuProps) {

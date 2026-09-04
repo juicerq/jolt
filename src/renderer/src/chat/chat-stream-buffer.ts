@@ -2,7 +2,7 @@ type ChunkKind = "text" | "thinking"
 
 interface Pending { kind: ChunkKind; content: string; timer: ReturnType<typeof setTimeout> }
 
-export function createChatStreamBuffer({ delayMs, flush }: { delayMs: number; flush(botId: string, kind: ChunkKind, content: string): void }) {
+export function createChatStreamBuffer({ delayMs, flush }: { delayMs: number; flush: (botId: string, kind: ChunkKind, content: string) => void }) {
   const pending = new Map<string, Pending>()
 
   function drain(botId: string) {

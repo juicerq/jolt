@@ -11,9 +11,9 @@ interface ChatEditorProps {
   disabled: boolean
   menuOpen: boolean
   menuId: string
-  onChange(content: string): void
-  onKeyDown(event: KeyboardEvent<HTMLDivElement>, atStart: boolean): void
-  onPasteFiles(files: FileList): void
+  onChange: (content: string) => void
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>, atStart: boolean) => void
+  onPasteFiles: (files: FileList) => void
 }
 
 const editorClassName = "relative box-border max-h-40 min-w-0 flex-1 overflow-y-auto rounded-lg px-1 text-body text-primary focus-visible:outline-none min-h-[25px] py-0 whitespace-pre-wrap [overflow-wrap:anywhere] data-[disabled=true]:opacity-60 data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:text-muted data-[empty=true]:before:content-[attr(data-placeholder)]"

@@ -21,8 +21,8 @@ import { addChatDraftImages, addChatDraftMention, type ChatDraft, chatStore, emp
 interface ChatComposerProps {
   bot: Bot
   client: EngineClient
-  onAbort(): void
-  onSend(draft: ChatDraft, deliver: "queue" | "now"): void
+  onAbort: () => void
+  onSend: (draft: ChatDraft, deliver: "queue" | "now") => void
 }
 
 function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSuggestion[]): ChatMenuChoice[] {
@@ -254,7 +254,7 @@ function sendLabel({ command, pending, working, blocked }: { command: ChatComman
   return "Enviar mensagem"
 }
 
-function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCommandName; disabled: boolean; onRemove(): void }) {
+function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCommandName; disabled: boolean; onRemove: () => void }) {
   return (
     <button
       className="flex h-[25px] shrink-0 items-center gap-1 rounded-md border border-outline-strong bg-surface-hover px-2 text-metadata font-medium text-secondary transition-colors duration-150 hover:bg-surface-active hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none [&>svg]:size-3 [&>svg]:stroke-2"
@@ -273,7 +273,7 @@ function ChatCommandStatus({ error }: { error: Error }) {
   return <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-w-full px-3 py-2 text-support text-status-error`} role="alert" aria-live="polite">Falha ao executar o Comando: {error.message}</div>
 }
 
-function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRemove(index: number): void }) {
+function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRemove: (index: number) => void }) {
   return (
     <ul className="order-first col-span-full m-0 flex list-none flex-wrap gap-2 p-1">
       {images.map((image, index) => (

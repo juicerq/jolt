@@ -7,7 +7,7 @@ export interface PluginConnected { label: string; secret: string; tools: ToolDes
 
 export interface PluginConnection {
   connected: Promise<PluginConnected>
-  cancel(): void
+  cancel: () => void
 }
 
 export interface PluginAccountSession {
@@ -25,7 +25,7 @@ export interface PluginAdapter {
   kind: PluginKind
   availability(): PluginAvailability
   tools?(): ToolDescriptor[]
-  connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step(step: PluginStep): void }): PluginConnection
+  connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step: (step: PluginStep) => void }): PluginConnection
   resume?(account: PluginAccountSession): void
   execute(account: PluginAccountSession, tool: ToolDescriptor, input: Record<string, unknown>, signal?: AbortSignal): Promise<string>
   stop(accountId: string): Promise<void>
