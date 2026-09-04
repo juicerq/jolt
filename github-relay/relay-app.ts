@@ -40,6 +40,11 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
         return "Invalid request"
       }
 
+      if (code === "NOT_FOUND") {
+        set.status = 404
+        return "Not found"
+      }
+
       set.status = 500
       console.error(error)
       return "Request failed"
