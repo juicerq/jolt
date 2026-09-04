@@ -13,6 +13,7 @@ import {
   requestChatPlugin,
   resolveChatPermission,
   resolveChatPlugin,
+  setChatCompacting,
   settleChatRun,
   startChatRun,
   startChatThinking,
@@ -74,6 +75,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "tool-finished") {
       finishChatTool(botId, event.callId, event.failed, event.error, event.denied)
+      return
+    }
+
+    if (event.type === "compaction-started" || event.type === "compaction-finished") {
+      setChatCompacting(botId, event.type === "compaction-started")
       return
     }
 

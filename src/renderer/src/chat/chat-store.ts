@@ -21,6 +21,7 @@ export type ChatRun = {
   responseContent: string
   steps: ChatActivityStep[]
   waitingMessage: string
+  compacting: boolean
   status: "running" | "aborting" | "failed"
   permissionRequests: PermissionRequest[]
   pluginRequests: PluginRequest[]
@@ -66,7 +67,7 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), status: "running" },
+      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -134,6 +135,10 @@ export function finishChatTool(botId: string, callId: string, failed: boolean, e
         }
       : step),
   }))
+}
+
+export function setChatCompacting(botId: string, compacting: boolean) {
+  updateRun(botId, (run) => ({ ...run, compacting }))
 }
 
 export function requestChatPermission(botId: string, request: PermissionRequest) {

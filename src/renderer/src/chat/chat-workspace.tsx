@@ -221,7 +221,7 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
       <ChatRunMessage avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />
       {run.completedMessages.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
       <article className="flex w-fit max-w-[720px] flex-col gap-3 self-start">
-        {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} waitingMessage={run.waitingMessage} />}
+        {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
         {run.responseContent && <ChatStamped className="chat-bot-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatContent content={run.responseContent} streaming /></ChatStamped>}
         {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} /></ChatStamped>}

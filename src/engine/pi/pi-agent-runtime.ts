@@ -16,6 +16,8 @@ export type PiRuntimeEvent =
   | { type: "tool-finished"; callId: string; tool: string; failed: boolean; denied?: boolean; error?: string }
   | { type: "permission-requested"; request: PermissionRequest }
   | { type: "permission-resolved"; requestId: string }
+  | { type: "compaction-started"; reason: "manual" | "threshold" | "overflow" }
+  | { type: "compaction-finished" }
   | { type: "finished"; reason: "stop" | "aborted" | "error"; error?: string }
 
 export type ToolInputSchema = {
@@ -179,6 +181,10 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
 
         if (event.type === "tool-started" || event.type === "tool-finished") {
           observability.event({ name: "pi.toolevent", attributes: { state: event.type }, context: { botId: input.botId, provider: "codex" } })
+        }
+
+        if (event.type === "compaction-started") {
+          observability.event({ name: "pi.compactionstarted", attributes: { reason: event.reason }, context: { botId: input.botId, provider: "codex" } })
         }
 
         for (const listener of listeners) {

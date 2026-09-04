@@ -122,6 +122,14 @@ export function createEventNormalizer() {
       return terminalReason ? { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) } : undefined
     }
 
+    if (event.type === "compaction_start") {
+      return { type: "compaction-started", reason: event.reason }
+    }
+
+    if (event.type === "compaction_end") {
+      return { type: "compaction-finished" }
+    }
+
     if (event.type === "agent_settled") {
       const reason = interrupted && lastReason !== "stop" ? "aborted" : lastReason
 

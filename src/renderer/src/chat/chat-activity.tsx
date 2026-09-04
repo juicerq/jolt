@@ -54,8 +54,9 @@ function ActivityBlock({ botName, time, children }: { botName: string; time: str
   return <ChatStamped className="mb-4 w-fit text-support text-muted" name={botName} time={time} anchor="line">{children}</ChatStamped>
 }
 
-export function ChatActivity({ activity, botName, time, status, waitingMessage }: { activity: VisibleActivity; botName: string; time: string; status?: ActivityStatus; waitingMessage?: string }) {
+export function ChatActivity({ activity, botName, compacting, time, status, waitingMessage }: { activity: VisibleActivity; botName: string; compacting?: boolean; time: string; status?: ActivityStatus; waitingMessage?: string }) {
   const isPending = status === "running" || status === "aborting"
+  const pending = pendingActivityLabel(status, compacting)
   const steps = splitChatActivitySteps(activity.steps)
   const hasDetails = steps.length > 0
 
@@ -68,14 +69,14 @@ export function ChatActivity({ activity, botName, time, status, waitingMessage }
       <ActivityBlock botName={botName} time={time}>
         <div className="grid w-fit grid-cols-[16px_auto] items-center gap-[7px]" role="status">
           <span className="mt-px size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" aria-hidden="true" />
-          <span>{getActivityLabel(activity, botName, status, waitingMessage)}</span>
+          <span>{pending ?? getActivityLabel(activity, botName, status, waitingMessage)}</span>
         </div>
       </ActivityBlock>
     )
   }
 
   if (isPending) {
-    return <LiveActivity steps={steps} botName={botName} status={status} />
+    return <LiveActivity steps={steps} botName={botName} pending={pending} />
   }
 
   const [onlyStep] = steps
@@ -109,20 +110,20 @@ export function ChatActivity({ activity, botName, time, status, waitingMessage }
   )
 }
 
-function LiveActivity({ steps, botName, status }: { steps: VisibleStep[]; botName: string; status: "running" | "aborting" }) {
-  const label = status === "aborting" ? "Interrompendo resposta…" : `${botName ?? "O bot"} está trabalhando`
-  const currentIndex = status === "aborting" ? -1 : steps.length - 1
+function LiveActivity({ steps, botName, pending }: { steps: VisibleStep[]; botName: string; pending?: string }) {
+  const label = pending ?? `${botName} está trabalhando`
+  const currentIndex = pending ? -1 : steps.length - 1
 
   return (
     <div className="-mr-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[620px] gap-1 pl-3 text-support text-muted" role="status" aria-label={label}>
       {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
-      {status === "aborting" && (
+      {pending && (
         <div className={`relative grid min-w-0 gap-1.5 px-[7px] py-[5px] ${activityStageConnectorClassName}`} aria-current="step">
           <div className="grid min-w-0 grid-cols-[15px_minmax(0,1fr)] items-start gap-2">
             <span className="mt-px size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" role="status" aria-label="Em andamento" />
-            <strong className="text-support font-medium text-secondary">Interrompendo resposta…</strong>
+            <strong className="text-support font-medium text-secondary">{pending}</strong>
           </div>
         </div>
       )}
@@ -212,11 +213,15 @@ function getStepStatus(step: VisibleStep, active: boolean) {
   return step.tools.some((tool) => tool.status === "denied") ? "denied" : "done"
 }
 
-function getActivityLabel(activity: VisibleActivity, botName?: string, status?: ActivityStatus, waitingMessage?: string) {
+function pendingActivityLabel(status?: ActivityStatus, compacting?: boolean) {
   if (status === "aborting") {
     return "Interrompendo resposta…"
   }
 
+  return compacting ? "Compactando Contexto…" : undefined
+}
+
+function getActivityLabel(activity: VisibleActivity, botName?: string, status?: ActivityStatus, waitingMessage?: string) {
   if (status === "running") {
     return formatChatWaitingMessage(waitingMessage ?? "Aguardando resposta de {name}…", botName ?? "o Bot")
   }

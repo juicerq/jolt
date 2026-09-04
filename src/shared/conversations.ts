@@ -87,6 +87,8 @@ const permissionRequestedEvent = z.strictObject({ type: z.literal("permission-re
 const permissionResolvedEvent = z.strictObject({ type: z.literal("permission-resolved"), requestId: id })
 const pluginRequestedEvent = z.strictObject({ type: z.literal("plugin-requested"), request: pluginSchemas.request })
 const pluginResolvedEvent = z.strictObject({ type: z.literal("plugin-resolved"), requestId: id })
+const compactionStartedEvent = z.strictObject({ type: z.literal("compaction-started"), reason: z.enum(["manual", "threshold", "overflow"]) })
+const compactionFinishedEvent = z.strictObject({ type: z.literal("compaction-finished") })
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
   startedEvent,
@@ -101,6 +103,8 @@ const event = z.discriminatedUnion("type", [
   permissionResolvedEvent,
   pluginRequestedEvent,
   pluginResolvedEvent,
+  compactionStartedEvent,
+  compactionFinishedEvent,
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })
