@@ -5,6 +5,8 @@ import type { EngineProcess } from "./engine-process/engine-process"
 type UpdateWindow = Pick<BrowserWindow, "webContents">
 type UpdateReporter = Pick<EngineProcess, "event">
 
+const checkIntervalMs = 10 * 60_000
+
 export async function startAppUpdates({ window, engine }: { window: UpdateWindow; engine: UpdateReporter }) {
   if (!app.isPackaged) {
     return
@@ -12,9 +14,16 @@ export async function startAppUpdates({ window, engine }: { window: UpdateWindow
 
   const { autoUpdater } = electronUpdater
 
+  function check() {
+    return autoUpdater.checkForUpdates().catch(() => {})
+  }
+
   ipcMain.handle("update:install", () => autoUpdater.quitAndInstall())
 
+  const checks = setInterval(check, checkIntervalMs)
+
   autoUpdater.on("update-downloaded", ({ version }) => {
+    clearInterval(checks)
     window.webContents.send("update:ready")
     engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
   })
@@ -22,5 +31,5 @@ export async function startAppUpdates({ window, engine }: { window: UpdateWindow
     engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
   })
 
-  await autoUpdater.checkForUpdates()
+  await check()
 }
