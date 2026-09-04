@@ -8,6 +8,7 @@ import { parse } from "../shared/parse"
 import { turnNotification } from "../shared/turn-notification"
 import { startAppUpdates } from "./app-update"
 import { EngineProcess } from "./engine-process/engine-process"
+import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
 
@@ -34,6 +35,7 @@ const engine = new EngineProcess({
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
   ...(process.env.JOLT_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.JOLT_GOOGLE_CLIENT_ID, ...(process.env.JOLT_GOOGLE_CLIENT_SECRET ? { secret: process.env.JOLT_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
+  githubRelayUrl: process.env.JOLT_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,

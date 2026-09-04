@@ -47,7 +47,7 @@ export function createDelegation(input: {
     return input.observability.span({ name: "delegation.turn", context: { botId: to.id, callerBotId: task.callerBotId, taskId: task.id } }, async () => {
       const outcome: Outcome = { reason: "error", response: "" }
 
-      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, content, images: [], replyTo: null }, { signal })) {
+      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, triggerRunId: null, content, images: [], replyTo: null }, { signal })) {
         if (event.type === "text") {
           outcome.response += event.text
         }
@@ -99,7 +99,7 @@ export function createDelegation(input: {
   async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
     const outcome = await delegate(from, to, task, content)
 
-    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, content: summarize(to, outcome), images: [], replyTo: null }))
+    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null }))
   }
 
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {

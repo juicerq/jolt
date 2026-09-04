@@ -9,6 +9,7 @@ interface EngineProcessOptions {
   privateBotsDirectory: string
   secretKey(): Promise<string>
   googleClient?: { id: string; secret?: string }
+  githubRelayUrl?: string
   appVersion?: string
   electronVersion?: string
   development?: boolean
@@ -59,6 +60,7 @@ export class EngineProcess {
         BOT_TEAMS_SECRET_KEY: secretKey,
         ...(this.options.googleClient ? { BOT_TEAMS_GOOGLE_CLIENT_ID: this.options.googleClient.id } : {}),
         ...(this.options.googleClient?.secret ? { BOT_TEAMS_GOOGLE_CLIENT_SECRET: this.options.googleClient.secret } : {}),
+        ...(this.options.githubRelayUrl ? { BOT_TEAMS_GITHUB_RELAY_URL: this.options.githubRelayUrl } : {}),
         BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
         BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
         BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",

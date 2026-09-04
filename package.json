@@ -13,6 +13,7 @@
     "postinstall": "bun node_modules/electron/install.js",
     "dev": "JOLT_USER_DATA=$PWD/.jolt-dev bun run dev:run",
     "dev:load": "JOLT_USER_DATA=$PWD/.jolt-load JOLT_LOAD_PROVIDER=true bun run dev:run",
+    "dev:github-relay": "bun github-relay/index.ts",
     "dev:run": "bun run build:engine && electron-vite dev",
     "seed:load": "bun src/engine/persistence/load-seed.ts",
     "bench:open": "bun bench/conversation-open.ts",
@@ -29,6 +30,7 @@
     "typecheck": "tsc --noEmit",
     "build:engine": "bun build --compile --outfile dist-engine/jolt-engine src/engine/index.ts",
     "build:electron": "electron-vite build",
+    "build:github-relay": "bun build --compile --outfile dist-relay/jolt-github-relay github-relay/index.ts",
     "build": "bun run build:engine && bun run build:electron",
     "release": "bun scripts/release.ts",
     "package:linux": "bun run build && electron-builder --linux"
@@ -49,6 +51,7 @@
     "blobatar": "^2.7.0",
     "drizzle-orm": "1.0.0-rc.4",
     "electron-updater": "^6.8.9",
+    "elysia": "^1.4.30",
     "hast-util-to-jsx-runtime": "2.3.6",
     "highlight.js": "10.7.3",
     "qrcode.react": "^4.2.0",

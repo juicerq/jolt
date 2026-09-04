@@ -1,6 +1,7 @@
 node_modules/
 out/
 dist-engine/
+dist-relay/
 *.db
 *.db-shm
 *.db-wal

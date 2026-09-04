@@ -36,6 +36,7 @@ import { ChatQuestion } from "./chat-question"
 import { finishConversationOpen } from "./chat-open-span"
 import { chatGreeting } from "./chat-greetings"
 import { ChatRoutineCall } from "./chat-routine-call"
+import { ChatTriggerRun } from "./chat-trigger-run"
 import { ChatTurnEnding } from "./chat-turn-ending"
 
 const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" })
@@ -67,7 +68,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }, [bot.id, client, isFetchedAfterMount, messages])
 
   async function sendPersonInput(message: { content: string; images: MessageImage[]; replyTo: MessageReply | null }, mentions: ChatDraft["mentions"]) {
-    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, ...message }, "")
+    startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, triggerRunId: null, ...message }, "")
 
     return client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, mentions) }).then(() => true).catch((sendError: unknown) => {
       failChatRun(bot.id, sendError instanceof Error ? sendError.message : "Não foi possível responder")
@@ -171,6 +172,14 @@ function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, me
     return <ChatRoutineCall botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
   }
 
+  if (message.author === "trigger") {
+    if (!activityDetailsVisible) {
+      return null
+    }
+
+    return <ChatTriggerRun botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
+  }
+
   const time = formatMessageTime(message.createdAt)
 
   if (message.author === "person") {
@@ -235,6 +244,14 @@ function ChatRunMessage({ activityDetailsVisible, avatarIdentities, bot, names, 
     }
 
     return <ChatRoutineCall botName={bot.name} time="Agora" content={run.message.content} open />
+  }
+
+  if (run.message.author === "trigger") {
+    if (!activityDetailsVisible) {
+      return null
+    }
+
+    return <ChatTriggerRun botName={bot.name} time="Agora" content={run.message.content} open />
   }
 
   const task = tasks[run.message.taskId ?? ""]

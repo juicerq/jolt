@@ -13,6 +13,7 @@ import { createBots } from "./bots/bots"
 import { createConversations } from "./conversations/conversations"
 import { createMemory } from "./memory/memory"
 import { createGmailAdapter } from "./plugins/gmail/gmail"
+import { createGithubAdapter } from "./plugins/github/github"
 import { createMcpAdapter } from "./plugins/mcp/mcp"
 import { createWhatsappAdapter } from "./plugins/whatsapp/whatsapp"
 import { createPlugins } from "./plugins/plugins"
@@ -24,6 +25,7 @@ import { createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
 import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
+import { createTriggers } from "./triggers/triggers"
 import { createWebSearch } from "./web/web-search"
 
 registerBunOAuthFlows()
@@ -39,6 +41,7 @@ const environmentSchema = z.object({
   BOT_TEAMS_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/),
   BOT_TEAMS_GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   BOT_TEAMS_GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  BOT_TEAMS_GITHUB_RELAY_URL: z.url().optional(),
 })
 const environment = parse(environmentSchema, process.env)
 const startedAt = new Date().toISOString()
@@ -148,6 +151,7 @@ const conversations = createConversations({
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
     { tools: (bot) => webSearch.tools(bot), instructions: () => webSearch.instructions() },
+    { tools: (bot) => triggers.tools(bot), instructions: (bot) => triggers.instructions(bot) },
     {
       tools: (bot) => plugins.tools(bot),
       instructions: (bot) => plugins.instructions(bot),
@@ -155,6 +159,17 @@ const conversations = createConversations({
       inheritance: (leader, references) => plugins.inheritance(leader, references),
     },
   ],
+})
+const triggers = createTriggers({
+  database,
+  bots,
+  observability: observationSystem.observability,
+  conversations: { active: (botId) => conversations.active(botId), callTrigger: (call) => conversations.callTrigger(call) },
+})
+const github = createGithubAdapter({
+  ...(environment.BOT_TEAMS_GITHUB_RELAY_URL ? { relayUrl: environment.BOT_TEAMS_GITHUB_RELAY_URL } : {}),
+  observability: observationSystem.observability,
+  event: (accountId, event) => triggers.ingest(accountId, event),
 })
 const plugins = createPlugins({
   database,
@@ -167,6 +182,7 @@ const plugins = createPlugins({
       ...(environment.BOT_TEAMS_GOOGLE_CLIENT_ID ? { client: { id: environment.BOT_TEAMS_GOOGLE_CLIENT_ID, ...(environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET ? { secret: environment.BOT_TEAMS_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
     }),
     whatsapp: createWhatsappAdapter({ observability: observationSystem.observability, database }),
+    github,
     mcp: createMcpAdapter({ observability: observationSystem.observability }),
   },
   conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
@@ -193,7 +209,7 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, memory, {
+  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, {
     decide: (decision) => piRuntime.resolvePermission(decision),
   }, plugins),
 )
@@ -281,6 +297,7 @@ async function shutdown() {
       void server.stop(false)
       memory.dispose()
       routines.dispose()
+      triggers.dispose()
       conversations.dispose()
       await plugins.dispose()
       await drainRequests()

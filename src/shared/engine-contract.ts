@@ -11,6 +11,7 @@ import { permissionSchemas } from "./permissions"
 import { pluginSchemas } from "./plugins"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
+import { triggerSchemas } from "./triggers"
 
 const healthOutput = z.object({
   status: z.literal("ready"),
@@ -64,6 +65,12 @@ export const engineContract = {
     list: oc.input(routineSchemas.botInput).output(routineSchemas.routineList).route({ method: "GET", path: "/bots/{botId}/routines" }),
     update: oc.input(routineSchemas.updateInput).output(routineSchemas.routine).route({ method: "POST", path: "/routines/{id}/update" }),
     remove: oc.input(routineSchemas.idInput).route({ method: "POST", path: "/routines/{id}/remove" }),
+  },
+  triggers: {
+    create: oc.input(triggerSchemas.createInput).output(triggerSchemas.trigger).route({ method: "POST", path: "/triggers" }),
+    list: oc.input(triggerSchemas.botInput).output(triggerSchemas.triggerList).route({ method: "GET", path: "/bots/{botId}/triggers" }),
+    update: oc.input(triggerSchemas.updateInput).output(triggerSchemas.trigger).route({ method: "POST", path: "/triggers/{id}/update" }),
+    remove: oc.input(triggerSchemas.idInput).route({ method: "POST", path: "/triggers/{id}/remove" }),
   },
   memory: {
     list: oc.input(memorySchemas.botInput).output(memorySchemas.memoryList).route({ method: "GET", path: "/bots/{botId}/memories" }),

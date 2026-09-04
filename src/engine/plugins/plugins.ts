@@ -24,6 +24,7 @@ interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; s
 const builtInPlugins: Catalogued[] = [
   { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },
   { id: "whatsapp", kind: "whatsapp", name: "WhatsApp", builtIn: true },
+  { id: "github", kind: "github", name: "GitHub", builtIn: true },
 ]
 
 const accountProperty = { type: "string", description: "Label of the Conta to use. Send it whenever you use more than one Conta of this Plugin. When it is not clear which Conta the person means, ask them before you call." } as const
@@ -370,10 +371,27 @@ export function createPlugins(input: {
     }
   }
 
-  function connectionFinished(plugin: Catalogued, connected: PluginConnected, target: { accountId?: string; botId?: string; requestId?: string }) {
+  async function connectionFinished(plugin: Catalogued, connected: PluginConnected, target: { accountId?: string; botId?: string; requestId?: string }) {
     const checkedAt = new Date().toISOString()
     const secret = input.secrets.seal(connected.secret)
-    const existing = target.accountId ? accountOf(target.accountId) : undefined
+    const adapter = input.adapters[plugin.kind]
+    const identity = adapter.accountIdentity?.(connected.secret)
+    const matching = identity ? input.database.accounts.list().find((candidate) => {
+      if (candidate.pluginId !== plugin.id) {
+        return false
+      }
+
+      const candidateSecret = secretOf(candidate)
+
+      return !!candidateSecret && adapter.accountIdentity?.(candidateSecret) === identity
+    }) : undefined
+    const existing = target.accountId ? accountOf(target.accountId) : matching
+
+    if (existing && identity) {
+      await adapter.disconnect?.(sessionFor(existing))
+      await adapter.stop(existing.id)
+    }
+
     const account = existing
       ? input.database.accounts.update(existing.id, { label: connected.label, state: "connected", secret, tools: connected.tools, checkedAt })
       : input.database.accounts.create({ id: crypto.randomUUID(), pluginId: plugin.id, label: connected.label, state: "connected", secret, tools: connected.tools, checkedAt })
@@ -421,8 +439,8 @@ export function createPlugins(input: {
 
     const connection = input.adapters[plugin.kind].connect({ pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}), step })
     const connectionId = crypto.randomUUID()
-    const done = connection.connected.then((connected) => {
-      connectionFinished(plugin, connected, target)
+    const done = connection.connected.then(async (connected) => {
+      await connectionFinished(plugin, connected, target)
 
       return list()
     }).catch((error: unknown) => {
@@ -632,6 +650,7 @@ export function createPlugins(input: {
         throw new Error("Remove the Plugin to disconnect it")
       }
 
+      await input.adapters[plugin.kind].disconnect?.(sessionFor(account))
       await input.adapters[plugin.kind].stop(account.id)
       input.database.accounts.remove(account.id)
 

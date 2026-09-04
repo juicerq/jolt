@@ -1,4 +1,4 @@
-import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon } from "@heroicons/react/24/outline"
+import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { Bot } from "@src/shared/bots"
@@ -14,6 +14,7 @@ import { BotMemory } from "./bot-memory"
 import { BotRoutineEditor } from "./bot-routine-editor"
 import { BotRoutines } from "./bot-routines"
 import { BotSettings } from "./bot-settings"
+import { BotTriggers } from "./bot-triggers"
 import { type BotRoute, botsStore, openBotRoute, openCreateBot } from "./bots-store"
 import { findTeamBot, teamOf } from "./team"
 
@@ -63,6 +64,10 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
     return <BotMemory bot={bot} client={client} {...(leader ? { leader } : {})} onClose={close} />
   }
 
+  if (route.name === "triggers") {
+    return <BotTriggers bot={bot} client={client} onClose={close} />
+  }
+
   if (route.name === "routine") {
     return <BotRoutineEditor bot={bot} client={client} routineId={route.id} onClose={openRoutines} />
   }
@@ -71,7 +76,7 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
 }
 
 function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
-  function open(name: "settings" | "routines" | "memory") {
+  function open(name: "settings" | "routines" | "triggers" | "memory") {
     if (route.name === name) {
       openBotRoute({ name: "chat" })
       return
@@ -90,6 +95,7 @@ function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
       <IconButton iconSize={16} current={route.name === "chat"} type="button" label={`Conversa de ${bot.name}`} tooltipPlacement="left" onClick={() => openBotRoute({ name: "chat" })}><ChatBubbleLeftIcon aria-hidden="true" /></IconButton>
       <IconButton iconSize={16} current={route.name === "settings"} type="button" label={`Configurações de ${bot.name}`} tooltipPlacement="left" onClick={() => open("settings")}><Cog6ToothIcon aria-hidden="true" /></IconButton>
       {!bot.temporary && <IconButton iconSize={16} current={route.name === "routines" || route.name === "routine"} type="button" label={`Rotinas de ${bot.name}`} tooltipPlacement="left" onClick={() => open("routines")}><ClockIcon aria-hidden="true" /></IconButton>}
+      {!bot.temporary && <IconButton iconSize={16} current={route.name === "triggers"} type="button" label={`Gatilhos de ${bot.name}`} tooltipPlacement="left" onClick={() => open("triggers")}><BoltIcon aria-hidden="true" /></IconButton>}
       <IconButton iconSize={16} current={route.name === "memory"} type="button" label={`Memórias de ${bot.name}`} tooltipPlacement="left" onClick={() => open("memory")}><BrainIcon aria-hidden="true" /></IconButton>
     </ChatEdgeTab>
   )

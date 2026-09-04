@@ -65,11 +65,11 @@ O contrato permanente que define o resultado esperado, as responsabilidades, os 
 _Evitar_: Personalidade, prompt, memória, acesso
 
 **Contexto do Bot**:
-A seleção temporária de informações usadas num Turno. Inclui a Origem, o momento e, quando existem, a Rotina ou a Tarefa que iniciou o Turno.
+A seleção temporária de informações usadas num Turno. Inclui a Origem, o momento e, quando existem, a Rotina, o Gatilho ou a Tarefa que iniciou o Turno.
 _Evitar_: Memória, histórico completo, prompt permanente
 
 **Turno**:
-Uma execução conversacional do Bot iniciada por uma mensagem da pessoa, uma Chamada, uma Tarefa ou um Resultado da Tarefa.
+Uma execução conversacional do Bot iniciada por uma mensagem da pessoa, uma Chamada, um Disparo, uma Tarefa ou um Resultado da Tarefa.
 _Evitar_: Ativação, rodada, run
 
 **Memória do Bot**:
@@ -89,7 +89,7 @@ A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Origem**:
-De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
+De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
 _Evitar_: Fonte, autor, proveniência
 
 **Limite da Memória**:
@@ -203,6 +203,18 @@ _Evitar_: Cron, expressão, agenda, schedule
 **Chamada**:
 Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Jolt estava fechado acontece uma única vez ao abrir.
 _Evitar_: Tick, execução, disparo, mensagem da pessoa
+
+**Evento externo**:
+Um fato que um Plugin entrega ao Jolt, como a abertura de uma issue no GitHub. Receber um Evento externo não chama um Bot por si só.
+_Evitar_: Gatilho, Disparo, mensagem
+
+**Gatilho**:
+Uma regra persistida de um Bot que combina uma Conta, um tipo de Evento externo, condições estruturadas e a instrução do trabalho. Somente um Evento externo que combina com a regra produz um Disparo.
+_Evitar_: Rotina, webhook, automação, condição em texto livre
+
+**Disparo**:
+Uma ocorrência persistida em que um Evento externo combinou com um Gatilho. O Disparo espera o Bot ficar livre e inicia um Turno uma única vez.
+_Evitar_: Chamada, Evento externo, execução, webhook
 
 **Plugin**:
 Um serviço externo que o Jolt sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.

@@ -4,11 +4,12 @@ import { permissionSchemas } from "./permissions"
 import { pluginSchemas } from "./plugins"
 import type { Frequency } from "./routines"
 import type { TaskStatus } from "./tasks"
+import type { ExternalEvent } from "./triggers"
 
 export const askTool = "ask"
 
 const id = z.string().min(1)
-export const messageAuthor = z.enum(["person", "bot", "routine"])
+export const messageAuthor = z.enum(["person", "bot", "routine", "trigger"])
 const optionalId = id.nullable()
 const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMimeTypes) })
 const messageQuestionOption = z.strictObject({
@@ -57,6 +58,7 @@ const message = z.strictObject({
   author: messageAuthor,
   authorBotId: optionalId,
   taskId: optionalId,
+  triggerRunId: optionalId,
   content: z.string(),
   images: z.array(messageImage),
   question: messageQuestion.nullable().optional(),
@@ -66,7 +68,7 @@ const message = z.strictObject({
   error: z.string().min(1).max(500).nullish(),
   createdAt: id,
 })
-const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, content: true, images: true, replyTo: true })
+const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, triggerRunId: true, content: true, images: true, replyTo: true })
 const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
 const startedEvent = z.strictObject({ type: z.literal("started"), messageId: id, message: incomingMessage })
 const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
@@ -158,6 +160,7 @@ export type ConversationCompactionResult = z.infer<typeof compactionResult>
 export type TurnContext = { startedAt: string; timeZone: string } & (
   | { cause: "person" }
   | { cause: "routine"; routineId: string; frequency: Frequency; scheduledFor: string }
+  | { cause: "trigger"; triggerId: string; triggerRunId: string; event: ExternalEvent }
   | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string }; outcome: string }
   | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; outcome: string; status: TaskStatus }
 )
