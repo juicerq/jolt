@@ -10,7 +10,11 @@ export async function loadSecretKey(path: string) {
   const stored = await readFile(path).catch(() => {})
 
   if (stored) {
-    return encrypted ? safeStorage.decryptString(stored) : stored.toString("utf8")
+    if (!encrypted) {
+      return stored.toString("utf8")
+    }
+
+    return safeStorage.decryptString(stored)
   }
 
   const key = randomBytes(keyBytes).toString("hex")

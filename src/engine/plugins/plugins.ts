@@ -66,7 +66,11 @@ export function createPlugins(input: {
   function toolsOf(account: Pick<StoredAccount, "pluginId" | "tools">) {
     const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
 
-    return plugin ? input.adapters[plugin.kind].tools?.() ?? account.tools : account.tools
+    if (!plugin) {
+      return account.tools
+    }
+
+    return input.adapters[plugin.kind].tools?.() ?? account.tools
   }
 
   function sessionFor(account: StoredAccount): PluginAccountSession {
@@ -136,7 +140,11 @@ export function createPlugins(input: {
     return input.database.accesses.listForBot(bot.id).flatMap((access) => {
       const account = input.database.accounts.get(access.accountId)
 
-      return account ? [account] : []
+      if (!account) {
+        return []
+      }
+
+      return [account]
     })
   }
 

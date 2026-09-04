@@ -20,5 +20,9 @@ export async function detectOpencodeKey() {
 
   const credential = parsed.data["opencode-go"] ?? parsed.data.opencode
 
-  return credential?.type === "api" ? credential.key : undefined
+  if (credential?.type !== "api") {
+    return
+  }
+
+  return credential.key
 }

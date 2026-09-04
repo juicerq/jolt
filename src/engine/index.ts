@@ -86,7 +86,11 @@ function allowedOrigin(request: Request) {
     const url = new URL(origin)
     const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost"
 
-    return url.protocol === "http:" && loopback ? origin : undefined
+    if (url.protocol !== "http:" || !loopback) {
+      return
+    }
+
+    return origin
   } catch {
     return
   }

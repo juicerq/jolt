@@ -117,7 +117,11 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
     if (event.type === "tool-started") {
       const label = policy.labels?.[event.tool]
 
-      return label ? { ...event, label } : event
+      if (!label) {
+        return event
+      }
+
+      return { ...event, label }
     }
 
     if (event.type === "tool-finished" && denied.delete(pendingKey(botId, event.callId))) {

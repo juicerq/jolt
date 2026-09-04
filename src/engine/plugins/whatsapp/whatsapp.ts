@@ -159,7 +159,11 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
         const messages = history.messages.flatMap((message) => {
           const row = incoming(message, names)
 
-          return row && session.accountId ? [{ ...row, accountId: session.accountId }] : []
+          if (!row || !session.accountId) {
+            return []
+          }
+
+          return [{ ...row, accountId: session.accountId }]
         })
 
         if (messages.length > 0) {

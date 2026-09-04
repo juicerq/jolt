@@ -168,7 +168,11 @@ export function createDelegation(input: {
         }
         const colleagues = input.bots.colleagues(bot)
 
-        return colleagues.length > 0 ? [transfer, delegateTo(bot)] : [transfer]
+        if (colleagues.length === 0) {
+          return [transfer]
+        }
+
+        return [transfer, delegateTo(bot)]
       }
 
       const hire: PiCustomTool = {

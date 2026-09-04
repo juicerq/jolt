@@ -130,7 +130,11 @@ function plainText(payload: Part | undefined): string {
   const parts = (payload.parts ?? []).flatMap((child) => {
     const parsed = part.safeParse(child)
 
-    return parsed.success ? [parsed.data] : []
+    if (!parsed.success) {
+      return []
+    }
+
+    return [parsed.data]
   })
   const nested = parts.map(plainText).find(Boolean)
 
@@ -377,7 +381,11 @@ export function createGmailAdapter(input: { observability: Observability; client
   return {
     kind: "gmail",
     availability() {
-      return input.client ? { available: true } : { available: false, reason: "Gmail needs a Google client id. Set JOLT_GOOGLE_CLIENT_ID before starting Jolt." }
+      if (!input.client) {
+        return { available: false, reason: "Gmail needs a Google client id. Set JOLT_GOOGLE_CLIENT_ID before starting Jolt." }
+      }
+
+      return { available: true }
     },
     tools() {
       return gmailTools

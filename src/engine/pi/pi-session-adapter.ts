@@ -119,7 +119,11 @@ export function createEventNormalizer() {
       lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
       lastError = event.message.errorMessage?.trim().slice(0, 500) || undefined
 
-      return terminalReason ? { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) } : undefined
+      if (!terminalReason) {
+        return
+      }
+
+      return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
     }
 
     if (event.type === "compaction_start") {
@@ -177,7 +181,15 @@ function summarizeToolInput(input: unknown, field?: string) {
     return
   }
 
-  return summary.length > 160 ? `${summary.slice(0, 157)}...` : summary
+  return truncate(summary, 160)
+}
+
+function truncate(value: string, limit: number) {
+  if (value.length <= limit) {
+    return value
+  }
+
+  return `${value.slice(0, limit - 3)}...`
 }
 
 function summarizeToolError(result: unknown) {
@@ -189,7 +201,7 @@ function summarizeToolError(result: unknown) {
     return
   }
 
-  return summary.length > 300 ? `${summary.slice(0, 297)}...` : summary
+  return truncate(summary, 300)
 }
 
 function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?: string, ephemeral?: boolean) {

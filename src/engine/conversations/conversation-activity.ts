@@ -90,12 +90,20 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
           if (step.type === "thinking") {
             const { startedAt: _startedAt, ...thinkingStep } = step
 
-            return thinkingStep.content || thinkingStep.durationMs ? [thinkingStep] : []
+            if (!thinkingStep.content && !thinkingStep.durationMs) {
+              return []
+            }
+
+            return [thinkingStep]
           }
 
           const tools = step.tools.filter((tool): tool is ToolStep["tools"][number] => tool.status !== "running")
 
-          return tools.length > 0 ? [{ type: "tool", name: step.name, tools }] : []
+          if (tools.length === 0) {
+            return []
+          }
+
+          return [{ type: "tool", name: step.name, tools }]
         }),
       }
 
@@ -126,5 +134,9 @@ function finishedStatus(event: { failed: boolean; denied?: boolean }) {
     return "denied" as const
   }
 
-  return event.failed ? "failed" as const : "done" as const
+  if (event.failed) {
+    return "failed" as const
+  }
+
+  return "done" as const
 }

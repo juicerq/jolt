@@ -22,7 +22,7 @@ import { taskSchemas } from "../../shared/tasks"
 import type { WhatsappContact, WhatsappSavedMessage } from "../../shared/whatsapp"
 import { whatsappSchemas } from "../../shared/whatsapp"
 import { accesses, accounts, bots, colleagues, conversations, memories, messages, notes, plugins, projects, routines, tasks, whatsappContacts, whatsappMessages } from "./schema"
-import { parse } from "../../shared/parse"
+import { parse, parseOptional } from "../../shared/parse"
 
 const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
 
@@ -74,7 +74,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.projectget", context: { projectId: id } }, () => {
           const row = database.select().from(projects).where(eq(projects.id, id)).get()
 
-          return row ? parse(projectSchemas.project, row) : undefined
+          return parseOptional(projectSchemas.project, row)
         })
       },
     },
@@ -91,7 +91,7 @@ export function openDatabase(path: string, observability: Observability) {
       get(id: string) {
         return observability.span({ name: "database.botget", context: { botId: id } }, () => {
           const row = database.select().from(bots).where(eq(bots.id, id)).get()
-          return row ? parse(botSchemas.storedBot, row) : undefined
+          return parseOptional(botSchemas.storedBot, row)
         })
       },
       update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled" | "effort" | "model" | "permissionMode">) {
@@ -108,14 +108,14 @@ export function openDatabase(path: string, observability: Observability) {
             return updated
           })
 
-          return row ? parse(botSchemas.storedBot, row) : undefined
+          return parseOptional(botSchemas.storedBot, row)
         })
       },
       updateExecution(id: string, changes: Pick<StoredBot, "effort"> | Pick<StoredBot, "provider" | "model"> | Pick<StoredBot, "permissionMode">) {
         return observability.span({ name: "database.botexecutionupdate", context: { botId: id } }, () => {
           const row = database.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
 
-          return row ? parse(botSchemas.storedBot, row) : undefined
+          return parseOptional(botSchemas.storedBot, row)
         })
       },
       remove(id: string) {
@@ -127,7 +127,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.conversationmessageget" }, () => {
           const row = database.select(messageColumns).from(messages).where(eq(messages.id, messageId)).get()
 
-          return row ? parse(conversationSchemas.message, row) : undefined
+          return parseOptional(conversationSchemas.message, row)
         })
       },
       history(botId: string, page: { before?: string; limit: number }) {
@@ -189,14 +189,14 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.taskget", context: { taskId: id } }, () => {
           const row = database.select().from(tasks).where(eq(tasks.id, id)).get()
 
-          return row ? parse(taskSchemas.task, row) : undefined
+          return parseOptional(taskSchemas.task, row)
         })
       },
       update(id: string, changes: Partial<Pick<Task, "assigneeBotId" | "status" | "finishedAt">>) {
         return observability.span({ name: "database.taskupdate", context: { taskId: id } }, () => {
           const row = database.update(tasks).set(changes).where(eq(tasks.id, id)).returning().get()
 
-          return row ? parse(taskSchemas.task, row) : undefined
+          return parseOptional(taskSchemas.task, row)
         })
       },
       interruptWorking(finishedAt: string) {
@@ -245,7 +245,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.routineget" }, () => {
           const row = database.select().from(routines).where(eq(routines.id, id)).get()
 
-          return row ? parse(routineSchemas.routine, row) : undefined
+          return parseOptional(routineSchemas.routine, row)
         })
       },
       listForBot(botId: string) {
@@ -262,7 +262,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.routineupdate" }, () => {
           const row = database.update(routines).set(changes).where(eq(routines.id, id)).returning().get()
 
-          return row ? parse(routineSchemas.routine, row) : undefined
+          return parseOptional(routineSchemas.routine, row)
         })
       },
       remove(id: string) {
@@ -310,7 +310,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.memoryget" }, () => {
           const row = database.select().from(memories).where(eq(memories.id, id)).get()
 
-          return row ? parse(memorySchemas.storedMemory, row) : undefined
+          return parseOptional(memorySchemas.storedMemory, row)
         })
       },
       listForBot(botId: string) {
@@ -328,7 +328,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.memoryupdate" }, () => {
           const row = database.update(memories).set(changes).where(eq(memories.id, id)).returning().get()
 
-          return row ? parse(memorySchemas.storedMemory, row) : undefined
+          return parseOptional(memorySchemas.storedMemory, row)
         })
       },
       remove(id: string) {
@@ -353,7 +353,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.pluginget", context: { pluginId: id } }, () => {
           const row = database.select().from(plugins).where(eq(plugins.id, id)).get()
 
-          return row ? parse(pluginSchemas.storedPlugin, row) : undefined
+          return parseOptional(pluginSchemas.storedPlugin, row)
         })
       },
       remove(id: string) {
@@ -379,14 +379,14 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.accountget" }, () => {
           const row = database.select().from(accounts).where(eq(accounts.id, id)).get()
 
-          return row ? parse(pluginSchemas.storedAccount, row) : undefined
+          return parseOptional(pluginSchemas.storedAccount, row)
         })
       },
       update(id: string, changes: Partial<Pick<StoredAccount, "label" | "state" | "secret" | "tools" | "checkedAt">>) {
         return observability.span({ name: "database.accountupdate" }, () => {
           const row = database.update(accounts).set(changes).where(eq(accounts.id, id)).returning().get()
 
-          return row ? parse(pluginSchemas.storedAccount, row) : undefined
+          return parseOptional(pluginSchemas.storedAccount, row)
         })
       },
       remove(id: string) {

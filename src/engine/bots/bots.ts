@@ -164,7 +164,11 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       const input = parse(botSchemas.idInput, rawInput)
       const storedBot = database.bots.get(input.id)
 
-      return storedBot ? present(storedBot) : undefined
+      if (!storedBot) {
+        return
+      }
+
+      return present(storedBot)
     },
     colleagues(bot: Pick<Bot, "id">) {
       const colleagueIds = database.colleagues.listForBot(bot.id).map((relation) => relation.colleagueBotId)

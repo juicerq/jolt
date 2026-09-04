@@ -125,9 +125,11 @@ export function createConversations(input: {
 
         sender.bot(content, question)
 
-        return question
-          ? "Question sent. Stop now and wait for the person to answer in a new turn."
-          : "Message sent. If this completed the request, stop now without writing a confirmation."
+        if (question) {
+          return "Question sent. Stop now and wait for the person to answer in a new turn."
+        }
+
+        return "Message sent. If this completed the request, stop now without writing a confirmation."
       },
     }
   }
@@ -251,10 +253,18 @@ export function createConversations(input: {
     const assigned = Array.from(active).flatMap(([id, turn]) => {
       const task = turn.message.author === "bot" && turn.message.taskId ? input.tasks.get(turn.message.taskId) : undefined
 
-      return turn.message.authorBotId === botId && task?.assigneeBotId === id ? [id] : []
+      if (turn.message.authorBotId !== botId || task?.assigneeBotId !== id) {
+        return []
+      }
+
+      return [id]
     })
 
-    return waited ? [waited, ...assigned] : assigned
+    if (!waited) {
+      return assigned
+    }
+
+    return [waited, ...assigned]
   }
 
   function blockedBy(callerId: string, targetId: string) {

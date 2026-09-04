@@ -9,3 +9,11 @@ export function parse<Schema extends z.ZodType>(schema: Schema, value: unknown):
 
   return result.data
 }
+
+export function parseOptional<Schema extends z.ZodType>(schema: Schema, value: unknown) {
+  if (!value) {
+    return
+  }
+
+  return parse(schema, value)
+}
