@@ -1,7 +1,7 @@
 import { z } from "zod"
-import { parse } from "../../../shared/parse"
-import type { ToolDescriptor } from "../../../shared/plugins"
-import type { Observability } from "../../observability/observability"
+import { parse } from "@src/shared/parse"
+import type { ToolDescriptor } from "@src/shared/plugins"
+import type { Observability } from "@src/engine/observability/observability"
 import { PluginAuthError, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
 import { googleEndpoints, parseCredentials, refreshCredentials, startAuthorization, type GmailClient, type GmailCredentials, type GmailEndpoints } from "./gmail-oauth"
 

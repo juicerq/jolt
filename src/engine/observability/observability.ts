@@ -10,8 +10,8 @@ import {
   type ExternalObservationSpan,
   type Observation,
   type ObservationContext,
-} from "../../shared/observability/observation"
-import { parse } from "../../shared/parse"
+} from "@src/shared/observability/observation"
+import { parse } from "@src/shared/parse"
 
 interface EventInput {
   name: string

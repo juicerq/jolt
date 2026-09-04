@@ -1,5 +1,5 @@
-import type { MessageImage } from "../../../shared/conversations"
-import { messageImageMimeTypes } from "../../../shared/message-images"
+import type { MessageImage } from "@src/shared/conversations"
+import { messageImageMimeTypes } from "@src/shared/message-images"
 
 export const messageImageAccept = messageImageMimeTypes.join(",")
 

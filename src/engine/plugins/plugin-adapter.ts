@@ -1,5 +1,5 @@
-import type { PluginKind } from "../../shared/plugin-kinds"
-import type { PluginStep, StoredPlugin, ToolDescriptor } from "../../shared/plugins"
+import type { PluginKind } from "@src/shared/plugin-kinds"
+import type { PluginStep, StoredPlugin, ToolDescriptor } from "@src/shared/plugins"
 
 export class PluginAuthError extends Error {}
 

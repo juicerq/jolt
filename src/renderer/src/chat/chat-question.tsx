@@ -1,7 +1,7 @@
 import { CheckIcon } from "@heroicons/react/24/outline"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
-import type { MessageQuestion } from "../../../shared/conversations"
+import type { MessageQuestion } from "@src/shared/conversations"
 import { Button } from "../ui/button"
 import { Select } from "../ui/select"
 import { chatStore } from "./chat-store"

@@ -1,6 +1,6 @@
 import { Blobatar } from "@blobatar/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { Bot } from "../../../shared/bots"
+import type { Bot } from "@src/shared/bots"
 import type { EngineClient } from "../engine-client"
 import { MenuOption, menuCardClassName } from "../ui/menu"
 import { buildChatCommand, type ChatCommand, startedChatCommand, suggestChatCommands } from "./chat-commands"

@@ -1,11 +1,11 @@
-import type { Bot } from "../../shared/bots"
-import { routineSchemas, type Frequency, type Routine } from "../../shared/routines"
-import { weekdays } from "../../shared/weekdays"
+import type { Bot } from "@src/shared/bots"
+import { routineSchemas, type Frequency, type Routine } from "@src/shared/routines"
+import { weekdays } from "@src/shared/weekdays"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 function statusFrom(enabled: string | undefined, current: Routine["status"] | undefined) {
   if (!enabled) {

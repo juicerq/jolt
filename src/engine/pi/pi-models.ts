@@ -1,6 +1,6 @@
 import type { Api, Model } from "@earendil-works/pi-ai"
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent"
-import type { ProviderConnection, ProviderName } from "../../shared/providers"
+import type { ProviderConnection, ProviderName } from "@src/shared/providers"
 
 interface PiProvider { id: string; name: string; defaultModelId: string; connection: ProviderConnection }
 

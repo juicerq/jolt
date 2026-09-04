@@ -15,7 +15,7 @@ import {
   UserPlusIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline"
-import type { ConversationActivity } from "../../../shared/conversations"
+import type { ConversationActivity } from "@src/shared/conversations"
 import { blurMouseClick } from "../ui/blur-mouse-click"
 import {
   formatChatActivityStepLabel,

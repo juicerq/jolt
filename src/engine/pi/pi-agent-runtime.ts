@@ -1,8 +1,8 @@
-import type { BotEffort } from "../../shared/bots"
-import type { BotPermissionMode } from "../../shared/bot-permissions"
-import type { ConversationCompactionResult, MessageImage, TurnContext } from "../../shared/conversations"
-import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
-import type { ProviderName } from "../../shared/providers"
+import type { BotEffort } from "@src/shared/bots"
+import type { BotPermissionMode } from "@src/shared/bot-permissions"
+import type { ConversationCompactionResult, MessageImage, TurnContext } from "@src/shared/conversations"
+import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
+import type { ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import type { PiPermissionPolicy } from "./pi-permissions"
 

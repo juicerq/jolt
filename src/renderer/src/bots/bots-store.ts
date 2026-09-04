@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store"
-import { defaultBotAvatarSeed, randomBotAvatarSeed } from "../../../shared/bot-avatar"
+import { defaultBotAvatarSeed, randomBotAvatarSeed } from "@src/shared/bot-avatar"
 import { beginConversationOpen } from "../chat/chat-open-span"
 
 export type BotRoute =

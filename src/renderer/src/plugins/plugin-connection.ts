@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import type { PluginConnectInput, PluginStep } from "../../../shared/plugins"
+import type { PluginConnectInput, PluginStep } from "@src/shared/plugins"
 import type { EngineClient } from "../engine-client"
 
 export function useConnectPlugin(client: EngineClient, onConnected?: () => void) {

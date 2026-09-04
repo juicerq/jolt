@@ -2,8 +2,8 @@ import { createORPCClient } from "@orpc/client"
 import { RPCLink } from "@orpc/client/fetch"
 import type { ContractRouterClient } from "@orpc/contract"
 import { createTanstackQueryUtils } from "@orpc/tanstack-query"
-import type { engineContract } from "../../shared/engine-contract"
-import type { EngineConnection } from "../../shared/engine-ipc"
+import type { engineContract } from "@src/shared/engine-contract"
+import type { EngineConnection } from "@src/shared/engine-ipc"
 
 export function createEngineClient(connection: EngineConnection) {
   const senderLink = new RPCLink({

@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm"
 import { index, integer, primaryKey, snakeCase, text } from "drizzle-orm/sqlite-core"
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
-import type { StoredBot } from "../../shared/bots"
-import type { ConversationMessage } from "../../shared/conversations"
-import type { Note, StoredMemory } from "../../shared/memory"
-import type { StoredAccount, StoredPlugin } from "../../shared/plugins"
-import type { Routine } from "../../shared/routines"
-import type { Task } from "../../shared/tasks"
+import type { StoredBot } from "@src/shared/bots"
+import type { ConversationMessage } from "@src/shared/conversations"
+import type { Note, StoredMemory } from "@src/shared/memory"
+import type { StoredAccount, StoredPlugin } from "@src/shared/plugins"
+import type { Routine } from "@src/shared/routines"
+import type { Task } from "@src/shared/tasks"
 
 export const projects = snakeCase.table("projects", {
   id: text().primaryKey(),

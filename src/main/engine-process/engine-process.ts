@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcess } from "node:child_process"
-import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "../../shared/engine-ipc"
-import { parse } from "../../shared/parse"
+import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
+import { parse } from "@src/shared/parse"
 
 interface EngineProcessOptions {
   executable: string

@@ -1,4 +1,4 @@
-import type { Bot } from "../../../shared/bots"
+import type { Bot } from "@src/shared/bots"
 
 export function groupMembers(members: Bot[]) {
   return {

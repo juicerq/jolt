@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { PluginRequest } from "../../../shared/plugins"
+import type { PluginRequest } from "@src/shared/plugins"
 import type { EngineClient } from "../engine-client"
 import { accountStateLabels } from "../plugins/account-states"
 import { useConnectPlugin } from "../plugins/plugin-connection"

@@ -1,4 +1,4 @@
-import type { HistoryPage } from "../../../shared/conversations"
+import type { HistoryPage } from "@src/shared/conversations"
 
 export const initialMessageLimit = 12
 export const recentMessageLimit = 60

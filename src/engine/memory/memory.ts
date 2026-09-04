@@ -1,13 +1,13 @@
-import type { Bot } from "../../shared/bots"
-import type { BotConversationEvent, ConversationMessage } from "../../shared/conversations"
-import { memorySchemas, type Memory } from "../../shared/memory"
-import { memoryLimits, memoryUsage } from "../../shared/memory-limits"
+import type { Bot } from "@src/shared/bots"
+import type { BotConversationEvent, ConversationMessage } from "@src/shared/conversations"
+import { memorySchemas, type Memory } from "@src/shared/memory"
+import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
 import { createCuration } from "./curation"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 const defaultCurationWait = 5 * 60_000
 

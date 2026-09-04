@@ -1,7 +1,7 @@
 import { ArrowTurnDownLeftIcon } from "@heroicons/react/24/outline"
 import { useMutation } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
-import type { PermissionRequest } from "../../../shared/permissions"
+import type { PermissionRequest } from "@src/shared/permissions"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 

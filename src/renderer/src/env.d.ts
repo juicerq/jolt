@@ -1,5 +1,5 @@
-import type { EngineConnection } from "../../shared/engine-ipc"
-import type { TurnNotification } from "../../shared/turn-notification"
+import type { EngineConnection } from "@src/shared/engine-ipc"
+import type { TurnNotification } from "@src/shared/turn-notification"
 
 declare global {
   interface Window {

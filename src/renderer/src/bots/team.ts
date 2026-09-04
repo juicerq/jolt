@@ -1,5 +1,5 @@
-import type { Bot } from "../../../shared/bots"
-import type { ProjectGroups } from "../../../shared/projects"
+import type { Bot } from "@src/shared/bots"
+import type { ProjectGroups } from "@src/shared/projects"
 
 export function teamLeaders(groups: ProjectGroups | undefined) {
   if (!groups) {

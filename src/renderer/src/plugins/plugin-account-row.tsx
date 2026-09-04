@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import type { PluginAccount } from "../../../shared/plugins"
+import type { PluginAccount } from "@src/shared/plugins"
 import { accountStateClassNames, accountStateLabels } from "./account-states"
 
 function describeBotUsage(count: number) {

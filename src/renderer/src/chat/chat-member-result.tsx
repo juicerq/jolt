@@ -1,5 +1,5 @@
 import { ArrowDownLeftIcon, ArrowDownRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline"
-import type { Task, TaskStatus } from "../../../shared/tasks"
+import type { Task, TaskStatus } from "@src/shared/tasks"
 import { blurMouseClick } from "../ui/blur-mouse-click"
 import { ChatContent, chatChipClassName, chatGuideClassName } from "./chat-content"
 import { ChatStamp } from "./chat-stamp"

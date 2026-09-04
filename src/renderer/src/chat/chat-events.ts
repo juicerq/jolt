@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query"
-import type { BotConversationEvent, FinishReason } from "../../../shared/conversations"
+import type { BotConversationEvent, FinishReason } from "@src/shared/conversations"
 import { findTeamBot } from "../bots/team"
 import type { EngineClient } from "../engine-client"
 import { createChatStreamBuffer } from "./chat-stream-buffer"

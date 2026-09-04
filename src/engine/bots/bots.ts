@@ -1,12 +1,12 @@
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
-import { defaultBotAvatarSeed } from "../../shared/bot-avatar"
-import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "../../shared/bots"
-import type { ProviderAvailability } from "../../shared/providers"
+import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
+import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "@src/shared/bots"
+import type { ProviderAvailability } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 interface BotsDependencies {
   database: AppDatabase

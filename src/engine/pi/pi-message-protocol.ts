@@ -1,5 +1,5 @@
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
-import { sendMessageTool } from "../../shared/conversations"
+import { sendMessageTool } from "@src/shared/conversations"
 
 const openingRequired = "Send a short opening message before starting work. Confirm what you understood and name the first step, then call this tool again."
 const answerRequired = "You already sent a question. Stop now and wait for the person to answer in a new turn."

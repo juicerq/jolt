@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { diagnosticsReport, type ProcessState } from "../../shared/observability/diagnostics"
-import type { Observation } from "../../shared/observability/observation"
-import type { ProviderAvailability } from "../../shared/providers"
+import { diagnosticsReport, type ProcessState } from "@src/shared/observability/diagnostics"
+import type { Observation } from "@src/shared/observability/observation"
+import type { ProviderAvailability } from "@src/shared/providers"
 import type { ObservationDiagnostics } from "./observability"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 interface DiagnosticsOptions {
   source: ObservationDiagnostics

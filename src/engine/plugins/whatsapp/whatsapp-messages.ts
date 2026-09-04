@@ -1,5 +1,5 @@
 import { getContentType, jidNormalizedUser, normalizeMessageContent, type WAMessage } from "baileys"
-import type { WhatsappSavedMessage } from "../../../shared/whatsapp"
+import type { WhatsappSavedMessage } from "@src/shared/whatsapp"
 
 export type IncomingMessage = Omit<WhatsappSavedMessage, "accountId">
 

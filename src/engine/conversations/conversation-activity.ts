@@ -1,6 +1,6 @@
-import { conversationSchemas, type ConversationActivity, type ConversationEvent, type IncomingMessage } from "../../shared/conversations"
+import { conversationSchemas, type ConversationActivity, type ConversationEvent, type IncomingMessage } from "@src/shared/conversations"
 import type { PiRuntimeEvent } from "../pi/pi-agent-runtime"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 type ConversationStep = ConversationActivity["steps"][number]
 type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>

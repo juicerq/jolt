@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { Bot } from "../../../shared/bots"
-import type { Plugin } from "../../../shared/plugins"
+import type { Bot } from "@src/shared/bots"
+import type { Plugin } from "@src/shared/plugins"
 import type { EngineClient } from "../engine-client"
 import { PluginAccountRow } from "../plugins/plugin-account-row"
 import { Switch } from "../ui/switch"

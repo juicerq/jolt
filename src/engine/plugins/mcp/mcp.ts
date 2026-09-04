@@ -1,9 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { z } from "zod"
-import { parse } from "../../../shared/parse"
-import { pluginSchemas, type StoredPlugin, type ToolDescriptor } from "../../../shared/plugins"
-import type { Observability } from "../../observability/observability"
+import { parse } from "@src/shared/parse"
+import { pluginSchemas, type StoredPlugin, type ToolDescriptor } from "@src/shared/plugins"
+import type { Observability } from "@src/engine/observability/observability"
 import { slugify, type PluginAdapter } from "../plugin-adapter"
 
 const environmentSchema = z.record(z.string(), z.string())

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
-import type { ProviderAvailability } from "../../../shared/providers"
+import type { ProviderAvailability } from "@src/shared/providers"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { Dialog, DialogActions, DialogBody } from "../ui/dialog"

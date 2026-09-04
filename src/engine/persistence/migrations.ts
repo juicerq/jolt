@@ -1,20 +1,20 @@
 import type { MigrationsJournal } from "drizzle-orm/migrator"
-import initialSchema from "../../../drizzle/20260901132949_initial-schema/migration.sql" with { type: "text" }
-import routines from "../../../drizzle/20260901184631_routines/migration.sql" with { type: "text" }
-import memory from "../../../drizzle/20260901200730_memory/migration.sql" with { type: "text" }
-import messageImages from "../../../drizzle/20260901224322_message-images/migration.sql" with { type: "text" }
-import botEffort from "../../../drizzle/20260901225418_bot-effort/migration.sql" with { type: "text" }
-import botModel from "../../../drizzle/20260901225922_bot-model/migration.sql" with { type: "text" }
-import botPermission from "../../../drizzle/20260902153823_bot-permission/migration.sql" with { type: "text" }
-import plugins from "../../../drizzle/20260902190240_plugins/migration.sql" with { type: "text" }
-import multiAccountAccess from "../../../drizzle/20260902235222_multi-account-access/migration.sql" with { type: "text" }
-import whatsappMessages from "../../../drizzle/20260903011817_whatsapp-messages/migration.sql" with { type: "text" }
-import whatsappContacts from "../../../drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
-import colleagues from "../../../drizzle/20260903112334_colleagues/migration.sql" with { type: "text" }
-import botAvatarSeed from "../../../drizzle/20260903142103_burly_maestro/migration.sql" with { type: "text" }
-import messageError from "../../../drizzle/20260903145043_thin_greymalkin/migration.sql" with { type: "text" }
-import consolidatedRoutines from "../../../drizzle/20260903162419_consolidated-routines/migration.sql" with { type: "text" }
-import messageQuestions from "../../../drizzle/20260903210921_bouncy_bedlam/migration.sql" with { type: "text" }
+import initialSchema from "@drizzle/20260901132949_initial-schema/migration.sql" with { type: "text" }
+import routines from "@drizzle/20260901184631_routines/migration.sql" with { type: "text" }
+import memory from "@drizzle/20260901200730_memory/migration.sql" with { type: "text" }
+import messageImages from "@drizzle/20260901224322_message-images/migration.sql" with { type: "text" }
+import botEffort from "@drizzle/20260901225418_bot-effort/migration.sql" with { type: "text" }
+import botModel from "@drizzle/20260901225922_bot-model/migration.sql" with { type: "text" }
+import botPermission from "@drizzle/20260902153823_bot-permission/migration.sql" with { type: "text" }
+import plugins from "@drizzle/20260902190240_plugins/migration.sql" with { type: "text" }
+import multiAccountAccess from "@drizzle/20260902235222_multi-account-access/migration.sql" with { type: "text" }
+import whatsappMessages from "@drizzle/20260903011817_whatsapp-messages/migration.sql" with { type: "text" }
+import whatsappContacts from "@drizzle/20260903021111_whatsapp-contacts/migration.sql" with { type: "text" }
+import colleagues from "@drizzle/20260903112334_colleagues/migration.sql" with { type: "text" }
+import botAvatarSeed from "@drizzle/20260903142103_burly_maestro/migration.sql" with { type: "text" }
+import messageError from "@drizzle/20260903145043_thin_greymalkin/migration.sql" with { type: "text" }
+import consolidatedRoutines from "@drizzle/20260903162419_consolidated-routines/migration.sql" with { type: "text" }
+import messageQuestions from "@drizzle/20260903210921_bouncy_bedlam/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },

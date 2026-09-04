@@ -1,4 +1,4 @@
-import type { ConversationActivity } from "../../../shared/conversations"
+import type { ConversationActivity } from "@src/shared/conversations"
 
 type ActivityStep = ConversationActivity["steps"][number]
 type ActivityToolStep = Extract<ActivityStep, { type: "tool" }>

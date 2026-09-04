@@ -1,10 +1,10 @@
-import type { Bot } from "../../shared/bots"
-import { memorySchemas, type Memory, type Note } from "../../shared/memory"
-import { memoryLimits, memoryUsage } from "../../shared/memory-limits"
+import type { Bot } from "@src/shared/bots"
+import { memorySchemas, type Memory, type Note } from "@src/shared/memory"
+import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 const rules = [
   "You curate the Memória of a Bot: you decide which Notas become Lembranças, which Lembranças change and which are forgotten. You have the remember, replace and forget tools and nothing else. Do not answer questions.",

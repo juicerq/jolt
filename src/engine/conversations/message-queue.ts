@@ -1,4 +1,4 @@
-import type { QueuedMessage } from "../../shared/conversations"
+import type { QueuedMessage } from "@src/shared/conversations"
 
 type QueueEntry = Pick<QueuedMessage, "content" | "images">
 

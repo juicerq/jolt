@@ -1,7 +1,7 @@
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import type { Plugin } from "../../../shared/plugins"
+import type { Plugin } from "@src/shared/plugins"
 import { closeWorkspaceScreen } from "../bots/bots-store"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import type { EngineClient } from "../engine-client"

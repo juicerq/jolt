@@ -1,5 +1,5 @@
-import { parse } from "../../shared/parse"
-import { providerConnectInput, providerDisconnectInput, type ProviderAvailability, type ProviderModels, type ProviderName } from "../../shared/providers"
+import { parse } from "@src/shared/parse"
+import { providerConnectInput, providerDisconnectInput, type ProviderAvailability, type ProviderModels, type ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import { detectOpencodeKey } from "./opencode-key"
 import { piProviders, type PiModels } from "./pi-models"

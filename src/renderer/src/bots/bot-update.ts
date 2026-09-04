@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { Bot, BotExecutionSettingChange } from "../../../shared/bots"
+import type { Bot, BotExecutionSettingChange } from "@src/shared/bots"
 import type { EngineClient } from "../engine-client"
 
 export function useUpdateBotExecution(bot: Pick<Bot, "id">, client: EngineClient) {

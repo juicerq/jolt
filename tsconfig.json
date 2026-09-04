@@ -11,7 +11,8 @@
     "types": ["bun", "node"],
     "allowImportingTsExtensions": false,
     "paths": {
-      "@src/*": ["./src/*"]
+      "@src/*": ["./src/*"],
+      "@drizzle/*": ["./drizzle/*"]
     }
   },
   "include": ["src", "tests", "electron.vite.config.ts", "vite.prototype.config.ts"]

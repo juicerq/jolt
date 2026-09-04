@@ -1,4 +1,4 @@
-import type { Frequency, Routine, Weekday } from "../../../shared/routines"
+import type { Frequency, Routine, Weekday } from "@src/shared/routines"
 
 export interface RoutineDraft { name: string; content: string; form: Frequency["form"]; everyMinutes: string; days: Weekday[]; times: string; startTime: string; endTime: string; at: string }
 

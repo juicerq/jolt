@@ -2,8 +2,8 @@ import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
 import { unified } from "unified"
 import { visit } from "unist-util-visit"
-import type { Bot } from "../../../shared/bots"
-import type { FinishReason } from "../../../shared/conversations"
+import type { Bot } from "@src/shared/bots"
+import type { FinishReason } from "@src/shared/conversations"
 
 const chimeTonesHz = [660, 880]
 const toneSeconds = 0.14

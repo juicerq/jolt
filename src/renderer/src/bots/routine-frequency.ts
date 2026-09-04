@@ -1,4 +1,4 @@
-import type { Frequency, Weekday } from "../../../shared/routines"
+import type { Frequency, Weekday } from "@src/shared/routines"
 
 export const weekdayLabels: Record<Weekday, string> = {
   monday: "Seg",

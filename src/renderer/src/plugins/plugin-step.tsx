@@ -1,5 +1,5 @@
 import { QRCodeSVG } from "qrcode.react"
-import type { PluginStep } from "../../../shared/plugins"
+import type { PluginStep } from "@src/shared/plugins"
 
 export function pluginStepLabel(step: PluginStep | undefined) {
   if (step?.type === "qr") {

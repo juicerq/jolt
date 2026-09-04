@@ -1,5 +1,5 @@
 import { NoSymbolIcon } from "@heroicons/react/24/outline"
-import type { TurnEnding } from "../../../shared/conversations"
+import type { TurnEnding } from "@src/shared/conversations"
 
 const labels: Record<TurnEnding, (botName: string) => string> = {
   aborted: (botName) => `Você interrompeu ${botName}`,

@@ -1,6 +1,6 @@
 import { Blobatar } from "@blobatar/react"
 import type { ReactNode } from "react"
-import type { Bot } from "../../../shared/bots"
+import type { Bot } from "@src/shared/bots"
 import { Button } from "../ui/button"
 import { revealClassName } from "./bot-form"
 

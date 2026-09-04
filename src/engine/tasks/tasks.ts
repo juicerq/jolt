@@ -1,8 +1,8 @@
-import type { Task, TaskStatus } from "../../shared/tasks"
-import { taskSchemas } from "../../shared/tasks"
+import type { Task, TaskStatus } from "@src/shared/tasks"
+import { taskSchemas } from "@src/shared/tasks"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 export function createTasks({ database, observability }: { database: AppDatabase; observability: Observability }) {
   function update(id: string, changes: Partial<Pick<Task, "assigneeBotId" | "status" | "finishedAt">>) {

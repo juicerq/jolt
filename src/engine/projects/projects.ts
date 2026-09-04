@@ -1,9 +1,9 @@
-import { projectSchemas, type Project } from "../../shared/projects"
+import { projectSchemas, type Project } from "@src/shared/projects"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { createBots } from "../bots/bots"
 import { assertAccessibleWorkingDirectory } from "./working-directory"
-import { parse } from "../../shared/parse"
+import { parse } from "@src/shared/parse"
 
 interface ProjectsDependencies {
   database: AppDatabase

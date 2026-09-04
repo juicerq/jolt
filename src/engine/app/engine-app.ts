@@ -1,5 +1,5 @@
 import { implement, ORPCError } from "@orpc/server"
-import { engineContract } from "../../shared/engine-contract"
+import { engineContract } from "@src/shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
 import type { createPiProvider } from "../pi/pi-provider"
@@ -10,7 +10,7 @@ import type { createPlugins } from "../plugins/plugins"
 import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
-import type { PermissionDecisionInput } from "../../shared/permissions"
+import type { PermissionDecisionInput } from "@src/shared/permissions"
 
 interface EngineContext { traceId?: string; spanId?: string }
 

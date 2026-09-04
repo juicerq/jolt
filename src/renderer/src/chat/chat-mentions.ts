@@ -1,5 +1,5 @@
-import type { Bot } from "../../../shared/bots"
-import type { ProjectGroups } from "../../../shared/projects"
+import type { Bot } from "@src/shared/bots"
+import type { ProjectGroups } from "@src/shared/projects"
 import { teamLeaders } from "../bots/team"
 
 export interface ChatMention { botId: string; name: string; avatarSeed: string }

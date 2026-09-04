@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { z } from "zod"
-import { parse } from "../../../shared/parse"
+import { parse } from "@src/shared/parse"
 import { PluginAuthError } from "../plugin-adapter"
 
 const closeDelayMs = 50

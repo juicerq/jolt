@@ -1,11 +1,11 @@
 import { realpath } from "node:fs/promises"
 import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
-import type { BotPermissionMode } from "../../shared/bot-permissions"
-import type { PermissionDecision, PermissionRequest } from "../../shared/permissions"
-import { sendMessageTool } from "../../shared/conversations"
-import { connectPluginTool } from "../../shared/plugins"
-import { delegateTool, transferTool } from "../../shared/tasks"
+import type { BotPermissionMode } from "@src/shared/bot-permissions"
+import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
+import { sendMessageTool } from "@src/shared/conversations"
+import { connectPluginTool } from "@src/shared/plugins"
+import { delegateTool, transferTool } from "@src/shared/tasks"
 
 interface PiPermissionPolicyBase {
   botId: string
