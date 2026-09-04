@@ -15,7 +15,7 @@ if (process.env.JOLT_USER_DATA) {
   app.setPath("userData", process.env.JOLT_USER_DATA)
 }
 
-app.setName("Jolt")
+app.setName(app.isPackaged ? "Jolt" : "Jolt Dev")
 
 const environmentFile = join(app.getAppPath(), ".env")
 
