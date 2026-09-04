@@ -1,6 +1,15 @@
 {
 	"extends": ["./node_modules/@juicerq/check/.oxlintrc.json"],
 	"rules": {
-		"unicorn/no-useless-undefined": "off"
-	}
+		"unicorn/no-useless-undefined": "off",
+		"typescript/consistent-type-assertions": "off"
+	},
+	"overrides": [
+		{
+			"files": ["*.config.ts"],
+			"rules": {
+				"import/no-default-export": "off"
+			}
+		}
+	]
 }
