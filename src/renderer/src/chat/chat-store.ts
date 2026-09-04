@@ -43,6 +43,10 @@ export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: []
 
 export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {}, queued: {} })
 
+export function resetChatQueues() {
+  chatStore.setState((state) => ({ ...state, queued: {} }))
+}
+
 export function setChatQueue(botId: string, queued: QueuedMessage[]) {
   chatStore.setState((state) => ({ ...state, queued: { ...state.queued, [botId]: queued.length > 0 ? queued : undefined } }))
 }

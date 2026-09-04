@@ -28,14 +28,18 @@ export function ChatQueue({ bot, client }: { bot: Bot; client: EngineClient }) {
             key={message.id}
             message={message}
             busy={promoting || removing}
-            onPromote={() => void promote({ botId: bot.id, id: message.id }).catch(() => undefined)}
-            onRemove={() => void unqueue({ botId: bot.id, id: message.id }).catch(() => undefined)}
+            onPromote={() => void promote({ botId: bot.id, id: message.id }).catch(reportQueueError)}
+            onRemove={() => void unqueue({ botId: bot.id, id: message.id }).catch(reportQueueError)}
           />
         ))}
       </ul>
       {awaitingDecision && <p className="m-0 px-2 pt-1 pb-1 text-support text-muted" role="status">A entrega espera a sua decisão acima.</p>}
     </div>
   )
+}
+
+function reportQueueError(error: unknown) {
+  console.error("A Fila não aceitou a ação", error)
 }
 
 function ChatQueueRow({ message, busy, onPromote, onRemove }: { message: QueuedMessage; busy: boolean; onPromote(): void; onRemove(): void }) {

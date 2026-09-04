@@ -404,6 +404,15 @@ export function createConversations(input: {
       return
     }
 
+    const bot = input.bots.get({ id: botId })
+
+    if (!bot || bot.closed) {
+      messageQueue.clear(botId)
+      publishQueue(botId)
+
+      return
+    }
+
     const taken = messageQueue.take(botId, next.id)
 
     if (!taken) {

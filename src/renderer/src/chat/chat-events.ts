@@ -12,6 +12,7 @@ import {
   requestChatPermission,
   requestChatPlugin,
   resolveChatPermission,
+  resetChatQueues,
   resolveChatPlugin,
   setChatCompacting,
   setChatQueue,
@@ -143,6 +144,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       const events = await client.raw.conversations.events(undefined, { signal: controller.signal }).catch(() => undefined)
 
       if (events) {
+        resetChatQueues()
         await consume(events).catch(() => undefined)
       }
 
