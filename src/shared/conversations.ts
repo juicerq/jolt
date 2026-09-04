@@ -93,6 +93,7 @@ const toolFinishedEvent = z.strictObject({
 const permissionRequestedEvent = z.strictObject({ type: z.literal("permission-requested"), request: permissionSchemas.request })
 const permissionResolvedEvent = z.strictObject({ type: z.literal("permission-resolved"), requestId: id })
 const pluginRequestedEvent = z.strictObject({ type: z.literal("plugin-requested"), request: pluginSchemas.request })
+const pluginStepEvent = z.strictObject({ type: z.literal("plugin-step"), requestId: id, step: pluginSchemas.step })
 const pluginResolvedEvent = z.strictObject({ type: z.literal("plugin-resolved"), requestId: id })
 const compactionStartedEvent = z.strictObject({ type: z.literal("compaction-started"), reason: z.enum(["manual", "threshold", "overflow"]) })
 const compactionFinishedEvent = z.strictObject({ type: z.literal("compaction-finished") })
@@ -110,6 +111,7 @@ const event = z.discriminatedUnion("type", [
   permissionRequestedEvent,
   permissionResolvedEvent,
   pluginRequestedEvent,
+  pluginStepEvent,
   pluginResolvedEvent,
   compactionStartedEvent,
   compactionFinishedEvent,

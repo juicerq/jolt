@@ -1,7 +1,7 @@
 import { Store } from "@tanstack/react-store"
 import type { ConversationActivity, ConversationMessage, IncomingMessage, QueuedMessage } from "@src/shared/conversations"
 import type { PermissionRequest } from "@src/shared/permissions"
-import type { PluginRequest } from "@src/shared/plugins"
+import type { PluginRequest, PluginStep } from "@src/shared/plugins"
 import type { ChatCommandName } from "./chat-commands"
 import type { ChatMention } from "./chat-mentions"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
@@ -25,6 +25,7 @@ export interface ChatRun {
   status: "running" | "aborting" | "failed"
   permissionRequests: PermissionRequest[]
   pluginRequests: PluginRequest[]
+  pluginSteps: Record<string, PluginStep>
   error?: string
 }
 
@@ -77,7 +78,7 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
+      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], pluginSteps: {}, waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -184,8 +185,16 @@ export function requestChatPlugin(botId: string, request: PluginRequest) {
   setChatStatus(botId, "awaiting-decision")
 }
 
+export function setChatPluginStep(botId: string, requestId: string, step: PluginStep) {
+  updateRun(botId, (run) => ({ ...run, pluginSteps: { ...run.pluginSteps, [requestId]: step } }))
+}
+
 export function resolveChatPlugin(botId: string, requestId: string) {
-  updateRun(botId, (run) => ({ ...run, pluginRequests: run.pluginRequests.filter((request) => request.id !== requestId) }))
+  updateRun(botId, (run) => {
+    const { [requestId]: _resolved, ...pluginSteps } = run.pluginSteps
+
+    return { ...run, pluginRequests: run.pluginRequests.filter((request) => request.id !== requestId), pluginSteps }
+  })
   settleDecision(botId)
 }
 

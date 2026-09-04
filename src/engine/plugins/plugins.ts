@@ -15,7 +15,7 @@ interface Catalogued { id: string; kind: PluginKind; name: string; builtIn: bool
 
 type Requested = { account: StoredAccount } | { cancelled: true }
 
-interface PendingRequest { botId: string; request: PluginRequest; resolve(outcome: Requested): void; reject(error: Error): void }
+interface PendingRequest { botId: string; request: PluginRequest; connection?: PendingConnection; resolve(outcome: Requested): void; reject(error: Error): void }
 
 type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
@@ -71,6 +71,14 @@ export function createPlugins(input: {
     }
 
     return input.adapters[plugin.kind].tools?.() ?? account.tools
+  }
+
+  function secretOf(account: StoredAccount | undefined) {
+    if (!account?.secret) {
+      return undefined
+    }
+
+    return input.secrets.open(account.secret)
   }
 
   function sessionFor(account: StoredAccount): PluginAccountSession {
@@ -175,7 +183,7 @@ export function createPlugins(input: {
       return `Connected ${plugin.name} as ${account.label}. You now use ${granted.length} Contas of ${plugin.name}: ${granted.map((candidate) => candidate.label).join(", ")}. Pass conta on every call, and ask the person which Conta they mean when it is not clear. ${tools}`
     }
 
-    return `Connected ${plugin.name} as ${account.label}. ${tools}`
+    return `Connected ${plugin.name} as ${account.label}. Tell the person it is connected before you go on. ${tools}`
   }
 
   function chooseAccount(plugin: Catalogued, accounts: StoredAccount[], requested: unknown) {
@@ -218,6 +226,10 @@ export function createPlugins(input: {
     requests.delete(key)
     input.conversations.notify(pending.botId, { type: "plugin-resolved", requestId: pending.request.id })
 
+    if ("error" in outcome || "cancelled" in outcome.value) {
+      pending.connection?.cancel()
+    }
+
     if ("error" in outcome) {
       pending.reject(outcome.error)
 
@@ -229,19 +241,29 @@ export function createPlugins(input: {
 
   function ask(bot: Pick<Bot, "id">, plugin: Catalogued, signal?: AbortSignal) {
     const accounts = input.database.accounts.list().filter((account) => account.pluginId === plugin.id)
+    const connectable = input.adapters[plugin.kind].availability().available
+    const only = accounts.length === 1 ? accounts[0] : undefined
+    const undecided = accounts.length <= 1 && only?.state !== "connected"
     const request = parse(pluginSchemas.request, {
       id: crypto.randomUUID(),
       pluginId: plugin.id,
       pluginName: plugin.name,
       accounts: accounts.map((account) => ({ id: account.id, label: account.label, state: account.state })),
-      connectable: input.adapters[plugin.kind].availability().available,
+      connectable,
+      connecting: connectable && undecided,
     })
     const key = requestKey(bot.id, request.id)
 
     return new Promise<Requested>((resolve, reject) => {
-      requests.set(key, { botId: bot.id, request, resolve, reject })
+      const pending: PendingRequest = { botId: bot.id, request, resolve, reject }
+
+      requests.set(key, pending)
       signal?.addEventListener("abort", () => settleRequest(key, { value: { cancelled: true } }), { once: true })
       input.conversations.notify(bot.id, { type: "plugin-requested", request })
+
+      if (request.connecting) {
+        pending.connection = startConnection(plugin, { ...(only ? { accountId: only.id } : {}), botId: bot.id, requestId: request.id }, secretOf(only))
+      }
     })
   }
 
@@ -388,6 +410,10 @@ export function createPlugins(input: {
     function step(next: PluginStep) {
       latest = next
 
+      if (target.botId && target.requestId) {
+        input.conversations.notify(target.botId, { type: "plugin-step", requestId: target.requestId, step: next })
+      }
+
       for (const stream of streams) {
         stream.push(next)
       }
@@ -416,9 +442,10 @@ export function createPlugins(input: {
       }
     })
     done.catch(() => {})
-    connections.set(connectionId, { pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel })
+    const record: PendingConnection = { pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel }
+    connections.set(connectionId, record)
 
-    return { connectionId, done }
+    return { connectionId, ...record }
   }
 
   return {
@@ -495,7 +522,14 @@ export function createPlugins(input: {
       }
     },
     pending(botId: string): ConversationEvent[] {
-      return Array.from(requests.values()).filter((pending) => pending.botId === botId).map((pending) => ({ type: "plugin-requested", request: pending.request }))
+      return Array.from(requests.values()).filter((pending) => pending.botId === botId).flatMap((pending): ConversationEvent[] => {
+        const step = pending.connection?.latest()
+
+        return [
+          { type: "plugin-requested", request: pending.request },
+          ...(step ? [{ type: "plugin-step" as const, requestId: pending.request.id, step }] : []),
+        ]
+      })
     },
     list,
     async addCustom(rawInput: unknown) {
@@ -537,14 +571,23 @@ export function createPlugins(input: {
         throw new Error("That Conta belongs to another Plugin")
       }
 
-      if (details.botId && details.requestId && !requests.has(requestKey(details.botId, details.requestId))) {
+      const key = details.botId && details.requestId ? requestKey(details.botId, details.requestId) : undefined
+      const pending = key ? requests.get(key) : undefined
+
+      if (key && !pending) {
         throw new Error("Plugin request not found")
       }
 
       const stored = details.accountId ? accountOf(details.accountId) : undefined
-      const { done: _done, ...started } = startConnection(plugin, details, stored?.secret ? input.secrets.open(stored.secret) : undefined)
+      const started = startConnection(plugin, details, secretOf(stored))
 
-      return parse(pluginSchemas.connectOutput, started)
+      if (pending) {
+        pending.connection = started
+        pending.request = { ...pending.request, connecting: true }
+        input.conversations.notify(pending.botId, { type: "plugin-requested", request: pending.request })
+      }
+
+      return parse(pluginSchemas.connectOutput, { connectionId: started.connectionId })
     },
     connectionSteps(rawInput: unknown): AsyncIterable<PluginStep> {
       const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
