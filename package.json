@@ -30,6 +30,7 @@
     "build:engine": "bun build --compile --outfile dist-engine/jolt-engine src/engine/index.ts",
     "build:electron": "electron-vite build",
     "build": "bun run build:engine && bun run build:electron",
+    "release": "bun scripts/release.ts",
     "package:linux": "bun run build && electron-builder --linux"
   },
   "dependencies": {
