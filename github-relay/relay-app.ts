@@ -20,8 +20,32 @@ function html(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;")
 }
 
+function page(title: string, content: string) {
+  return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${html(title)}</title><style>
+  :root{color-scheme:dark;font:16px system-ui;background:#0c0a09;color:#f5f3f1}
+  *{box-sizing:border-box}body{display:grid;place-items:center;min-height:100vh;margin:0}
+  main{width:100%;max-width:36rem;padding:2rem}h1{font-size:1.25rem}p{color:#b3adaa;line-height:1.6}
+  form{display:grid;gap:.75rem;margin:2rem 0}input,button{font:inherit;border-radius:.5rem;padding:.75rem}
+  input{width:100%;border:1px solid #b3adaa;background:transparent;color:inherit}
+  button{border:0;background:#f5f3f1;color:#0c0a09;cursor:pointer}button:hover{background:#b3adaa}button:active{opacity:.8}
+  a{color:inherit;text-underline-offset:.25rem}a:hover{color:#b3adaa}a:active{opacity:.8}
+  :focus-visible{outline:2px solid #f5f3f1;outline-offset:4px}
+  </style><main><h1>${html(title)}</h1>${content}</main></html>`
+}
+
+function connectionPage(state: string, installUrl: string, account = "", error?: string) {
+  return page("Conectar GitHub ao Jolt", `<p>Se o App já está instalado, informe a conta pessoal ou organização que deseja conectar.</p>
+  <form method="post" action="/github/connect">
+  <input type="hidden" name="state" value="${html(state)}">
+  <label for="account">Conta do GitHub</label>
+  <input id="account" name="account" value="${html(account)}" placeholder="octocat" required maxlength="39" pattern="[A-Za-z0-9][A-Za-z0-9-]{0,38}" autocomplete="username" spellcheck="false" autocapitalize="none"${error ? ' aria-describedby="error" aria-invalid="true"' : ""}>
+  ${error ? `<p id="error" role="alert">${html(error)}</p>` : ""}
+  <button type="submit">Continuar com GitHub</button></form>
+  <p>Ainda não instalou o App? <a href="${html(installUrl)}">Instalar em uma conta nova</a></p>`)
+}
+
 function connectedPage(accountLogin: string) {
-  return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>GitHub conectado ao Jolt</title><body style="font:16px system-ui;background:#0c0a09;color:#f5f3f1;display:grid;place-items:center;min-height:100vh;margin:0"><main style="max-width:32rem;padding:2rem"><h1 style="font-size:1.25rem">GitHub conectado ao Jolt</h1><p style="color:#b3adaa;line-height:1.6">A Conta ${html(accountLogin)} foi conectada. Você pode fechar esta página e voltar ao Jolt.</p></main></body></html>`
+  return page("GitHub conectado ao Jolt", `<p>A Conta ${html(accountLogin)} foi conectada. Você pode fechar esta página e voltar ao Jolt.</p>`)
 }
 
 export function createRelayApp(input: { database: RelayDatabase; github: GithubApp }) {
@@ -104,10 +128,41 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
 
       set.status = 201
 
-      return { connectionId: connection.id, connectionToken: connection.token, installUrl: input.github.installUrl(connection.state) }
+      return { connectionId: connection.id, connectionToken: connection.token, installUrl: input.github.connectionUrl(connection.state) }
     })
     .get("/v1/connections/:connectionId", ({ params, request }) => input.database.connection(params.connectionId, bearer(request)), {
       params: t.Object({ connectionId: t.String({ minLength: 1 }) }),
+    })
+    .get("/github/connect", ({ query, set }) => {
+      input.database.pending(query.state)
+      set.headers["content-type"] = "text/html; charset=utf-8"
+
+      return connectionPage(query.state, input.github.installUrl(query.state))
+    }, {
+      query: t.Object({ state: t.String({ minLength: 1 }) }),
+    })
+    .post("/github/connect", async ({ body, request, set }) => {
+      input.database.pending(body.state)
+
+      if (!acceptsConnection(request)) {
+        set.status = 429
+        return "Too many connection attempts"
+      }
+
+      const installed = await input.github.findInstallation(body.account)
+
+      if (!installed || installed.suspended_at) {
+        set.status = 400
+        set.headers["content-type"] = "text/html; charset=utf-8"
+
+        return connectionPage(body.state, input.github.installUrl(body.state), body.account, "Não encontramos uma instalação ativa nessa conta. Confira o nome ou instale o App.")
+      }
+
+      const authorization = input.database.beginAuthorization(body.state, installed.id)
+      set.status = 303
+      set.headers.location = input.github.authorizationUrl(authorization.state, authorization.verifier)
+    }, {
+      body: t.Object({ state: t.String({ minLength: 1 }), account: t.String({ pattern: "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$" }) }),
     })
     .get("/github/setup", ({ query, set }) => {
       if (!input.github.authorizationConfigured) {

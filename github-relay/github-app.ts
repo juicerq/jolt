@@ -8,6 +8,7 @@ const id = z.union([z.int(), z.string().min(1)]).transform(String)
 const installation = z.looseObject({ id, account: z.looseObject({ id, login: z.string().min(1), type: z.enum(["User", "Organization"]) }), suspended_at: z.string().nullable() })
 const oauthToken = z.looseObject({ access_token: z.string().min(1) })
 const githubUser = z.looseObject({ id })
+const accountType = z.looseObject({ type: z.enum(["User", "Organization"]) })
 const membership = z.looseObject({ role: z.string(), state: z.string() })
 const installationToken = z.looseObject({ token: z.string().min(1), expires_at: z.string().min(1) }).transform((value) => ({ token: value.token, expiresAt: value.expires_at }))
 const label = z.union([z.string().min(1), z.looseObject({ name: z.string().min(1) })]).transform((value) => typeof value === "string" ? value : value.name)
@@ -101,6 +102,47 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
   }
 
   return {
+    connectionUrl(state: string) {
+      if (!input.authorization) {
+        throw new Error("GitHub user authorization is not configured")
+      }
+
+      const url = new URL("/github/connect", input.authorization.callbackUrl)
+      url.searchParams.set("state", state)
+
+      return url.toString()
+    },
+    async findInstallation(account: string) {
+      const response = await fetch(new URL(`/users/${encodeURIComponent(account)}`, "https://api.github.com"), {
+        headers: { accept: "application/vnd.github+json", "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
+        signal: AbortSignal.timeout(15_000),
+      })
+
+      if (response.status === 404) {
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(`GitHub returned ${response.status}`)
+      }
+
+      const owner = parse(accountType, await response.json())
+      const resource = owner.type === "User" ? "users" : "orgs"
+      const installed = await fetch(new URL(`/${resource}/${encodeURIComponent(account)}/installation`, "https://api.github.com"), {
+        headers: { accept: "application/vnd.github+json", authorization: `Bearer ${jwt()}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
+        signal: AbortSignal.timeout(15_000),
+      })
+
+      if (installed.status === 404) {
+        return
+      }
+
+      if (!installed.ok) {
+        throw new Error(`GitHub returned ${installed.status}`)
+      }
+
+      return parse(installation, await installed.json())
+    },
     authorizationConfigured: !!input.authorization,
     authorizationUrl(state: string, verifier: string) {
       if (!input.authorization) {

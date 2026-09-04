@@ -9,7 +9,7 @@ O relay recebe webhooks e entrega eventos e tokens de instalação ao Jolt. Para
 - Webhook URL: `https://joltgithub.duckdns.org/github/webhook`
 - Para organizações: permissão de organização `Members: read`.
 
-O fluxo inicia na instalação e pede autorização OAuth depois do setup. Não habilite a opção de pedir autorização OAuth durante a instalação: este relay controla essa etapa depois do setup, com estado próprio e PKCE.
+O fluxo abre uma página do relay. Para uma instalação existente, a pessoa informa a conta pessoal ou organização e segue para OAuth. O relay consulta a instalação no GitHub e confirma ownership após a autorização; informar o nome da conta não concede acesso. Para instalar em uma conta nova, a página oferece o link de instalação e pede OAuth depois do setup. Não habilite a opção de pedir autorização OAuth durante a instalação: este relay controla essa etapa depois do setup, com estado próprio e PKCE.
 
 O Client ID é diferente do App ID. Configure `GITHUB_APP_CLIENT_ID` e `GITHUB_APP_CLIENT_SECRET` no ambiente do relay. O client secret fica apenas na VPS. A chave privada do App continua necessária para emitir tokens da instalação.
 

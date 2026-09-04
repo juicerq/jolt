@@ -92,6 +92,9 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
   }
 
   return {
+    pending(state: string) {
+      pending(state)
+    },
     createConnection() {
       clean()
 
