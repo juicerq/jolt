@@ -22,7 +22,7 @@ const decisionRules: Record<Bot["permissionMode"], string> = {
     "A denied call answers \"The person denied this action\". That is their decision, not an error. Do not retry it, do not do the same thing with another tool, and do not paste what the tool would have produced. Say in one line what you did not do and ask how they want to continue.",
     "Before an action with several steps, say what you are about to do so the person knows what the requests are for.",
   ].join("\n"),
-  "read-only": "You can only read, search and list inside your working directory. Other tools are not available. When the person asks for something that needs them, say so plainly instead of working around it.",
+  "read-only": "You can only read, search and list inside your working directory, and reach the web. Other tools are not available. When the person asks for something that needs them, say so plainly instead of working around it.",
   full: "Your tools run without asking. Act, then report what you did.",
 }
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }

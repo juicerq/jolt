@@ -6,6 +6,7 @@ import type { PermissionDecision, PermissionRequest } from "@src/shared/permissi
 import { sendMessageTool } from "@src/shared/conversations"
 import { connectPluginTool } from "@src/shared/plugins"
 import { delegateTool, transferTool } from "@src/shared/tasks"
+import { webFetchTool, webSearchTool } from "../web/web-search"
 
 interface PiPermissionPolicyBase {
   botId: string
@@ -19,7 +20,8 @@ export type PiPermissionPolicy =
   | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
-const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, sendMessageTool])
+const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, sendMessageTool, webSearchTool, webFetchTool])
+const readOnlyTools = new Set([...observationTools, sendMessageTool, webSearchTool, webFetchTool])
 const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
 const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
 
@@ -28,7 +30,7 @@ export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[])
     return tools
   }
 
-  return tools.filter((tool) => observationTools.has(tool) || tool === sendMessageTool)
+  return tools.filter((tool) => readOnlyTools.has(tool))
 }
 
 async function pathIsInside(root: string, path: unknown) {
@@ -101,7 +103,15 @@ async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input
   }
 
   if (policy.mode === "read-only") {
-    return { allowed: false as const, reason: observes ? "path_outside_root" as const : "missing_permission" as const }
+    if (observes) {
+      return { allowed: false as const, reason: "path_outside_root" as const }
+    }
+
+    if (readOnlyTools.has(tool)) {
+      return { allowed: true as const }
+    }
+
+    return { allowed: false as const, reason: "missing_permission" as const }
   }
 
   if (exemptTools.has(tool)) {
