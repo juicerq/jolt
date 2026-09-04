@@ -2,11 +2,11 @@ import { access, stat } from "node:fs/promises"
 import { constants, existsSync } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
-import electronUpdater from "electron-updater"
 import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
 import { parse } from "../shared/parse"
 import { turnNotification } from "../shared/turn-notification"
+import { startAppUpdates } from "./app-update"
 import { EngineProcess } from "./engine-process/engine-process"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
@@ -73,7 +73,6 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle("notification:turn-finished", (_event, raw: unknown) => notifications.show(parse(turnNotification, raw)))
-  ipcMain.handle("update:install", () => electronUpdater.autoUpdater.quitAndInstall())
   ipcMain.handle("window:minimize", () => window.minimize())
   ipcMain.handle("window:toggle-maximize", () => window.isMaximized() ? window.unmaximize() : window.maximize())
   ipcMain.handle("window:close", () => window.close())
@@ -111,19 +110,7 @@ app.whenReady().then(async () => {
   await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })
   await loading
 
-  if (app.isPackaged) {
-    const { autoUpdater } = electronUpdater
-
-    autoUpdater.on("update-downloaded", ({ version }) => {
-      window.webContents.send("update:ready")
-      engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
-    })
-    autoUpdater.on("error", (error) => {
-      engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
-    })
-
-    await autoUpdater.checkForUpdates()
-  }
+  await startAppUpdates({ window, engine })
 })
 
 let engineStopped = false
