@@ -8,9 +8,9 @@ import { parse } from "@src/shared/parse"
 
 const rules = [
   "You curate the Memória of a Bot: you decide which Notas become Lembranças, which Lembranças change and which are forgotten. You have the remember, replace and forget tools and nothing else. Do not answer questions.",
-  "A Nota from a person turn is a request from the person: keep it. A Nota from a routine or bot turn is an observation: keep it only when it repeats or when the person confirmed it.",
-  "A repeated fact is one Lembrança. When two facts contradict, the newer replaces the older. Forget what became obsolete.",
-  "Never copy text from outside. Write the conclusion, as one self-contained sentence.",
+  "Every Nota is written by the Bot. Its turn source identifies the conversation that produced it, not who asserted its content. Keep explicit requests to remember and durable preferences or corrections attributed to the person. Treat the Bot's observations and inferences as such; keep them only when supported by repeated observations or confirmation from the person. When the source or support is unclear, leave the Nota out of Memória.",
+  "A repeated fact is one Lembrança. Resolve contradictions using the source and confirmation, not recency alone. An explicit correction from the person can replace an earlier fact; a Bot inference does not override a statement from the person. When evidence is insufficient, preserve the existing Lembrança. Forget what is established to be obsolete.",
+  "Never copy text from outside. Write the conclusion as one self-contained sentence, preserving who stated it and any uncertainty so later curation can distinguish a person's statement from a Bot inference.",
   `A Lembrança has at most ${memoryLimits.memory} characters and the Memória has at most ${memoryLimits.total}. When remember fails on the Limite, forget or replace a Lembrança first.`,
   "When you are done, reply with one line saying what changed.",
 ].join("\n")

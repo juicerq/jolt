@@ -27,6 +27,7 @@ const storedAccount = z.strictObject({
 const step = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("browser"), url: z.url() }),
   z.strictObject({ type: z.literal("qr"), code: id }),
+  z.strictObject({ type: z.literal("status"), message: id }),
 ])
 const access = z.strictObject({ botId: id, accountId: id })
 const account = z.strictObject({
@@ -53,6 +54,7 @@ const request = z.strictObject({
   id,
   pluginId: id,
   pluginName: id,
+  target: id.optional(),
   accounts: z.array(account.pick({ id: true, label: true, state: true })),
   connectable: z.boolean(),
   connecting: z.boolean(),

@@ -204,7 +204,7 @@ export function createDelegation(input: {
     },
     instructions(bot: Bot) {
       const colleagues = input.bots.colleagues(bot)
-      const colleagueLines = colleagues.length > 0
+      const colleagueLines = colleagues.length > 0 && bot.permissionMode !== "read-only"
         ? [
           "Colegas you can call with the delegate tool, and the outcome each delivers:",
           ...colleagues.map((colleague) => `- ${colleague.name}: ${colleague.function.outcome}`),
@@ -221,6 +221,10 @@ export function createDelegation(input: {
           "Authority order: the person, then the Leader, then you.",
           ...colleagueLines,
         ].join("\n")
+      }
+
+      if (bot.permissionMode === "read-only") {
+        return calledRule
       }
 
       const team = members(bot)

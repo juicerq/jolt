@@ -85,7 +85,7 @@ Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar.
 _Evitar_: Memória, log, diário, rascunho
 
 **Curadoria**:
-A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui ou esquece Lembranças. Acontece fora da Conversa, quando o Bot está livre. Respeita o Limite da Memória.
+A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui ou esquece Lembranças, considerando a origem e a confirmação do conteúdo; uma inferência do Bot não substitui uma declaração da pessoa apenas por ser mais recente. Acontece fora da Conversa, quando o Bot está livre, e respeita o Limite da Memória.
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Origem**:
@@ -229,11 +229,11 @@ A ligação entre um Bot e uma Conta. Um Bot pode ter Acesso a várias Contas do
 _Evitar_: Grant, vínculo, permissão do Plugin
 
 **Conta escolhida**:
-A Conta que o Bot indica ao chamar uma ferramenta do Plugin. Com um único Acesso ao Plugin, ela é implícita. Com mais de um, o Bot precisa indicá-la pelo rótulo e, quando não está claro qual a pessoa quer, pergunta antes de agir.
+A Conta que o Bot indica ao chamar uma ferramenta do Plugin. Com um único Acesso ao Plugin, o Bot usa essa Conta diretamente, sem perguntar qual usar. Com mais de um, o Bot indica pelo rótulo a Conta escolhida pela pessoa ou clara pelo contexto; se a escolha for ambígua, apresenta as Contas em uma Pergunta antes de agir.
 _Evitar_: Conta padrão, Conta ativa, sessão
 
 **Pedido de Plugin**:
-Uma solicitação feita durante a Conversa quando o Bot precisa de um Plugin sem Acesso ou quando a Conta precisa autenticar de novo. A pessoa escolhe uma Conta, conecta uma nova no navegador ou cancela; o Bot continua na mesma Conversa com as ferramentas prontas. Ele não passa por Pedido de permissão: pedir o Plugin já é a pergunta.
+Uma solicitação feita durante a Conversa quando o Bot precisa de um Plugin sem Acesso, quando a Conta precisa autenticar de novo ou quando falta acesso ao recurso solicitado. Quando há um alvo verificável, como um repositório do GitHub, o pedido preserva esse alvo, usa um Acesso adequado já concedido ou apresenta uma ação para liberá-lo. O Bot só continua com acesso confirmado; uma conexão concluída sem o recurso não significa sucesso. A pessoa pode cancelar. Ele não passa por Pedido de permissão: pedir o Plugin já é a pergunta.
 _Evitar_: Pedido de permissão, autorização, OAuth
 
 **Pesquisa web**:

@@ -5,7 +5,11 @@ import { accountStateLabels } from "../plugins/account-states"
 import { PluginStepView } from "../plugins/plugin-step"
 import { Button } from "../ui/button"
 
-function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "accounts">) {
+function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "accounts" | "target">) {
+  if (request.target) {
+    return `Liberar acesso a ${request.target}`
+  }
+
   const reconnecting = request.accounts.length > 0 && request.accounts.every((account) => account.state !== "connected")
 
   if (reconnecting) {
@@ -16,6 +20,10 @@ function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "account
 }
 
 function connectingDetail(step: PluginStep | undefined) {
+  if (step?.type === "status") {
+    return step.message
+  }
+
   if (step?.type === "qr") {
     return "Leia o código no celular. O Bot continua assim que a Conta conectar."
   }
@@ -27,7 +35,11 @@ function connectingDetail(step: PluginStep | undefined) {
   return "Conectando..."
 }
 
-function pluginRequestDetail(request: Pick<PluginRequest, "pluginName" | "accounts" | "connectable">) {
+function pluginRequestDetail(request: Pick<PluginRequest, "pluginName" | "accounts" | "connectable" | "target">) {
+  if (request.target) {
+    return "Autorize o acesso no GitHub. O Bot verifica o repositório e continua seu pedido automaticamente."
+  }
+
   if (request.accounts.length > 0) {
     return `Escolha a Conta de ${request.pluginName} que o Bot pode usar.`
   }
@@ -49,6 +61,7 @@ export function ChatPluginRequest({ botId, client, request, step }: { botId: str
   }))
   const busy = connecting || deciding
   const failure = connectError?.message ?? decideError?.message
+  const connectLabel = request.target ? "Autorizar no GitHub" : "Conectar outra conta"
   const detail = request.connecting ? connectingDetail(step) : pluginRequestDetail(request)
 
   return (
@@ -63,7 +76,7 @@ export function ChatPluginRequest({ botId, client, request, step }: { botId: str
         {!request.connecting && request.accounts.map((account) => account.state === "connected"
           ? <Button key={account.id} variant="secondary" type="button" disabled={busy} onClick={() => decide({ botId, requestId: request.id, accountId: account.id })}>{account.label}</Button>
           : <Button key={account.id} variant="secondary" type="button" disabled={busy || !request.connectable} onClick={() => connect({ pluginId: request.pluginId, accountId: account.id, botId, requestId: request.id })}>{`${account.label} · ${accountStateLabels[account.state]}`}</Button>)}
-        {!request.connecting && request.connectable && <Button type="button" disabled={busy} onClick={() => connect({ pluginId: request.pluginId, botId, requestId: request.id })}>{request.accounts.length > 0 ? "Outra Conta" : "Conectar"}</Button>}
+        {!request.connecting && request.connectable && <Button type="button" disabled={busy} onClick={() => connect({ pluginId: request.pluginId, botId, requestId: request.id })}>{request.accounts.length > 0 || request.target ? connectLabel : "Conectar"}</Button>}
         <Button className="ml-auto" variant="text" type="button" disabled={deciding} onClick={() => decide({ botId, requestId: request.id, accountId: null })}>Cancelar</Button>
       </div>
     </section>

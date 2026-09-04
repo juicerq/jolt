@@ -5,7 +5,7 @@ import { triggerSchemas } from "@src/shared/triggers"
 
 const githubApiVersion = "2026-03-10"
 const id = z.union([z.int(), z.string().min(1)]).transform(String)
-const installation = z.looseObject({ id, account: z.looseObject({ id, login: z.string().min(1), type: z.enum(["User", "Organization"]) }), suspended_at: z.string().nullable() })
+const installation = z.looseObject({ id, account: z.looseObject({ id, login: z.string().min(1), type: z.enum(["User", "Organization"]) }), html_url: z.url(), suspended_at: z.string().nullable() })
 const oauthToken = z.looseObject({ access_token: z.string().min(1) })
 const githubUser = z.looseObject({ id })
 const installations = z.looseObject({ installations: z.array(installation) })
@@ -207,7 +207,27 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
         throw new Error("Unauthorized")
       }
 
-      return { id: current.id, accountLogin: current.account.login }
+      return { id: current.id, accountLogin: current.account.login, settingsUrl: current.html_url }
+    },
+    async hasRepository(installationId: string, target: string) {
+      const issued = await appJson(installationToken, `/app/installations/${encodeURIComponent(installationId)}/access_tokens`, { method: "POST", body: "{}" })
+      for (let page = 1; ; page += 1) {
+        const response = await userRequest(issued.token, `/installation/repositories?per_page=100&page=${page}`)
+
+        if (!response.ok) {
+          throw new Error(`GitHub returned ${response.status}`)
+        }
+
+        const result = parse(z.looseObject({ repositories: z.array(z.looseObject({ full_name: z.string() })) }), await response.json())
+
+        if (result.repositories.some((repository) => repository.full_name.toLowerCase() === target.toLowerCase())) {
+          return true
+        }
+
+        if (result.repositories.length < 100) {
+          return false
+        }
+      }
     },
     installUrl(state: string) {
       const url = new URL(`https://github.com/apps/${encodeURIComponent(input.appSlug)}/installations/new`)
@@ -259,7 +279,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
         action: payload.action,
         repository: { id: payload.repository.id, fullName: payload.repository.full_name },
         labels: candidate.labels ?? [],
-        sender: payload.sender,
+        sender: { login: payload.sender.login, type: payload.sender.type },
         subject: { id: candidate.id, kind, ...(candidate.number ? { number: candidate.number } : {}), ...(title ? { title } : {}), ...(candidate.html_url ? { url: candidate.html_url } : {}) },
         content,
         occurredAt,

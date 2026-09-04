@@ -29,7 +29,7 @@ const githubTools: ToolDescriptor[] = [
   {
     name: "github_repositories",
     label: "Repositórios do GitHub",
-    description: "List the repositories available through the chosen GitHub Conta. Use the ids from this result when creating a Gatilho.",
+    description: "List the repositories currently available through the chosen GitHub Conta. If the requested repository is missing, call connect_plugin with plugin github and target owner/repository. It checks existing access and guides authorization for that repository, then resumes your request. Do not ask the person to choose an installation or configure access manually. Use the ids from this result when creating a Gatilho.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -246,20 +246,37 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
     tools() {
       return githubTools
     },
+    async verifyAccess(account, rawTarget) {
+      const target = parse(githubSchemas.repositoryTarget, rawTarget)
+      const repositories = await githubPages(account, githubSchemas.repositories, "/installation/repositories")
+
+      return repositories.some((repository) => repository.fullName.toLowerCase() === target.toLowerCase())
+    },
     connect(details) {
+      const target = details.target ? parse(githubSchemas.repositoryTarget, details.target) : undefined
       const controller = new AbortController()
       const connected = (async () => {
         const relay = configuredRelay()
-        const started = await relayJson(githubSchemas.connectionStarted, new URL("/v1/connections", relay), { method: "POST", signal: controller.signal })
+        const started = await relayJson(githubSchemas.connectionStarted, new URL("/v1/connections", relay), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ target }), signal: controller.signal })
         details.step({ type: "browser", url: started.installUrl })
 
         while (!controller.signal.aborted) {
-          const status = await relayJson(githubSchemas.connectionStatus, new URL(`/v1/connections/${encodeURIComponent(started.connectionId)}`, relay), { headers: { authorization: `Bearer ${started.connectionToken}` }, signal: controller.signal })
+          const status = await relayJson(githubSchemas.connectionStatus, new URL(`/v1/connections/${encodeURIComponent(started.connectionId)}`, relay), { headers: { authorization: `Bearer ${started.connectionToken}` }, signal: controller.signal }).catch((error: unknown) => {
+            if (error instanceof PluginAuthError) {
+              throw new Error("A autorização expirou ou foi cancelada. Tente autorizar novamente quando estiver pronto.")
+            }
+
+            throw error
+          })
 
           if (status.status === "connected") {
             const secret: GithubCredentials = { installationId: status.installationId, relayToken: status.relayToken, relayUrl: relay.toString() }
 
             return { label: status.accountLogin, secret: JSON.stringify(secret), tools: githubTools }
+          }
+
+          if (status.message) {
+            details.step({ type: "status", message: status.message })
           }
 
           await Bun.sleep(pollDelayMs)

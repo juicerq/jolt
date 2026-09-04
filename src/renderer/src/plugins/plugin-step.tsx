@@ -2,6 +2,10 @@ import { QRCodeSVG } from "qrcode.react"
 import type { PluginStep } from "@src/shared/plugins"
 
 export function pluginStepLabel(step: PluginStep | undefined) {
+  if (step?.type === "status") {
+    return step.message
+  }
+
   if (step?.type === "qr") {
     return "Aguardando a leitura..."
   }

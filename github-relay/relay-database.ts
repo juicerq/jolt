@@ -16,6 +16,8 @@ interface ConnectionRow {
   authorization_verifier: string | null
   authorization_verified: number
   authorization_token: string | null
+  target: string | null
+  notice: string | null
 }
 
 interface DeliveryRow { cursor: number; payload: string }
@@ -58,7 +60,14 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     database.run("ALTER TABLE connections ADD COLUMN authorization_token TEXT")
   }
 
-  const createConnectionStatement = database.prepare("INSERT INTO connections (id, state, connection_token_hash, status, created_at) VALUES (?, ?, ?, 'pending', ?)")
+  if (!columns.some((column) => column.name === "target")) {
+    database.transaction(() => {
+      database.run("ALTER TABLE connections ADD COLUMN target TEXT")
+      database.run("ALTER TABLE connections ADD COLUMN notice TEXT")
+    })()
+  }
+
+  const createConnectionStatement = database.prepare("INSERT INTO connections (id, state, connection_token_hash, status, created_at, target) VALUES (?, ?, ?, 'pending', ?, ?)")
   const connectionByIdStatement = database.prepare<ConnectionRow, [string]>("SELECT * FROM connections WHERE id = ?")
   const connectionByStateStatement = database.prepare<ConnectionRow, [string]>("SELECT * FROM connections WHERE state = ?")
   const beginAuthorizationStatement = database.prepare("UPDATE connections SET state = ?, installation_id = NULL, authorization_token = NULL, authorization_verifier = ?, created_at = ? WHERE id = ? AND status = 'pending'")
@@ -102,7 +111,24 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     cancel(state: string) {
       cancelConnectionStatement.run(state)
     },
-    createConnection() {
+    completed(state: string) {
+      const connection = connectionByStateStatement.get(state)
+
+      if (connection?.status === "connected") {
+        return { target: connection.target, accountLogin: connection.account_login }
+      }
+    },
+    message(state: string) {
+      return pending(state).notice
+    },
+    target(state: string) {
+      return pending(state).target
+    },
+    notice(state: string, message: string) {
+      pending(state)
+      database.query("UPDATE connections SET notice = ? WHERE state = ?").run(message, state)
+    },
+    createConnection(target?: string) {
       clean()
 
       if ((pendingConnectionsStatement.get()?.count ?? 0) >= maximumPendingConnections) {
@@ -110,7 +136,11 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
       }
 
       const connection = { id: crypto.randomUUID(), state: secrets.issue(), token: secrets.issue(), createdAt: new Date().toISOString() }
-      createConnectionStatement.run(connection.id, connection.state, secrets.hash(connection.token), connection.createdAt)
+      createConnectionStatement.run(connection.id, connection.state, secrets.hash(connection.token), connection.createdAt, target ?? null)
+
+      if (target) {
+        database.query("UPDATE connections SET notice = ? WHERE id = ?").run(`Aguardando acesso a ${target}. O Bot continua após a autorização.`, connection.id)
+      }
 
       return connection
     },
@@ -123,7 +153,7 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
 
       if (connection.status === "pending") {
         pending(connection.state)
-        return { status: "pending" as const }
+        return { status: "pending" as const, ...(connection.notice ? { message: connection.notice } : {}) }
       }
 
       if (!connection.authorization_verified) {

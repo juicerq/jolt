@@ -1,4 +1,6 @@
 import { Elysia, t } from "elysia"
+import { githubSchemas } from "@src/shared/github"
+import { z } from "zod"
 import type { GithubApp } from "./github-app"
 import type { RelayDatabase } from "./relay-database"
 
@@ -35,7 +37,7 @@ function page(title: string, content: string) {
 function selectionPage(state: string, installations: { id: string; accountLogin: string }[], installUrl: string) {
   const choices = installations.map((installation) => `<form method="post" action="/github/select"><input type="hidden" name="state" value="${html(state)}"><button name="installation_id" value="${html(installation.id)}">${html(installation.accountLogin)}</button></form>`).join("")
 
-  return page("Qual conta deseja conectar?", `<p>Escolha a conta que os Bots poderão usar.</p>${choices}<p><a href="${html(installUrl)}">Instalar em outra conta</a></p>`)
+  return page("Conectar GitHub", `<p>Escolha uma instalação existente ou instale o App na conta ou organização dona dos repositórios que deseja usar.</p>${choices}<p><a href="${html(installUrl)}">Instalar em outra conta ou organização</a></p>`)
 }
 
 function connectedPage(accountLogin: string) {
@@ -76,9 +78,30 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
   async function complete(state: string, installationId: string) {
     const token = input.database.authenticated(state)
     const installation = await input.github.authorizeInstallation(token, installationId)
+    const target = input.database.target(state)
+
+    if (target) {
+      const matching = installation.accountLogin.toLowerCase() === target.split("/")[0]?.toLowerCase()
+      const accessible = matching && await input.github.hasRepository(installation.id, target)
+
+      if (!accessible) {
+        return accessPage(state, target, matching ? installation.settingsUrl : input.github.installUrl(state))
+      }
+    }
+
     input.database.complete(state, installation.id, installation.accountLogin)
 
+    if (target) {
+      return page(`Acesso a ${target} liberado`, "<p>O Bot vai continuar seu pedido no Jolt. Você pode fechar esta página.</p>")
+    }
+
     return connectedPage(installation.accountLogin)
+  }
+
+  function accessPage(state: string, target: string, url: string) {
+    const message = input.database.message(state) ?? `Ainda não temos acesso a ${target}.`
+
+    return page(`Liberar acesso a ${target}`, `<meta http-equiv="refresh" content="10;url=/github/select?state=${encodeURIComponent(state)}"><p>${html(message)}</p><p>Autorize esse repositório no GitHub. Esta página verifica o acesso automaticamente enquanto estiver aberta, por até 10 minutos.</p><p><a href="${html(url)}" target="_blank" rel="noopener noreferrer">Autorizar no GitHub</a></p>`)
   }
 
   return new Elysia()
@@ -132,7 +155,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       return "Request failed"
     })
     .get("/health", () => ({ status: input.github.authorizationConfigured ? "ready" : "needs-configuration" }))
-    .post("/v1/connections", ({ request, set }) => {
+    .post("/v1/connections", ({ request, set, body }) => {
       if (!input.github.authorizationConfigured) {
         set.status = 503
         return "GitHub user authorization is not configured"
@@ -143,7 +166,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
         return "Too many connection attempts"
       }
 
-      const connection = input.database.createConnection()
+      const connection = input.database.createConnection(body?.target)
 
       if (!connection) {
         set.status = 503
@@ -155,7 +178,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       const authorization = input.database.beginAuthorization(connection.state)
 
       return { connectionId: connection.id, connectionToken: connection.token, installUrl: input.github.authorizationUrl(authorization.state, authorization.verifier) }
-    })
+    }, { body: z.strictObject({ target: githubSchemas.repositoryTarget.optional() }).optional() })
     .get("/v1/connections/:connectionId", ({ params, request }) => input.database.connection(params.connectionId, bearer(request)), {
       params: t.Object({ connectionId: t.String({ minLength: 1 }) }),
     })
@@ -169,9 +192,21 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
     .get("/github/setup", async ({ query, set }) => {
       set.headers["content-type"] = "text/html; charset=utf-8"
 
-      if (!query.installation_id || query.setup_action === "request") {
+      if (query.setup_action === "request") {
+        const target = input.database.target(query.state)
+
+        if (target) {
+          input.database.notice(query.state, `A autorização de ${target} aguarda aprovação da organização.`)
+          return page("Aguardando aprovação da organização", `<meta http-equiv="refresh" content="10;url=/github/select?state=${encodeURIComponent(query.state)}"><p>A solicitação foi enviada ao GitHub. Esta página verificará o acesso enquanto estiver aberta. Se a aprovação demorar, você pode cancelar no Jolt e tentar novamente depois.</p>`)
+        }
+
         input.database.cancel(query.state)
         return page("Instalação aguardando aprovação", "<p>A organização precisa aprovar a instalação. Depois da aprovação, volte ao Jolt e conecte o GitHub.</p>")
+      }
+
+      if (!query.installation_id) {
+        input.database.cancel(query.state)
+        return page("Instalação não concluída", "<p>O GitHub não confirmou a instalação. Volte ao Jolt para tentar novamente.</p>")
       }
 
       return await complete(query.state, query.installation_id)
@@ -195,12 +230,25 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       query: t.Object({ state: t.String({ minLength: 1 }), code: t.Optional(t.String({ minLength: 1 })), error: t.Optional(t.String()) }),
     })
     .get("/github/select", async ({ query, set }) => {
+      set.headers["content-type"] = "text/html; charset=utf-8"
+      const completed = input.database.completed(query.state)
+
+      if (completed) {
+        return page(completed.target ? `Acesso a ${completed.target} liberado` : "GitHub conectado ao Jolt", "<p>Você pode fechar esta página e voltar ao Jolt.</p>")
+      }
+
       const token = input.database.authenticated(query.state)
       const installations = await input.github.installations(token)
-      set.headers["content-type"] = "text/html; charset=utf-8"
+      const target = input.database.target(query.state)
 
-      if (installations.length === 1) {
-        return await complete(query.state, installations[0].id)
+      if (target) {
+        const matching = installations.find((installation) => installation.accountLogin.toLowerCase() === target.split("/")[0]?.toLowerCase())
+
+        if (matching) {
+          return await complete(query.state, matching.id)
+        }
+
+        return accessPage(query.state, target, input.github.installUrl(query.state))
       }
 
       if (installations.length === 0) {

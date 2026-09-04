@@ -9,7 +9,9 @@ O relay recebe webhooks e entrega eventos e tokens de instalação ao Jolt. Para
 - Webhook URL: `https://joltgithub.duckdns.org/github/webhook`
 - Para organizações: permissão de organização `Members: read`.
 
-O fluxo começa no OAuth do GitHub. Depois do login, o relay lista as instalações que a pessoa pode administrar. Uma instalação conecta automaticamente; várias mostram a escolha da conta. Sem instalações disponíveis, o relay abre a instalação do App e aproveita o login no retorno, sem pedir nickname nem repetir OAuth. Não habilite a opção de pedir autorização OAuth durante a instalação: o relay controla a autorização com estado próprio e PKCE.
+O fluxo começa no OAuth do GitHub. Depois do login, o relay lista as instalações que a pessoa pode administrar e oferece instalar em outra conta ou organização, mesmo quando só existe uma instalação. Isso permite conectar uma organização sem ficar preso à instalação pessoal existente. Sem instalações disponíveis, o relay abre a instalação do App e aproveita o login no retorno, sem pedir nickname nem repetir OAuth. Não habilite a opção de pedir autorização OAuth durante a instalação: o relay controla a autorização com estado próprio e PKCE.
+
+Quando `POST /v1/connections` recebe `target` no formato `owner/repository`, o alvo acompanha o estado OAuth no banco. O relay usa a instalação do proprietário indicado, verifica o repositório na lista acessível à instalação e só então conclui a conexão. Sem acesso, a página oferece autorizar no GitHub e verifica novamente a cada 10 segundos enquanto estiver aberta, dentro da validade de 10 minutos da tentativa. Uma solicitação de aprovação da organização permanece pendente e informa esse estado ao Jolt. A tela antiga de seleção continua disponível para conexões sem alvo, inclusive clientes já distribuídos.
 
 A listagem percorre a paginação do GitHub e exclui instalações suspensas, contas de terceiros e organizações onde a pessoa não é administradora ativa. A escolha e o retorno da instalação confirmam novamente o ownership antes de liberar acesso.
 

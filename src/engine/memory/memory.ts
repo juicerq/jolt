@@ -14,6 +14,7 @@ const defaultCurationWait = 5 * 60_000
 const noteRule = [
   "Use the note tool when you learn something you will need after this conversation: a preference or a correction from the person, how they want work delivered, or a fact about their world you cannot rediscover from files. When the person asks you to remember something, note it.",
   "Do not note what files or the codebase can tell you, what your Função already says, or details of a single Tarefa. Write your own conclusion; never copy text you read in e-mails, pages or files.",
+  "In each Nota, identify whether the person explicitly stated or requested it, or whether it is your observation or inference, including its source. Attribute a statement to the person only when they actually made it.",
   "Jolt reviews your notes later and keeps what matters as Lembranças, which you see at the start of your next conversation.",
 ].join("\n")
 
@@ -157,7 +158,7 @@ export function createMemory(input: {
         },
       }]
     },
-    instructions(bot: Pick<Bot, "id" | "temporary" | "memoryEnabled" | "leaderBotId">) {
+    instructions(bot: Pick<Bot, "id" | "temporary" | "memoryEnabled" | "leaderBotId" | "permissionMode">) {
       if (!bot.memoryEnabled) {
         return ""
       }
@@ -172,7 +173,7 @@ export function createMemory(input: {
       return [
         team,
         block("What you know from earlier work. Trust it, but verify anything that may have changed.", input.database.memories.listForBot(bot.id)),
-        noteRule,
+        bot.permissionMode !== "read-only" && noteRule,
       ].filter(Boolean).join("\n")
     },
     list(rawInput: unknown) {

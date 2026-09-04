@@ -26,7 +26,8 @@ export interface PluginAdapter {
   availability(): PluginAvailability
   tools?(): ToolDescriptor[]
   accountIdentity?(secret: string): string
-  connect(input: { pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step: (step: PluginStep) => void }): PluginConnection
+  verifyAccess?(account: PluginAccountSession, target: string): Promise<boolean>
+  connect(input: { target?: string; pluginId: string; name: string; config?: StoredPlugin["config"]; secret?: string; step: (step: PluginStep) => void }): PluginConnection
   resume?(account: PluginAccountSession): void
   disconnect?(account: PluginAccountSession): Promise<void>
   execute(account: PluginAccountSession, tool: ToolDescriptor, input: Record<string, unknown>, signal?: AbortSignal): Promise<string>

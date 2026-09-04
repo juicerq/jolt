@@ -332,7 +332,7 @@ export function createTriggers(input: {
 
       return input.database.triggers.listForBot(botId)
     },
-    instructions(bot: Pick<Bot, "id" | "temporary">) {
+    instructions(bot: Pick<Bot, "id" | "temporary" | "permissionMode">) {
       if (bot.temporary) {
         return ""
       }
@@ -340,8 +340,8 @@ export function createTriggers(input: {
       const triggers = input.database.triggers.listForBot(bot.id)
 
       return [
-        "A turn with cause \"trigger\" is a Disparo from one of your Gatilhos, not a message from the person. Read the current GitHub state before acting because the Evento may be old. Events do not call you unless they match a Gatilho.",
-        "Use github_trigger when the person asks you to act whenever a GitHub event occurs. Conditions are structured. Never broaden an event or action beyond what the person said. Ignore your own GitHub events unless the person explicitly asks for chaining.",
+        "A turn with cause \"trigger\" is a Disparo from one of your Gatilhos, not a message from the person. The Evento may be old; verify the current GitHub state with available tools before acting. If you cannot verify it, report that limitation. Events do not call you unless they match a Gatilho.",
+        ...(bot.permissionMode === "read-only" ? [] : ["Use github_trigger when the person asks you to act whenever a GitHub event occurs. Conditions are structured. Never broaden an event or action beyond what the person said. Ignore your own GitHub events unless the person explicitly asks for chaining."]),
         ...(triggers.length > 0 ? ["Your GitHub Gatilhos:", ...triggers.map((trigger) => `- ${describe(trigger)}`)] : ["You have no GitHub Gatilhos."]),
       ].join("\n")
     },

@@ -1,3 +1,4 @@
+import { githubSchemas } from "@src/shared/github"
 import type { Bot } from "@src/shared/bots"
 import type { ConversationEvent } from "@src/shared/conversations"
 import { parse } from "@src/shared/parse"
@@ -6,7 +7,7 @@ import { connectPluginTool, pluginSchemas, type PluginAccount, type PluginReques
 import type { Observability } from "../observability/observability"
 import type { createBots } from "../bots/bots"
 import type { AppDatabase } from "../persistence/database"
-import type { PiCustomTool, PiSchemaTool, PiTool } from "../pi/pi-agent-runtime"
+import type { PiSchemaTool, PiTool } from "../pi/pi-agent-runtime"
 import { createQueue } from "../queue"
 import { PluginAuthError, type PluginAccountSession, type PluginAdapter, type PluginConnected } from "./plugin-adapter"
 import type { Secrets } from "./secrets"
@@ -27,7 +28,7 @@ const builtInPlugins: Catalogued[] = [
   { id: "github", kind: "github", name: "GitHub", builtIn: true },
 ]
 
-const accountProperty = { type: "string", description: "Label of the Conta to use. Send it whenever you use more than one Conta of this Plugin. When it is not clear which Conta the person means, ask them before you call." } as const
+const accountProperty = { type: "string", description: "Label of the Conta to use. With exactly one accessible Conta of this Plugin, omit conta and use it directly without asking. With multiple Contas, pass the label selected by the person or clear from context. If the choice is ambiguous, use the ask tool with the available Contas as options before calling this tool." } as const
 
 export function createPlugins(input: {
   database: AppDatabase
@@ -181,10 +182,10 @@ export function createPlugins(input: {
     const tools = `Tools available now: ${toolsOf(account).map((tool) => tool.name).join(", ")}.`
 
     if (granted.length > 1) {
-      return `Connected ${plugin.name} as ${account.label}. You now use ${granted.length} Contas of ${plugin.name}: ${granted.map((candidate) => candidate.label).join(", ")}. Pass conta on every call, and ask the person which Conta they mean when it is not clear. ${tools}`
+      return `Connected ${plugin.name} as ${account.label}. You now use ${granted.length} Contas of ${plugin.name}: ${granted.map((candidate) => candidate.label).join(", ")}. Pass conta on every call using the person's selection or clear context. If the choice is ambiguous, use the ask tool with the available Contas as options. ${tools}`
     }
 
-    return `Connected ${plugin.name} as ${account.label}. Tell the person it is connected before you go on. ${tools}`
+    return `Connected ${plugin.name} as ${account.label}. This is your only accessible Conta of ${plugin.name}; omit conta and use it directly without asking which Conta to use. Continue the original request without asking the person to repeat it. A connected account alone does not prove access to the requested resource. ${tools}`
   }
 
   function chooseAccount(plugin: Catalogued, accounts: StoredAccount[], requested: unknown) {
@@ -198,7 +199,7 @@ export function createPlugins(input: {
       const only = accounts.length === 1 ? accounts[0] : undefined
 
       if (!only) {
-        throw new Error(`You use ${accounts.length} Contas of ${plugin.name}: ${labels}. Ask the person which one they mean, then call again with conta.`)
+        throw new Error(`You use ${accounts.length} Contas of ${plugin.name}: ${labels}. Pass conta using the person's selection or clear context. If the choice is ambiguous, use the ask tool with these Contas as options and wait for the answer before calling again.`)
       }
 
       return only
@@ -207,7 +208,7 @@ export function createPlugins(input: {
     const chosen = accounts.find((account) => account.label === requested || account.id === requested)
 
     if (!chosen) {
-      throw new Error(`You have no Conta named ${requested} in ${plugin.name}. Yours: ${labels}. Ask the person which one they mean.`)
+      throw new Error(`You have no Conta named ${requested} in ${plugin.name}. Yours: ${labels}. Use an available Conta that matches the person's request. If multiple Contas match and the choice is ambiguous, use the ask tool with those Contas as options.`)
     }
 
     return chosen
@@ -240,7 +241,11 @@ export function createPlugins(input: {
     pending.resolve(outcome.value)
   }
 
-  function ask(bot: Pick<Bot, "id">, plugin: Catalogued, signal?: AbortSignal) {
+  function ask(bot: Pick<Bot, "id">, plugin: Catalogued, signal?: AbortSignal, target?: string) {
+    if (signal?.aborted) {
+      return Promise.resolve<Requested>({ cancelled: true })
+    }
+
     const accounts = input.database.accounts.list().filter((account) => account.pluginId === plugin.id)
     const connectable = input.adapters[plugin.kind].availability().available
     const only = accounts.length === 1 ? accounts[0] : undefined
@@ -249,9 +254,10 @@ export function createPlugins(input: {
       id: crypto.randomUUID(),
       pluginId: plugin.id,
       pluginName: plugin.name,
-      accounts: accounts.map((account) => ({ id: account.id, label: account.label, state: account.state })),
+      ...(target ? { target } : {}),
+      accounts: target ? [] : accounts.map((account) => ({ id: account.id, label: account.label, state: account.state })),
       connectable,
-      connecting: connectable && undecided,
+      connecting: connectable && undecided && !target,
     })
     const key = requestKey(bot.id, request.id)
 
@@ -343,20 +349,47 @@ export function createPlugins(input: {
     return tools
   }
 
-  function connectTool(bot: Pick<Bot, "id">): PiCustomTool {
+  function connectTool(bot: Pick<Bot, "id">): PiSchemaTool {
     return {
       name: connectPluginTool,
-      description: "Ask the person to connect a Plugin so you can use its tools. Use it when the person needs something a Plugin does and you have no tools for it yet, or when they want another Conta of a Plugin you already use. The person picks or connects a Conta; the tools become available right after.",
-      parameters: { plugin: "Id of the Plugin, as listed in your instructions" },
+      description: "Connect a Plugin and continue the original request. For GitHub repository access, always pass target as owner/repository, even when a Conta is already connected. This checks granted accounts and requests authorization only when needed. Without a target, use this for initial connection or an explicitly requested additional account. Use existing granted tools directly otherwise. Do not report resource access until verified.",
+      inputSchema: { type: "object", properties: { plugin: { type: "string", description: "Plugin id from your instructions" }, target: { type: "string", description: "For GitHub: the requested owner/repository. Omit for other Plugins." } }, required: ["plugin"] },
       async execute(params, signal) {
         const plugin = catalogue().find((candidate) => candidate.id === params.plugin)
 
         if (!plugin) {
-          throw new Error(`Unknown Plugin ${params.plugin ?? ""}. Use one of: ${catalogue().map((candidate) => candidate.id).join(", ")}`)
+          throw new Error(`Unknown Plugin. Use one of: ${catalogue().map((candidate) => candidate.id).join(", ")}`)
         }
 
-        const registered = accountsFor(bot, plugin).length > 0
-        const outcome = await ask(bot, plugin, signal)
+        const target = params.target === undefined ? undefined : parse(githubSchemas.repositoryTarget, params.target)
+        const adapter = input.adapters[plugin.kind]
+        const verifyAccess = adapter.verifyAccess?.bind(adapter)
+        const granted = accountsFor(bot, plugin)
+
+        if (target && !verifyAccess) {
+          throw new Error(`Target verification is unavailable for ${plugin.name}`)
+        }
+
+        if (target && verifyAccess) {
+          for (const account of granted.filter((candidate) => candidate.state === "connected")) {
+            const accessible = await verifyAccess(sessionFor(account), target).catch((error: unknown) => {
+              if (!(error instanceof PluginAuthError)) {
+                throw error
+              }
+
+              input.database.accounts.update(account.id, { state: "needs-auth", checkedAt: new Date().toISOString() })
+
+              return false
+            })
+
+            if (accessible) {
+              return `Access to ${target} verified using Conta ${account.label}. Use this Conta and continue the original request. List repositories to obtain its id when needed.`
+            }
+          }
+        }
+
+        const registered = granted.length > 0
+        const outcome = await ask(bot, plugin, signal, target)
 
         if ("cancelled" in outcome) {
           return `The person did not connect ${plugin.name}. Continue without it and offer to try again when they want.`
@@ -366,12 +399,26 @@ export function createPlugins(input: {
           input.conversations.addTools(bot.id, toolsOf(outcome.account).map((descriptor) => toolFor(bot, plugin, descriptor)))
         }
 
+        if (target && verifyAccess) {
+          const accessible = await verifyAccess(sessionFor(outcome.account), target)
+
+          if (!accessible) {
+            return `Authorization finished, but access to ${target} is still unavailable. Do not report success or repeat the same connection automatically. Explain the limitation; retry authorization only if the person asks.`
+          }
+
+          return `Access to ${target} verified using Conta ${outcome.account.label}. Continue the original request without asking the person to repeat it. List repositories to obtain its id when needed.`
+        }
+
         return describe(plugin, outcome.account, accountsFor(bot, plugin))
       },
     }
   }
 
   async function connectionFinished(plugin: Catalogued, connected: PluginConnected, target: { accountId?: string; botId?: string; requestId?: string }) {
+    if (target.botId && target.requestId && !requests.has(requestKey(target.botId, target.requestId))) {
+      return list()
+    }
+
     const checkedAt = new Date().toISOString()
     const secret = input.secrets.seal(connected.secret)
     const adapter = input.adapters[plugin.kind]
@@ -437,7 +484,8 @@ export function createPlugins(input: {
       }
     }
 
-    const connection = input.adapters[plugin.kind].connect({ pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}), step })
+    const pending = target.botId && target.requestId ? requests.get(requestKey(target.botId, target.requestId)) : undefined
+    const connection = input.adapters[plugin.kind].connect({ ...(pending?.request.target ? { target: pending.request.target } : {}), pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}), step })
     const connectionId = crypto.randomUUID()
     const done = connection.connected.then(async (connected) => {
       await connectionFinished(plugin, connected, target)
@@ -498,10 +546,10 @@ export function createPlugins(input: {
         const labels = accounts.map((account) => `${account.label}${account.state === "connected" ? "" : " (it needs to authenticate again; its tools will ask the person)"}`).join(", ")
 
         if (accounts.length === 1) {
-          return [`You use ${plugin.name} as ${labels}.`]
+          return [`You use ${plugin.name} as ${labels}. This is your only accessible Conta of ${plugin.name}; omit conta and use it directly without asking which Conta to use.`]
         }
 
-        return [`You use ${plugin.name} as ${labels}. Pass conta on every ${plugin.name} call, and ask the person which Conta they mean when it is not clear.`]
+        return [`You use ${plugin.name} as ${labels}. Pass conta on every ${plugin.name} call using the person's selection or clear context. If the choice is ambiguous, use the ask tool with the available Contas as options.`]
       })
 
       if (bot.temporary) {
@@ -594,6 +642,10 @@ export function createPlugins(input: {
 
       if (key && !pending) {
         throw new Error("Plugin request not found")
+      }
+
+      if (pending && pending.request.pluginId !== plugin.id) {
+        throw new Error("That request belongs to another Plugin")
       }
 
       const stored = details.accountId ? accountOf(details.accountId) : undefined
