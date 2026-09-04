@@ -1,10 +1,14 @@
+import { fileURLToPath } from "node:url"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, externalizeDepsPlugin } from "electron-vite"
 
+const resolve = { alias: { "@src": fileURLToPath(new URL("src", import.meta.url)) } }
+
 export default defineConfig({
-  main: { plugins: [externalizeDepsPlugin()] },
+  main: { resolve, plugins: [externalizeDepsPlugin()] },
   preload: {
+    resolve,
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
@@ -13,5 +17,5 @@ export default defineConfig({
       },
     },
   },
-  renderer: { plugins: [tailwindcss(), react()] },
+  renderer: { resolve, plugins: [tailwindcss(), react()] },
 })
