@@ -3,7 +3,6 @@ import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { MessageQuestion } from "@src/shared/conversations"
 import { Button } from "../ui/button"
-import { Select } from "../ui/select"
 import { chatStore } from "./chat-store"
 
 interface ChatQuestionProps {
@@ -47,36 +46,28 @@ export function ChatQuestion({ botId, messageId, question, answerValue, interact
 
   if (selected) {
     return (
-      <div className="mt-3 flex w-fit items-center gap-2 rounded-lg border border-outline-strong bg-surface-active px-3 py-2 text-control font-medium text-primary">
-        <CheckIcon className="size-4 text-secondary" aria-hidden="true" />
+      <div className="mt-3 flex items-center gap-2 text-control text-secondary">
+        <CheckIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span>{selected.label}</span>
       </div>
     )
   }
 
-  const disabled = busy || !interactive
+  const detailed = question.options.some((option) => option.description)
+  const layout = detailed ? { list: "flex flex-col gap-2", option: "w-full" } : { list: "flex flex-wrap gap-2", option: "" }
 
   return (
-    <fieldset className="m-0 mt-3 min-w-0 border-0 p-0" disabled={disabled}>
+    <fieldset className="m-0 mt-3 min-w-0 border-0 p-0" disabled={busy || !interactive}>
       <legend className="sr-only">Escolha uma resposta</legend>
-      {question.options.length <= 4
-        ? (
-          <div className="flex flex-wrap gap-2">
-            {question.options.map((option) => (
-              <Button className="flex min-w-32 flex-col items-start gap-0.5 text-left" key={option.value} variant="secondary" type="button" onClick={() => void choose(option.value)}>
-                <span className="text-primary">{option.label}</span>
-                {option.description && <span className="text-support font-normal text-muted">{option.description}</span>}
-              </Button>
-            ))}
-          </div>
-        )
-        : (
-          <Select className="max-w-96" aria-label="Escolha uma resposta" value="" onChange={(event) => void choose(event.target.value)}>
-            <option value="" disabled>Escolher uma opção</option>
-            {question.options.map((option) => <option key={option.value} value={option.value}>{option.description ? `${option.label} · ${option.description}` : option.label}</option>)}
-          </Select>
-        )}
-      {question.allowOther && <p className="mt-2 mb-0 text-support text-muted">Ou escreva outra resposta abaixo.</p>}
+      <div className={layout.list}>
+        {question.options.map((option) => (
+          <Button className={`flex flex-col items-start gap-0.5 text-left ${layout.option}`} key={option.value} variant="secondary" type="button" onClick={() => void choose(option.value)}>
+            <span className="text-primary">{option.label}</span>
+            {option.description && <span className="text-support font-normal text-muted">{option.description}</span>}
+          </Button>
+        ))}
+        {question.allowOther && <span className="flex items-center py-2.5 text-support text-muted">Ou escreva outra resposta abaixo</span>}
+      </div>
     </fieldset>
   )
 }
