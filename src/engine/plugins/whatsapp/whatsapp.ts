@@ -101,7 +101,7 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
       opened,
       async close() {
         closed = true
-        current?.end(undefined)
+        void current?.end(undefined)
         current = undefined
       },
     }

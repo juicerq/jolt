@@ -40,7 +40,7 @@ export function BotPlugins({ bot, client }: { bot: Bot; client: EngineClient }) 
   const { data, error: listError } = useQuery(client.query.plugins.list.queryOptions())
   const { mutate: grant, isPending, error: grantError } = useMutation(client.query.plugins.grant.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
     },
   }))
   const failure = listError?.message ?? grantError?.message

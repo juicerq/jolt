@@ -33,7 +33,7 @@ export function ChatPluginRequest({ botId, client, request }: { botId: string; c
   const connection = useConnectPlugin(client)
   const { mutate: decide, isPending: deciding, error: decideError } = useMutation(client.query.plugins.decide.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
     },
   }))
   const busy = connection.isPending || deciding

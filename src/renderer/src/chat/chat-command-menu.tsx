@@ -10,7 +10,7 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
   const queryClient = useQueryClient()
   const { mutateAsync: remember, isPending: remembering, error: rememberError, reset } = useMutation(client.query.memory.add.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
     },
   }))
   const context = { memoryEnabled: bot.memoryEnabled }

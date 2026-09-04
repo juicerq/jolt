@@ -6,7 +6,7 @@ export function useUpdateBotExecution(bot: Pick<Bot, "id">, client: EngineClient
   const queryClient = useQueryClient()
   const { mutate, isPending } = useMutation(client.query.bots.updateExecution.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
     },
   }))
 

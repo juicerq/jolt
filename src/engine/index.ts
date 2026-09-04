@@ -307,5 +307,5 @@ async function shutdown() {
   process.exit(0)
 }
 
-process.on("SIGTERM", shutdown)
-process.on("disconnect", shutdown)
+process.on("SIGTERM", () => void shutdown())
+process.on("disconnect", () => void shutdown())

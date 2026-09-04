@@ -33,7 +33,7 @@ function AddPluginForm({ client, onClose }: { client: EngineClient; onClose: () 
   const [environment, setEnvironment] = useState("")
   const { mutate, isPending, error } = useMutation(client.query.plugins.addCustom.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
       onClose()
     },
   }))

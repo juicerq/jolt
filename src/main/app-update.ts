@@ -20,15 +20,15 @@ export async function startAppUpdates({ window, engine }: { window: UpdateWindow
 
   ipcMain.handle("update:install", () => autoUpdater.quitAndInstall())
 
-  const checks = setInterval(check, checkIntervalMs)
+  const checks = setInterval(() => void check(), checkIntervalMs)
 
   autoUpdater.on("update-downloaded", ({ version }) => {
     clearInterval(checks)
     window.webContents.send("update:ready")
-    engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
+    void engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
   })
   autoUpdater.on("error", (error) => {
-    engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
+    void engine.event({ name: "main.updatefailed", attributes: { process: "main", status: "failed", reason: error.message } })
   })
 
   await check()

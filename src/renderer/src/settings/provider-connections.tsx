@@ -65,8 +65,8 @@ function ProviderConnectionRow({ provider, client }: { provider: ProviderAvailab
   const queryClient = useQueryClient()
   const [pasting, setPasting] = useState(false)
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: client.query.providers.list.queryOptions().queryKey })
-    queryClient.invalidateQueries({ queryKey: client.query.providers.models.queryOptions().queryKey })
+    void queryClient.invalidateQueries({ queryKey: client.query.providers.list.queryOptions().queryKey })
+    void queryClient.invalidateQueries({ queryKey: client.query.providers.models.queryOptions().queryKey })
   }
   const { mutate: connect, isPending: connecting, error: connectError } = useMutation(client.query.providers.connect.mutationOptions({ onSuccess: refresh }))
   const { mutate: disconnect, isPending: disconnecting, error: disconnectError } = useMutation(client.query.providers.disconnect.mutationOptions({ onSuccess: refresh }))

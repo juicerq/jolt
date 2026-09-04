@@ -20,7 +20,7 @@ export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot
   const { data: routines, error: listError, isPending } = useQuery(listOptions)
   const routine = creating ? undefined : routines?.find((candidate) => candidate.id === routineId)
   const settled = { onSuccess() {
-    queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
+    void queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
     onClose()
   } }
   const { mutate: create, isPending: creatingRoutine, error: createError } = useMutation(client.query.routines.create.mutationOptions(settled))

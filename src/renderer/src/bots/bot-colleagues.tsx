@@ -37,7 +37,7 @@ export function BotColleagues({ bot, client, groups }: { bot: Bot; client: Engin
   const queryClient = useQueryClient()
   const { mutate: revoke, isPending, error } = useMutation(client.query.bots.removeColleague.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
     },
   }))
 

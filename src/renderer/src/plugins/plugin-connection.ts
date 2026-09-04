@@ -31,7 +31,7 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
       setStep(undefined)
     },
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
       onConnected?.()
     },
   })

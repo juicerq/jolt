@@ -69,14 +69,14 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const { leader, members } = teamOf(projectGroups, bot)
   const { mutate: save, isPending: saving, error: saveError } = useMutation(client.query.bots.update.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
       onClose()
     },
   }))
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.bots.remove.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
-      queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
       forgetBot(bot.id)
     },
   }))

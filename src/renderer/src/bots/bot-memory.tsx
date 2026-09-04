@@ -152,7 +152,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
   const [confirmingClear, setConfirmingClear] = useState(false)
   const listOptions = client.query.memory.list.queryOptions({ input: { botId: bot.id } })
   const { data: memories, error: listError } = useQuery(listOptions)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: listOptions.queryKey })
   const { mutate: add, isPending: adding, error: addError } = useMutation(client.query.memory.add.mutationOptions({ onSuccess() {
     refresh()
     setDraft("")
@@ -164,7 +164,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
     setConfirmingClear(false)
   } }))
   const { mutate: updateBot, isPending: toggling, error: toggleError } = useMutation(client.query.bots.update.mutationOptions({ onSuccess() {
-    queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+    void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
   } }))
   const content = draft.trim()
   const busy = [adding, updating, forgetting, clearing, toggling].some(Boolean)

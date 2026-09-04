@@ -48,7 +48,7 @@ if (!app.isPackaged) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222")
 }
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   const starting = engine.start()
 
   ipcMain.handle("engine:get-connection", () => starting)
@@ -121,7 +121,7 @@ app.on("before-quit", (event) => {
   }
 
   event.preventDefault()
-  engine.event({ name: "main.stopped", attributes: { process: "main", status: "stopping" } }).then(() => engine.stop()).then(() => {
+  void engine.event({ name: "main.stopped", attributes: { process: "main", status: "stopping" } }).then(() => engine.stop()).then(() => {
     engineStopped = true
     app.quit()
   })

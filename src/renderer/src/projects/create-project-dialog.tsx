@@ -22,7 +22,7 @@ function CreateProjectForm({ client }: { client: EngineClient }) {
   const directory = useDirectoryChooser(setDefaultWorkingDirectory)
   const { mutate, isPending, error } = useMutation(client.query.projects.create.mutationOptions({
     onSuccess() {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
       closeDialog()
     },
   }))

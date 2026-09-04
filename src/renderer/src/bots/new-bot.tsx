@@ -17,7 +17,7 @@ export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraf
   const executorAvailable = providers?.some((candidate) => candidate.status === "available") ?? false
   const { mutate, isPending, error } = useMutation(client.query.bots.create.mutationOptions({
     onSuccess(bot) {
-      queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
       selectBot(bot.id)
     },
   }))
