@@ -22,30 +22,14 @@ function scrollUp(count: number) {
   }
 }
 
-function revealEarlier() {
-  evaluate<string>(`(() => {
-    const button = [...document.querySelectorAll("button")].find((element) => element.textContent.includes("Mostrar mensagens anteriores"))
-    button.click()
-    return JSON.stringify("ok")
-  })()`)
-}
-
 function measure(name: string) {
   browser("find", "role", "button", "click", "--name", `de ${name} com`)
   Bun.sleepSync(1_000)
 
   const start = viewport()
   startProbe()
-  scrollUp(steps)
-  Bun.sleepSync(500)
-
-  const beforeReveal = viewport()
-  revealEarlier()
+  scrollUp(steps * 2)
   Bun.sleepSync(1_000)
-
-  const afterReveal = viewport()
-  scrollUp(steps)
-  Bun.sleepSync(500)
 
   const end = viewport()
   const probe = stopProbe()
@@ -53,8 +37,7 @@ function measure(name: string) {
   return {
     conversa: name,
     passos: steps * 2,
-    scrolledPx: Math.round(start.scrollTop - beforeReveal.scrollTop + afterReveal.scrollTop - end.scrollTop),
-    revealedPx: Math.round(afterReveal.scrollHeight - beforeReveal.scrollHeight),
+    revealedPx: Math.round(end.scrollHeight - start.scrollHeight),
     ...summarizeFrames(probe),
   }
 }

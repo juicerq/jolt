@@ -67,11 +67,19 @@ async function openConversations() {
 async function sendTurn() {
   const before = (await observations(logPath)).filter(isFinishedTurn).length
 
-  await cdp.evaluate(`(() => {
-    const textarea = document.querySelector("textarea[role=combobox]")
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(textarea, "Revise o módulo de cobrança e liste o que precisa mudar.")
-    textarea.dispatchEvent(new Event("input", { bubbles: true }))
-    textarea.closest("form").querySelector("button[type=submit]").click()
+  await cdp.evaluate(`(async () => {
+    const editor = document.querySelector("[contenteditable=true][role=combobox]")
+    editor.focus()
+    editor.textContent = "Revise o módulo de cobrança e liste o que precisa mudar."
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true }))
+
+    const send = editor.closest("form").querySelector("button[type=submit]")
+
+    for (let attempt = 0; attempt < 50 && send.disabled; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+
+    send.click()
   })()`, z.undefined())
   await waitForObservations(logPath, isFinishedTurn, before, 60_000)
 }

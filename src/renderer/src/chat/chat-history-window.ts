@@ -1,11 +1,12 @@
 import type { HistoryPage } from "../../../shared/conversations"
 
-
+export const initialMessageLimit = 12
 export const recentMessageLimit = 60
-export const earlierMessageBatch = 200
+export const earlierPageSize = 200
+export const revealStep = 30
 
 export function historyPageInput(botId: string, before?: string) {
-  return before ? { botId, before, limit: earlierMessageBatch } : { botId, limit: recentMessageLimit }
+  return before ? { botId, before, limit: earlierPageSize } : { botId, limit: recentMessageLimit }
 }
 
 export function olderHistoryPage(page: HistoryPage) {

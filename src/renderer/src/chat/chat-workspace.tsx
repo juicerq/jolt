@@ -8,7 +8,6 @@ import type { Task } from "../../../shared/tasks"
 import type { EngineClient } from "../engine-client"
 import { appSettingsStore } from "../settings/app-settings-store"
 import { teamAvatarIdentities, teamNames } from "../bots/team"
-import { Button } from "../ui/button"
 import {
   type ChatDraft,
   chatStore,
@@ -20,11 +19,11 @@ import {
 } from "./chat-store"
 import { ChatComposer } from "./chat-composer"
 import { messageImageSource } from "./chat-images"
-import { ChatScroller, type RevealAbove, useRevealAbove } from "./chat-scroller"
+import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatContent } from "./chat-content"
-import { earlierMessageBatch, flattenHistory, historyPageInput, olderHistoryPage, recentMessageLimit, windowHistory } from "./chat-history-window"
+import { flattenHistory, historyPageInput, initialMessageLimit, olderHistoryPage, revealStep, windowHistory } from "./chat-history-window"
 import { ChatMemberResult, memberResultKind } from "./chat-member-result"
 import { ChatMentionChip } from "./chat-mention-chip"
 import { type ChatMention, knownChatMentions, mentionedBotIds, splitChatMentions } from "./chat-mentions"
@@ -39,15 +38,16 @@ import { ChatTurnEnding } from "./chat-turn-ending"
 const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
-  const [shown, setShown] = useState(recentMessageLimit)
+  const [shown, setShown] = useState(initialMessageLimit)
   const activityDetailsVisible = useSelector(appSettingsStore, (state) => state.activityDetailsVisible)
   const { data: pages, error, isPending, isFetchedAfterMount, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery(client.query.conversations.history.infiniteOptions({
     input: (before: string | undefined) => historyPageInput(bot.id, before),
     initialPageParam: undefined,
     getNextPageParam: olderHistoryPage,
   }))
-  const messages = pages ? flattenHistory(pages.pages).messages : undefined
-  const earlier = pages ? flattenHistory(pages.pages).earlier : 0
+  const history = pages ? flattenHistory(pages.pages) : undefined
+  const messages = history?.messages
+  const earlier = history?.earlier ?? 0
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const { data: tasks } = useQuery(client.query.tasks.listForBot.queryOptions({ input: { botId: bot.id } }))
   const names = teamNames(groups)
@@ -80,12 +80,12 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
     return sendPersonInput({ content: "", images: [], replyTo: { messageId, optionValue } }, [])
   }
 
-  async function handleShowEarlier(revealAbove: RevealAbove) {
+  async function revealEarlier() {
     if (hidden === 0 && hasNextPage) {
       await fetchNextPage()
     }
 
-    revealAbove(() => setShown((count) => count + earlierMessageBatch))
+    setShown((count) => count + revealStep)
   }
 
   async function handleAbort() {
@@ -103,10 +103,10 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
 
   return (
     <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
-      <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />}>
+      <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
-        {hidden + earlier > 0 && <ChatEarlierMessages hidden={hidden + earlier} loading={isFetchingNextPage} onShow={handleShowEarlier} />}
+        {isFetchingNextPage && <ChatEarlierLoading />}
         {visible.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasksById} onQuestionAnswer={handleQuestionAnswer} />)}
         {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} tasks={tasksById} empty={messages.length === 0} />}
       </ChatScroller>
@@ -114,12 +114,10 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   )
 }
 
-function ChatEarlierMessages({ hidden, loading, onShow }: { hidden: number; loading: boolean; onShow(revealAbove: RevealAbove): void }) {
-  const revealAbove = useRevealAbove()
-
+function ChatEarlierLoading() {
   return (
-    <div className="flex justify-center [overflow-anchor:none]">
-      <Button variant="secondary" type="button" disabled={loading} onClick={() => onShow(revealAbove)}>{loading ? "Carregando mensagens anteriores..." : `Mostrar mensagens anteriores (${hidden})`}</Button>
+    <div className="flex justify-center py-2 [overflow-anchor:none]">
+      <span className="size-3.5 animate-spin rounded-full border border-outline-strong border-t-primary [animation-duration:800ms] motion-reduce:animate-none" role="status" aria-label="Carregando mensagens anteriores" />
     </div>
   )
 }
