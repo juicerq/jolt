@@ -65,7 +65,7 @@ export function createBrowser() {
             direction: { type: "string", enum: ["up", "down"] },
             reason: {
               type: "string",
-              description: "For handoff: a short instruction shown directly to the person in the browser card and expanded view. Use the conversation language and a natural, calm, direct tone. Usually one sentence: name the action and the relevant site or choice. Explain the purpose only when it helps the person act. Examples: 'Faça login no GitHub para continuar.', 'Escolha a conta que quer usar.', 'Confirme o acesso no seu celular.' These are examples, not fixed messages. Add a second sentence only for essential context. Avoid generic security reminders, technical terms, narrating your next steps, or repeating the interface instructions for returning control. Include a warning only when a specific risk in this step requires a decision.",
+              description: "Brief, natural instruction in the person's language: say what to do, adding context only when needed. Example: 'Faça login no GitHub para continuar.' Avoid generic warnings and repeating what the interface already explains.",
             },
           },
           required: ["action"],
