@@ -223,3 +223,7 @@ _Evitar_: Conta padrão, Conta ativa, sessão
 **Pedido de Plugin**:
 Uma solicitação feita durante a Conversa quando o Bot precisa de um Plugin sem Acesso ou quando a Conta precisa autenticar de novo. A pessoa escolhe uma Conta, conecta uma nova no navegador ou cancela; o Bot continua na mesma Conversa com as ferramentas prontas. Ele não passa por Pedido de permissão: pedir o Plugin já é a pergunta.
 _Evitar_: Pedido de permissão, autorização, OAuth
+
+**Pesquisa web**:
+A capacidade de todo Bot de procurar informação na internet e ler uma página, sem Plugin, sem Conta e sem configuração. Não passa por Pedido de permissão, porque só lê. Um Bot com Permissão somente leitura não a tem.
+_Evitar_: Busca, navegação, Plugin de pesquisa

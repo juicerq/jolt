@@ -24,6 +24,7 @@ import { createPiProvider } from "./pi/pi-provider"
 import { createProjects } from "./projects/projects"
 import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
+import { createWebSearch } from "./web/web-search"
 
 registerBunOAuthFlows()
 
@@ -146,6 +147,7 @@ const conversations = createConversations({
   extensions: [
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
+    { tools: (bot) => webSearch.tools(bot), instructions: () => webSearch.instructions() },
     {
       tools: (bot) => plugins.tools(bot),
       instructions: (bot) => plugins.instructions(bot),
@@ -169,6 +171,7 @@ const plugins = createPlugins({
   },
   conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
 })
+const webSearch = createWebSearch({ observability: observationSystem.observability })
 const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (routine) => conversations.call(routine) } })
 const memory = createMemory({
   database,
