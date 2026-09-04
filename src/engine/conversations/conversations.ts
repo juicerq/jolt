@@ -141,7 +141,7 @@ export function createConversations(input: {
           return "Question sent. Stop now and wait for the person to answer in a new turn."
         }
 
-        return "Message sent. If this completed the request, stop now without writing a confirmation."
+        return "Message sent. This tool is your only channel; anything you type outside it stays private. Keep working, or end the turn here without typing anything more."
       },
     }
   }
