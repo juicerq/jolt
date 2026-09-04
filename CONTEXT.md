@@ -245,5 +245,5 @@ A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Ca
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:
-A pessoa amplia a prévia e passa a usar o site enquanto o Bot espera. Recolher a prévia mantém o controle com a pessoa; Devolver ao Bot permite que ele continue.
+A pessoa amplia a prévia e passa a usar o site enquanto o Bot espera. Recolher a prévia mantém o controle com a pessoa; Devolver para o Bot indicado permite que ele continue.
 _Evitar_: Interromper, Adiantar

@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store"
-import { ArrowsPointingOutIcon, GlobeAltIcon, MinusIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowsPointingOutIcon, GlobeAltIcon, MinusIcon, Square2StackIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useCallback, useState } from "react"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
@@ -43,17 +43,15 @@ export function BrowserPanel() {
       <section className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>
         <header className="flex shrink-0 items-center gap-3 pb-4">
           <GlobeAltIcon className="size-5 shrink-0 text-secondary" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-control font-semibold">Você está no controle · {focused.botName}</h2>
-            <p className="truncate text-support text-secondary">{focused.url}</p>
-          </div>
-          <IconButton label="Recolher navegador" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}><MinusIcon aria-hidden="true" /></IconButton>
-          <IconButton label="Fechar navegador" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
+          <p className="min-w-0 flex-1 truncate text-control text-primary">{focused.url}</p>
+          <IconButton label="Recolher navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}><MinusIcon aria-hidden="true" /></IconButton>
+          <IconButton label="Maximizar ou restaurar janela" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.toggleMaximizeWindow())}><Square2StackIcon aria-hidden="true" /></IconButton>
+          <IconButton label="Fechar navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
         </header>
         <div ref={viewport} className="min-h-0 flex-1 bg-canvas" />
         <footer className="flex shrink-0 items-center justify-between gap-4 pt-4">
-          <p className="text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? "Use o site. O Bot espera você devolver o controle."}</p>
-          <Button disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : "Devolver ao Bot"}</Button>
+          <p className="text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`}</p>
+          <Button className="max-w-1/2 whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : `Devolver para ${focused.botName}`}</Button>
         </footer>
       </section>
     )
@@ -74,7 +72,7 @@ export function BrowserPanel() {
               {page.error && <span className="text-support text-status-error">{page.error}</span>}
             </div>
           </button>
-          {page.control === "user" && <div className="px-3 pb-3"><Button variant="secondary" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(page.botId))}>Devolver ao Bot</Button></div>}
+          {page.control === "user" && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(page.botId))}>Devolver para {page.botName}</Button></div>}
         </div>
       ))}
       {error && <p className="rounded-lg bg-surface-raised p-3 text-support text-status-error" role="alert">{error}</p>}
