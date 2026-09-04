@@ -32,7 +32,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
-  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft)
+  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError } = useChatCommands(bot, client, draft)
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
   const commands = run ? [] : suggestions
@@ -45,7 +45,6 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const commandBlocked = !!draft.command && !!run
   const busy = commandPending
   const settingsDisabled = !!run || commandPending
-  const statusVisible = compacting || !!compacted || !!commandError
   const aborting = run?.status === "aborting"
 
   async function attachFiles(files: Iterable<File>) {
@@ -193,7 +192,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDrop={handleDrop}
     >
       {menuOpen && <ChatCommandMenu id={menuId} label={commands.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
-      {!menuOpen && statusVisible && <ChatCommandStatus compacting={compacting} compacted={compacted} error={commandError} />}
+      {!menuOpen && commandError && <ChatCommandStatus error={commandError} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
@@ -258,24 +257,8 @@ function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCom
   )
 }
 
-const tokenFormat = new Intl.NumberFormat("pt-BR")
-
-function ChatCommandStatus({ compacting, compacted, error }: { compacting: boolean; compacted?: { tokensBefore: number; estimatedTokensAfter?: number }; error: Error | null }) {
-  let content = "Compactando Contexto..."
-  let tone = "text-muted"
-
-  if (error) {
-    content = `Falha ao executar o Comando: ${error.message}`
-    tone = "text-status-error"
-  } else if (compacted?.estimatedTokensAfter === undefined && compacted) {
-    content = `Contexto compactado a partir de ${tokenFormat.format(compacted.tokensBefore)} tokens.`
-    tone = "text-secondary"
-  } else if (compacted) {
-    content = `Contexto compactado: ${tokenFormat.format(compacted.tokensBefore)} → ~${tokenFormat.format(compacted.estimatedTokensAfter ?? 0)} tokens.`
-    tone = "text-secondary"
-  }
-
-  return <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-w-full px-3 py-2 text-support ${tone}`} role={error ? "alert" : "status"} aria-live="polite">{compacting ? "Compactando Contexto..." : content}</div>
+function ChatCommandStatus({ error }: { error: Error }) {
+  return <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-w-full px-3 py-2 text-support text-status-error`} role="alert" aria-live="polite">Falha ao executar o Comando: {error.message}</div>
 }
 
 function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRemove(index: number): void }) {

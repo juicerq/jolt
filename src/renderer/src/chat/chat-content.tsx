@@ -1,7 +1,6 @@
-import { CheckIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline"
-import { isValidElement, type ReactNode, useState } from "react"
-import { IconButton } from "../ui/icon-button"
+import { isValidElement, type ReactNode } from "react"
 import { highlightChatCode } from "./chat-code-highlight"
+import { ChatCopyButton } from "./chat-copy"
 import { createMarkdownRenderer } from "./chat-markdown"
 
 const markdown = createMarkdownRenderer({
@@ -40,25 +39,9 @@ function ChatCodeBlock({ children }: { children?: ReactNode }) {
 
   return (
     <div className="chat-code relative my-4 rounded-xl border border-outline bg-canvas">
-      <CopyCodeButton content={content} />
+      <ChatCopyButton className="top-2 right-2 z-1" content={content} label="Copiar código" copiedLabel="Código copiado" />
       <pre className="m-0 overflow-x-auto rounded-[inherit] py-4 pr-12 pl-4">{codeContent}</pre>
     </div>
-  )
-}
-
-function CopyCodeButton({ content }: { content: string }) {
-  const [copied, setCopied] = useState(false)
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(content)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1_500)
-  }
-
-  return (
-    <IconButton className="top-2 right-2 z-1" iconSize={14} position="absolute" size={28} tone="canvas" type="button" label={copied ? "Código copiado" : "Copiar código"} onClick={handleCopy}>
-      {copied ? <CheckIcon aria-hidden="true" /> : <ClipboardDocumentIcon aria-hidden="true" />}
-    </IconButton>
   )
 }
 

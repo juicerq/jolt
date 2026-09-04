@@ -1,21 +1,16 @@
-export type ChatCommandName = "compactar" | "lembrar"
+export type ChatCommandName = "lembrar"
 
 export type ChatCommandSuggestion = {
   command: ChatCommandName
   detail: string
 }
 
-export type ChatCommand =
-  | { command: "compactar"; instructions?: string }
-  | { command: "lembrar"; content: string }
+export type ChatCommand = { command: "lembrar"; content: string }
 
 type ChatCommandContext = { memoryEnabled: boolean }
 
 function availableChatCommands(context: ChatCommandContext): ChatCommandSuggestion[] {
-  return [
-    { command: "compactar", detail: "Resume o Contexto do Bot com instruções opcionais" },
-    ...(context.memoryEnabled ? [{ command: "lembrar" as const, detail: "Guarda uma Lembrança na Memória do Bot" }] : []),
-  ]
+  return context.memoryEnabled ? [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }] : []
 }
 
 export function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {
@@ -48,10 +43,6 @@ export function startedChatCommand(content: string, context: ChatCommandContext)
 export function buildChatCommand(command: ChatCommandName, content: string, context: ChatCommandContext): ChatCommand | null {
   const text = content.trim()
 
-  if (command === "compactar") {
-    return { command, ...(text ? { instructions: text } : {}) }
-  }
-
   if (!context.memoryEnabled || text === "") {
     return null
   }
@@ -60,6 +51,5 @@ export function buildChatCommand(command: ChatCommandName, content: string, cont
 }
 
 export const chatCommandPlaceholders: Record<ChatCommandName, string> = {
-  compactar: "Instruções para o resumo, se quiser...",
   lembrar: "O que o Bot deve guardar na Memória...",
 }

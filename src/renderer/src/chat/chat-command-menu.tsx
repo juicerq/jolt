@@ -8,12 +8,11 @@ import type { ChatDraft } from "./chat-store"
 
 export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft) {
   const queryClient = useQueryClient()
-  const { mutateAsync: remember, isPending: remembering, error: rememberError, reset: resetRemember } = useMutation(client.query.memory.add.mutationOptions({
+  const { mutateAsync: remember, isPending: remembering, error: rememberError, reset } = useMutation(client.query.memory.add.mutationOptions({
     onSuccess() {
       queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
     },
   }))
-  const { mutateAsync: compact, isPending: compacting, error: compactError, data: compacted, reset: resetCompact, variables: compactVariables } = useMutation(client.query.conversations.compact.mutationOptions())
   const context = { memoryEnabled: bot.memoryEnabled }
   const suggestions = draft.command ? [] : suggestChatCommands(draft.content, context)
   const command = draft.command ? buildChatCommand(draft.command, draft.content, context) : null
@@ -23,21 +22,8 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
   }
 
   async function run(target: ChatCommand) {
-    if (target.command === "compactar") {
-      await compact({ botId: bot.id, ...(target.instructions ? { instructions: target.instructions } : {}) })
-
-      return
-    }
-
     await remember({ botId: bot.id, content: target.content })
   }
-
-  function reset() {
-    resetRemember()
-    resetCompact()
-  }
-
-  const ownCompaction = compactVariables?.botId === bot.id
 
   return {
     suggestions,
@@ -45,10 +31,8 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
     start,
     run,
     reset,
-    pending: remembering || compacting,
-    error: rememberError ?? compactError,
-    compacted: ownCompaction ? compacted : undefined,
-    compacting: ownCompaction && compacting,
+    pending: remembering,
+    error: rememberError,
   }
 }
 

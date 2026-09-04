@@ -183,7 +183,7 @@ function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, me
   return (
     <article className="w-fit max-w-[720px] self-start">
       {activityDetailsVisible && message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
-      <ChatStamped className={message.content || message.ending ? "chat-bot-bubble" : ""} name={bot.name} time={time} anchor={message.content || message.ending ? "bubble" : "text"}>
+      <ChatStamped className={message.content || message.ending ? "chat-bot-bubble" : ""} copy={message.content} name={bot.name} time={time} anchor={message.content || message.ending ? "bubble" : "text"}>
         {message.content && <ChatContent content={message.content} />}
         {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValue={answer?.optionValue} interactive={!!onQuestionAnswer && !bot.closed} onAnswer={onQuestionAnswer ?? unavailableQuestionAnswer} />}
         {message.ending && <ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} />}
@@ -194,7 +194,7 @@ function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, me
 
 function PersonBubble({ time, content, images, mentions }: { time: string; content: string; images: MessageImage[]; mentions: ChatMention[] }) {
   return (
-    <ChatStamped className="flex max-w-[min(640px,84%)] flex-col gap-2 self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" name="Você" time={time} side="left" anchor="bubble">
+    <ChatStamped className="flex max-w-[min(640px,84%)] flex-col gap-2 self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" copy={content} name="Você" time={time} side="left" anchor="bubble">
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {images.map((image, index) => <img key={`${index}-${image.data.length}`} className="block max-h-60 max-w-full rounded-lg border border-outline-strong object-contain" src={messageImageSource(image)} alt={`Imagem ${index + 1}`} />)}

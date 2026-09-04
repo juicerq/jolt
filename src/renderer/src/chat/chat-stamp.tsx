@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { ChatCopyButton } from "./chat-copy"
 
 const sideClassNames = { right: "left-full ml-3 items-start text-left", left: "right-full mr-3 items-end text-right" }
 const bodyLineClassName = "leading-[calc(var(--text-body)*var(--text-body--line-height))]"
@@ -20,10 +21,11 @@ export function ChatStamp({ name, time, side = "right", anchor = "chip" }: Stamp
   )
 }
 
-export function ChatStamped({ className = "", children, ...stamp }: StampProps & { className?: string; children: ReactNode }) {
+export function ChatStamped({ className = "", copy = "", children, ...stamp }: StampProps & { className?: string; copy?: string; children: ReactNode }) {
   return (
     <div className={`group relative ${className}`}>
       {children}
+      {copy && <ChatCopyButton className="top-1.5 right-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" content={copy} label="Copiar mensagem" copiedLabel="Mensagem copiada" />}
       <ChatStamp {...stamp} />
     </div>
   )
