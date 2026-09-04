@@ -14,7 +14,7 @@ interface StampProps { name: string; time: string; side?: keyof typeof sideClass
 
 export function ChatStamp({ name, time, side = "right", anchor = "chip" }: StampProps) {
   return (
-    <div className={`pointer-events-none absolute ${sideClassNames[side]} ${anchorClassNames[anchor].stamp} flex flex-col whitespace-nowrap text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100`}>
+    <div className={`pointer-events-none absolute select-none ${sideClassNames[side]} ${anchorClassNames[anchor].stamp} flex flex-col whitespace-nowrap text-metadata font-medium text-muted opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100`}>
       <strong className="font-semibold text-secondary">{name}</strong>
       <span className={anchorClassNames[anchor].time}>{time}</span>
     </div>
