@@ -49,9 +49,12 @@ export function BrowserPanel() {
           <IconButton label="Fechar navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
         </header>
         <div key={focused.botId} ref={viewport} className="min-h-0 flex-1 bg-canvas" />
-        <footer className="flex shrink-0 items-center justify-between gap-4 pt-4">
-          <p className="text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`}</p>
-          <Button className="max-w-1/2 whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : `Devolver para ${focused.botName}`}</Button>
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-4 pt-4">
+          <p className="min-w-0 flex-1 text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`}</p>
+          <div className="ml-auto flex max-w-full items-center justify-end gap-2">
+            <Button variant="text" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}>Voltar para o chat</Button>
+            <Button className="min-w-0 shrink whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : `Devolver para ${focused.botName}`}</Button>
+          </div>
         </footer>
       </section>
     )
