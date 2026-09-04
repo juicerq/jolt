@@ -69,6 +69,57 @@ function createToolRegistrar(botId: string) {
   }
 }
 
+type AssistantMessageEvent = Extract<AgentSessionEvent, { type: "message_update" }>["assistantMessageEvent"]
+
+function normalizeMessageUpdate(event: AssistantMessageEvent): PiRuntimeEvent | undefined {
+  if (event.type === "text_delta") {
+    return { type: "text", text: event.delta }
+  }
+
+  if (event.type === "thinking_start") {
+    return { type: "thinking-started" }
+  }
+
+  if (event.type === "thinking_delta") {
+    return { type: "thinking", text: event.delta }
+  }
+
+  if (event.type === "thinking_end") {
+    return { type: "thinking-finished" }
+  }
+
+  return
+}
+
+function normalizeStateless(event: AgentSessionEvent): PiRuntimeEvent | undefined {
+  if (event.type === "message_update") {
+    return normalizeMessageUpdate(event.assistantMessageEvent)
+  }
+
+  if (event.type === "tool_execution_start") {
+    const detail = summarizeToolInput(event.args, detailFields[event.toolName] ?? "path")
+    const brief = summarizeToolInput(event.args, briefFields[event.toolName])
+
+    return { type: "tool-started", callId: event.toolCallId, tool: event.toolName, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}) }
+  }
+
+  if (event.type === "tool_execution_end") {
+    const error = event.isError ? summarizeToolError(event.result) : undefined
+
+    return { type: "tool-finished", callId: event.toolCallId, tool: event.toolName, failed: event.isError, ...(error ? { error } : {}) }
+  }
+
+  if (event.type === "compaction_start") {
+    return { type: "compaction-started", reason: event.reason }
+  }
+
+  if (event.type === "compaction_end") {
+    return { type: "compaction-finished" }
+  }
+
+  return
+}
+
 export function createEventNormalizer() {
   let lastReason: "stop" | "aborted" | "error" = "error"
   let lastError: string | undefined
@@ -81,35 +132,6 @@ export function createEventNormalizer() {
       interrupted = false
 
       return { type: "started" }
-    }
-
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-      return { type: "text", text: event.assistantMessageEvent.delta }
-    }
-
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_start") {
-      return { type: "thinking-started" }
-    }
-
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_delta") {
-      return { type: "thinking", text: event.assistantMessageEvent.delta }
-    }
-
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_end") {
-      return { type: "thinking-finished" }
-    }
-
-    if (event.type === "tool_execution_start") {
-      const detail = summarizeToolInput(event.args, detailFields[event.toolName] ?? "path")
-      const brief = summarizeToolInput(event.args, briefFields[event.toolName])
-
-      return { type: "tool-started", callId: event.toolCallId, tool: event.toolName, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}) }
-    }
-
-    if (event.type === "tool_execution_end") {
-      const error = event.isError ? summarizeToolError(event.result) : undefined
-
-      return { type: "tool-finished", callId: event.toolCallId, tool: event.toolName, failed: event.isError, ...(error ? { error } : {}) }
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
@@ -126,21 +148,13 @@ export function createEventNormalizer() {
       return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
     }
 
-    if (event.type === "compaction_start") {
-      return { type: "compaction-started", reason: event.reason }
-    }
-
-    if (event.type === "compaction_end") {
-      return { type: "compaction-finished" }
-    }
-
     if (event.type === "agent_settled") {
       const reason = interrupted && lastReason !== "stop" ? "aborted" : lastReason
 
       return { type: "finished", reason, ...(reason === "error" && lastError ? { error: lastError } : {}) }
     }
 
-    return undefined
+    return normalizeStateless(event)
   }
 
   return {
