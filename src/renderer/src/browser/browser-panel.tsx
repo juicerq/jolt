@@ -66,12 +66,12 @@ export function BrowserPanel() {
               {page.image ? <img src={page.image} alt="" className="size-full object-contain" /> : <div className="grid size-full place-items-center text-secondary"><GlobeAltIcon className="size-8" aria-hidden="true" /></div>}
               <span className="absolute right-2 bottom-2 rounded-lg bg-surface-raised p-2 text-secondary group-hover:bg-surface-hover group-hover:text-primary group-active:bg-surface-active"><ArrowsPointingOutIcon className="size-4" aria-hidden="true" /></span>
             </div>
-            <div className="flex flex-col gap-1 p-3 group-hover:bg-surface-hover group-active:bg-surface-active">
-              <span className="truncate text-control font-semibold text-primary">{page.botName}</span>
-              <span className="text-support text-secondary">{page.control === "user" ? page.reason ?? "Esperando você devolver o controle" : page.title}</span>
-              {page.error && <span className="text-support text-status-error">{page.error}</span>}
-            </div>
           </button>
+          <div className="flex flex-col gap-1 p-3">
+            <span className="truncate text-control font-semibold text-primary">{page.botName}</span>
+            <span className="text-support text-secondary">{page.control === "user" ? page.reason ?? "Esperando você devolver o controle" : page.title}</span>
+            {page.error && <span className="text-support text-status-error">{page.error}</span>}
+          </div>
           {page.control === "user" && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(page.botId))}>Devolver para {page.botName}</Button></div>}
         </div>
       ))}
