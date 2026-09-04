@@ -32,6 +32,7 @@ publish:
   provider: github
   owner: juicerq
   repo: jolt
+  releaseType: release
 linux:
   target: AppImage
   executableName: jolt
