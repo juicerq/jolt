@@ -100,7 +100,7 @@ export function openDatabase(path: string, observability: Observability) {
             const updated = transaction.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
 
             if (!updated) {
-              return undefined
+              return
             }
 
             transaction.update(bots).set({ projectId: changes.projectId }).where(eq(bots.leaderBotId, id)).run()

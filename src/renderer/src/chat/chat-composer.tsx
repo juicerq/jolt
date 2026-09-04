@@ -18,7 +18,7 @@ import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
 import { addChatDraftImages, addChatDraftMention, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
 
-type ChatComposerProps = {
+interface ChatComposerProps {
   bot: Bot
   client: EngineClient
   onAbort(): void

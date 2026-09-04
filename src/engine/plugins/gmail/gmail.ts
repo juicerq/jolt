@@ -168,7 +168,7 @@ export function createGmailAdapter(input: { observability: Observability; client
   }
 
   async function call<T>(credentials: GmailCredentials, schema: z.ZodType<T>, path: string, init: RequestInit & { signal?: AbortSignal } = {}, retried = false): Promise<T> {
-    const response = await fetch(`${endpoints.api}${path}`, { ...init, headers: { authorization: `Bearer ${credentials.accessToken}`, "content-type": "application/json", ...(init.headers ?? {}) } })
+    const response = await fetch(`${endpoints.api}${path}`, { ...init, headers: { authorization: `Bearer ${credentials.accessToken}`, "content-type": "application/json", ...init.headers } })
     const payload: unknown = await response.json().catch(() => ({}))
 
     if (response.status === 429 && !retried) {

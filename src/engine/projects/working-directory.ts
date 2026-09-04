@@ -7,7 +7,7 @@ export async function assertAccessibleWorkingDirectory(path: string) {
     throw new Error("Working directory is not accessible")
   }
 
-  const directory = await stat(path).catch(() => undefined)
+  const directory = await stat(path).catch(() => {})
 
   if (!directory?.isDirectory()) {
     throw new Error("Working directory is not accessible")

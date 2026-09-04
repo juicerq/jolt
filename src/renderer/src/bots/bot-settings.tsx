@@ -19,7 +19,7 @@ import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { WorkspaceHint } from "./workspace-hint"
 
-export type SettingsDraft = { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
+export interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
 
 const headerLineClassName = `${lineClassName} -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent`
 
@@ -38,7 +38,7 @@ export function settingsChange(bot: Bot, draft: SettingsDraft) {
     && draft.workingDirectoryOverride === (bot.workingDirectoryOverride ?? "")
 
   if (unchanged) {
-    return undefined
+    return
   }
 
   return {

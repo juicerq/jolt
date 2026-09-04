@@ -1,8 +1,8 @@
 import type { EngineClient } from "../engine-client"
 
-type PendingOpen = { botId: string; timestamp: string; startedAt: number }
+interface PendingOpen { botId: string; timestamp: string; startedAt: number }
 
-type OpenedConversation = { botId: string; count: number; state: "cached" | "fetched" }
+interface OpenedConversation { botId: string; count: number; state: "cached" | "fetched" }
 
 let pending: PendingOpen | undefined
 
@@ -28,7 +28,7 @@ export function finishConversationOpen(sender: Pick<EngineClient["raw"]["observa
         traceId: crypto.randomUUID(),
         spanId: crypto.randomUUID(),
         attributes: { count: opened.count, state: opened.state },
-      }).catch(() => undefined)
+      }).catch(() => {})
     })
   })
 }

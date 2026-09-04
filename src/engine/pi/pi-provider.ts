@@ -6,7 +6,7 @@ import { piProviders, type PiModels } from "./pi-models"
 
 const providerNames = Object.keys(piProviders) as ProviderName[]
 
-type Discovery = { availability: ProviderAvailability; models: ProviderModels }
+interface Discovery { availability: ProviderAvailability; models: ProviderModels }
 
 export function createPiProvider(observability: Observability, models: PiModels) {
   let providers: ProviderAvailability[] = []
@@ -21,7 +21,7 @@ export function createPiProvider(observability: Observability, models: PiModels)
     const available = await observability.span(
       { name: "provider.discovery", context: { provider } },
       () => models.available(provider),
-    ).catch(() => undefined)
+    ).catch(() => {})
 
     if (!available) {
       return { availability: { ...shared, status: "incompatible", detectedKey }, models: { provider, name: catalog.name, default: catalog.defaultModelId, models: [] } }

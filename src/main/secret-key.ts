@@ -7,7 +7,7 @@ const keyBytes = 32
 
 export async function loadSecretKey(path: string) {
   const encrypted = safeStorage.isEncryptionAvailable()
-  const stored = await readFile(path).catch(() => undefined)
+  const stored = await readFile(path).catch(() => {})
 
   if (stored) {
     return encrypted ? safeStorage.decryptString(stored) : stored.toString("utf8")

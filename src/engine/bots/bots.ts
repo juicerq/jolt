@@ -8,7 +8,7 @@ import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
 import { parse } from "../../shared/parse"
 
-type BotsDependencies = {
+interface BotsDependencies {
   database: AppDatabase
   observability: Observability
   privateBotsDirectory: string
@@ -38,7 +38,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
 
   function projectWorkingDirectory(projectId: string | null) {
     if (!projectId) {
-      return undefined
+      return
     }
 
     const project = database.projects.get(projectId)

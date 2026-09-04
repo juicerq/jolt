@@ -8,7 +8,7 @@ import { slugify, type PluginAdapter } from "../plugin-adapter"
 
 const environmentSchema = z.record(z.string(), z.string())
 
-type Server = { client: Client; tools: Promise<ToolDescriptor[]> }
+interface Server { client: Client; tools: Promise<ToolDescriptor[]> }
 
 function inheritedEnvironment() {
   return Object.fromEntries(["PATH", "HOME", "USER", "TMPDIR", "LANG"].flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
@@ -82,7 +82,7 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
     }
 
     servers.delete(key)
-    await server.client.close().catch(() => undefined)
+    await server.client.close().catch(() => {})
   }
 
   return {
@@ -116,7 +116,7 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
     },
     async execute(account, tool, params, signal) {
       const server = await serverFor(account)
-      const result = await server.client.callTool({ name: tool.label, arguments: params }, undefined, { ...(signal ? { signal } : {}) })
+      const result = await server.client.callTool({ name: tool.label, arguments: params }, undefined, (signal ? { signal } : {}))
 
       return textOf(result)
     },

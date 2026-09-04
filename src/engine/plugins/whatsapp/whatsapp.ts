@@ -54,7 +54,7 @@ export const whatsappTools: ToolDescriptor[] = [
   },
 ]
 
-type Session = {
+interface Session {
   socket(): WASocket
   auth: ReturnType<typeof whatsappAuth>
   names: Map<string, string>

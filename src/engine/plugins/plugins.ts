@@ -11,15 +11,15 @@ import { createQueue } from "../queue"
 import { PluginAuthError, type PluginAccountSession, type PluginAdapter, type PluginConnected } from "./plugin-adapter"
 import type { Secrets } from "./secrets"
 
-type Catalogued = { id: string; kind: PluginKind; name: string; builtIn: boolean; config?: StoredPlugin["config"] }
+interface Catalogued { id: string; kind: PluginKind; name: string; builtIn: boolean; config?: StoredPlugin["config"] }
 
 type Requested = { account: StoredAccount } | { cancelled: true }
 
-type PendingRequest = { botId: string; request: PluginRequest; resolve(outcome: Requested): void; reject(error: Error): void }
+interface PendingRequest { botId: string; request: PluginRequest; resolve(outcome: Requested): void; reject(error: Error): void }
 
 type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
-type PendingConnection = { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest(): PluginStep | undefined; cancel(): void }
+interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest(): PluginStep | undefined; cancel(): void }
 
 const builtInPlugins: Catalogued[] = [
   { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },
@@ -407,7 +407,7 @@ export function createPlugins(input: {
         stream.close()
       }
     })
-    done.catch(() => undefined)
+    done.catch(() => {})
     connections.set(connectionId, { pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel })
 
     return { connectionId, done }
@@ -629,7 +629,7 @@ export function createPlugins(input: {
         const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
 
         if (plugin) {
-          await input.adapters[plugin.kind].stop(account.id).catch(() => undefined)
+          await input.adapters[plugin.kind].stop(account.id).catch(() => {})
         }
       }
     },

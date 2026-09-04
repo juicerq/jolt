@@ -91,7 +91,7 @@ app.whenReady().then(async () => {
     }
 
     const path = selection.filePaths.at(0)
-    const directory = path ? await stat(path).catch(() => undefined) : undefined
+    const directory = path ? await stat(path).catch(() => {}) : undefined
 
     if (!path || !directory?.isDirectory()) {
       throw new Error("The selected working directory is invalid")

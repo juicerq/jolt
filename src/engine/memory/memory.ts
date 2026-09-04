@@ -57,7 +57,7 @@ export function createMemory(input: {
     const bot = input.bots.get({ id: botId })
 
     if (!bot || bot.temporary || !bot.memoryEnabled) {
-      return undefined
+      return
     }
 
     return bot

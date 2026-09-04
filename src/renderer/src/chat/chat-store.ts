@@ -15,7 +15,7 @@ export type ChatActivityStep =
   | (ThinkingStep & { status: "running" | "done" })
   | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 
-export type ChatRun = {
+export interface ChatRun {
   message: IncomingMessage
   completedMessages: ConversationMessage[]
   responseContent: string
@@ -30,7 +30,7 @@ export type ChatRun = {
 
 export type ChatDraft = Pick<IncomingMessage, "content" | "images"> & { mentions: ChatMention[]; command?: ChatCommandName }
 
-type ChatState = {
+interface ChatState {
   drafts: Record<string, ChatDraft>
   runs: Record<string, ChatRun | undefined>
   statuses: Record<string, ChatStatus | undefined>
@@ -202,7 +202,7 @@ export function settleChatRun(botId: string, status: "available" | "completed" |
   const run = chatStore.state.runs[botId]
 
   if (!run) {
-    return undefined
+    return
   }
 
   const response = run?.responseContent || run?.completedMessages.at(-1)?.content

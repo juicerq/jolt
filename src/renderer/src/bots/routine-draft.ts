@@ -1,6 +1,6 @@
 import type { Frequency, Routine, Weekday } from "../../../shared/routines"
 
-export type RoutineDraft = { name: string; content: string; form: Frequency["form"]; everyMinutes: string; days: Weekday[]; times: string; startTime: string; endTime: string; at: string }
+export interface RoutineDraft { name: string; content: string; form: Frequency["form"]; everyMinutes: string; days: Weekday[]; times: string; startTime: string; endTime: string; at: string }
 
 export const emptyRoutineDraft: RoutineDraft = { name: "", content: "", form: "interval", everyMinutes: "60", days: ["monday", "tuesday", "wednesday", "thursday", "friday"], times: "09:00", startTime: "08:00", endTime: "17:00", at: "" }
 

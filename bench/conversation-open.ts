@@ -8,7 +8,7 @@ const logPath = observationLog(values["user-data"])
 const route = ["Leve", "Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Leve", "Enorme", "Pesada", "Média"]
 const rounds = Number(values.rounds)
 
-type OpenSpan = { name: string; durationMs: number; count: number; state: string }
+interface OpenSpan { name: string; durationMs: number; count: number; state: string }
 
 function isOpenSpan(item: Observation) {
   return item.kind === "span" && item.name === "renderer.conversationopen"
@@ -29,7 +29,7 @@ for (let round = 0; round < rounds; round += 1) {
     const spans = await waitForObservations(logPath, isOpenSpan, seen, 30_000)
     const span = spans.at(-1)
 
-    if (!span || span.kind !== "span") {
+    if (span?.kind !== "span") {
       throw new Error("Missing span")
     }
 

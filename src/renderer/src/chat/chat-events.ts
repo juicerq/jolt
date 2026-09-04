@@ -51,7 +51,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "started") {
       startChatRun(botId, event.message)
-      void invalidateTeam().catch(() => undefined)
+      void invalidateTeam().catch(() => {})
       return
     }
 
@@ -102,7 +102,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "plugin-resolved") {
       resolveChatPlugin(botId, event.requestId)
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() }).catch(() => undefined)
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() }).catch(() => {})
       return
     }
 
@@ -141,11 +141,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
   async function listen() {
     while (!controller.signal.aborted) {
-      const events = await client.raw.conversations.events(undefined, { signal: controller.signal }).catch(() => undefined)
+      const events = await client.raw.conversations.events(undefined, { signal: controller.signal }).catch(() => {})
 
       if (events) {
         resetChatQueues()
-        await consume(events).catch(() => undefined)
+        await consume(events).catch(() => {})
       }
 
       await new Promise<void>((resolve) => setTimeout(resolve, reconnectDelayMs))

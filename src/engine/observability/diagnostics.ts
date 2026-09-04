@@ -6,7 +6,7 @@ import type { ProviderAvailability } from "../../shared/providers"
 import type { ObservationDiagnostics } from "./observability"
 import { parse } from "../../shared/parse"
 
-type DiagnosticsOptions = {
+interface DiagnosticsOptions {
   source: ObservationDiagnostics
   versions: { app: string; bun: string; electron: string }
   processState(): { engine: ProcessState; main: ProcessState }

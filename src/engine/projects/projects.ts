@@ -5,7 +5,7 @@ import type { createBots } from "../bots/bots"
 import { assertAccessibleWorkingDirectory } from "./working-directory"
 import { parse } from "../../shared/parse"
 
-type ProjectsDependencies = {
+interface ProjectsDependencies {
   database: AppDatabase
   observability: Observability
   bots: ReturnType<typeof createBots>

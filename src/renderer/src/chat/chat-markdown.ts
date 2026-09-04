@@ -66,7 +66,7 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
         }
       }
 
-      return undefined
+      return
     })
 
     return toJsxRuntime(tree, { Fragment, components, ignoreInvalidStyle: true, jsx, jsxs, passKeys: true, passNode: true })

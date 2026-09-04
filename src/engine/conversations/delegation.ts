@@ -7,7 +7,7 @@ import type { PiCustomTool } from "../pi/pi-agent-runtime"
 import type { BotInheritance } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
 
-type Outcome = { reason: "stop" | "aborted" | "error"; response: string }
+interface Outcome { reason: "stop" | "aborted" | "error"; response: string }
 
 const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
 const calledRule = "Other Bots can send you a Tarefa. Reply directly to whoever sent it. A direct order from the person prevails over any Tarefa; if the person changes or interrupts your work, say so in your reply."

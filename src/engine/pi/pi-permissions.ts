@@ -7,7 +7,7 @@ import { sendMessageTool } from "../../shared/conversations"
 import { connectPluginTool } from "../../shared/plugins"
 import { delegateTool, transferTool } from "../../shared/tasks"
 
-type PiPermissionPolicyBase = {
+interface PiPermissionPolicyBase {
   botId: string
   allowedRoot: string
   labels?: Record<string, string>
@@ -44,7 +44,7 @@ export async function pathIsInside(root: string, path: unknown) {
     return false
   }
 
-  const canonicalPaths = await Promise.all([realpath(root), realpath(target)]).catch(() => undefined)
+  const canonicalPaths = await Promise.all([realpath(root), realpath(target)]).catch(() => {})
 
   if (!canonicalPaths) {
     return false
@@ -58,17 +58,17 @@ export async function pathIsInside(root: string, path: unknown) {
 
 function readDetail(input: unknown, field?: string) {
   if (!field || !input || typeof input !== "object" || Array.isArray(input)) {
-    return undefined
+    return
   }
 
   const value = Reflect.get(input, field)
 
   if (typeof value !== "string") {
-    return undefined
+    return
   }
 
   if (!value.trim()) {
-    return undefined
+    return
   }
 
   return value

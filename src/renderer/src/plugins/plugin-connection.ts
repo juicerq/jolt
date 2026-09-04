@@ -23,7 +23,7 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
     async mutationFn(input: PluginConnectInput) {
       setStep(undefined)
       const started = await client.raw.plugins.connect(input)
-      void follow(started.connectionId).catch(() => undefined)
+      void follow(started.connectionId).catch(() => {})
 
       return client.raw.plugins.awaitConnection({ connectionId: started.connectionId })
     },

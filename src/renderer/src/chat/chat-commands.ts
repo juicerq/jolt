@@ -1,13 +1,13 @@
 export type ChatCommandName = "lembrar"
 
-export type ChatCommandSuggestion = {
+export interface ChatCommandSuggestion {
   command: ChatCommandName
   detail: string
 }
 
-export type ChatCommand = { command: "lembrar"; content: string }
+export interface ChatCommand { command: "lembrar"; content: string }
 
-type ChatCommandContext = { memoryEnabled: boolean }
+interface ChatCommandContext { memoryEnabled: boolean }
 
 function availableChatCommands(context: ChatCommandContext): ChatCommandSuggestion[] {
   return context.memoryEnabled ? [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }] : []

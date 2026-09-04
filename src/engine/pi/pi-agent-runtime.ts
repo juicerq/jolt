@@ -21,14 +21,14 @@ export type PiRuntimeEvent =
   | { type: "compaction-finished" }
   | { type: "finished"; reason: "stop" | "aborted" | "error"; error?: string }
 
-export type ToolInputSchema = {
+export interface ToolInputSchema {
   type: "object"
   properties: Record<string, unknown>
   required?: string[]
   additionalProperties?: boolean
 }
 
-export type PiCustomTool = {
+export interface PiCustomTool {
   name: string
   description: string
   label?: string
@@ -36,7 +36,7 @@ export type PiCustomTool = {
   execute(params: Record<string, string>, signal?: AbortSignal): Promise<string>
 }
 
-export type PiSchemaTool = {
+export interface PiSchemaTool {
   name: string
   description: string
   label?: string
@@ -46,13 +46,13 @@ export type PiSchemaTool = {
 
 export type PiTool = PiCustomTool | PiSchemaTool
 
-export type PiPrompt = {
+export interface PiPrompt {
   content: string
   images?: MessageImage[]
   context?: TurnContext
 }
 
-export type PiSession = {
+export interface PiSession {
   sessionFile?: string
   compact(customInstructions?: string): Promise<ConversationCompactionResult>
   prompt(input: PiPrompt): Promise<void>
@@ -67,7 +67,7 @@ export function toolLabels(tools: PiTool[]) {
   return Object.fromEntries(tools.flatMap((tool) => tool.label ? [[tool.name, tool.label]] : []))
 }
 
-export type PiSessionInput = {
+export interface PiSessionInput {
   botId: string
   cwd: string
   tools: string[]
@@ -81,7 +81,7 @@ export type PiSessionInput = {
   ephemeral?: boolean
 }
 
-export type PiSessionFactory = {
+export interface PiSessionFactory {
   open(input: PiSessionInput): Promise<PiSession>
 }
 

@@ -1,6 +1,6 @@
 type ChunkKind = "text" | "thinking"
 
-type Pending = { kind: ChunkKind; content: string; timer: ReturnType<typeof setTimeout> }
+interface Pending { kind: ChunkKind; content: string; timer: ReturnType<typeof setTimeout> }
 
 export function createChatStreamBuffer({ delayMs, flush }: { delayMs: number; flush(botId: string, kind: ChunkKind, content: string): void }) {
   const pending = new Map<string, Pending>()
@@ -21,7 +21,7 @@ export function createChatStreamBuffer({ delayMs, flush }: { delayMs: number; fl
     push(botId: string, kind: ChunkKind, content: string) {
       const entry = pending.get(botId)
 
-      if (entry && entry.kind === kind) {
+      if (entry?.kind === kind) {
         entry.content += content
         return
       }

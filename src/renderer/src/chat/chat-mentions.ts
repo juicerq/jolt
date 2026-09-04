@@ -2,11 +2,11 @@ import type { Bot } from "../../../shared/bots"
 import type { ProjectGroups } from "../../../shared/projects"
 import { teamLeaders } from "../bots/team"
 
-export type ChatMention = { botId: string; name: string; avatarSeed: string }
+export interface ChatMention { botId: string; name: string; avatarSeed: string }
 
 export type ChatMentionSuggestion = ChatMention & { detail: string }
 
-export type ChatMentionSegment = { text: string; mention?: ChatMention }
+export interface ChatMentionSegment { text: string; mention?: ChatMention }
 
 const mentionWord = /(?:^|\s)@(\S*)$/
 

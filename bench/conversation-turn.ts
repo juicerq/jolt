@@ -10,8 +10,8 @@ function isFinishedTurn(item: Observation) {
   return item.kind === "event" && item.name === "conversation.finished"
 }
 
-type ProfileNode = { id: number; callFrame: { functionName: string } }
-type TraceEvent = { name?: string; pid?: number; args?: { data?: { cpuProfile?: { nodes?: ProfileNode[]; samples?: number[] }; timeDeltas?: number[] } } }
+interface ProfileNode { id: number; callFrame: { functionName: string } }
+interface TraceEvent { name?: string; pid?: number; args?: { data?: { cpuProfile?: { nodes?: ProfileNode[]; samples?: number[] }; timeDeltas?: number[] } } }
 
 function summarize(trace: { traceEvents: TraceEvent[] }) {
   const chunks = trace.traceEvents.filter((event) => event.name === "ProfileChunk")

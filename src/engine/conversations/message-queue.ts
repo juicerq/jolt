@@ -39,7 +39,7 @@ export function createMessageQueue() {
       const message = messages.find((candidate) => candidate.id === id)
 
       if (!message) {
-        return undefined
+        return
       }
 
       const promoted = { ...message, promoted: true }
@@ -53,7 +53,7 @@ export function createMessageQueue() {
       const message = messages.find((candidate) => candidate.id === id)
 
       if (!message) {
-        return undefined
+        return
       }
 
       replace(botId, messages.filter((candidate) => candidate.id !== id))

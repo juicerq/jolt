@@ -36,9 +36,9 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
   }
 }
 
-export type ChatMenuChoice = { key: string; label: string; detail: string; avatar?: string }
+export interface ChatMenuChoice { key: string; label: string; detail: string; avatar?: string }
 
-type ChatCommandMenuProps = {
+interface ChatCommandMenuProps {
   id: string
   label: string
   choices: ChatMenuChoice[]

@@ -1,6 +1,6 @@
 import { evaluate, percentile } from "./browser"
 
-export type Probe = {
+export interface Probe {
   keys: { delay: number; paint: number }[]
   frames: number[]
   longFrames: { duration: number; scriptMs: number; renderMs: number }[]

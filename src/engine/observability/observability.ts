@@ -14,7 +14,7 @@ import {
 } from "../../shared/observability/observation"
 import { parse } from "../../shared/parse"
 
-type EventInput = {
+interface EventInput {
   name: string
   attributes?: Record<string, unknown>
   context?: ObservationContext
@@ -23,27 +23,27 @@ type EventInput = {
 
 type SpanInput = Omit<EventInput, "error">
 
-export type Observability = {
+export interface Observability {
   event(input: EventInput): void
   span<T>(input: SpanInput, operation: () => T): T
   flush(): Promise<void>
 }
 
-export type ObservationDiagnostics = {
+export interface ObservationDiagnostics {
   recent(): Observation[]
   logPath(): string
 }
 
-export type ObservationReceiver = {
+export interface ObservationReceiver {
   span(input: ExternalObservationSpan): void
 }
 
-type ObservationOutput = {
+interface ObservationOutput {
   write(item: Observation): void | Promise<void>
   flush(): Promise<void>
 }
 
-type ObservationSystemOptions = {
+interface ObservationSystemOptions {
   appSessionId: string
   logDirectory: string
   development: boolean
@@ -69,7 +69,7 @@ const allowedAttributeKeys = new Set([
 
 function sanitizeAttributes(input?: Record<string, unknown>) {
   if (!input) {
-    return undefined
+    return
   }
 
   try {
@@ -93,14 +93,14 @@ function sanitizeAttributes(input?: Record<string, unknown>) {
     const candidate = Object.fromEntries(entries)
 
     if (Object.keys(candidate).length === 0) {
-      return undefined
+      return
     }
 
     return parse(observationAttributes, candidate)
   } catch {
     process.stderr.write("Observation attributes could not be sanitized\n")
 
-    return undefined
+    return
   }
 }
 
@@ -320,7 +320,7 @@ export function createObservationSystem(options: ObservationSystemOptions) {
     event,
     span,
     async flush() {
-      await Promise.all([...writes])
+      await Promise.all(writes)
       await Promise.all(outputs.map((output) => output.flush().catch((error) => process.stderr.write(`Observability flush failed: ${normalizeError(error).message}\n`))))
     },
   }

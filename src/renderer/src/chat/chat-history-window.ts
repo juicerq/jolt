@@ -11,7 +11,7 @@ export function historyPageInput(botId: string, before?: string) {
 
 export function olderHistoryPage(page: HistoryPage) {
   if (page.earlier === 0) {
-    return undefined
+    return
   }
 
   return page.messages[0]?.id

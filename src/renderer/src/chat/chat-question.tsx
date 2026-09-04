@@ -6,7 +6,7 @@ import { Button } from "../ui/button"
 import { Select } from "../ui/select"
 import { chatStore } from "./chat-store"
 
-type ChatQuestionProps = {
+interface ChatQuestionProps {
   botId: string
   messageId: string
   question: MessageQuestion

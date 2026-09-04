@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEv
 import { ChatMentionChip } from "./chat-mention-chip"
 import { type ChatMention, splitChatMentions } from "./chat-mentions"
 
-type ChatEditorProps = {
+interface ChatEditorProps {
   id: string
   content: string
   mentions: ChatMention[]

@@ -156,25 +156,25 @@ function terminalMessageReason(reason: string) {
     return "error" as const
   }
 
-  return undefined
+  return
 }
 
 function summarizeToolInput(input: unknown, field?: string) {
   if (!field || !input || typeof input !== "object" || Array.isArray(input)) {
-    return undefined
+    return
   }
 
   const values = input as Record<string, unknown>
   const value = values[field]
 
   if (typeof value !== "string") {
-    return undefined
+    return
   }
 
   const summary = value.replace(/\s+/g, " ").trim()
 
   if (!summary) {
-    return undefined
+    return
   }
 
   return summary.length > 160 ? `${summary.slice(0, 157)}...` : summary
@@ -186,7 +186,7 @@ function summarizeToolError(result: unknown) {
   const summary = text?.text.split(/\n\s*\n/, 1)[0]?.trim() ?? ""
 
   if (!summary) {
-    return undefined
+    return
   }
 
   return summary.length > 300 ? `${summary.slice(0, 297)}...` : summary

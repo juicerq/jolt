@@ -2,7 +2,7 @@ import type { Api, Model } from "@earendil-works/pi-ai"
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent"
 import type { ProviderConnection, ProviderName } from "../../shared/providers"
 
-type PiProvider = { id: string; name: string; defaultModelId: string; connection: ProviderConnection }
+interface PiProvider { id: string; name: string; defaultModelId: string; connection: ProviderConnection }
 
 export const piProviders: Record<ProviderName, PiProvider> = {
   codex: { id: "openai-codex", name: "Codex", defaultModelId: "gpt-5.6-luna", connection: "subscription" },
@@ -11,7 +11,7 @@ export const piProviders: Record<ProviderName, PiProvider> = {
 
 const discoveryTimeoutMs = 15_000
 
-export type PiModels = {
+export interface PiModels {
   available(provider: ProviderName): Promise<readonly Model<Api>[]>
   resolve(provider: ProviderName, modelId: string | null): Promise<{ model: Model<Api>; modelRuntime: ModelRuntime }>
   setKey(provider: ProviderName, key: string): Promise<void>

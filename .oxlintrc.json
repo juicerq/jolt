@@ -1,0 +1,6 @@
+{
+	"extends": ["./node_modules/@juicerq/check/.oxlintrc.json"],
+	"rules": {
+		"unicorn/no-useless-undefined": "off"
+	}
+}

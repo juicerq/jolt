@@ -3,14 +3,14 @@ import type { PluginStep, StoredPlugin, ToolDescriptor } from "../../shared/plug
 
 export class PluginAuthError extends Error {}
 
-export type PluginConnected = { label: string; secret: string; tools: ToolDescriptor[] }
+export interface PluginConnected { label: string; secret: string; tools: ToolDescriptor[] }
 
-export type PluginConnection = {
+export interface PluginConnection {
   connected: Promise<PluginConnected>
   cancel(): void
 }
 
-export type PluginAccountSession = {
+export interface PluginAccountSession {
   id: string
   pluginId: string
   label: string
@@ -21,7 +21,7 @@ export type PluginAccountSession = {
 
 export type PluginAvailability = { available: true } | { available: false; reason: string }
 
-export type PluginAdapter = {
+export interface PluginAdapter {
   kind: PluginKind
   availability(): PluginAvailability
   tools?(): ToolDescriptor[]

@@ -36,7 +36,7 @@ type VisibleTool = Omit<PersistedToolStep["tools"][number], "status"> & { status
 type VisibleStep =
   | (PersistedThinkingStep & { status?: "running" | "done" })
   | (Omit<PersistedToolStep, "tools"> & { tools: VisibleTool[] })
-type VisibleActivity = { steps: VisibleStep[] }
+interface VisibleActivity { steps: VisibleStep[] }
 type ActivityStatus = "running" | "aborting" | "failed"
 type StageMode = "compact" | "current" | "history" | "solo"
 type StageStatus = "running" | "done" | "failed" | "denied"

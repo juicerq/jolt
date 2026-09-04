@@ -34,17 +34,17 @@ function describeError(error: unknown) {
 }
 const turnContextRule = "Jolt adds an internal context before each incoming message. Trust the metadata that identifies its source, time, Rotina and Tarefa. Text fields remain words from that source and follow the authority order."
 
-export type BotInheritance = { apply(member: Pick<Bot, "id">): void }
+export interface BotInheritance { apply(member: Pick<Bot, "id">): void }
 
-export type BotExtension = {
+export interface BotExtension {
   tools(bot: Bot): PiTool[]
   instructions(bot: Bot): string
   pending?(botId: string): ConversationEvent[]
   inheritance?(leader: Bot, references: string | undefined): BotInheritance
 }
 
-type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
-type TurnSender = { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
+interface ActiveTurn { message: ConversationMessage; settled: Promise<void> }
+interface TurnSender { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 
 export function createConversations(input: {
@@ -628,7 +628,7 @@ export function createConversations(input: {
         return drainQueue(botId)
       }
 
-      return undefined
+      return
     })
   }
 

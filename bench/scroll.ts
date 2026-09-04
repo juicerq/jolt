@@ -7,7 +7,7 @@ const bots = ["Leve", "Enorme"]
 const steps = Number(values.steps)
 const px = Number(values.px)
 
-type Viewport = { scrollTop: number; scrollHeight: number }
+interface Viewport { scrollTop: number; scrollHeight: number }
 
 function viewport() {
   return evaluate<Viewport>(`(() => {

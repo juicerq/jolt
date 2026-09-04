@@ -37,7 +37,7 @@ export function createEngineClient(connection: EngineConnection) {
           traceId,
           spanId,
           attributes: { method: request.method, code: String(response.status) },
-        }).catch(() => undefined)
+        }).catch(() => {})
 
         return response
       } catch (error) {
@@ -54,7 +54,7 @@ export function createEngineClient(connection: EngineConnection) {
           spanId,
           attributes: { method: request.method },
           error: { type: "RequestError", message: "Request failed" },
-        }).catch(() => undefined)
+        }).catch(() => {})
 
         throw error
       }

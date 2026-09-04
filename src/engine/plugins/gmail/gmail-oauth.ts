@@ -7,7 +7,7 @@ const closeDelayMs = 50
 
 export const gmailScopes = ["https://www.googleapis.com/auth/gmail.modify"]
 
-export type GmailEndpoints = { authorization: string; token: string; api: string }
+export interface GmailEndpoints { authorization: string; token: string; api: string }
 
 export const googleEndpoints: GmailEndpoints = {
   authorization: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -15,7 +15,7 @@ export const googleEndpoints: GmailEndpoints = {
   api: "https://gmail.googleapis.com/gmail/v1",
 }
 
-export type GmailClient = { id: string; secret?: string }
+export interface GmailClient { id: string; secret?: string }
 
 const tokenResponse = z.looseObject({ access_token: z.string().min(1), refresh_token: z.string().min(1).optional(), expires_in: z.number() })
 const tokenFailure = z.looseObject({ error: z.string().optional(), error_description: z.string().optional() })

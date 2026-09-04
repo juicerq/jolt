@@ -11,11 +11,11 @@ function authFilePath() {
 }
 
 export async function detectOpencodeKey() {
-  const contents = await Bun.file(authFilePath()).json().catch(() => undefined)
+  const contents = await Bun.file(authFilePath()).json().catch(() => {})
   const parsed = opencodeAuthFile.safeParse(contents)
 
   if (!parsed.success) {
-    return undefined
+    return
   }
 
   const credential = parsed.data["opencode-go"] ?? parsed.data.opencode

@@ -10,11 +10,11 @@ type ActivitySummaryStep =
   | Extract<ActivityStep, { type: "thinking" }>
   | (Omit<ActivityToolStep, "tools"> & { tools: ActivityTool[] })
 
-type ActivitySummaryInput = {
+interface ActivitySummaryInput {
   steps: ActivitySummaryStep[]
 }
 
-type ToolGroup = {
+interface ToolGroup {
   name: string
   countTargets?: boolean
   namesTargets?: boolean

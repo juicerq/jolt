@@ -11,7 +11,7 @@ const text = "Preciso revisar o modulo de cobranca antes da reuniao e listar o q
 const streamingBot = "Leve"
 const typingBot = "Média"
 
-type Sample = { typed: number; elapsedMs: number; probe: Probe }
+interface Sample { typed: number; elapsedMs: number; probe: Probe }
 
 function isFinishedTurn(item: Observation) {
   return item.kind === "event" && item.name === "conversation.finished"

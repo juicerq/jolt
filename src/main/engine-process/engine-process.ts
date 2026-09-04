@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process"
 import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "../../shared/engine-ipc"
 import { parse } from "../../shared/parse"
 
-type EngineProcessOptions = {
+interface EngineProcessOptions {
   executable: string
   databasePath: string
   privateBotsDirectory: string
@@ -16,7 +16,7 @@ type EngineProcessOptions = {
   onUnexpectedExit?: (error: Error) => void
 }
 
-type ChildExit = {
+interface ChildExit {
   code: number | null
   signal: NodeJS.Signals | null
 }

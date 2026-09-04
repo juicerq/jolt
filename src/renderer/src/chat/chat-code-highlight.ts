@@ -48,13 +48,13 @@ export function highlightChatCode(content: string, className?: string) {
   const languageAlias = className?.match(/(?:^|\s)language-([^\s]+)/)?.[1]?.toLowerCase()
 
   if (!languageAlias) {
-    return undefined
+    return
   }
 
   const language = languageAliases[languageAlias]
 
   if (!language) {
-    return undefined
+    return
   }
 
   return hljs.highlight(content, { language, ignoreIllegals: true }).value

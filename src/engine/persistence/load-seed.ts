@@ -10,7 +10,7 @@ import { openDatabase } from "./database"
 
 type Random = () => number
 
-type SeedBot = {
+interface SeedBot {
   name: string
   turns: number
   members?: { name: string; turns: number }[]

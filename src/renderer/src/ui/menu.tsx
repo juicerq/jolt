@@ -12,7 +12,7 @@ export function MenuDivider() {
   return <hr className="my-1.5 border-0 border-t border-outline" />
 }
 
-type MenuOptionProps = {
+interface MenuOptionProps {
   label: string
   detail?: string
   icon?: ReactNode

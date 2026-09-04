@@ -12,7 +12,7 @@ import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 import type { PermissionDecisionInput } from "../../shared/permissions"
 
-type EngineContext = { traceId?: string; spanId?: string }
+interface EngineContext { traceId?: string; spanId?: string }
 
 function surfaced(error: unknown) {
   if (error instanceof ORPCError) {

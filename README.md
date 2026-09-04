@@ -4,8 +4,7 @@
 
 ```sh
 bun install --frozen-lockfile
-bun run test
-bun run typecheck
+bun run check
 bun run build:engine
 bun run build:electron
 ```

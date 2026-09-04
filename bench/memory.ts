@@ -11,7 +11,7 @@ const route = ["Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Leve
 const heapUsage = z.object({ usedSize: z.number(), totalSize: z.number() })
 const domCounters = z.object({ documents: z.number(), nodes: z.number(), jsEventListeners: z.number() })
 
-type Sample = { round: number; heapMb: number; nodes: number; listeners: number; rendererMb: number; gpuMb: number; mainMb: number; engineMb: number }
+interface Sample { round: number; heapMb: number; nodes: number; listeners: number; rendererMb: number; gpuMb: number; mainMb: number; engineMb: number }
 
 function isFinishedTurn(item: Observation) {
   return item.kind === "event" && item.name === "conversation.finished"
@@ -27,7 +27,7 @@ function processTree() {
 
     return { pid: Number(pid), ppid: Number(ppid), rssMb: Number(rss) / 1024, args: args.join(" ") }
   })
-  const main = rows.find((row) => /electron \.$/.test(row.args) && !rows.some((parent) => parent.pid === row.ppid && /electron \.$/.test(parent.args)))
+  const main = rows.find((row) => row.args.endsWith('electron .') && !rows.some((parent) => parent.pid === row.ppid && parent.args.endsWith('electron .')))
 
   if (!main) {
     throw new Error("Electron is not running")
@@ -44,7 +44,7 @@ function processTree() {
   const total = (matches: (args: string) => boolean) => family.filter((row) => matches(row.args)).reduce((sum, row) => sum + row.rssMb, 0)
 
   return {
-    main: total((args) => /electron \.$/.test(args)),
+    main: total((args) => args.endsWith('electron .')),
     renderer: total((args) => args.includes("--type=renderer")),
     gpu: total((args) => args.includes("--type=gpu-process")),
     engine: total((args) => args.endsWith("jolt-engine")),

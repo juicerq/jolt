@@ -88,7 +88,7 @@ function allowedOrigin(request: Request) {
 
     return url.protocol === "http:" && loopback ? origin : undefined
   } catch {
-    return undefined
+    return
   }
 }
 
@@ -247,7 +247,7 @@ process.send?.({ type: "ready", port: server.port })
 
 if (!loadProvider) {
   setTimeout(() => {
-    deferredPiSessionFactory.warm().catch(() => undefined)
+    deferredPiSessionFactory.warm().catch(() => {})
   }, piWarmDelayMs)
 }
 

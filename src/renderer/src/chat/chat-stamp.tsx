@@ -10,7 +10,7 @@ const anchorClassNames = {
   bubble: { stamp: "bottom-3", time: bodyLineClassName },
 }
 
-type StampProps = { name: string; time: string; side?: keyof typeof sideClassNames; anchor?: keyof typeof anchorClassNames }
+interface StampProps { name: string; time: string; side?: keyof typeof sideClassNames; anchor?: keyof typeof anchorClassNames }
 
 export function ChatStamp({ name, time, side = "right", anchor = "chip" }: StampProps) {
   return (

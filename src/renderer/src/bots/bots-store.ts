@@ -9,12 +9,12 @@ export type BotRoute =
   | { name: "memory" }
   | { name: "routine"; id: "new" | string }
 
-export type BotDraft = {
+export interface BotDraft {
   avatarSeed: string | null
   name: string
 }
 
-type BotsState = {
+interface BotsState {
   selectedBotId: string | null
   botRoute: BotRoute
   draft: BotDraft | null
