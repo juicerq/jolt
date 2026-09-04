@@ -16,6 +16,7 @@ type ChatActivityStep =
   | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 
 export interface ChatRun {
+  messageId: string
   message: IncomingMessage
   completedMessages: ConversationMessage[]
   responseContent: string
@@ -72,13 +73,13 @@ export function removeChatDraftImage(botId: string, index: number) {
   updateDraft(botId, (draft) => ({ ...draft, images: draft.images.filter((_, position) => position !== index) }))
 }
 
-export function startChatRun(botId: string, message: IncomingMessage) {
+export function startChatRun(botId: string, message: IncomingMessage, messageId: string) {
   chatStore.setState((state) => ({
     ...state,
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], pluginSteps: {}, waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
+      [botId]: { messageId, message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], pluginSteps: {}, waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))

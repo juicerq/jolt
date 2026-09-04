@@ -10,7 +10,7 @@ type ActiveStep =
   | (ThinkingStep & { startedAt?: number })
   | (Omit<ToolStep, "tools"> & { tools: ActiveTool[] })
 
-export function createConversationActivityRecorder(message: IncomingMessage) {
+export function createConversationActivityRecorder(messageId: string, message: IncomingMessage) {
   let thinkingStartedAt: number | undefined
   let steps: ActiveStep[] = []
 
@@ -20,7 +20,7 @@ export function createConversationActivityRecorder(message: IncomingMessage) {
         thinkingStartedAt = undefined
         steps = []
 
-        return { type: "started", message }
+        return { type: "started", messageId, message }
       }
 
       if (runtimeEvent.type === "thinking-started") {

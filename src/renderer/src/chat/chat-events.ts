@@ -51,7 +51,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     chunks.drain(botId)
 
     if (event.type === "started") {
-      startChatRun(botId, event.message)
+      startChatRun(botId, event.message, event.messageId)
       void invalidateTeam().catch(() => {})
       return
     }

@@ -434,7 +434,7 @@ export function createConversations(input: {
     let responseBytes = 0
     let terminalMessageFinished = false
     let pendingText = ""
-    const activity = createConversationActivityRecorder(incoming(turn.message))
+    const activity = createConversationActivityRecorder(turn.message.id, incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
@@ -624,7 +624,7 @@ export function createConversations(input: {
     },
     events(): AsyncIterable<BotConversationEvent> {
       const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
-        { botId, event: { type: "started", message: incoming(turn.message) } },
+        { botId, event: { type: "started", messageId: turn.message.id, message: incoming(turn.message) } },
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
         ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])
