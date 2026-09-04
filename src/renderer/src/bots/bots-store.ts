@@ -9,6 +9,7 @@ export type BotRoute =
   | { name: "triggers" }
   | { name: "memory" }
   | { name: "routine"; id: string }
+  | { name: "trigger"; id: string }
 
 export interface BotDraft {
   avatarSeed: string | null

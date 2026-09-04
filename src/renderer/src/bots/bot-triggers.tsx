@@ -1,4 +1,4 @@
-import { BoltIcon, PauseIcon, PlayIcon, TrashIcon } from "@heroicons/react/24/outline"
+import { BoltIcon, PauseIcon, PencilIcon, PlayIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import type { Bot } from "@src/shared/bots"
@@ -11,23 +11,16 @@ import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
 
-const eventLabels: Record<Trigger["event"], string> = {
-  issues: "Issue",
-  issue_comment: "Comentário em issue ou PR",
-  pull_request: "Pull request",
-  pull_request_review: "Revisão de pull request",
-  pull_request_review_comment: "Comentário em revisão",
-  check_run: "Check",
-}
+import { triggerActionLabels, triggerEvents } from "./trigger-options"
 
 function describe(trigger: Trigger) {
-  const event = `${eventLabels[trigger.event]} · ${trigger.actions.join(", ")}`
+  const event = `${triggerEvents.find((option) => option.value === trigger.event)?.label} · ${trigger.actions.map((action) => triggerActionLabels[action] ?? action).join(", ")}`
   const repositories = trigger.repositories.map((repository) => repository.fullName).join(", ")
 
   return `${event} em ${repositories}`
 }
 
-export function BotTriggers({ bot, client, onClose }: { bot: Bot; client: EngineClient; onClose: () => void }) {
+export function BotTriggers({ bot, client, onClose, onEdit }: { bot: Bot; client: EngineClient; onClose: () => void; onEdit: (id: string) => void }) {
   const queryClient = useQueryClient()
   const [removingTrigger, setRemovingTrigger] = useState<Trigger>()
   const listOptions = client.query.triggers.list.queryOptions({ input: { botId: bot.id } })
@@ -63,6 +56,7 @@ export function BotTriggers({ bot, client, onClose }: { bot: Bot; client: Engine
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <IconButton iconSize={14} size={28} type="button" disabled={busy} label={trigger.status === "active" ? "Pausar Gatilho" : "Ativar Gatilho"} onClick={() => toggle(trigger)}>{trigger.status === "active" ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>
+                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Editar Gatilho" onClick={() => onEdit(trigger.id)}><PencilIcon aria-hidden="true" /></IconButton>
                   <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Remover Gatilho" onClick={() => setRemovingTrigger(trigger)}><TrashIcon aria-hidden="true" /></IconButton>
                 </div>
               </li>
