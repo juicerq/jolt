@@ -2,6 +2,9 @@
   "name": "jolt",
   "version": "0.0.0",
   "private": true,
+  "description": "Times de Bots que trabalham no seu computador",
+  "author": "Jolt",
+  "desktopName": "jolt.desktop",
   "packageManager": "bun@1.4.0",
   "type": "module",
   "main": "out/main/index.js",
@@ -25,7 +28,8 @@
     "typecheck": "tsc --noEmit",
     "build:engine": "bun build --compile --outfile dist-engine/jolt-engine src/engine/index.ts",
     "build:electron": "electron-vite build",
-    "build": "bun run build:engine && bun run build:electron"
+    "build": "bun run build:engine && bun run build:electron",
+    "package:linux": "bun run build && electron-builder --linux"
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",
@@ -63,6 +67,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "drizzle-kit": "1.0.0-rc.4",
     "electron": "44.0.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "5.0.0",
     "tailwindcss": "^4",
     "typescript": "7.0.2",

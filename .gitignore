@@ -12,3 +12,4 @@ logs/
 .DS_Store
 .jolt-load/
 .env
+release/

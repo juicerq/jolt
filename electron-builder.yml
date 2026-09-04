@@ -1,0 +1,21 @@
+appId: com.jolt.app
+productName: Jolt
+directories:
+  output: release
+files:
+  - out/**
+  - resources/icon.png
+  - package.json
+  - "!node_modules/**"
+  - node_modules/zod/**
+extraResources:
+  - from: dist-engine/jolt-engine
+    to: engine/jolt-engine
+npmRebuild: false
+linux:
+  target: AppImage
+  executableName: jolt
+  category: Development
+  synopsis: Times de Bots que trabalham no seu computador
+  syncDesktopName: true
+  icon: resources/icon.png
