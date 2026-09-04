@@ -479,7 +479,6 @@ export function createConversations(input: {
     let finished = false
     let responseBytes = 0
     let terminalMessageFinished = false
-    let spokeInMessage = false
     let pendingText = ""
     const activity = createConversationActivityRecorder(incoming(turn.message))
     let eventCount = 0
@@ -488,15 +487,14 @@ export function createConversations(input: {
     senders.set(botId, { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming })
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
+      if (runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") {
+        pendingText = ""
+      }
+
       if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === sendMessageTool) {
-        spokeInMessage = true
         eventCount++
 
         return
-      }
-
-      if (runtimeEvent.type === "tool-started") {
-        pendingText = ""
       }
 
       let deliveredEvent = activity.record(runtimeEvent)
@@ -522,7 +520,6 @@ export function createConversations(input: {
         const error = runtimeEvent.type === "message-finished" ? runtimeEvent.error : undefined
 
         speakPending()
-        spokeInMessage = false
 
         if (ending) {
           publishMessage("", ending, error)
@@ -579,12 +576,9 @@ export function createConversations(input: {
 
       pendingText = ""
 
-      if (spokeInMessage || !content) {
-        return
+      if (content) {
+        publishMessage(content, null)
       }
-
-      spokeInMessage = true
-      publishMessage(content, null)
     }
 
     function publishIncoming(incoming: IncomingMessage) {
