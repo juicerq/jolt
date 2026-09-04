@@ -56,7 +56,7 @@ void app.whenReady().then(async () => {
   ipcMain.handle("engine:get-connection", () => starting)
 
   const window = new BrowserWindow({
-    width: 1100,
+    width: 960,
     height: 760,
     frame: false,
     icon,
