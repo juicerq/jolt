@@ -105,6 +105,7 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
             }
           }
         },
+        async steer() {},
         async abort() {
           aborted = true
 

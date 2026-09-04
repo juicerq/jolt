@@ -14,6 +14,7 @@ import {
   resolveChatPermission,
   resolveChatPlugin,
   setChatCompacting,
+  setChatQueue,
   settleChatRun,
   startChatRun,
   startChatThinking,
@@ -101,6 +102,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     if (event.type === "plugin-resolved") {
       resolveChatPlugin(botId, event.requestId)
       void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() }).catch(() => undefined)
+      return
+    }
+
+    if (event.type === "queue-changed") {
+      setChatQueue(botId, event.queued)
       return
     }
 

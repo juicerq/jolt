@@ -47,6 +47,8 @@ export const engineContract = {
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     compact: oc.input(conversationSchemas.compactInput).output(conversationSchemas.compactionResult).route({ method: "POST", path: "/bots/{botId}/compact" }),
     abort: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
+    promote: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/promote" }),
+    unqueue: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/remove" }),
     related: oc.input(conversationSchemas.taskInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/tasks/{taskId}/messages" }),
   },
   permissions: {

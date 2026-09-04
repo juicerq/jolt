@@ -55,6 +55,7 @@ export type PiSession = {
   sessionFile?: string
   compact(customInstructions?: string): Promise<ConversationCompactionResult>
   prompt(input: PiPrompt): Promise<void>
+  steer(input: Pick<PiPrompt, "content" | "images">): Promise<void>
   abort(): Promise<void>
   addTools?(tools: PiTool[]): void
   subscribe(listener: (event: PiRuntimeEvent) => void): () => void
@@ -214,6 +215,15 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       }
 
       return observability.span({ name: "pi.turn", context: { botId, provider: "codex" } }, () => entry.session.prompt(prompt))
+    },
+    async steer(botId: string, input: Pick<PiPrompt, "content" | "images">) {
+      const entry = sessions.get(botId)
+
+      if (!entry) {
+        throw new Error("Pi session not found")
+      }
+
+      return observability.span({ name: "pi.steer", context: { botId, provider: "codex" } }, () => entry.session.steer(input))
     },
     async compact(botId: string, customInstructions?: string) {
       const entry = sessions.get(botId)

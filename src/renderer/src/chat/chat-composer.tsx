@@ -7,6 +7,8 @@ import type { MessageImage } from "../../../shared/conversations"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
+
+export const promptWidthClassName = "mx-auto w-[min(680px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
@@ -20,7 +22,7 @@ type ChatComposerProps = {
   bot: Bot
   client: EngineClient
   onAbort(): void
-  onSend(draft: ChatDraft): void
+  onSend(draft: ChatDraft, deliver: "queue" | "now"): void
 }
 
 export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps) {
@@ -33,13 +35,17 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, compacted, compacting } = useChatCommands(bot, client, draft)
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
-  const choices: ChatMenuChoice[] = suggestions.length > 0
-    ? suggestions.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
+  const commands = run ? [] : suggestions
+  const choices: ChatMenuChoice[] = commands.length > 0
+    ? commands.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
     : mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
-  const menuOpen = choices.length > 0 && draft.content !== dismissedContent && !run
+  const menuOpen = choices.length > 0 && draft.content !== dismissedContent
   const active = Math.min(highlighted, choices.length - 1)
   const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
-  const busy = !!run || commandPending
+  const commandBlocked = !!draft.command && !!run
+  const busy = commandPending
+  const settingsDisabled = !!run || commandPending
+  const statusVisible = compacting || !!compacted || !!commandError
   const aborting = run?.status === "aborting"
 
   async function attachFiles(files: Iterable<File>) {
@@ -52,8 +58,8 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     addChatDraftImages(bot.id, images)
   }
 
-  async function handleSend() {
-    if (empty || busy) {
+  async function handleSend(immediate: boolean) {
+    if (empty || busy || commandBlocked) {
       return
     }
 
@@ -67,12 +73,12 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       return
     }
 
-    onSend(draft)
+    onSend(draft, immediate ? "now" : "queue")
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    void handleSend()
+    void handleSend(false)
   }
 
   function handleChange(content: string) {
@@ -91,7 +97,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   }
 
   function pickChoice(index: number) {
-    const suggestion = suggestions[index]
+    const suggestion = commands[index]
 
     if (suggestion) {
       setChatDraftCommand(bot.id, suggestion.command, "")
@@ -157,7 +163,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     }
 
     event.preventDefault()
-    void handleSend()
+    void handleSend(event.ctrlKey || event.metaKey)
   }
 
   function handleDragOver(event: DragEvent<HTMLFormElement>) {
@@ -181,13 +187,13 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   return (
     <form
-      className="relative mx-auto grid w-[min(680px,calc(100%-48px))] box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted max-[700px]:w-[calc(100%-28px)]"
+      className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {menuOpen && <ChatCommandMenu id={menuId} label={suggestions.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
-      {!menuOpen && (compacting || compacted || commandError) && <ChatCommandStatus compacting={compacting} compacted={compacted} error={commandError} />}
+      {menuOpen && <ChatCommandMenu id={menuId} label={commands.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
+      {!menuOpen && statusVisible && <ChatCommandStatus compacting={compacting} compacted={compacted} error={commandError} />}
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
@@ -207,22 +213,31 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
-      <ChatModelEffort bot={bot} client={client} disabled={busy} />
-      <ChatPermission bot={bot} client={client} disabled={busy} />
-      {run
-        ? <IconButton className="col-start-5" iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="col-start-5 active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="submit" disabled={empty || commandPending} label={sendLabel(command, commandPending)} tooltipPlacement="top"><ArrowUpIcon aria-hidden="true" /></IconButton>}
+      <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
+      <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
+      <div className="col-start-5 flex items-center gap-2">
+        {run && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={aborting ? "Interrompendo resposta" : "Interromper resposta"} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>}
+        <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || commandPending || commandBlocked} label={sendLabel({ command, pending: commandPending, working: !!run, blocked: commandBlocked })} tooltipPlacement="top" onClick={(event) => void handleSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>
+      </div>
     </form>
   )
 }
 
-function sendLabel(command: ChatCommand | null, pending: boolean) {
+function sendLabel({ command, pending, working, blocked }: { command: ChatCommand | null; pending: boolean; working: boolean; blocked: boolean }) {
   if (pending) {
     return "Executando Comando"
   }
 
+  if (blocked) {
+    return "Remova o Comando para falar enquanto o Bot trabalha"
+  }
+
   if (command) {
     return `Executar o Comando ${command.command}`
+  }
+
+  if (working) {
+    return "Enfileirar mensagem · Ctrl+Enter adianta"
   }
 
   return "Enviar mensagem"

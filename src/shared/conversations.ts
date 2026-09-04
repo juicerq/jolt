@@ -21,6 +21,13 @@ const messageQuestion = z.strictObject({
   allowOther: z.boolean(),
 })
 const messageReply = z.strictObject({ messageId: id, optionValue: id.max(100) })
+const queuedMessage = z.strictObject({
+  id,
+  content: z.string(),
+  images: z.array(messageImage),
+  promoted: z.boolean(),
+  createdAt: id,
+})
 const conversationTool = z.strictObject({
   callId: id,
   name: id,
@@ -89,6 +96,7 @@ const pluginRequestedEvent = z.strictObject({ type: z.literal("plugin-requested"
 const pluginResolvedEvent = z.strictObject({ type: z.literal("plugin-resolved"), requestId: id })
 const compactionStartedEvent = z.strictObject({ type: z.literal("compaction-started"), reason: z.enum(["manual", "threshold", "overflow"]) })
 const compactionFinishedEvent = z.strictObject({ type: z.literal("compaction-finished") })
+const queueChangedEvent = z.strictObject({ type: z.literal("queue-changed"), queued: z.array(queuedMessage) })
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
   startedEvent,
@@ -105,6 +113,7 @@ const event = z.discriminatedUnion("type", [
   pluginResolvedEvent,
   compactionStartedEvent,
   compactionFinishedEvent,
+  queueChangedEvent,
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })
@@ -120,7 +129,9 @@ export const conversationSchemas = {
   compactionResult,
   historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
   history,
-  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), replyTo: messageReply.nullable().default(null), mentionedBotIds: z.array(id).default([]) }),
+  sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), replyTo: messageReply.nullable().default(null), mentionedBotIds: z.array(id).default([]), deliver: z.enum(["queue", "now"]).default("queue") }),
+  queueInput: z.strictObject({ botId: id, id }),
+  queuedMessage,
   messageToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
@@ -133,6 +144,7 @@ export type ConversationMessage = z.infer<typeof message>
 export type MessageImage = z.infer<typeof messageImage>
 export type MessageQuestion = z.infer<typeof messageQuestion>
 export type MessageReply = z.infer<typeof messageReply>
+export type QueuedMessage = z.infer<typeof queuedMessage>
 export type TurnEnding = z.infer<typeof turnEnding>
 export type ConversationEvent = z.infer<typeof event>
 export type FinishReason = z.infer<typeof finishedEvent>["reason"]

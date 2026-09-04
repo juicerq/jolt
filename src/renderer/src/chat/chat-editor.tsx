@@ -90,14 +90,10 @@ export function ChatEditor({ id, content, mentions, placeholder, label, disabled
   const typed = useRef(content)
   const [revision, setRevision] = useState(0)
 
-  useEffect(() => {
-    if (content === typed.current) {
-      return
-    }
-
+  if (content !== typed.current) {
     typed.current = content
     setRevision((current) => current + 1)
-  }, [content])
+  }
 
   useEffect(() => {
     const node = ref.current

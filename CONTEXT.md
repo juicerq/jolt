@@ -36,6 +36,14 @@ _Evitar_: Objeto Time, grupo obrigatório
 Um Bot sem Líder que outro Bot pode chamar por uma Tarefa. A ligação vale numa direção só e não cria hierarquia: o Colega mantém Função, Memória, Permissão e Acessos próprios.
 _Evitar_: Contato, Integrante, parceiro
 
+**Fila**:
+As mensagens que a pessoa escreveu enquanto o Bot trabalha e que aguardam a vez. Elas ficam no Engine, na ordem em que foram escritas, e entram no Turno seguinte quando o atual termina por conta própria. Interromper ou uma falha preservam a Fila.
+_Evitar_: Buffer, rascunho, pendências
+
+**Adiantar**:
+Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre uma ferramenta e a próxima decisão, sem perder o trabalho já feito. Difere de Interromper, que encerra o Turno.
+_Evitar_: Steer, forçar, priorizar
+
 **Projeto**:
 Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trabalho padrão. Todo Projeto possui uma Pasta de trabalho, mas um Bot pode substituí-la. Um Líder e seus Integrantes permanecem no mesmo Projeto; mover o Líder move o Time inteiro.
 _Evitar_: Time, codebase, pasta de Bots

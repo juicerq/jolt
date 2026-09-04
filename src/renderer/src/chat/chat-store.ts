@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store"
-import type { ConversationActivity, ConversationMessage, IncomingMessage } from "../../../shared/conversations"
+import type { ConversationActivity, ConversationMessage, IncomingMessage, QueuedMessage } from "../../../shared/conversations"
 import type { PermissionRequest } from "../../../shared/permissions"
 import type { PluginRequest } from "../../../shared/plugins"
 import type { ChatCommandName } from "./chat-commands"
@@ -34,13 +34,18 @@ type ChatState = {
   drafts: Record<string, ChatDraft>
   runs: Record<string, ChatRun | undefined>
   statuses: Record<string, ChatStatus | undefined>
+  queued: Record<string, QueuedMessage[] | undefined>
 }
 
 export type ChatStatus = "available" | "working" | "awaiting-decision" | "awaiting-response" | "waiting" | "completed" | "error"
 
 export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: [] }
 
-export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {} })
+export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {}, queued: {} })
+
+export function setChatQueue(botId: string, queued: QueuedMessage[]) {
+  chatStore.setState((state) => ({ ...state, queued: { ...state.queued, [botId]: queued.length > 0 ? queued : undefined } }))
+}
 
 export function setChatDraftContent(botId: string, content: string) {
   updateDraft(botId, (draft) => ({ ...draft, content }))
@@ -64,6 +69,7 @@ export function removeChatDraftImage(botId: string, index: number) {
 
 export function startChatRun(botId: string, message: IncomingMessage) {
   chatStore.setState((state) => ({
+    ...state,
     drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
@@ -71,6 +77,10 @@ export function startChatRun(botId: string, message: IncomingMessage) {
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
+}
+
+export function setChatDraft(botId: string, draft: ChatDraft) {
+  updateDraft(botId, () => draft)
 }
 
 export function appendChatText(botId: string, text: string) {

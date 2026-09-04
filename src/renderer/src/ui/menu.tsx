@@ -1,6 +1,8 @@
 import type { MouseEvent, ReactNode } from "react"
 
-export const menuCardClassName = "m-0 w-max min-w-52 rounded-xl border border-outline bg-surface-raised p-1.5 text-primary shadow-[0_2px_6px_rgb(0_0_0/28%),0_12px_32px_rgb(0_0_0/32%)]"
+export const menuSurfaceClassName = "m-0 rounded-xl border border-outline bg-surface-raised p-1.5 text-primary shadow-[0_2px_6px_rgb(0_0_0/28%),0_12px_32px_rgb(0_0_0/32%)]"
+
+export const menuCardClassName = `${menuSurfaceClassName} w-max min-w-52`
 
 export function MenuLabel({ id, children }: { id?: string; children: ReactNode }) {
   return <p className="m-0 px-2 pt-1 pb-1 text-metadata font-medium text-muted" id={id}>{children}</p>

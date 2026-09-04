@@ -275,6 +275,9 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
 
           return result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) })
         },
+        async steer({ content, images = [] }) {
+          return result.session.steer(content, images.map((image) => ({ type: "image", ...image })))
+        },
         abort() {
           normalizer.abort()
 

@@ -12,12 +12,15 @@ import {
   type ChatDraft,
   chatStore,
   dismissChatRun,
+  emptyChatDraft,
   failChatRun,
   markChatAborting,
+  setChatDraft,
   startChatRun,
   type ChatRun as ChatRunState,
 } from "./chat-store"
 import { ChatComposer } from "./chat-composer"
+import { ChatQueue } from "./chat-queue"
 import { messageImageSource } from "./chat-images"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
@@ -72,8 +75,22 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
     })
   }
 
-  async function handleSend(draft: ChatDraft) {
-    await sendPersonInput({ content: draft.content.trim(), images: draft.images, replyTo: null }, draft.mentions)
+  async function handleSend(draft: ChatDraft, deliver: "queue" | "now") {
+    const message = { content: draft.content.trim(), images: draft.images, replyTo: null }
+
+    if (!chatStore.state.runs[bot.id]) {
+      await sendPersonInput(message, draft.mentions)
+
+      return
+    }
+
+    setChatDraft(bot.id, emptyChatDraft)
+
+    await client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, draft.mentions), deliver })
+      .catch((sendError: unknown) => {
+        setChatDraft(bot.id, draft)
+        console.error("A mensagem voltou para o campo: o Engine não a aceitou", sendError)
+      })
   }
 
   async function handleQuestionAnswer(messageId: string, optionValue: string) {
@@ -103,7 +120,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
 
   return (
     <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
-      <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
+      <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <><ChatQueue bot={bot} client={client} /><ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} /></>} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {isFetchingNextPage && <ChatEarlierLoading />}

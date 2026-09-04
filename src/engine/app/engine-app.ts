@@ -183,6 +183,18 @@ export function createEngineRouter(
           () => conversations.abort(input),
         ),
       ),
+      promote: operations.conversations.promote.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationpromote", context: observationContext(context) },
+          () => conversations.promote(input),
+        ),
+      ),
+      unqueue: operations.conversations.unqueue.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.conversationunqueue", context: observationContext(context) },
+          () => conversations.unqueue(input),
+        ),
+      ),
       related: operations.conversations.related.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.conversationrelated", context: observationContext(context) },

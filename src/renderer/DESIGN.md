@@ -509,6 +509,24 @@ clears the prompt. Clicking the chip or pressing Backspace with the caret at
 the start of the text removes it and keeps what was typed. Send stays disabled
 while the Comando lacks what it needs, such as `lembrar` before any text.
 
+While the Bot responds, the field stays editable and the stop action sits at
+the left of the send action, outlined in error ink. Enter puts the draft in the
+Fila. Ctrl+Enter, or Ctrl with a click on send, adianta the draft: it reaches
+the Bot in the current Turn without stopping the work.
+
+The Fila is a raised 12px card that sits above the prompt in the flow, at the
+prompt's width, so the conversation and the return-to-end button move up with
+it. A short label in metadata type counts the
+messages. Each message is a full-width row in control type: an optional photo
+icon with the image count in muted metadata, the text truncated to one line in
+secondary ink, and two ghost actions at the right that appear on hover or
+keyboard focus, `Enviar agora` and `Remover da fila`. A row with no text reads
+`Sem texto` in muted ink. A row being adiantada replaces `Enviar agora` with
+`Adiantando…` in muted metadata. When the Bot awaits a decision, a muted line
+closes the card: `A entrega espera a sua decisão acima.` The Comando menu and
+the Comando status card float over the Fila, because they belong to the draft
+and the Fila belongs to what was already sent.
+
 **Dialog.** A fixed header names the task and offers one ghost close action. A
 thin progress indicator appears only for a real multi-step flow. The body groups
 fields by the decision they ask the user to make. The footer places back or

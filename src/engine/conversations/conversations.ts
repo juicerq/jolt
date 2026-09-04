@@ -6,12 +6,13 @@ import { toolsForPermissionMode } from "../pi/pi-permissions"
 import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "../../shared/routines"
-import { conversationSchemas, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type TurnContext, type TurnEnding } from "../../shared/conversations"
+import { conversationSchemas, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type QueuedMessage, type TurnContext, type TurnEnding } from "../../shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { voice } from "./voice"
 import { parse } from "../../shared/parse"
 import { createQueue } from "../queue"
+import { createMessageQueue } from "./message-queue"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const workingDirectoryTools = "read, grep, find, ls, bash, edit and write act in this directory. Files you write go there. Mailboxes and other external data come through Plugins."
@@ -43,6 +44,7 @@ export type BotExtension = {
 }
 
 type ActiveTurn = { message: ConversationMessage; settled: Promise<void> }
+type TurnSender = { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 
 export function createConversations(input: {
@@ -58,7 +60,8 @@ export function createConversations(input: {
   const compactions = new Map<string, Promise<void>>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const waitingOn = new Map<string, string>()
-  const messageSenders = new Map<string, (content: string, question: MessageQuestion | null) => void>()
+  const senders = new Map<string, TurnSender>()
+  const messageQueue = createMessageQueue()
   const delegation = createDelegation({
     bots: input.bots,
     tasks: input.tasks,
@@ -110,17 +113,17 @@ export function createConversations(input: {
       },
       async execute(params: Record<string, unknown>) {
         const { content, question = null } = parse(conversationSchemas.messageToolInput, params)
-        const send = messageSenders.get(botId)
+        const sender = senders.get(botId)
 
         if (question && new Set(question.options.map((option) => option.value)).size !== question.options.length) {
           throw new Error("Question option values must be unique")
         }
 
-        if (!send) {
+        if (!sender) {
           throw new Error("No active conversation turn")
         }
 
-        send(content, question)
+        sender.bot(content, question)
 
         return question
           ? "Question sent. Stop now and wait for the person to answer in a new turn."
@@ -359,6 +362,62 @@ export function createConversations(input: {
     }
   }
 
+  function publishQueue(botId: string) {
+    deliver(botId, { type: "queue-changed", queued: messageQueue.list(botId) })
+  }
+
+  function queuedIncoming(queued: QueuedMessage): IncomingMessage {
+    return { author: "person", authorBotId: null, taskId: null, content: queued.content, images: queued.images, replyTo: null }
+  }
+
+  async function steerQueued(botId: string, sender: TurnSender, queued: QueuedMessage) {
+    await input.runtime.steer(botId, { content: queued.content, images: queued.images }).then(() => {
+      sender.person(queuedIncoming(queued))
+    }).catch((error: unknown) => {
+      messageQueue.restore(botId, queued)
+      input.observability.event({ name: "conversation.steerfailed", context: { botId, provider: "codex" }, error })
+    })
+
+    publishQueue(botId)
+  }
+
+  async function flushQueue(botId: string) {
+    const sender = senders.get(botId)
+
+    if (!sender) {
+      return
+    }
+
+    for (const message of messageQueue.list(botId).filter((queued) => queued.promoted)) {
+      const queued = messageQueue.take(botId, message.id)
+
+      if (queued) {
+        await steerQueued(botId, sender, queued)
+      }
+    }
+  }
+
+  async function drainQueue(botId: string) {
+    const [next] = messageQueue.list(botId)
+
+    if (!next) {
+      return
+    }
+
+    const taken = messageQueue.take(botId, next.id)
+
+    if (!taken) {
+      return
+    }
+
+    publishQueue(botId)
+    await start(botId, queuedIncoming(taken)).catch((error: unknown) => {
+      messageQueue.restore(botId, taken)
+      publishQueue(botId)
+      input.observability.event({ name: "conversation.queuefailed", context: { botId, provider: "codex" }, error })
+    })
+  }
+
   async function* runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; signal?: AbortSignal }): AsyncGenerator<ConversationEvent> {
     const turn = await claim(botId, message, options?.signal)
     let context: TurnContext
@@ -392,7 +451,7 @@ export function createConversations(input: {
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
-    messageSenders.set(botId, (content, question) => publishMessage(content, null, undefined, question))
+    senders.set(botId, { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming })
     input.observability.event({ name: "conversation.started", context: { botId, provider: "codex" } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
       if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === sendMessageTool) {
@@ -408,6 +467,9 @@ export function createConversations(input: {
       if (!receivedFirstEvent) {
         receivedFirstEvent = true
         input.observability.event({ name: "conversation.firstevent", context: { botId, provider: "codex" } })
+        void flushQueue(botId).catch((error: unknown) => {
+          input.observability.event({ name: "conversation.steerfailed", context: { botId, provider: "codex" }, error })
+        })
       }
 
       if (deliveredEvent.type === "text") {
@@ -461,9 +523,20 @@ export function createConversations(input: {
         ...(error ? { error } : {}),
       })
       turn.release()
-      messageSenders.delete(botId)
+      senders.delete(botId)
       unsubscribe()
       options?.signal?.removeEventListener("abort", interrupt)
+    }
+
+    function publishIncoming(incoming: IncomingMessage) {
+      const message: ConversationMessage = { id: crypto.randomUUID(), botId, ...incoming, taskId: turn.message.taskId, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
+
+      input.database.conversations.append(message)
+
+      const event: ConversationEvent = { type: "message-finished", message }
+
+      queue.push(event)
+      deliver(botId, event)
     }
 
     function publishMessage(content: string, ending: TurnEnding | null, error?: string, question: MessageQuestion | null = null) {
@@ -512,7 +585,15 @@ export function createConversations(input: {
     const turn = runTurn(botId, message, options)
     await turn.next()
 
-    void Array.fromAsync(turn)
+    void Array.fromAsync(turn).then((events) => {
+      const settled = events.findLast((event): event is Extract<ConversationEvent, { type: "finished" }> => event.type === "finished")
+
+      if (settled?.reason === "stop") {
+        return drainQueue(botId)
+      }
+
+      return undefined
+    })
   }
 
   return {
@@ -540,7 +621,8 @@ export function createConversations(input: {
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
         ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])
-      const queue = createQueue<BotConversationEvent>(initial)
+      const queued = messageQueue.all().map(([botId, messages]): BotConversationEvent => ({ botId, event: { type: "queue-changed", queued: messages } }))
+      const queue = createQueue<BotConversationEvent>([...initial, ...queued])
       streams.add(queue)
 
       return {
@@ -591,7 +673,7 @@ export function createConversations(input: {
       }
     },
     async send(rawInput: unknown) {
-      const { botId, content, images, replyTo, mentionedBotIds } = parse(conversationSchemas.sendInput, rawInput)
+      const { botId, content, images, replyTo, mentionedBotIds, deliver: delivery } = parse(conversationSchemas.sendInput, rawInput)
       const empty = content.length === 0 && images.length === 0 && !replyTo
 
       if (empty) {
@@ -615,7 +697,57 @@ export function createConversations(input: {
         input.bots.addColleague(botId, mentionedBotId)
       }
 
-      await start(botId, { author: "person", authorBotId: null, taskId: null, content: resolvedContent, images, replyTo })
+      const message: IncomingMessage = { author: "person", authorBotId: null, taskId: null, content: resolvedContent, images, replyTo }
+
+      if (!active.has(botId)) {
+        await start(botId, message)
+
+        return
+      }
+
+      const sender = senders.get(botId)
+      const immediate = delivery === "now" || !!replyTo
+
+      if (immediate && sender) {
+        await input.runtime.steer(botId, { content: resolvedContent, images })
+        sender.person(message)
+
+        return
+      }
+
+      const queued = messageQueue.add(botId, { content: resolvedContent, images })
+
+      if (immediate) {
+        messageQueue.promote(botId, queued.id)
+      }
+
+      publishQueue(botId)
+    },
+    async promote(rawInput: unknown) {
+      const { botId, id } = parse(conversationSchemas.queueInput, rawInput)
+
+      if (!messageQueue.promote(botId, id)) {
+        throw new Error("Message is not in the Fila")
+      }
+
+      publishQueue(botId)
+
+      if (!active.has(botId)) {
+        await drainQueue(botId)
+
+        return
+      }
+
+      await flushQueue(botId)
+    },
+    async unqueue(rawInput: unknown) {
+      const { botId, id } = parse(conversationSchemas.queueInput, rawInput)
+
+      if (!messageQueue.take(botId, id)) {
+        throw new Error("Message is not in the Fila")
+      }
+
+      publishQueue(botId)
     },
     async call(routine: RoutineCall) {
       await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, content: routine.content, images: [], replyTo: null }, { routine })
@@ -630,6 +762,7 @@ export function createConversations(input: {
       await input.runtime.abort(botId)
     },
     async close(botId: string) {
+      messageQueue.clear(botId)
       await compactions.get(botId)
       const current = active.get(botId)
 
