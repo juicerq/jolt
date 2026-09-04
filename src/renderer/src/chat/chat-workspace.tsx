@@ -163,6 +163,10 @@ function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, me
   }
 
   if (message.author === "routine") {
+    if (!activityDetailsVisible) {
+      return null
+    }
+
     return <ChatRoutineCall botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
   }
 
@@ -215,7 +219,7 @@ function PersonBubble({ time, content, images, mentions }: { time: string; conte
   )
 }
 
-function ChatRunMessage({ avatarIdentities, bot, names, run, tasks }: { avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
+function ChatRunMessage({ activityDetailsVisible, avatarIdentities, bot, names, run, tasks }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
   if (run.message.author === "person") {
     if (run.message.replyTo) {
       return null
@@ -225,6 +229,10 @@ function ChatRunMessage({ avatarIdentities, bot, names, run, tasks }: { avatarId
   }
 
   if (run.message.author === "routine") {
+    if (!activityDetailsVisible) {
+      return null
+    }
+
     return <ChatRoutineCall botName={bot.name} time="Agora" content={run.message.content} open />
   }
 
@@ -241,7 +249,7 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
 
   return (
     <>
-      <ChatRunMessage avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />
+      <ChatRunMessage activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />
       {run.completedMessages.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
       <article className="flex w-fit max-w-[720px] flex-col gap-3 self-start">
         {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
