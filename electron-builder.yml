@@ -9,8 +9,8 @@ files:
   - "!node_modules/**"
   - node_modules/zod/**
 extraResources:
-  - from: dist-engine/jolt-engine
-    to: engine/jolt-engine
+  - from: dist-engine
+    to: engine
 npmRebuild: false
 linux:
   target: AppImage
@@ -19,3 +19,16 @@ linux:
   synopsis: Times de Bots que trabalham no seu computador
   syncDesktopName: true
   icon: resources/icon.png
+mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+  category: public.app-category.developer-tools
+  icon: resources/icon.png
+  identity: null
+win:
+  target: nsis
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

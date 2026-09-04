@@ -23,9 +23,10 @@ if (!app.isPackaged && existsSync(environmentFile)) {
 }
 
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
+const engineName = process.platform === "win32" ? "jolt-engine.exe" : "jolt-engine"
 const executable = app.isPackaged
-  ? join(process.resourcesPath, "engine", "jolt-engine")
-  : join(app.getAppPath(), "dist-engine", "jolt-engine")
+  ? join(process.resourcesPath, "engine", engineName)
+  : join(app.getAppPath(), "dist-engine", engineName)
 const engine = new EngineProcess({
   executable,
   databasePath: join(app.getPath("userData"), "jolt.sqlite"),

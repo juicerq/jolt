@@ -22,7 +22,7 @@ type ChildExit = {
 }
 
 const readinessTimeoutMs = 10_000
-const inheritedNames = ["PATH", "HOME", "USER", "TMPDIR", "LANG"]
+const inheritedNames = ["PATH", "HOME", "USER", "TMPDIR", "LANG", "SystemRoot", "ComSpec", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "ProgramData", "TEMP", "TMP"]
 
 function inheritedEnvironment() {
   return Object.fromEntries(inheritedNames.flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
