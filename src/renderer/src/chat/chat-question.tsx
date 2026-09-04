@@ -20,7 +20,11 @@ export function ChatQuestion({ botId, messageId, question, answerValue, interact
   const activeAnswerValue = useSelector(chatStore, (state) => {
     const reply = state.runs[botId]?.message.replyTo
 
-    return reply?.messageId === messageId ? reply.optionValue : undefined
+    if (reply?.messageId !== messageId) {
+      return
+    }
+
+    return reply.optionValue
   })
   const [pendingValue, setPendingValue] = useState<string | undefined>()
   const selectedValue = answerValue ?? activeAnswerValue ?? pendingValue

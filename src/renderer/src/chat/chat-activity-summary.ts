@@ -175,7 +175,11 @@ export function formatChatActivitySummary(activity: ActivitySummaryInput) {
 
 export function formatChatActivityStepLabel(step: ActivitySummaryStep) {
   if (step.type === "thinking") {
-    return step.durationMs ? `Pensou por ${formatThinkingDuration(step.durationMs)}` : "Pensou"
+    if (!step.durationMs) {
+      return "Pensou"
+    }
+
+    return `Pensou por ${formatThinkingDuration(step.durationMs)}`
   }
 
   const group = toolGroups.find((candidate) => candidate.name === step.name)
@@ -298,7 +302,11 @@ function countTargets(tools: ActivityTool[]) {
 function formatTargets(tools: ActivityTool[]) {
   const targets = [...new Set(tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
 
-  return targets.length > 0 ? joinClauses(targets) : "um Integrante"
+  if (targets.length === 0) {
+    return "um Integrante"
+  }
+
+  return joinClauses(targets)
 }
 
 function formatCount(count: number, singular: string, plural: string) {
@@ -327,9 +335,17 @@ function formatThinkingDuration(durationMs: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
 
-  return seconds === 0 ? `${minutes}min` : `${minutes}min ${seconds}s`
+  if (seconds === 0) {
+    return `${minutes}min`
+  }
+
+  return `${minutes}min ${seconds}s`
 }
 
 function capitalize(value: string) {
-  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "Atividade"
+  if (!value) {
+    return "Atividade"
+  }
+
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`
 }

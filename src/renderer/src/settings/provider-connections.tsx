@@ -25,14 +25,22 @@ function describeProvider(provider: ProviderAvailability) {
   }
 
   if (provider.status === "available") {
-    return provider.connection === "subscription" ? "Conectado pela sua assinatura" : "Conectado com uma chave de API"
+    if (provider.connection === "subscription") {
+      return "Conectado pela sua assinatura"
+    }
+
+    return "Conectado com uma chave de API"
   }
 
   if (provider.connection === "subscription") {
     return "Entre pelo pi no terminal para usar sua assinatura"
   }
 
-  return provider.detectedKey ? "Achamos uma chave neste computador" : "Não conectado"
+  if (!provider.detectedKey) {
+    return "Não conectado"
+  }
+
+  return "Achamos uma chave neste computador"
 }
 
 export function ProviderConnections({ client }: { client: EngineClient }) {

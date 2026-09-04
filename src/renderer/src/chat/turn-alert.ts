@@ -24,7 +24,11 @@ export async function alertTurnFinished({ bot, reason, response, error }: { bot:
 
 function notificationBody(reason: FinishReason, response: string | undefined, error: string | undefined) {
   if (reason === "error") {
-    return error ? `O turno falhou: ${error}` : "O turno falhou"
+    if (!error) {
+      return "O turno falhou"
+    }
+
+    return `O turno falhou: ${error}`
   }
 
   const text = response ? plainText(response) : ""

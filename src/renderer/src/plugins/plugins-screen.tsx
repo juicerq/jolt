@@ -98,5 +98,13 @@ export function describePlugin(plugin: Pick<Plugin, "kind" | "available" | "unav
     return `Servidor MCP · ${plugin.config?.command ?? ""}`
   }
 
-  return plugin.accounts.length === 0 ? "Nenhuma Conta conectada" : plugin.accounts.length === 1 ? "1 Conta conectada" : `${plugin.accounts.length} Contas conectadas`
+  if (plugin.accounts.length === 0) {
+    return "Nenhuma Conta conectada"
+  }
+
+  if (plugin.accounts.length === 1) {
+    return "1 Conta conectada"
+  }
+
+  return `${plugin.accounts.length} Contas conectadas`
 }

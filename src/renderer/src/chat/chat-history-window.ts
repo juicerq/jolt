@@ -6,7 +6,11 @@ export const earlierPageSize = 200
 export const revealStep = 30
 
 export function historyPageInput(botId: string, before?: string) {
-  return before ? { botId, before, limit: earlierPageSize } : { botId, limit: recentMessageLimit }
+  if (!before) {
+    return { botId, limit: recentMessageLimit }
+  }
+
+  return { botId, before, limit: earlierPageSize }
 }
 
 export function olderHistoryPage(page: HistoryPage) {

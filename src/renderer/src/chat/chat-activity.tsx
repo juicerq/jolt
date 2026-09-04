@@ -199,18 +199,30 @@ function ThinkingTrace({ className = "", content }: { className?: string; conten
 
 function getStepStatus(step: VisibleStep, active: boolean) {
   if (step.type === "thinking") {
-    return active ? step.status ?? "done" : "done"
+    if (!active) {
+      return "done"
+    }
+
+    return step.status ?? "done"
   }
 
   if (step.tools.some((tool) => tool.status === "running")) {
-    return active ? "running" : "failed"
+    if (!active) {
+      return "failed"
+    }
+
+    return "running"
   }
 
   if (step.tools.some((tool) => tool.status === "failed")) {
     return "failed"
   }
 
-  return step.tools.some((tool) => tool.status === "denied") ? "denied" : "done"
+  if (step.tools.some((tool) => tool.status === "denied")) {
+    return "denied"
+  }
+
+  return "done"
 }
 
 function pendingActivityLabel(status?: ActivityStatus, compacting?: boolean) {
@@ -218,7 +230,11 @@ function pendingActivityLabel(status?: ActivityStatus, compacting?: boolean) {
     return "Interrompendo resposta…"
   }
 
-  return compacting ? "Compactando Contexto…" : undefined
+  if (!compacting) {
+    return
+  }
+
+  return "Compactando Contexto…"
 }
 
 function getActivityLabel(activity: VisibleActivity, botName?: string, status?: ActivityStatus, waitingMessage?: string) {

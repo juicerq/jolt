@@ -77,5 +77,9 @@ export function splitChatMentions(content: string, mentions: ChatMention[]): Cha
     index += mention.name.length + 1
   }
 
-  return text ? [...segments, { text }] : segments
+  if (!text) {
+    return segments
+  }
+
+  return [...segments, { text }]
 }

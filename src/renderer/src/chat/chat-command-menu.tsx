@@ -18,7 +18,11 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
   const command = draft.command ? buildChatCommand(draft.command, draft.content, context) : null
 
   function start(content: string) {
-    return draft.command ? null : startedChatCommand(content, context)
+    if (draft.command) {
+      return null
+    }
+
+    return startedChatCommand(content, context)
   }
 
   async function run(target: ChatCommand) {

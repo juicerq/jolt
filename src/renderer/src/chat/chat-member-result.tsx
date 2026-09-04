@@ -7,7 +7,11 @@ import { ChatStamp } from "./chat-stamp"
 type Kind = "result" | "assignment"
 
 export function memberResultKind(botId: string, task: Pick<Task, "assigneeBotId"> | undefined): Kind {
-  return task?.assigneeBotId === botId ? "assignment" : "result"
+  if (task?.assigneeBotId !== botId) {
+    return "result"
+  }
+
+  return "assignment"
 }
 
 const resultLabels: Record<TaskStatus, (name: string) => string> = {

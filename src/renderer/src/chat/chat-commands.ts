@@ -10,7 +10,11 @@ export interface ChatCommand { command: "lembrar"; content: string }
 interface ChatCommandContext { memoryEnabled: boolean }
 
 function availableChatCommands(context: ChatCommandContext): ChatCommandSuggestion[] {
-  return context.memoryEnabled ? [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }] : []
+  if (!context.memoryEnabled) {
+    return []
+  }
+
+  return [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }]
 }
 
 export function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {

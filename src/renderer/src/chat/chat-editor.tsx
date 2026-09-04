@@ -37,7 +37,11 @@ function readNode(node: ChildNode): string {
 
   const inner = [...node.childNodes].map(readNode).join("")
 
-  return node.tagName === "DIV" || node.tagName === "P" ? `\n${inner}` : inner
+  if (node.tagName !== "DIV" && node.tagName !== "P") {
+    return inner
+  }
+
+  return `\n${inner}`
 }
 
 function readEditor(node: HTMLElement) {
