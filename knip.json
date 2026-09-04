@@ -2,5 +2,5 @@
 	"$schema": "https://unpkg.com/knip@5/schema.json",
 	"entry": ["src/engine/index.ts", "bench/*.ts", "scripts/*.ts"],
 	"project": ["src/**/*.{ts,tsx}", "github-relay/**/*.ts", "bench/**/*.ts", "scripts/**/*.ts"],
-	"ignoreDependencies": ["tailwindcss"]
+	"ignoreDependencies": ["tailwindcss", "agent-browser"]
 }

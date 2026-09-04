@@ -1,9 +1,11 @@
+import { browserRequest, browserCancel, type BrowserRequest } from "@src/shared/browser"
 import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcess } from "node:child_process"
 import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
 import { parse } from "@src/shared/parse"
 
 interface EngineProcessOptions {
+  browser?: (request: BrowserRequest, signal: AbortSignal) => Promise<string>
   executable: string
   databasePath: string
   privateBotsDirectory: string
@@ -127,6 +129,48 @@ export class EngineProcess {
       throw error
     })
 
+    const browserActions = new Map<string, AbortController>()
+
+    child.on("message", (raw: unknown) => {
+      const cancellation = browserCancel.safeParse(raw)
+
+      if (cancellation.success) {
+        browserActions.get(cancellation.data.id)?.abort()
+        return
+      }
+
+      const request = browserRequest.safeParse(raw)
+
+      if (!request.success) {
+        return
+      }
+
+      const controller = new AbortController()
+      browserActions.set(request.data.id, controller)
+      const execution = this.options.browser
+        ? this.options.browser(request.data, controller.signal)
+        : Promise.reject(new Error("Browser is unavailable"))
+
+      void execution.then(
+        (result) => ({ type: "browser-reply", id: request.data.id, result, error: false }),
+        (error: unknown) => ({ type: "browser-reply", id: request.data.id, result: error instanceof Error ? error.message : "Browser action failed", error: true }),
+      ).then((reply) => {
+        browserActions.delete(request.data.id)
+
+        if (child.connected) {
+          child.send(reply, (error) => {
+            if (error) {
+              console.error("Browser reply failed", error.message)
+            }
+          })
+        }
+      })
+    })
+    child.once("exit", () => {
+      for (const controller of browserActions.values()) {
+        controller.abort()
+      }
+    })
     this.ready = true
     await this.send(parse(forwardedObservation, {
       type: "span",

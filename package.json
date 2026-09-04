@@ -47,6 +47,7 @@
     "@orpc/tanstack-query": "1.15.0",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-store": "0.11.1",
+    "agent-browser": "0.36.0",
     "baileys": "^7.0.0-rc14",
     "blobatar": "^2.7.0",
     "drizzle-orm": "1.0.0-rc.4",

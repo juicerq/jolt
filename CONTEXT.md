@@ -239,3 +239,11 @@ _Evitar_: Pedido de permissão, autorização, OAuth
 **Pesquisa web**:
 A capacidade de todo Bot de procurar informação na internet e ler uma página, sem Plugin, sem Conta e sem configuração. Não passa por Pedido de permissão, porque só lê. Um Bot com Permissão somente leitura não a tem.
 _Evitar_: Busca, navegação, Plugin de pesquisa
+
+**Navegador do Bot**:
+A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Jolt.
+_Evitar_: Plugin, Pesquisa web
+
+**Assumir o navegador**:
+A pessoa amplia a prévia e passa a usar o site enquanto o Bot espera. Recolher a prévia mantém o controle com a pessoa; Devolver ao Bot permite que ele continue.
+_Evitar_: Interromper, Adiantar

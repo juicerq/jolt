@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client"
 import { App } from "./app"
 import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
+import { browserStore } from "./browser/browser-store"
 import { markUpdateReady } from "./settings/app-update-store"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./styles.css"
@@ -20,6 +21,8 @@ const engineClient = createEngineClient(connection)
 subscribeChatEvents({ client: engineClient, queryClient })
 window.desktop.onTurnNotificationOpened(selectBot)
 window.desktop.onUpdateReady(markUpdateReady)
+window.desktop.onBrowserState((state) => browserStore.setState(() => state))
+void window.desktop.getBrowserState().then((state) => browserStore.setState(() => state))
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>

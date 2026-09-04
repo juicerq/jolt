@@ -8,6 +8,7 @@ import { parse } from "../shared/parse"
 import { turnNotification } from "../shared/turn-notification"
 import { startAppUpdates } from "./app-update"
 import { EngineProcess } from "./engine-process/engine-process"
+import { Browser } from "./browser/browser"
 import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
@@ -29,7 +30,16 @@ const engineName = process.platform === "win32" ? "jolt-engine.exe" : "jolt-engi
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", engineName)
   : join(app.getAppPath(), "dist-engine", engineName)
+let browser: Browser | undefined
+
 const engine = new EngineProcess({
+  browser: (request, signal) => {
+    if (!browser) {
+      return Promise.reject(new Error("Browser is not ready"))
+    }
+
+    return browser.execute(request, signal)
+  },
   executable,
   databasePath: join(app.getPath("userData"), "jolt.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
@@ -46,9 +56,8 @@ const engine = new EngineProcess({
   },
 })
 
-if (!app.isPackaged) {
-  app.commandLine.appendSwitch("remote-debugging-port", "9222")
-}
+app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1")
+app.commandLine.appendSwitch("remote-debugging-port", process.env.JOLT_DEBUG_PORT ?? (app.isPackaged ? "0" : "9222"))
 
 void app.whenReady().then(async () => {
   const starting = engine.start()
@@ -66,6 +75,7 @@ void app.whenReady().then(async () => {
       nodeIntegration: false,
     },
   })
+  browser = new Browser(window)
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
   const notifications = createTurnNotifications({
