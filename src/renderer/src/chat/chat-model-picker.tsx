@@ -75,7 +75,7 @@ export function ChatModelPicker({ bot, client, disabled }: { bot: Bot; client: E
         {currentModel?.name ?? currentModelId ?? "Modelo"}
         <ChevronDownIcon aria-hidden="true" />
       </button>
-      <div className={`${chatControlPopoverClassName} flex w-64 flex-col`} id={popoverId} popover="auto" style={anchor.popover} onToggle={handleToggle}>
+      <div className={`${chatControlPopoverClassName} w-64`} id={popoverId} popover="auto" style={anchor.popover} onToggle={handleToggle}>
         {total > searchThreshold && (
           <input
             ref={searchRef}
@@ -89,7 +89,7 @@ export function ChatModelPicker({ bot, client, disabled }: { bot: Bot; client: E
             onKeyDown={handleSearchKeyDown}
           />
         )}
-        <div className="flex max-h-64 min-h-0 flex-col overflow-y-auto">
+        <div className="max-h-64 overflow-y-auto">
           {groups.length === 0 && <p className="m-0 px-2 py-1.5 text-support text-secondary">{total === 0 ? "Nenhum Fornecedor conectado." : "Nenhum Modelo com esse nome."}</p>}
           {groups.map((group) => (
             <div key={group.provider} role="group" aria-labelledby={`${popoverId}-${group.provider}`}>
