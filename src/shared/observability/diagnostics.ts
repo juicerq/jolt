@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { observation } from "./observation"
 
-export const processState = z.enum(["unknown", "starting", "ready", "stopping", "stopped", "failed"])
+const processState = z.enum(["unknown", "starting", "ready", "stopping", "stopped", "failed"])
 const authenticationState = z.enum(["unknown", "authenticated", "unauthenticated"])
 
 export const diagnosticsReport = z.strictObject({
@@ -40,5 +40,4 @@ export const diagnosticExportResult = z.strictObject({
   path: z.string(),
 })
 
-export type DiagnosticsReport = z.infer<typeof diagnosticsReport>
 export type ProcessState = z.infer<typeof processState>

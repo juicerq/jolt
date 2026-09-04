@@ -20,7 +20,7 @@ const inputs = {
   whatsapp_send: z.object({ chatId: z.string().min(1), text: z.string().min(1) }),
 }
 
-export const whatsappTools: ToolDescriptor[] = [
+const whatsappTools: ToolDescriptor[] = [
   {
     name: "whatsapp_chats",
     label: "Lista de conversas do WhatsApp",

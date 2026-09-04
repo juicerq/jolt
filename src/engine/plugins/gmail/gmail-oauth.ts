@@ -5,7 +5,7 @@ import { PluginAuthError } from "../plugin-adapter"
 
 const closeDelayMs = 50
 
-export const gmailScopes = ["https://www.googleapis.com/auth/gmail.modify"]
+const gmailScopes = ["https://www.googleapis.com/auth/gmail.modify"]
 
 export interface GmailEndpoints { authorization: string; token: string; api: string }
 

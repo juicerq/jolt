@@ -88,7 +88,4 @@ export type PluginAccount = z.infer<typeof account>
 export type Plugin = z.infer<typeof plugin>
 export type PluginSnapshot = z.infer<typeof snapshot>
 export type PluginRequest = z.infer<typeof request>
-export type AddCustomPluginInput = z.infer<typeof pluginSchemas.addCustomInput>
 export type PluginConnectInput = z.infer<typeof pluginSchemas.connectInput>
-export type PluginGrantInput = z.infer<typeof pluginSchemas.grantInput>
-export type PluginDecideInput = z.infer<typeof pluginSchemas.decideInput>

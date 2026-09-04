@@ -16,14 +16,14 @@ import { BotPage, BotPageIdentity } from "./bot-page"
 
 const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", bot: "Aprendeu com outro Bot" }
 
-export function describeOrigin(memory: Pick<Memory, "origin" | "turnAuthor" | "createdAt">) {
+function describeOrigin(memory: Pick<Memory, "origin" | "turnAuthor" | "createdAt">) {
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
   const source = memory.origin === "person" ? "Você adicionou" : learnedFrom[memory.turnAuthor ?? "bot"]
 
   return `${source} · ${date}`
 }
 
-export function MemoryList({ memories, busy, onEdit, onForget }: { memories: Memory[]; busy: boolean; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
+function MemoryList({ memories, busy, onEdit, onForget }: { memories: Memory[]; busy: boolean; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
   if (memories.length === 0) {
     return <p className="m-0 text-support text-muted">Nenhuma Lembrança ainda.</p>
   }

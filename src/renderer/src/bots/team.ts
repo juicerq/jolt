@@ -9,7 +9,7 @@ export function teamLeaders(groups: ProjectGroups | undefined) {
   return [...groups.projects.flatMap((project) => project.bots), ...groups.unassignedBots]
 }
 
-export function teamBots(groups: ProjectGroups | undefined): Bot[] {
+function teamBots(groups: ProjectGroups | undefined): Bot[] {
   return teamLeaders(groups).flatMap((leader) => [leader, ...leader.members])
 }
 

@@ -11,7 +11,7 @@ type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
 type ToolStep = Extract<ConversationStep, { type: "tool" }>
 type ToolActivity = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
 
-export type ChatActivityStep =
+type ChatActivityStep =
   | (ThinkingStep & { status: "running" | "done" })
   | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 

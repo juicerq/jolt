@@ -28,7 +28,7 @@ export const forwardedObservationEvent = z.strictObject({
   context: observationContext.optional(),
 })
 
-export const forwardedObservationSpan = z.strictObject({
+const forwardedObservationSpan = z.strictObject({
   type: z.literal("span"),
   span: externalObservationSpan,
 })

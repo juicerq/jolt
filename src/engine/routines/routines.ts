@@ -22,7 +22,7 @@ function statusFrom(enabled: string | undefined, current: Routine["status"] | un
 const minute = 60_000
 const longestWait = 60 * minute
 
-export function nextCall(frequency: Frequency, from: Date) {
+function nextCall(frequency: Frequency, from: Date) {
   if (frequency.form === "once") {
     const at = new Date(frequency.at)
 

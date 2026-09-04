@@ -5,7 +5,7 @@ import type { Observability } from "@src/engine/observability/observability"
 import { PluginAuthError, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
 import { googleEndpoints, parseCredentials, refreshCredentials, startAuthorization, type GmailClient, type GmailCredentials, type GmailEndpoints } from "./gmail-oauth"
 
-export const gmailSearchConcurrency = 5
+const gmailSearchConcurrency = 5
 const rateLimitRetryDelayMs = 400
 
 const header = z.looseObject({ name: z.string(), value: z.string() })
@@ -44,7 +44,7 @@ const inputs = {
 }
 const threadInput = { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" } }, required: ["threadId"] } satisfies ToolDescriptor["inputSchema"]
 
-export const gmailTools: ToolDescriptor[] = [
+const gmailTools: ToolDescriptor[] = [
   {
     name: "gmail_search",
     label: "Pesquisa no Gmail",

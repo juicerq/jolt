@@ -23,11 +23,11 @@ export interface SettingsDraft { name: string; outcome: string; description: str
 
 const headerLineClassName = `${lineClassName} -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent`
 
-export function draftOf(bot: Bot): SettingsDraft {
+function draftOf(bot: Bot): SettingsDraft {
   return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "" }
 }
 
-export function settingsChange(bot: Bot, draft: SettingsDraft) {
+function settingsChange(bot: Bot, draft: SettingsDraft) {
   const name = draft.name.trim()
   const outcome = draft.outcome.trim()
   const description = draft.description.trim()

@@ -21,7 +21,7 @@ export type PiRuntimeEvent =
   | { type: "compaction-finished" }
   | { type: "finished"; reason: "stop" | "aborted" | "error"; error?: string }
 
-export interface ToolInputSchema {
+interface ToolInputSchema {
   type: "object"
   properties: Record<string, unknown>
   required?: string[]
@@ -63,7 +63,7 @@ export interface PiSession {
   dispose(): void
 }
 
-export function toolLabels(tools: PiTool[]) {
+function toolLabels(tools: PiTool[]) {
   return Object.fromEntries(tools.flatMap((tool) => tool.label ? [[tool.name, tool.label]] : []))
 }
 

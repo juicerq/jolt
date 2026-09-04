@@ -5,7 +5,7 @@ export class PluginAuthError extends Error {}
 
 export interface PluginConnected { label: string; secret: string; tools: ToolDescriptor[] }
 
-export interface PluginConnection {
+interface PluginConnection {
   connected: Promise<PluginConnected>
   cancel: () => void
 }
@@ -19,7 +19,7 @@ export interface PluginAccountSession {
   saveSecret(secret: string): void
 }
 
-export type PluginAvailability = { available: true } | { available: false; reason: string }
+type PluginAvailability = { available: true } | { available: false; reason: string }
 
 export interface PluginAdapter {
   kind: PluginKind

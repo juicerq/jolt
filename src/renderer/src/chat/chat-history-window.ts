@@ -1,8 +1,8 @@
 import type { HistoryPage } from "@src/shared/conversations"
 
 export const initialMessageLimit = 12
-export const recentMessageLimit = 60
-export const earlierPageSize = 200
+const recentMessageLimit = 60
+const earlierPageSize = 200
 export const revealStep = 30
 
 export function historyPageInput(botId: string, before?: string) {

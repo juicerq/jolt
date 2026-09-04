@@ -41,7 +41,7 @@ function writtenText(content: ReturnType<typeof normalizeMessageContent>) {
   return content?.conversation ?? content?.extendedTextMessage?.text ?? content?.imageMessage?.caption ?? content?.videoMessage?.caption ?? content?.documentMessage?.caption
 }
 
-export function textOf(message: WAMessage) {
+function textOf(message: WAMessage) {
   const content = normalizeMessageContent(message.message)
   const written = writtenText(content)
 

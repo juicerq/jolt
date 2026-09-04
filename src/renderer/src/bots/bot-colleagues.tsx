@@ -7,13 +7,13 @@ import { IconButton } from "../ui/icon-button"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { teamLeaders } from "./team"
 
-export function colleaguesOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "colleagueIds">) {
+function colleaguesOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "colleagueIds">) {
   const leaders = teamLeaders(groups)
 
   return bot.colleagueIds.flatMap((colleagueId) => leaders.filter((candidate) => candidate.id === colleagueId))
 }
 
-export function BotColleagueList({ bot, colleagues, busy, onRevoke }: { bot: Pick<Bot, "name">; colleagues: Bot[]; busy: boolean; onRevoke: (colleagueBotId: string) => void }) {
+function BotColleagueList({ bot, colleagues, busy, onRevoke }: { bot: Pick<Bot, "name">; colleagues: Bot[]; busy: boolean; onRevoke: (colleagueBotId: string) => void }) {
   if (colleagues.length === 0) {
     return <p className="m-0 text-support font-normal text-muted">Nenhum Colega. Mencione um Bot com @ na conversa para apresentá-lo a {bot.name}.</p>
   }

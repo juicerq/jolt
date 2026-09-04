@@ -6,11 +6,11 @@ import { PluginAccountRow } from "../plugins/plugin-account-row"
 import { Switch } from "../ui/switch"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 
-export function pluginsWithAccounts(plugins: Plugin[]) {
+function pluginsWithAccounts(plugins: Plugin[]) {
   return plugins.filter((plugin) => plugin.accounts.length > 0)
 }
 
-export function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, "id">; plugins: Plugin[]; busy: boolean; onGrant: (accountId: string, granted: boolean) => void }) {
+function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, "id">; plugins: Plugin[]; busy: boolean; onGrant: (accountId: string, granted: boolean) => void }) {
   const listed = pluginsWithAccounts(plugins)
 
   if (listed.length === 0) {

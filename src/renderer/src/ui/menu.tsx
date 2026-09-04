@@ -8,10 +8,6 @@ export function MenuLabel({ id, children }: { id?: string; children: ReactNode }
   return <p className="m-0 px-2 pt-1 pb-1 text-metadata font-medium text-muted" id={id}>{children}</p>
 }
 
-export function MenuDivider() {
-  return <hr className="my-1.5 border-0 border-t border-outline" />
-}
-
 interface MenuOptionProps {
   label: string
   detail?: string

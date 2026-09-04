@@ -14,7 +14,7 @@ function describeBotUsage(count: number) {
   return `${count} Bots usam`
 }
 
-export function describeAccount(account: Pick<PluginAccount, "state" | "botIds">) {
+function describeAccount(account: Pick<PluginAccount, "state" | "botIds">) {
   const bots = describeBotUsage(account.botIds.length)
 
   return `${accountStateLabels[account.state]} · ${bots}`

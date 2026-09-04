@@ -5,7 +5,7 @@ import { Button } from "../ui/button"
 import { Dialog, DialogActions, DialogBody } from "../ui/dialog"
 import { Field, fieldControlClassName } from "../ui/field"
 
-export function parseEnvironment(text: string) {
+function parseEnvironment(text: string) {
   return Object.fromEntries(text.split("\n").flatMap((line) => {
     const separator = line.indexOf("=")
     const name = line.slice(0, separator).trim()

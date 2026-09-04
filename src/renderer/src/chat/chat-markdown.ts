@@ -26,7 +26,7 @@ function safeUrl(value: string) {
   return ""
 }
 
-export function stableLength(content: string) {
+function stableLength(content: string) {
   let boundary = content.lastIndexOf("\n\n")
 
   while (boundary > 0) {

@@ -31,7 +31,7 @@ export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[])
   return tools.filter((tool) => observationTools.has(tool) || tool === sendMessageTool)
 }
 
-export async function pathIsInside(root: string, path: unknown) {
+async function pathIsInside(root: string, path: unknown) {
   if (typeof path !== "string") {
     return false
   }
@@ -74,7 +74,7 @@ function readDetail(input: unknown, field?: string) {
   return value
 }
 
-export function describeToolCall(id: string, tool: string, input: unknown, label?: string, cwd?: string): PermissionRequest {
+function describeToolCall(id: string, tool: string, input: unknown, label?: string, cwd?: string): PermissionRequest {
   if (label) {
     const values = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {}
 
@@ -87,7 +87,7 @@ export function describeToolCall(id: string, tool: string, input: unknown, label
   return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
 }
 
-export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
+async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
   if (policy.mode === "full") {
     return { allowed: true as const }
   }
@@ -117,7 +117,7 @@ export async function authorizeToolCall(policy: PiPermissionPolicy, tool: string
   return { allowed: true as const, asked: true as const }
 }
 
-export const blockReasons = {
+const blockReasons = {
   missing_permission: "Your permission mode does not allow this tool. Tell the person what you could not do; they can change the mode in your settings.",
   path_outside_root: "The path is outside your working directory. In this mode you can only read inside it.",
   person_denied: "The person denied this action. That is their decision, not an error. Do not retry it and do not do the same thing another way. Tell the person in one line what you did not do and ask how they want to continue.",

@@ -6,7 +6,7 @@ import { useConnectPlugin } from "../plugins/plugin-connection"
 import { PluginStepView, pluginStepLabel } from "../plugins/plugin-step"
 import { Button } from "../ui/button"
 
-export function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "accounts">) {
+function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "accounts">) {
   const reconnecting = request.accounts.length > 0 && request.accounts.every((account) => account.state !== "connected")
 
   if (reconnecting) {
@@ -16,7 +16,7 @@ export function pluginRequestTitle(request: Pick<PluginRequest, "pluginName" | "
   return `Conectar ${request.pluginName}`
 }
 
-export function pluginRequestDetail(request: Pick<PluginRequest, "pluginName" | "accounts" | "connectable">) {
+function pluginRequestDetail(request: Pick<PluginRequest, "pluginName" | "accounts" | "connectable">) {
   if (request.accounts.length > 0) {
     return `Escolha a Conta de ${request.pluginName} que o Bot pode usar.`
   }

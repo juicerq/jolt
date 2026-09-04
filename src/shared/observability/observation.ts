@@ -88,6 +88,5 @@ export const externalObservationSpan = z.strictObject({
 
 export type Observation = z.infer<typeof observation>
 export type ObservationContext = z.infer<typeof observationContext>
-export type ObservationAttributes = z.infer<typeof observationAttributes>
 export type NormalizedObservationError = z.infer<typeof normalizedObservationError>
 export type ExternalObservationSpan = z.infer<typeof externalObservationSpan>

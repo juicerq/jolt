@@ -34,7 +34,7 @@ export function knownChatMentions(identities: Record<string, { name: string; ava
   return Object.entries(identities).map(([botId, identity]) => ({ botId, ...identity }))
 }
 
-export function activeChatMentions(content: string, mentions: ChatMention[]) {
+function activeChatMentions(content: string, mentions: ChatMention[]) {
   const seen = new Set<string>()
 
   return mentions.filter((mention) => {

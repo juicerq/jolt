@@ -42,7 +42,7 @@ export function PluginsScreen({ client }: { client: EngineClient }) {
   )
 }
 
-export function PluginCard({ plugin, client }: { plugin: Plugin; client: EngineClient }) {
+function PluginCard({ plugin, client }: { plugin: Plugin; client: EngineClient }) {
   const queryClient = useQueryClient()
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
   const refresh = () => queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
@@ -89,7 +89,7 @@ export function PluginCard({ plugin, client }: { plugin: Plugin; client: EngineC
   )
 }
 
-export function describePlugin(plugin: Pick<Plugin, "kind" | "available" | "unavailableReason" | "config" | "accounts">) {
+function describePlugin(plugin: Pick<Plugin, "kind" | "available" | "unavailableReason" | "config" | "accounts">) {
   if (!plugin.available) {
     return plugin.unavailableReason ?? "Indisponível"
   }

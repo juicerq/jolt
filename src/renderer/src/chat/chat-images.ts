@@ -3,7 +3,7 @@ import { messageImageMimeTypes } from "@src/shared/message-images"
 
 export const messageImageAccept = messageImageMimeTypes.join(",")
 
-export function isMessageImageFile(file: Pick<File, "type">): file is File & { type: MessageImage["mimeType"] } {
+function isMessageImageFile(file: Pick<File, "type">): file is File & { type: MessageImage["mimeType"] } {
   return messageImageMimeTypes.some((mimeType) => mimeType === file.type)
 }
 

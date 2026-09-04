@@ -30,7 +30,7 @@ function toolSchema(tool: PiTool): TSchema {
     : [name, Type.String({ description })])))
 }
 
-export function toPiTool(tool: PiTool) {
+function toPiTool(tool: PiTool) {
   return defineTool({
     name: tool.name,
     label: tool.label ?? tool.name,
@@ -120,7 +120,7 @@ function normalizeStateless(event: AgentSessionEvent): PiRuntimeEvent | undefine
   return
 }
 
-export function createEventNormalizer() {
+function createEventNormalizer() {
   let lastReason: "stop" | "aborted" | "error" = "error"
   let lastError: string | undefined
   let interrupted = false

@@ -81,7 +81,3 @@ export function frequencyResultOf(draft: RoutineDraft): FrequencyResult {
 
   return { frequency: { form: "fixed-time", days: draft.days, times: [...new Set(entries)].sort() } }
 }
-
-export function frequencyOf(draft: RoutineDraft): Frequency | undefined {
-  return frequencyResultOf(draft).frequency
-}
