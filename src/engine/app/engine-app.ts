@@ -269,6 +269,10 @@ export function createEngineRouter(
         observability.span({ name: "orpc.triggerremove", context: observationContext(context) }, () => triggers.remove(input))),
     },
     memory: {
+      settings: operations.memory.settings.handler(() => memory.settings()),
+      configure: operations.memory.configure.handler(({ input }: { input: unknown }) => memory.configure(input)),
+      status: operations.memory.status.handler(() => memory.status()),
+      retry: operations.memory.retry.handler(({ input }: { input: unknown }) => memory.retry(input)),
       list: operations.memory.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.memorylist", context: observationContext(context) },

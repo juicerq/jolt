@@ -14,6 +14,7 @@ import { botInstructions } from "./bot-instructions"
 import { parse } from "@src/shared/parse"
 import { createQueue } from "../queue"
 import { createMessageQueue } from "./message-queue"
+import { createHistory } from "./history"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
@@ -74,7 +75,7 @@ export function createConversations(input: {
     assertCallable,
     inheritance: (leader, references) => input.extensions.flatMap((extension) => extension.inheritance ? [extension.inheritance(leader, references)] : []),
   })
-  const extensions: BotExtension[] = [delegation, ...input.extensions]
+  const extensions: BotExtension[] = [delegation, createHistory(input.database), ...input.extensions]
 
   closeUnanswered()
 
@@ -147,6 +148,7 @@ export function createConversations(input: {
     }
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
+    const botDirectory = await input.bots.directory({ id: botId })
     const customTools = [createAskTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
     const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
     const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
@@ -155,7 +157,7 @@ export function createConversations(input: {
       throw new Error("Project not found")
     }
 
-    const instructions = botInstructions({ bot, ...(project ? { project } : {}), extensions: extensions.map((extension) => extension.instructions(bot)) })
+    const instructions = botInstructions({ bot, directory: botDirectory, ...(project ? { project } : {}), extensions: extensions.map((extension) => extension.instructions(bot)) })
     const profile = JSON.stringify({ cwd, tools, instructions, provider: bot.provider, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
@@ -166,6 +168,7 @@ export function createConversations(input: {
     const result = await input.runtime.open({
       botId,
       cwd,
+      botDirectory,
       tools,
       provider: bot.provider,
       effort: bot.effort,

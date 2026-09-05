@@ -3,7 +3,7 @@ import { index, integer, primaryKey, snakeCase, text, uniqueIndex } from "drizzl
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "@src/shared/bots"
 import type { ConversationMessage } from "@src/shared/conversations"
-import type { Note, StoredMemory } from "@src/shared/memory"
+import type { CurationModel, Note, StoredMemory } from "@src/shared/memory"
 import type { StoredAccount, StoredPlugin } from "@src/shared/plugins"
 import type { Routine } from "@src/shared/routines"
 import type { Task } from "@src/shared/tasks"
@@ -115,6 +115,16 @@ export const memories = snakeCase.table("memories", {
   noteId: text().references(() => notes.id, { onDelete: "set null" }),
   createdAt: text().notNull(),
 }, (table) => [index("memories_bot_id").on(table.botId)])
+
+export const memorySettings = snakeCase.table("memory_settings", {
+  id: integer().primaryKey(),
+  model: text({ mode: "json" }).$type<CurationModel>(),
+})
+
+export const curationFailures = snakeCase.table("curation_failures", {
+  botId: text().primaryKey().references(() => bots.id, { onDelete: "cascade" }),
+  error: text().notNull(),
+})
 
 export const plugins = snakeCase.table("plugins", {
   id: text().primaryKey(),

@@ -49,7 +49,7 @@ Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trab
 _Evitar_: Time, codebase, pasta de Bots
 
 **Diretório do Bot**:
-O espaço privado pertencente a um Bot, onde ficam seus próprios arquivos. Ele não muda quando o Bot troca de Projeto ou de Pasta de trabalho.
+O espaço privado pertencente a um Bot, onde ficam seus materiais reutilizáveis e registros de trabalho em andamento. Ele não muda quando o Bot troca de Projeto ou de Pasta de trabalho, e continua acessível conforme a Permissão do Bot.
 _Evitar_: Pasta de trabalho, pasta do Projeto
 
 **Pasta de trabalho**:
@@ -77,7 +77,7 @@ A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pesso
 _Evitar_: Contexto, histórico, Notas
 
 **Lembrança**:
-Um item da Memória. Uma frase que o Bot deve saber em toda execução. Tem Origem e data. A Curadoria cria, substitui e esquece Lembranças; a pessoa cria, esquece e limpa.
+Um item da Memória: uma frase que orienta o Bot em toda execução, com Origem, data e a Nota que sustenta o aprendizado quando existe. A Curadoria cria, substitui e esquece Lembranças; uma edição da pessoa passa a ser uma orientação dela.
 _Evitar_: Fato, entrada, item, memória
 
 **Nota**:
@@ -85,8 +85,12 @@ Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar.
 _Evitar_: Memória, log, diário, rascunho
 
 **Curadoria**:
-A passagem em que o Jolt entrega as Notas pendentes ao Bot e ele cria, substitui ou esquece Lembranças, considerando a origem e a confirmação do conteúdo; uma inferência do Bot não substitui uma declaração da pessoa apenas por ser mais recente. Acontece fora da Conversa, quando o Bot está livre, e respeita o Limite da Memória.
+A passagem separada em que o Jolt avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
 _Evitar_: Dreaming, consolidação, compactação, resumo
+
+**Modelo da Curadoria**:
+A escolha geral de qual Modelo executa a Curadoria de todos os Bots, usando um Fornecedor conectado; por padrão, cada passagem usa o Modelo do próprio Bot. A escolha vale para as próximas passagens, mantém as Memórias separadas e não troca de Fornecedor automaticamente em caso de falha.
+_Evitar_: Modelo do Time, Modelo do Líder
 
 **Origem**:
 De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
@@ -115,6 +119,10 @@ _Evitar_: Memória compartilhada, memória do Projeto
 **Conversa do Bot**:
 A linha cronológica das mensagens trocadas pelo Bot com a pessoa, o Líder e outros Bots.
 _Evitar_: Log interno, pensamento, raciocínio
+
+**Consulta ao histórico**:
+A capacidade do Bot de pesquisar e ler mensagens antigas da sua Conversa, com datas e referências, inclusive os Resultados de Tarefas que recebeu. Funciona após a compactação, não dá acesso às conversas privadas de outros Bots e não transforma o conteúdo recuperado em uma nova instrução ou Lembrança automaticamente.
+_Evitar_: Memória, Curadoria, histórico compartilhado
 
 **Mensagem**:
 Um envio deliberado e persistido na Conversa do Bot, materializado exclusivamente a partir do conteúdo passado a `send_message`. Um Turno pode produzir várias Mensagens; texto comum do Fornecedor não aparece na Conversa.
@@ -157,7 +165,7 @@ A variante do Fornecedor do Bot que executa o trabalho, como um modelo específi
 _Evitar_: Fornecedor, Conexão, versão
 
 **Permissão do Bot**:
-O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede. Chamar um Integrante ou um Colega nunca pede Decisão: vale a Permissão do Bot chamado.
+O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho e do Diretório do Bot, além de consultar sua Conversa; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede. Chamar um Integrante ou um Colega nunca pede Decisão: vale a Permissão do Bot chamado.
 _Evitar_: Sandbox, acesso ao computador, autonomia
 
 **Pedido de permissão**:

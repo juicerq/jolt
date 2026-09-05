@@ -7,10 +7,12 @@ import { askTool } from "@src/shared/conversations"
 import { connectPluginTool } from "@src/shared/plugins"
 import { delegateTool, transferTool } from "@src/shared/tasks"
 import { webFetchTool, webSearchTool } from "../web/web-search"
+import { historyTools } from "@src/shared/history"
 
 interface PiPermissionPolicyBase {
   botId: string
   allowedRoot: string
+  botDirectory?: string
   labels?: Record<string, string>
 }
 
@@ -20,8 +22,8 @@ export type PiPermissionPolicy =
   | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
-const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, askTool, webSearchTool, webFetchTool])
-const readOnlyTools = new Set([...observationTools, askTool, webSearchTool, webFetchTool])
+const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, askTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
+const readOnlyTools = new Set([...observationTools, askTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
 const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
 const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
 
@@ -96,7 +98,7 @@ async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input
 
   const observes = observationTools.has(tool)
   const path = observes && typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
-  const inside = observes && await pathIsInside(policy.allowedRoot, path)
+  const inside = observes && (await pathIsInside(policy.allowedRoot, path) || (policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))))
 
   if (inside) {
     return { allowed: true as const }
@@ -129,7 +131,7 @@ async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input
 
 const blockReasons = {
   missing_permission: "Your permission mode does not allow this tool. Tell the person what you could not do; they can change the mode in your settings.",
-  path_outside_root: "The path is outside your working directory. In this mode you can only read inside it.",
+  path_outside_root: "The path is outside your working directory and private Bot directory. In this mode you can only read inside those directories.",
   person_denied: "The person denied this action. That is their decision, not an error. Do not retry it and do not do the same thing another way. Tell the person in one line what you did not do and ask how they want to continue.",
 }
 

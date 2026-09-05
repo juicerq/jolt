@@ -11,8 +11,10 @@ import type { Observability } from "../observability/observability"
 import { migrations } from "./migrations"
 import type { ConversationMessage } from "@src/shared/conversations"
 import { conversationSchemas } from "@src/shared/conversations"
-import type { Note, StoredMemory } from "@src/shared/memory"
+import type { CurationModel, Note, StoredMemory } from "@src/shared/memory"
 import { memorySchemas } from "@src/shared/memory"
+import { memoryLimits } from "@src/shared/memory-limits"
+import { historySchemas, historyLimits, type HistorySearch } from "@src/shared/history"
 import type { PluginAccess, StoredAccount, StoredPlugin } from "@src/shared/plugins"
 import { pluginSchemas } from "@src/shared/plugins"
 import type { Routine } from "@src/shared/routines"
@@ -23,7 +25,7 @@ import type { WhatsappContact, WhatsappSavedMessage } from "@src/shared/whatsapp
 import { whatsappSchemas } from "@src/shared/whatsapp"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
 import { triggerSchemas } from "@src/shared/triggers"
-import { accesses, accounts, bots, colleagues, conversations, memories, messages, notes, plugins, projects, routines, tasks, triggerRuns, triggers, whatsappContacts, whatsappMessages } from "./schema"
+import { accesses, accounts, bots, colleagues, conversations, curationFailures, memories, memorySettings, messages, notes, plugins, projects, routines, tasks, triggerRuns, triggers, whatsappContacts, whatsappMessages } from "./schema"
 import { parse, parseOptional } from "@src/shared/parse"
 
 const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
@@ -49,6 +51,15 @@ const messageColumns = {
   createdAt: messages.createdAt,
 }
 
+const historyColumns = {
+  id: messages.id,
+  author: messages.author,
+  authorBotId: messages.authorBotId,
+  taskId: messages.taskId,
+  createdAt: messages.createdAt,
+  content: messages.content,
+}
+
 export function openDatabase(path: string, observability: Observability) {
   const sqlite = new Database(path, { create: true })
   const database = drizzle({ client: sqlite })
@@ -59,6 +70,92 @@ export function openDatabase(path: string, observability: Observability) {
   })
 
   return {
+    history: {
+      search(botId: string, input: HistorySearch) {
+        const terms = input.query.match(/[\p{L}\p{N}]+/gu)
+
+        if (!terms?.length) {
+          return { matches: [], nextOffset: null }
+        }
+
+        const query = terms.map((term) => `"${term}"*`).join(" AND ")
+        const rows = observability.span({ name: "database.historysearch", context: { botId } }, () => parse(historySchemas.references, database.all(sql`
+          SELECT m.id, m.author, m.author_bot_id AS authorBotId, m.task_id AS taskId,
+            m.created_at AS createdAt, snippet(message_search, 0, '', '', ' … ', 48) AS content
+          FROM message_search JOIN messages m ON m.rowid = message_search.rowid
+          WHERE message_search MATCH ${query} AND m.bot_id = ${botId}
+            AND (${input.after ?? null} IS NULL OR substr(m.created_at, 1, 10) >= ${input.after ?? null})
+            AND (${input.before ?? null} IS NULL OR substr(m.created_at, 1, 10) <= ${input.before ?? null})
+          ORDER BY rank, m.position DESC LIMIT ${historyLimits.results + 1} OFFSET ${input.offset}
+        `)))
+
+        return {
+          matches: rows.slice(0, historyLimits.results).map((row) => ({ ...row, content: row.content.slice(0, historyLimits.excerpt) })),
+          nextOffset: rows.length > historyLimits.results ? input.offset + historyLimits.results : null,
+        }
+      },
+      read(botId: string, id: string, offset: number) {
+        return observability.span({ name: "database.historyread", context: { botId } }, () => {
+          const row = database.select({ message: { ...historyColumns, content: sql<string>`substr(${messages.content}, ${offset + 1}, ${historyLimits.content})` }, position: messages.position, length: sql<number>`length(${messages.content})` }).from(messages).where(and(eq(messages.botId, botId), eq(messages.id, id))).get()
+
+          if (!row) {
+            throw new Error("Message not found in your conversation")
+          }
+
+          const neighbors = parse(historySchemas.references, database.select({ ...historyColumns, content: sql<string>`substr(${messages.content}, 1, ${historyLimits.excerpt})` }).from(messages).where(and(
+            eq(messages.botId, botId),
+            sql`${messages.position} BETWEEN ${row.position - historyLimits.neighbors} AND ${row.position + historyLimits.neighbors}`,
+            sql`${messages.id} != ${id}`,
+          )).orderBy(asc(messages.position)).all())
+
+          return { message: parse(historySchemas.reference, row.message), offset, nextOffset: offset + historyLimits.content < row.length ? offset + historyLimits.content : null, neighbors }
+        })
+      },
+    },
+    curation: {
+      model() {
+        return parse(memorySchemas.curationModel, database.select().from(memorySettings).where(eq(memorySettings.id, 1)).get()?.model ?? null)
+      },
+      configure(model: CurationModel) {
+        database.insert(memorySettings).values({ id: 1, model }).onConflictDoUpdate({ target: memorySettings.id, set: { model } }).run()
+      },
+      failure(botId: string, error: string) {
+        database.insert(curationFailures).values({ botId, error }).onConflictDoUpdate({ target: curationFailures.botId, set: { error } }).run()
+      },
+      recovered(botId: string) {
+        database.delete(curationFailures).where(eq(curationFailures.botId, botId)).run()
+      },
+      status() {
+        return parse(memorySchemas.status, {
+          pending: database.select({ value: count() }).from(notes).where(isNull(notes.curatedAt)).get()?.value ?? 0,
+          failures: database.select({ botId: bots.id, name: bots.name, error: curationFailures.error }).from(curationFailures).innerJoin(bots, eq(bots.id, curationFailures.botId)).orderBy(asc(bots.name)).all(),
+        })
+      },
+      commit(botId: string, original: StoredMemory[], updated: StoredMemory[], pending: Note[]) {
+        return database.transaction((transaction) => {
+          const bot = transaction.select().from(bots).where(eq(bots.id, botId)).get()
+          const current = transaction.select().from(memories).where(eq(memories.botId, botId)).orderBy(asc(memories.createdAt), asc(insertion(memories))).all()
+          const remaining = transaction.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt), inArray(notes.id, pending.map((note) => note.id)))).all()
+
+          if (!bot?.memoryEnabled || JSON.stringify(current) !== JSON.stringify(original) || remaining.length !== pending.length) {
+            throw new Error("A Memória mudou durante a Curadoria. As Notas serão avaliadas novamente.")
+          }
+
+          const removed = original.filter((memory) => !updated.some((entry) => entry.id === memory.id))
+
+          for (const memory of removed) {
+            transaction.delete(memories).where(eq(memories.id, memory.id)).run()
+          }
+
+          for (const memory of updated) {
+            transaction.insert(memories).values(memory).onConflictDoUpdate({ target: memories.id, set: { content: memory.content, noteId: memory.noteId, origin: memory.origin } }).run()
+          }
+
+          transaction.update(notes).set({ curatedAt: new Date().toISOString() }).where(inArray(notes.id, pending.map((note) => note.id))).run()
+          transaction.delete(curationFailures).where(eq(curationFailures.botId, botId)).run()
+        })
+      },
+    },
     projects: {
       create(project: Project) {
         return observability.span({ name: "database.projectcreate", context: { projectId: project.id } }, () => {
@@ -330,26 +427,20 @@ export function openDatabase(path: string, observability: Observability) {
       },
       listPending(botId: string) {
         return observability.span({ name: "database.notelistpending", context: { botId } }, () => parse(memorySchemas.noteList, 
-          database.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt))).orderBy(asc(notes.createdAt), asc(insertion(notes))).all(),
+          database.select().from(notes).where(and(eq(notes.botId, botId), isNull(notes.curatedAt))).orderBy(asc(notes.createdAt), asc(insertion(notes))).limit(memoryLimits.batch).all(),
         ))
       },
       pendingBotIds() {
         return observability.span({ name: "database.notependingbots" }, () => database.selectDistinct({ botId: notes.botId }).from(notes).where(isNull(notes.curatedAt)).all().map((row) => row.botId))
-      },
-      markCurated(ids: string[], curatedAt: string) {
-        return observability.span({ name: "database.notemarkcurated", attributes: { count: ids.length } }, () => {
-          if (ids.length === 0) {
-            return 0
-          }
-
-          return database.update(notes).set({ curatedAt }).where(inArray(notes.id, ids)).run().changes
-        })
       },
       removeForBot(botId: string) {
         return observability.span({ name: "database.noteremoveforbot", context: { botId } }, () => database.delete(notes).where(eq(notes.botId, botId)).run().changes)
       },
     },
     memories: {
+      snapshot(botId: string) {
+        return parse(memorySchemas.storedMemory.array(), database.select().from(memories).where(eq(memories.botId, botId)).orderBy(asc(memories.createdAt), asc(insertion(memories))).all())
+      },
       create(memory: StoredMemory) {
         return observability.span({ name: "database.memorycreate", context: { botId: memory.botId } }, () => {
           database.insert(memories).values(memory).run()
@@ -367,7 +458,7 @@ export function openDatabase(path: string, observability: Observability) {
       listForBot(botId: string) {
         return observability.span({ name: "database.memorylist", context: { botId } }, () => parse(memorySchemas.memoryList, 
           database
-            .select({ id: memories.id, botId: memories.botId, content: memories.content, origin: memories.origin, createdAt: memories.createdAt, turnAuthor: notes.turnAuthor })
+            .select({ id: memories.id, botId: memories.botId, content: memories.content, origin: memories.origin, createdAt: memories.createdAt, source: notes })
             .from(memories)
             .leftJoin(notes, eq(notes.id, memories.noteId))
             .where(eq(memories.botId, botId))
@@ -375,7 +466,7 @@ export function openDatabase(path: string, observability: Observability) {
             .all(),
         ))
       },
-      update(id: string, changes: Pick<StoredMemory, "content">) {
+      update(id: string, changes: Pick<StoredMemory, "content" | "origin" | "noteId">) {
         return observability.span({ name: "database.memoryupdate" }, () => {
           const row = database.update(memories).set(changes).where(eq(memories.id, id)).returning().get()
 

@@ -455,6 +455,14 @@ line, a ghost pencil that edits the text inline, and a ghost trash action per
 row, one input with a secondary add button, a text action to clear that commits
 the same way as Excluir, and the Leader's Memória as a quiet block that appears
 only when the Leader knows something. Off hides everything but the sentence.
+An optional disclosure below the Origem shows the Nota that supports the current
+Lembrança and when it was written. Editing a Lembrança makes its origin the person.
+
+**Curation settings.** App settings includes a Memória section with one model
+selector grouped by connected Fornecedor. Its default follows each Bot's model.
+Supporting copy names what is sent to the selected Fornecedor. Pending Notas and
+failures appear below, with a retry action for each affected Bot; an unavailable
+saved model remains visible instead of silently selecting another.
 
 **Rotina.** Creating or editing a Rotina is a page on the conversation plane,
 not a dialog. It reuses the Bot settings shell and one uppercase Rotina section

@@ -200,6 +200,7 @@ const routines = createRoutines({ database, bots, observability: observationSyst
 const memory = createMemory({
   database,
   bots,
+  providers,
   observability: observationSystem.observability,
   sessionFactory: piSessionFactory,
   conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() },

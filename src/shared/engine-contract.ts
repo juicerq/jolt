@@ -73,6 +73,10 @@ export const engineContract = {
     remove: oc.input(triggerSchemas.idInput).route({ method: "POST", path: "/triggers/{id}/remove" }),
   },
   memory: {
+    settings: oc.output(memorySchemas.settings).route({ method: "GET", path: "/memory/settings" }),
+    configure: oc.input(memorySchemas.configure).route({ method: "POST", path: "/memory/settings" }),
+    status: oc.output(memorySchemas.status).route({ method: "GET", path: "/memory/status" }),
+    retry: oc.input(memorySchemas.botInput).route({ method: "POST", path: "/bots/{botId}/memory/retry" }),
     list: oc.input(memorySchemas.botInput).output(memorySchemas.memoryList).route({ method: "GET", path: "/bots/{botId}/memories" }),
     add: oc.input(memorySchemas.addInput).output(memorySchemas.memory).route({ method: "POST", path: "/bots/{botId}/memories" }),
     update: oc.input(memorySchemas.updateInput).output(memorySchemas.memory).route({ method: "POST", path: "/memories/{id}/update" }),

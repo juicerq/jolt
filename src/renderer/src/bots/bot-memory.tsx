@@ -16,9 +16,9 @@ import { BotPage, BotPageIdentity } from "./bot-page"
 
 const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", trigger: "Aprendeu em um Gatilho", bot: "Aprendeu com outro Bot" }
 
-function describeOrigin(memory: Pick<Memory, "origin" | "turnAuthor" | "createdAt">) {
+function describeOrigin(memory: Pick<Memory, "origin" | "source" | "createdAt">) {
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
-  const source = memory.origin === "person" ? "Você adicionou" : learnedFrom[memory.turnAuthor ?? "bot"]
+  const source = memory.origin === "person" ? "Você adicionou" : learnedFrom[memory.source?.turnAuthor ?? "bot"]
 
   return `${source} · ${date}`
 }
@@ -68,12 +68,17 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
   }
 
   return (
-    <li className="flex items-center gap-2 py-2.5 first:pt-0">
+    <li className="flex items-start gap-2 py-2.5 first:pt-0">
       <div className="min-w-0 flex-1">
         {editing
           ? <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} aria-label="Lembrança" autoFocus value={draft} disabled={busy} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKey} />
           : <p className="m-0 text-control font-medium text-primary">{memory.content}</p>}
         <p className="m-0 text-support text-muted">{describeOrigin(memory)}</p>
+        {memory.source && <details className="mt-2 text-support text-secondary">
+          <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">O que motivou esta Lembrança</summary>
+          <p className="m-0 mt-2 whitespace-pre-wrap">{memory.source.content}</p>
+          <p className="m-0 mt-1 text-muted">Nota de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(memory.source.createdAt))}</p>
+        </details>}
       </div>
       {editing && onEdit && (
         <>

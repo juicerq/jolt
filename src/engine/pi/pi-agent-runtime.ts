@@ -70,6 +70,7 @@ function toolLabels(tools: PiTool[]) {
 export interface PiSessionInput {
   botId: string
   cwd: string
+  botDirectory?: string
   tools: string[]
   provider: ProviderName
   effort: BotEffort
@@ -166,6 +167,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       const policy: PiPermissionPolicy = {
         botId: input.botId,
         allowedRoot: input.cwd,
+        ...(input.botDirectory ? { botDirectory: input.botDirectory } : {}),
         mode: input.permissionMode,
         labels: toolLabels(input.customTools ?? []),
         request: (request) => new Promise<PermissionDecision>((resolve) => {
