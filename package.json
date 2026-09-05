@@ -28,6 +28,8 @@
     "check": "juicerq-check",
     "check:fix": "juicerq-check --fix",
     "typecheck": "tsc --noEmit",
+    "test": "bun test ./tests --isolate --no-orphans --pass-with-no-tests",
+    "test:stress": "bun test ./tests --isolate --no-orphans --randomize --rerun-each 3 --pass-with-no-tests",
     "build:engine": "bun build --compile --outfile dist-engine/jolt-engine src/engine/index.ts",
     "build:electron": "electron-vite build",
     "build:github-relay": "bun build --compile --outfile dist-relay/jolt-github-relay github-relay/index.ts",

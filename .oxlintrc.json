@@ -6,6 +6,18 @@
 	},
 	"overrides": [
 		{
+			"files": ["tests/**/*.test.{ts,tsx}"],
+			"rules": {
+				"eslint/no-restricted-properties": [
+					"error",
+					{
+						"property": "only",
+						"message": "Remova o foco antes da entrega; use o caminho do arquivo ou -t para executar um cenário isolado."
+					}
+				]
+			}
+		},
+		{
 			"files": ["*.config.ts"],
 			"rules": {
 				"import/no-default-export": "off"

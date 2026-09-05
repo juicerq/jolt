@@ -4,7 +4,11 @@ Todo agente que escrever ou alterar código deve usar o Skill tool com name `cod
 
 # Testes
 
-Leia `tests/TESTS-PATERNS.md` antes de criar ou alterar testes. Ele registra a estrutura, os comandos e os recursos do Bun adotados pela suíte.
+Durante a implementação, verifique o comportamento e execute os checks pertinentes. Adicione testes permanentes apenas no fechamento da feature ou correção, antes da entrega ou do PR, ou quando o usuário pedir explicitamente trabalho em testes. Reproduções temporárias são permitidas durante a investigação.
+
+No fechamento, carregue a skill [testing](.agents/skills/testing/SKILL.md) e leia [tests/TESTS-PATERNS.md](tests/TESTS-PATERNS.md). Se o ambiente não listar a skill, leia o arquivo diretamente. Esta política autoriza criar ou alterar testes no Jolt nessa etapa, sem exigir outro pedido; não exige testes novos.
+
+Corrija os defeitos encontrados e reexecute os checks afetados. Na entrega, informe a proteção acrescentada ou a verificação suficiente, os resultados reais e as limitações relevantes. Para mudanças de interface, confira o resultado renderizado; a skill define quando acrescentar automação permanente.
 
 # Renderer
 
