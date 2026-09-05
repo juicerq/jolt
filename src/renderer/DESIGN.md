@@ -557,6 +557,15 @@ thin progress indicator appears only for a real multi-step flow. The body groups
 fields by the decision they ask the user to make. The footer places back or
 cancel on the left and the single primary action on the right.
 
+**Bot browser.** The preview opens an expanded, read-only view while the Bot
+keeps control. The header identifies the Bot, who has control, and the page URL.
+The footer puts the ghost action Voltar ao chat immediately before the primary
+Assumir controle action. Taking control pauses the Bot and replaces that primary
+action with Devolver para the named Bot in the same position. Returning control
+keeps the expanded view open for watching; Voltar ao chat only collapses it and
+preserves whoever has control. Preview actions say Assistir while the Bot has
+control and Abrir while the person has control.
+
 **Form field.** Every field has a visible label in control type. Placeholder
 copy gives one realistic example. Helper text uses support type. Validation sits
 below the field and says how to correct the value.

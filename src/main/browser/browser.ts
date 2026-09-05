@@ -1,4 +1,4 @@
-import { ipcMain, View, type BrowserWindow } from "electron"
+import { ipcMain, View, WebContentsView, type BrowserWindow } from "electron"
 import { z } from "zod"
 import { browserBounds, type BrowserRequest, type BrowserState } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
@@ -10,8 +10,28 @@ export class Browser {
   private readonly timer: ReturnType<typeof setInterval>
   private capturing = false
   private readonly stackingAnchor = new View()
+  private readonly inputShield = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
 
   constructor(private readonly window: BrowserWindow) {
+    this.inputShield.setBackgroundColor("#00000000")
+    void this.inputShield.webContents.loadURL("data:text/html,<html><body style='margin:0;background:transparent;overflow:hidden'></body></html>")
+    this.inputShield.webContents.on("before-input-event", (event, input) => {
+      event.preventDefault()
+
+      if (input.type === "keyDown" && input.key === "Escape") {
+        this.minimize()
+      }
+
+      if (input.key === "Tab") {
+        window.webContents.focus()
+      }
+    })
+    window.webContents.on("before-input-event", (event, input) => {
+      if (input.type === "keyDown" && input.key === "Escape" && this.focusedBotId) {
+        event.preventDefault()
+        this.minimize()
+      }
+    })
     const handle = (name: string, action: (raw: unknown) => unknown) => {
       ipcMain.handle(`agent-browser:${name}`, (event, raw: unknown) => {
         if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
@@ -23,15 +43,10 @@ export class Browser {
     }
 
     handle("state", () => this.state())
+    handle("watch", (raw) => this.focus(parse(z.string(), raw)))
     handle("take-control", async (raw) => {
       const botId = parse(z.string(), raw)
       const page = this.page(botId)
-
-      for (const other of this.pages.values()) {
-        if (other !== page) {
-          other.minimize()
-        }
-      }
 
       await page.takeControl()
 
@@ -39,14 +54,13 @@ export class Browser {
         return
       }
 
-      this.focusedBotId = botId
-      this.publish()
+      this.focus(botId)
     })
     handle("bounds", (raw) => {
       const bounds = parse(browserBounds, raw)
       const page = this.focusedBotId ? this.pages.get(this.focusedBotId) : undefined
 
-      if (page?.preview.control === "user") {
+      if (page) {
         const [width, height] = window.getContentSize()
 
         if (bounds.x + bounds.width > width || bounds.y + bounds.height > height) {
@@ -54,6 +68,14 @@ export class Browser {
         }
 
         page.show(bounds)
+        this.inputShield.setBounds(bounds)
+
+        if (page.preview.control === "bot") {
+          window.contentView.addChildView(this.inputShield)
+        } else {
+          window.contentView.removeChildView(this.inputShield)
+        }
+
         window.contentView.addChildView(this.stackingAnchor)
       }
     })
@@ -63,7 +85,7 @@ export class Browser {
       this.page(botId).resume()
 
       if (this.focusedBotId === botId) {
-        this.focusedBotId = null
+        window.contentView.addChildView(this.inputShield)
       }
 
       window.webContents.focus()
@@ -80,6 +102,7 @@ export class Browser {
       }
 
       this.pages.clear()
+      this.inputShield.webContents.close()
     })
   }
 
@@ -95,6 +118,19 @@ export class Browser {
 
   private state(): BrowserState {
     return { pages: [...this.pages.values()].map((page) => ({ ...page.preview })), focusedBotId: this.focusedBotId }
+  }
+
+  private focus(botId: string) {
+    this.page(botId)
+
+    for (const page of this.pages.values()) {
+      if (page.preview.botId !== botId) {
+        page.minimize()
+      }
+    }
+
+    this.focusedBotId = botId
+    this.publish()
   }
 
   private publish() {
@@ -146,7 +182,7 @@ export class Browser {
     if (!page) {
       page = new BrowserPage(this.window, request, () => this.publish())
       page.view.webContents.on("before-input-event", (event, input) => {
-        if (input.type === "keyDown" && input.key === "Escape" && this.focusedBotId === request.botId) {
+        if (input.type === "keyDown" && input.key === "Escape" && page?.preview.control === "user" && this.focusedBotId === request.botId) {
           event.preventDefault()
           this.minimize()
         }
@@ -159,6 +195,8 @@ export class Browser {
   }
 
   private minimize() {
+    this.window.contentView.removeChildView(this.inputShield)
+
     if (this.focusedBotId) {
       this.page(this.focusedBotId).minimize()
     }
@@ -173,6 +211,7 @@ export class Browser {
     this.pages.delete(botId)
 
     if (this.focusedBotId === botId) {
+      this.window.contentView.removeChildView(this.inputShield)
       this.focusedBotId = null
     }
 

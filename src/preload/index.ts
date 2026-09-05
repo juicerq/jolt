@@ -5,6 +5,7 @@ import type { TurnNotification } from "../shared/turn-notification"
 
 contextBridge.exposeInMainWorld("desktop", {
   getBrowserState: (): Promise<BrowserState> => ipcRenderer.invoke("agent-browser:state"),
+  watchBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:watch", botId),
   takeBrowserControl: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:take-control", botId),
   setBrowserBounds: (bounds: BrowserBounds): Promise<void> => ipcRenderer.invoke("agent-browser:bounds", bounds),
   resumeBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:resume", botId),

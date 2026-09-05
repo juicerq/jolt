@@ -6,6 +6,7 @@ declare global {
   interface Window {
     desktop: {
       getBrowserState(): Promise<BrowserState>
+      watchBrowser(botId: string): Promise<void>
       takeBrowserControl(botId: string): Promise<void>
       setBrowserBounds(bounds: BrowserBounds): Promise<void>
       resumeBrowser(botId: string): Promise<void>

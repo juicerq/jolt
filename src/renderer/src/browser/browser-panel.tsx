@@ -10,6 +10,7 @@ export function BrowserPanel() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const focused = state.pages.find((page) => page.botId === state.focusedBotId)
+  const focusPanel = useCallback((element: HTMLElement | null) => element?.focus(), [])
   const viewport = useCallback((element: HTMLDivElement | null) => {
     if (!element) {
       return
@@ -39,21 +40,31 @@ export function BrowserPanel() {
   }
 
   if (focused) {
+    const userControl = focused.control === "user"
+    const controlLabel = userControl ? `Devolver para ${focused.botName}` : "Assumir controle"
+    const status = userControl
+      ? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`
+      : `Você está acompanhando. ${focused.botName} continua no controle.`
+
     return (
-      <section className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>
-        <header className="flex shrink-0 items-center gap-3 pb-4">
+      <section ref={focusPanel} tabIndex={-1} className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>
+        <header className="flex shrink-0 flex-wrap items-center gap-3 pb-4">
           <GlobeAltIcon className="size-5 shrink-0 text-secondary" aria-hidden="true" />
-          <p className="min-w-0 flex-1 truncate text-control text-primary">{focused.url}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-control font-semibold">{focused.botName}</p>
+            <p className="text-support text-secondary">{userControl ? "Você está no controle" : "Bot no controle"}</p>
+          </div>
+          <p className="order-last w-full truncate text-support text-secondary sm:order-none sm:w-auto sm:max-w-1/2">{focused.url}</p>
           <IconButton label="Recolher navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}><MinusIcon aria-hidden="true" /></IconButton>
           <IconButton label="Maximizar ou restaurar janela" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.toggleMaximizeWindow())}><Square2StackIcon aria-hidden="true" /></IconButton>
           <IconButton label="Fechar navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
         </header>
-        <div key={focused.botId} ref={viewport} className="min-h-0 flex-1 bg-canvas" />
+        <div key={`${focused.botId}:${focused.control}`} ref={viewport} className="min-h-0 flex-1 bg-canvas" />
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-4 pt-4">
-          <p className="min-w-0 flex-1 text-support text-secondary" role={error ? "alert" : "status"}>{error ?? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`}</p>
+          <p className="min-w-0 flex-1 basis-full text-support text-secondary sm:basis-0" role={error || focused.error ? "alert" : "status"}>{error ?? focused.error ?? status}</p>
           <div className="ml-auto flex max-w-full items-center justify-end gap-2">
-            <Button variant="text" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}>Voltar para o chat</Button>
-            <Button className="min-w-0 shrink whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(focused.botId))}>{pending ? "Aguarde…" : `Devolver para ${focused.botName}`}</Button>
+            <Button variant="text" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}>Voltar ao chat</Button>
+            <Button className="min-w-0 shrink whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => userControl ? window.desktop.resumeBrowser(focused.botId) : window.desktop.takeBrowserControl(focused.botId))}>{pending ? "Aguarde…" : controlLabel}</Button>
           </div>
         </footer>
       </section>
@@ -64,10 +75,10 @@ export function BrowserPanel() {
     <aside className="absolute top-16 right-6 z-30 flex max-h-[calc(100vh-96px)] w-64 flex-col gap-3 overflow-y-auto max-[720px]:right-4 max-[720px]:w-48" aria-label="Navegadores dos Bots">
       {state.pages.map((page) => (
         <div key={page.botId} className="overflow-hidden rounded-xl border border-outline bg-surface-raised shadow-[0_2px_8px_rgb(0_0_0/45%)]">
-          <button className="group block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:opacity-60" disabled={pending} onClick={() => void handleAction(() => window.desktop.takeBrowserControl(page.botId))} aria-label={`Ampliar e assumir navegador de ${page.botName}`}>
+          <button className="group block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:opacity-60" disabled={pending} onClick={() => void handleAction(() => window.desktop.watchBrowser(page.botId))} aria-label={page.control === "user" ? `Abrir navegador de ${page.botName}` : `Assistir ao navegador de ${page.botName}`}>
             <div className="relative aspect-[8/5] overflow-hidden bg-canvas">
               {page.image ? <img src={page.image} alt="" className="size-full object-contain" /> : <div className="grid size-full place-items-center text-secondary"><GlobeAltIcon className="size-8" aria-hidden="true" /></div>}
-              <span className="absolute right-2 bottom-2 rounded-lg bg-surface-raised p-2 text-secondary group-hover:bg-surface-hover group-hover:text-primary group-active:bg-surface-active"><ArrowsPointingOutIcon className="size-4" aria-hidden="true" /></span>
+              <span className="absolute right-2 bottom-2 flex items-center gap-2 rounded-lg bg-surface-raised p-2 text-support text-secondary group-hover:bg-surface-hover group-hover:text-primary group-active:bg-surface-active"><ArrowsPointingOutIcon className="size-4" aria-hidden="true" />{page.control === "user" ? "Abrir" : "Assistir"}</span>
             </div>
           </button>
           <div className="flex flex-col gap-1 p-3">

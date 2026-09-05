@@ -245,5 +245,9 @@ A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Ca
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:
-A pessoa amplia a prévia e passa a usar o site enquanto o Bot espera. Voltar para o chat recolhe o navegador e mantém o controle com a pessoa; Devolver para o Bot indicado permite que ele continue.
+A pessoa escolhe Assumir controle e passa a usar o site enquanto o Bot espera. Voltar ao chat recolhe o navegador e mantém o controle com a pessoa; Devolver para o Bot indicado permite que ele continue e mantém a visualização aberta.
 _Evitar_: Interromper, Adiantar
+
+**Acompanhar o navegador**:
+A pessoa amplia a prévia para assistir à página enquanto o Bot continua no controle. A visualização não permite interagir com o site; Voltar ao chat apenas a recolhe.
+_Evitar_: Assumir, Pausar

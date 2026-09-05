@@ -13,6 +13,7 @@ export class BrowserPage {
   private controlRevision = 0
   private readonly lifetime = new AbortController()
   private busy = false
+  private requestingControl = false
   private readonly popups = new Set<BrowserWindow>()
 
   constructor(readonly window: BrowserWindow, bot: { botId: string; botName: string }, private readonly changed: () => void) {
@@ -61,6 +62,11 @@ export class BrowserPage {
     contents.on("did-navigate", () => this.update())
     contents.on("did-navigate-in-page", () => this.update())
     contents.on("page-title-updated", () => this.update())
+    contents.on("focus", () => {
+      if (this.shown && this.preview.control === "bot") {
+        this.window.webContents.focus()
+      }
+    })
     contents.on("did-fail-load", (_event, code, description, _url, mainFrame) => {
       if (mainFrame && code !== -3) {
         this.fail(description)
@@ -86,6 +92,14 @@ export class BrowserPage {
 
   async takeControl(reason?: string) {
     this.controlRevision += 1
+    this.requestingControl = true
+    await this.driver.settle()
+
+    if (this.closed) {
+      return
+    }
+
+    this.requestingControl = false
     this.preview.control = "user"
 
     if (reason) {
@@ -93,7 +107,6 @@ export class BrowserPage {
     }
 
     this.changed()
-    await this.driver.settle()
   }
 
   show(bounds: BrowserBounds) {
@@ -104,7 +117,10 @@ export class BrowserPage {
     }
 
     this.view.setBounds(bounds)
-    this.view.webContents.focus()
+
+    if (this.preview.control === "user") {
+      this.view.webContents.focus()
+    }
   }
 
   minimize() {
@@ -125,8 +141,10 @@ export class BrowserPage {
     this.controlRevision += 1
     this.preview.control = "bot"
     this.preview.reason = null
-    this.minimize()
-    this.view.setBounds({ x: 0, y: 0, width: 1280, height: 800 })
+
+    if (!this.shown) {
+      this.view.setBounds({ x: 0, y: 0, width: 1280, height: 800 })
+    }
 
     for (const resolve of this.waiters) {
       resolve()
@@ -138,7 +156,7 @@ export class BrowserPage {
   private async waitForControl(signal: AbortSignal) {
     signal.throwIfAborted()
 
-    if (this.preview.control === "user" && !this.closed) {
+    if ((this.requestingControl || this.preview.control === "user") && !this.closed) {
       await new Promise<void>((resolve, reject) => {
         const finish = () => {
           this.waiters.delete(finish)
