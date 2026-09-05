@@ -179,6 +179,19 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     bots: {
+      addMember(bot: Pick<StoredBot, "id" | "leaderBotId" | "projectId" | "workingDirectoryOverride">) {
+        return observability.span({ name: "database.botmemberadd", context: { botId: bot.id } }, () => database.transaction((transaction) => {
+          const updated = transaction.update(bots).set({ leaderBotId: bot.leaderBotId, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride }).where(eq(bots.id, bot.id)).returning().get()
+
+          if (!updated) {
+            return
+          }
+
+          transaction.delete(colleagues).where(eq(colleagues.colleagueBotId, bot.id)).run()
+
+          return parse(botSchemas.storedBot, updated)
+        }))
+      },
       create(bot: StoredBot) {
         return observability.span({ name: "database.botcreate", context: { botId: bot.id, provider: bot.provider, ...(bot.projectId ? { projectId: bot.projectId } : {}) } }, () => {
           database.insert(bots).values(bot).run()

@@ -13,7 +13,7 @@ interface BotsDependencies {
   observability: Observability
   privateBotsDirectory: string
   providers: { list(): Promise<ProviderAvailability[]> }
-  conversations: { close(botId: string): Promise<void> }
+  conversations: { close(botId: string): Promise<void>; isActive(botId: string): boolean }
 }
 
 function executionChange(input: BotExecutionSettingInput) {
@@ -109,6 +109,41 @@ export function createBots({ database, observability, privateBotsDirectory, prov
   }
 
   return {
+    addMember(rawInput: unknown) {
+      const input = parse(botSchemas.addMemberInput, rawInput)
+      const leader = database.bots.get(input.leaderBotId)
+      const bot = database.bots.get(input.botId)
+
+      if (!leader || !bot) {
+        throw new Error("Bot não encontrado. Atualize a lista e tente novamente.")
+      }
+
+      if (leader.id === bot.id || leader.leaderBotId || leader.temporary) {
+        throw new Error("Escolha um Líder que não seja Integrante de outro time.")
+      }
+
+      if (bot.leaderBotId === leader.id) {
+        return present(bot)
+      }
+
+      if (bot.temporary || database.bots.list().some((candidate) => candidate.leaderBotId === bot.id)) {
+        throw new Error("Escolha um Bot permanente que não tenha Integrantes.")
+      }
+
+      if ([bot.id, leader.id, bot.leaderBotId].some((id) => id && conversations.isActive(id)) || database.tasks.listForBot(bot.id).some((task) => task.status === "working")) {
+        throw new Error("Aguarde o Bot e os Líderes terminarem o trabalho antes de mudar o time.")
+      }
+
+      return observability.span({ name: "bots.memberadd", context: { botId: bot.id, leaderBotId: leader.id } }, () => {
+        const updated = database.bots.addMember({ id: bot.id, leaderBotId: leader.id, projectId: leader.projectId, workingDirectoryOverride: bot.projectId === leader.projectId ? bot.workingDirectoryOverride : present(bot).effectiveWorkingDirectory })
+
+        if (!updated) {
+          throw new Error("Bot não encontrado.")
+        }
+
+        return present(updated)
+      })
+    },
     async create(rawInput: unknown) {
       const input = parse(botSchemas.createInput, rawInput)
       const availableProviders = await providers.list()

@@ -311,10 +311,11 @@ must not move the prompt or resize the conversation plane.
 
 Dialogs sit above the complete window, including the sidebar and titlebar. A
 dialog has a compact header, one scrollable body, and a footer whose actions stay
-visible. Creation may use steps when all fields do not fit comfortably inside a
-680px-wide dialog. It never replaces the conversation plane.
+visible. Project creation may use steps when all fields do not fit comfortably
+inside a 680px-wide dialog. Bot and Integrante creation stay on the conversation
+plane.
 
-Bot settings, Rotinas, Memórias, and the Rotina editor replace the conversation
+Bot settings, Integrantes, Rotinas, Memórias, and the Rotina editor replace the conversation
 on that same floating plane. They share one centered 560px column.
 
 Spacing follows 4, 8, 12, 16, 24, 32, and 48px. A label sits 8px from its
@@ -438,6 +439,17 @@ icon. Committing it swaps the button for one sentence naming what disappears, a
 text cancel, and an outlined error-ink confirm. Closing lives in Conversa on
 the edge tab, choosing the Bot in the sidebar, and Escape.
 
+**Bot members.** Integrantes has its own edge-tab page with a group-of-people
+icon, available to Bots that are not themselves Integrantes. It reuses the Bot
+identity and centered page column. Criar integrante and Adicionar Bot existente
+open forms inside the page, without a dialog. The existing-Bot picker shows
+changes to its current team, Project, and incoming Colega links before adding.
+Success keeps the Leader selected, updates the members and sidebar, and returns
+focus to the action that opened the form. Permanent members appear first;
+active temporary members have their own section and closed members stay behind
+a disclosure. Member names open their conversations; a settings icon opens
+configuration for members that are still active.
+
 **Bot routines.** The Rotinas page reuses the Bot settings shell: the 64px
 Blobatar beside the name in title type and the expected outcome in control type,
 then the Rotinas section. A routine has a short name, an expandable instruction
@@ -484,9 +496,9 @@ tab hugging the plane's right edge at mid-height: a raised half-rounded tongue
 with a chevron in muted ink. Pointer hover or keyboard focus unfolds a column of
 ghost icon buttons at the edge, so the first action lands under the pointer,
 while the chevron slides to the left end and turns toward the edge. Conversa,
-Settings, Rotinas, and Memórias live here. Conversa is always first and is the
+Settings, Integrantes, Rotinas, Gatilhos, and Memórias live here. Conversa is always first and is the
 chat route. The current page uses the active surface. Choosing Settings,
-Rotinas, or Memórias again returns to the conversation, except on the Rotina
+Integrantes, Rotinas, Gatilhos, or Memórias again returns to the conversation, except on the Rotina
 editor, where Rotinas is current and choosing it returns to the list. Choosing
 the Bot in the sidebar also returns to the conversation. Nothing sits in the
 top-right corner beside the window controls.

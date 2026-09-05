@@ -37,6 +37,7 @@ export const engineContract = {
   },
   bots: {
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
+    addMember: oc.input(botSchemas.addMemberInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{leaderBotId}/members" }),
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),

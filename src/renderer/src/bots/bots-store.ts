@@ -8,6 +8,7 @@ export type BotRoute =
   | { name: "routines" }
   | { name: "triggers" }
   | { name: "memory" }
+  | { name: "members" }
   | { name: "routine"; id: string }
   | { name: "trigger"; id: string }
 

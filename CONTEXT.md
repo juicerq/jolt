@@ -20,6 +20,10 @@ _Evitar_: Subagente, bot secundário, especialista
 Um Integrante que o Líder contrata para uma única Tarefa. Ele herda a pasta e o executor do Líder, não cria Bots e fica encerrado quando a Tarefa termina: não recebe novas mensagens, e seu histórico permanece ligado à Tarefa. Os demais Integrantes são permanentes.
 _Evitar_: Bot temporário, subprocesso
 
+**Adicionar integrante**:
+Criar um Bot permanente ligado a um Líder ou vincular um Bot permanente existente que não tenha Integrantes, inclusive transferindo-o de outro Líder quando os envolvidos estiverem livres e não houver Tarefa em andamento do Bot. O Bot passa ao Projeto do Líder, mantém sua Pasta de trabalho, Conversa, Função, Memória e configurações; seus Colegas permanecem, mas os vínculos em que ele era Colega de outros Bots são desfeitos.
+_Evitar_: Convidar, duplicar Bot
+
 **Encerrado**:
 O estado de um Integrante temporário cuja Tarefa terminou.
 _Evitar_: Removido, arquivado, deletado

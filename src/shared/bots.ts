@@ -41,6 +41,7 @@ const updateExecutionInput = z.discriminatedUnion("setting", [
 
 export const botSchemas = {
   createInput,
+  addMemberInput: z.strictObject({ leaderBotId: id, botId: id }),
   hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean() }),
   idInput: z.strictObject({ id }),
   colleagueInput: colleague,

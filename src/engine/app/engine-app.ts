@@ -120,6 +120,12 @@ export function createEngineRouter(
       ),
     },
     bots: {
+      addMember: operations.bots.addMember.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
+        observability.span(
+          { name: "orpc.botmemberadd", context: observationContext(context) },
+          () => bots.addMember(input),
+        ),
+      ),
       create: operations.bots.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
         observability.span(
           { name: "orpc.botcreate", context: observationContext(context) },

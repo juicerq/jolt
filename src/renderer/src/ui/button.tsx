@@ -1,6 +1,6 @@
-import type { ButtonHTMLAttributes } from "react"
+import type { ComponentProps } from "react"
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "text" | "danger" }
+type ButtonProps = ComponentProps<"button"> & { variant?: "primary" | "secondary" | "text" | "danger" }
 
 const baseClassName = "shrink-0 cursor-pointer rounded-lg px-3.5 py-2.5 text-control focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default"
 
