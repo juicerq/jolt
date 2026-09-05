@@ -21,8 +21,11 @@ export function createProjects({ database, observability, bots }: ProjectsDepend
   return {
     async create(rawInput: unknown) {
       const input = parse(projectSchemas.createInput, rawInput)
-      await assertAccessibleWorkingDirectory(input.defaultWorkingDirectory)
-      const project: Project = { id: crypto.randomUUID(), ...input, createdAt: new Date().toISOString() }
+      if (input.defaultWorkingDirectory) {
+        await assertAccessibleWorkingDirectory(input.defaultWorkingDirectory)
+      }
+
+      const project: Project = { id: crypto.randomUUID(), ...input, defaultWorkingDirectory: input.defaultWorkingDirectory ?? null, createdAt: new Date().toISOString() }
 
       return observability.span(
         { name: "projects.create", context: { projectId: project.id } },

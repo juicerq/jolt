@@ -49,7 +49,7 @@ Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre 
 _Evitar_: Steer, forçar, priorizar
 
 **Projeto**:
-Um agrupamento opcional de Bots que compartilham um trabalho e uma Pasta de trabalho padrão. Todo Projeto possui uma Pasta de trabalho, mas um Bot pode substituí-la. Um Líder e seus Integrantes permanecem no mesmo Projeto; mover o Líder move o Time inteiro.
+Um agrupamento opcional de Bots que compartilham um trabalho, criado apenas com um nome e, opcionalmente, uma Pasta de trabalho padrão. Sem essa pasta, cada Bot usa sua pasta própria ou seu Diretório privado; um Líder e seus Integrantes permanecem no mesmo Projeto, e mover o Líder move o Time inteiro.
 _Evitar_: Time, codebase, pasta de Bots
 
 **Diretório do Bot**:

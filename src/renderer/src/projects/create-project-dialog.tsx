@@ -9,7 +9,7 @@ import { Field, fieldControlClassName } from "../ui/field"
 
 export function CreateProjectDialog({ client }: { client: EngineClient }) {
   return (
-    <Dialog eyebrow="Novo Projeto" title="Agrupe Bots pela pasta" onClose={closeDialog}>
+    <Dialog eyebrow="Novo Projeto" title="Organize seus Bots" onClose={closeDialog}>
       <CreateProjectForm client={client} />
     </Dialog>
   )
@@ -31,27 +31,27 @@ function CreateProjectForm({ client }: { client: EngineClient }) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!projectName || !defaultWorkingDirectory) {
+    if (!projectName || isPending) {
       return
     }
 
-    mutate({ name: projectName, defaultWorkingDirectory })
+    mutate({ name: projectName, ...(defaultWorkingDirectory ? { defaultWorkingDirectory } : {}) })
   }
 
   return (
     <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
       <DialogBody>
         <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Jolt" value={name} onChange={(event) => setName(event.target.value)} /></Field>
-        <Field label="Pasta padrão" as="div">
-          <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} />
-          <small className="text-support font-normal text-muted">Os Bots deste Projeto usam esta pasta quando não possuem uma pasta própria.</small>
+        <Field label="Pasta padrão" optional as="div">
+          <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => setDefaultWorkingDirectory("")} />
+          <small className="text-support font-normal text-secondary">Opcional. Sem uma pasta padrão, cada Bot usa sua pasta própria ou seu Diretório privado.</small>
         </Field>
         {directory.error && <p className="text-support text-status-error">Falha ao escolher a pasta: {directory.error}</p>}
         {error && <p className="text-support text-status-error">Falha ao criar o Projeto: {error.message}</p>}
       </DialogBody>
       <DialogActions>
         <Button variant="text" type="button" onClick={closeDialog}>Cancelar</Button>
-        <Button type="submit" disabled={isPending || !projectName || !defaultWorkingDirectory}>{isPending ? "Criando..." : "Criar Projeto"}</Button>
+        <Button type="submit" disabled={isPending || !projectName}>{isPending ? "Criando..." : "Criar Projeto"}</Button>
       </DialogActions>
     </form>
   )

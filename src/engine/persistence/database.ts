@@ -64,10 +64,11 @@ export function openDatabase(path: string, observability: Observability) {
   const sqlite = new Database(path, { create: true })
   const database = drizzle({ client: sqlite })
 
-  sqlite.run("PRAGMA foreign_keys = ON")
+  sqlite.run("PRAGMA foreign_keys = OFF")
   observability.span({ name: "database.migrate" }, () => {
     migrate(database, migrations)
   })
+  sqlite.run("PRAGMA foreign_keys = ON")
 
   return {
     history: {

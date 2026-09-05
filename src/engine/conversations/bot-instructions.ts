@@ -15,21 +15,23 @@ const decisionRules: Record<Bot["permissionMode"], string> = {
   full: "Your tools run without permission requests. Follow the person's requested scope and choices.",
 }
 
-function workingDirectoryInstructions(bot: Bot, project?: Pick<Project, "name">) {
+function workingDirectoryInstructions(bot: Bot, project?: Pick<Project, "name" | "defaultWorkingDirectory">) {
   if (bot.workingDirectoryOverride) {
     const relation = project ? `You belong to Project "${project.name}". The person chose a different working directory for you.` : "The person chose your working directory."
 
     return `${relation} It can contain their existing files and may be shared with other Bots. It is not your private Bot directory. ${workingDirectoryTools}`
   }
 
-  if (project) {
+  if (project?.defaultWorkingDirectory) {
     return `Your working directory is the shared folder of Project "${project.name}". Other Bots in this Project may change the same files. ${workingDirectoryTools}`
   }
 
-  return `Your working directory is your private Bot directory. It persists across turns and can contain files from earlier work. ${workingDirectoryTools}`
+  const relation = project ? `You belong to Project "${project.name}", which has no shared working directory. ` : ""
+
+  return `${relation}Your working directory is your private Bot directory. It persists across turns and can contain files from earlier work. ${workingDirectoryTools}`
 }
 
-export function botInstructions(input: { bot: Bot; directory: string; project?: Pick<Project, "name">; extensions: string[] }) {
+export function botInstructions(input: { bot: Bot; directory: string; project?: Pick<Project, "name" | "defaultWorkingDirectory">; extensions: string[] }) {
   return [
     `You are ${input.bot.name}, a Bot inside Jolt.`,
     `Expected outcome: ${input.bot.function.outcome}`,

@@ -12,7 +12,7 @@ import type { Trigger, TriggerRun } from "@src/shared/triggers"
 export const projects = snakeCase.table("projects", {
   id: text().primaryKey(),
   name: text().notNull(),
-  defaultWorkingDirectory: text().notNull(),
+  defaultWorkingDirectory: text(),
   createdAt: text().notNull(),
 })
 

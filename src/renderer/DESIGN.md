@@ -315,6 +315,10 @@ visible. Project creation may use steps when all fields do not fit comfortably
 inside a 680px-wide dialog. Bot and Integrante creation stay on the conversation
 plane.
 
+Creating a Project requires only its name. Pasta padrão is optional and can be
+cleared before saving. Without it, each Bot uses its own working directory or
+private Bot directory; the copy describes grouping work, not sharing a folder.
+
 Bot settings, Integrantes, Rotinas, Memórias, and the Rotina editor replace the conversation
 on that same floating plane. They share one centered 560px column.
 

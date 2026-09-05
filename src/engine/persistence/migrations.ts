@@ -17,6 +17,7 @@ import consolidatedRoutines from "@drizzle/20260903162419_consolidated-routines/
 import messageQuestions from "@drizzle/20260903210921_bouncy_bedlam/migration.sql" with { type: "text" }
 import triggers from "@drizzle/20260904155709_icy_sauron/migration.sql" with { type: "text" }
 import botContinuity from "@drizzle/20260905015106_bot-continuity/migration.sql" with { type: "text" }
+import optionalProjectFolder from "@drizzle/20260905031351_optional-project-folder/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -37,4 +38,5 @@ export const migrations = [
   { name: "20260903210921_bouncy_bedlam", timestamp: 1788473361000, sql: messageQuestions },
   { name: "20260904155709_icy_sauron", timestamp: 1788537429000, sql: triggers },
   { name: "20260905015106_bot-continuity", timestamp: 1788573066000, sql: botContinuity },
+  { name: "20260905031351_optional-project-folder", timestamp: 1788578031000, sql: optionalProjectFolder },
 ] satisfies MigrationsJournal
