@@ -9,6 +9,7 @@ import { turnNotification } from "../shared/turn-notification"
 import { startAppUpdates } from "./app-update"
 import { EngineProcess } from "./engine-process/engine-process"
 import { Browser } from "./browser/browser"
+import { browserDebuggingPort } from "./browser/browser-debugging"
 import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
@@ -57,7 +58,7 @@ const engine = new EngineProcess({
 })
 
 app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1")
-app.commandLine.appendSwitch("remote-debugging-port", process.env.JOLT_DEBUG_PORT ?? (app.isPackaged ? "0" : "9222"))
+app.commandLine.appendSwitch("remote-debugging-port", await browserDebuggingPort())
 
 void app.whenReady().then(async () => {
   const starting = engine.start()

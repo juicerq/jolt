@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process"
-import { readFile, writeFile } from "node:fs/promises"
+import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { promisify } from "node:util"
 import { app, type WebContents } from "electron"
@@ -49,9 +49,7 @@ export class BrowserDriver {
     }
 
     await writeFile(this.config, "{}", { mode: 0o600 })
-    const port = app.commandLine.getSwitchValue("remote-debugging-port")
-    const address = port === "0" ? (await readFile(join(app.getPath("userData"), "DevToolsActivePort"), "utf8")).split("\n")[0] : port
-    this.address = address
+    this.address = app.commandLine.getSwitchValue("remote-debugging-port")
     this.contents.debugger.attach("1.3")
     const target = await this.contents.debugger.sendCommand("Target.getTargetInfo").finally(() => this.contents.debugger.detach())
     const { targetInfo } = parse(z.object({ targetInfo: z.object({ targetId: z.string() }) }), target)
