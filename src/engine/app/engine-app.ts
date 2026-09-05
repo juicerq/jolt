@@ -12,6 +12,7 @@ import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 import type { createTriggers } from "../triggers/triggers"
 import type { PermissionDecisionInput } from "@src/shared/permissions"
+import type { createErrorAutomation } from "../error-automation/error-automation"
 
 interface EngineContext { traceId?: string; spanId?: string }
 
@@ -53,6 +54,7 @@ export function createEngineRouter(
   memory: ReturnType<typeof createMemory>,
   permissions: { decide(input: PermissionDecisionInput): void },
   plugins: ReturnType<typeof createPlugins>,
+  errorAutomation: ReturnType<typeof createErrorAutomation>,
 ) {
   const operations = implement(engineContract).use(async ({ next }) => {
     try {
@@ -63,6 +65,14 @@ export function createEngineRouter(
   })
 
   return operations.router({
+    errorAutomation: {
+      status: operations.errorAutomation.status.handler(() => errorAutomation.status()),
+      configure: operations.errorAutomation.configure.handler(({ input }) => errorAutomation.configure(input)),
+      run: operations.errorAutomation.run.handler(() => errorAutomation.run()),
+      decide: operations.errorAutomation.decide.handler(({ input }) => errorAutomation.decide(input)),
+      reanalyze: operations.errorAutomation.reanalyze.handler(({ input }) => errorAutomation.reanalyze(input)),
+      verify: operations.errorAutomation.verify.handler(({ input }) => errorAutomation.verify(input)),
+    },
     health: operations.health.handler(({ context }: { context: EngineContext }) =>
       observability.span({ name: "orpc.health", context: observationContext(context) }, () => ({
         status: "ready",

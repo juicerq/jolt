@@ -27,6 +27,7 @@ import type { Trigger, TriggerRun } from "@src/shared/triggers"
 import { triggerSchemas } from "@src/shared/triggers"
 import { accesses, accounts, bots, colleagues, conversations, curationFailures, memories, memorySettings, messages, notes, plugins, projects, routines, tasks, triggerRuns, triggers, whatsappContacts, whatsappMessages } from "./schema"
 import { parse, parseOptional } from "@src/shared/parse"
+import { createErrorCases } from "./error-cases"
 
 const chatName = sql<string>`coalesce(${whatsappContacts.name}, ${whatsappMessages.chatId})`
 
@@ -71,6 +72,7 @@ export function openDatabase(path: string, observability: Observability) {
   sqlite.run("PRAGMA foreign_keys = ON")
 
   return {
+    errorCases: createErrorCases(sqlite),
     history: {
       search(botId: string, input: HistorySearch) {
         const terms = input.query.match(/[\p{L}\p{N}]+/gu)

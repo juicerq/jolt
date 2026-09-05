@@ -9,6 +9,22 @@ import type { Routine } from "@src/shared/routines"
 import type { Task } from "@src/shared/tasks"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
 
+export const errorAutomationSettings = snakeCase.table("error_automation_settings", {
+  id: integer().primaryKey(), config: text(), secret: text(), verificationSecret: text(), lastReceivedAt: text(), failure: text(),
+})
+export const errorCases = snakeCase.table("error_cases", {
+  id: text().primaryKey(), source: text().notNull(), environment: text().notNull(), errorId: text().notNull(),
+  revision: text().notNull(), contextHash: text().notNull(), state: text().notNull(),
+  leaseId: text(), leaseUntil: integer(), createdAt: text().notNull(), updatedAt: text().notNull(), data: text().notNull(),
+}, (table) => [uniqueIndex("error_cases_source_identity").on(table.source, table.environment, table.errorId), index("error_cases_queue").on(table.state, table.createdAt)])
+export const errorDeliveries = snakeCase.table("error_deliveries", {
+  id: text().notNull(), source: text().notNull(), environment: text().notNull(), caseId: text().notNull(),
+  payload: text().notNull(), acknowledged: integer().notNull().default(0), createdAt: text().notNull(),
+}, (table) => [primaryKey({ columns: [table.source, table.environment, table.id] }), index("error_deliveries_ack").on(table.acknowledged)])
+export const errorRuns = snakeCase.table("error_runs", {
+  id: text().primaryKey(), caseId: text().notNull(), kind: text().notNull(), status: text().notNull(), createdAt: text().notNull(), data: text().notNull(),
+}, (table) => [index("error_runs_case").on(table.caseId), index("error_runs_day").on(table.createdAt)])
+
 export const projects = snakeCase.table("projects", {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -30,6 +46,7 @@ export const bots = snakeCase.table("bots", {
   effort: text({ enum: ["low", "medium", "high", "xhigh", "max"] }).$type<StoredBot["effort"]>().notNull().default("medium"),
   model: text(),
   permissionMode: text({ enum: ["read-only", "ask", "full"] }).$type<StoredBot["permissionMode"]>().notNull().default("ask"),
+  executionProfile: text().$type<StoredBot["executionProfile"]>(),
   createdAt: text().notNull(),
 }, (table) => [
   index("bots_leader_bot_id").on(table.leaderBotId),

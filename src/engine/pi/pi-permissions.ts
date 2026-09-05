@@ -1,5 +1,5 @@
-import { realpath } from "node:fs/promises"
-import { isAbsolute, relative, resolve, sep } from "node:path"
+import { lstat, realpath } from "node:fs/promises"
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
 import type { BotPermissionMode } from "@src/shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
@@ -14,6 +14,8 @@ interface PiPermissionPolicyBase {
   allowedRoot: string
   botDirectory?: string
   labels?: Record<string, string>
+  allowedTools?: string[]
+  restrictWrites?: boolean
 }
 
 export type PiPermissionPolicy =
@@ -92,6 +94,32 @@ function describeToolCall(id: string, tool: string, input: unknown, label?: stri
 }
 
 async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
+  if (policy.allowedTools) {
+    if (!policy.allowedTools.includes(tool)) {
+      return { allowed: false as const, reason: "missing_permission" as const }
+    }
+
+    if (observationTools.has(tool) || tool === "edit" || tool === "write") {
+      const path = input && typeof input === "object" ? Reflect.get(input, "path") ?? "." : undefined
+      const target = typeof path === "string" ? resolve(policy.allowedRoot, path) : ""
+      const parts = relative(policy.allowedRoot, target).split(/[\\/]/)
+
+      if (parts.some((part) => part === ".git" || part.startsWith(".env") || /^(credentials|secrets?)(\.|$)/i.test(part))) {
+        return { allowed: false as const, reason: "missing_permission" as const }
+      }
+
+      const inside = await pathIsInside(policy.allowedRoot, path)
+      const newFile = tool === "write" && target && !await lstat(target).catch(() => undefined)
+        && await pathIsInside(policy.allowedRoot, dirname(target))
+
+      if (!inside && !newFile) {
+        return { allowed: false as const, reason: "path_outside_root" as const }
+      }
+    }
+
+    return { allowed: true as const }
+  }
+
   if (policy.mode === "full") {
     return { allowed: true as const }
   }

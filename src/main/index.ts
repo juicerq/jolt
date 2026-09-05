@@ -20,6 +20,36 @@ if (process.env.JOLT_USER_DATA) {
 
 app.setName(app.isPackaged ? "Jolt" : "Jolt Dev")
 
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+}
+
+const background = process.argv.includes("--background")
+let showOnReady = !background
+let mainWindow: BrowserWindow | undefined
+let quitting = false
+
+function showMainWindow() {
+  if (!mainWindow) {
+    return
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore()
+  }
+
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+app.on("second-instance", (_event, argv) => {
+  if (!argv.includes("--background")) {
+    showOnReady = true
+    showMainWindow()
+  }
+})
+app.on("activate", showMainWindow)
+
 const environmentFile = join(app.getAppPath(), ".env")
 
 if (!app.isPackaged && existsSync(environmentFile)) {
@@ -53,7 +83,7 @@ const engine = new EngineProcess({
   loadProvider: !app.isPackaged && process.env.JOLT_LOAD_PROVIDER === "true",
   onUnexpectedExit(error) {
     console.error(error)
-    app.quit()
+    app.exit(1)
   },
 })
 
@@ -70,13 +100,26 @@ void app.whenReady().then(async () => {
     height: 760,
     frame: false,
     icon,
+    show: false,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
-  window.maximize()
+  mainWindow = window
+
+  if (showOnReady) {
+    window.maximize()
+    showMainWindow()
+  }
+
+  window.on("close", (event) => {
+    if (background && !quitting) {
+      event.preventDefault()
+      window.hide()
+    }
+  })
   browser = new Browser(window)
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
@@ -125,11 +168,17 @@ void app.whenReady().then(async () => {
   await loading
 
   await startAppUpdates({ window, engine })
+}).catch(async (error) => {
+  console.error(error)
+  await engine.stop()
+  app.exit(1)
 })
 
 let engineStopped = false
 
 app.on("before-quit", (event) => {
+  quitting = true
+
   if (engineStopped) {
     return
   }

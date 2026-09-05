@@ -187,10 +187,16 @@ export function createDelegation(input: {
           instructions: "Instructions for the member",
           wait: waitParameter,
           "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
+          "profile?": "Managed execution profile: error-analyst (Luna max), error-reviewer (Sol max), or error-fixer (Sol max). Requires an isolated directory; no plugin inheritance.",
+          "directory?": "Isolated working directory for a managed execution profile.",
         },
         async execute(params, signal) {
+          if (params.profile && params.plugins?.trim()) {
+            throw new Error("Managed error workers cannot inherit Plugins")
+          }
+
           const inherited = input.inheritance(bot, params.plugins)
-          const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
+          const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) }, ...(params.profile ? { executionProfile: params.profile, workingDirectoryOverride: params.directory } : {}) })
 
           for (const inheritance of inherited) {
             inheritance.apply(to)

@@ -3,6 +3,8 @@ import { providerConnectInput, providerDisconnectInput, type ProviderAvailabilit
 import type { Observability } from "../observability/observability"
 import { detectOpencodeKey } from "./opencode-key"
 import { piProviders, type PiModels } from "./pi-models"
+import type { BotEffort } from "@src/shared/bots"
+import { getSupportedThinkingLevels } from "@earendil-works/pi-ai/compat"
 
 const providerNames = Object.keys(piProviders) as ProviderName[]
 
@@ -77,6 +79,13 @@ export function createPiProvider(observability: Observability, models: PiModels)
 
   return {
     list,
+    async validateExecution(provider: ProviderName, modelId: string, effort: BotEffort) {
+      const { model } = await models.resolve(provider, modelId)
+
+      if (!getSupportedThinkingLevels(model).includes(effort)) {
+        throw new Error(`Model ${modelId} does not support effort ${effort}`)
+      }
+    },
     async models() {
       await list()
 

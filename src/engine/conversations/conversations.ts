@@ -15,6 +15,7 @@ import { parse } from "@src/shared/parse"
 import { createQueue } from "../queue"
 import { createMessageQueue } from "./message-queue"
 import { createHistory } from "./history"
+import { toolsForExecutionProfile } from "@src/shared/bot-profiles"
 
 const defaultTools = ["read", "grep", "find", "ls", "bash", "edit", "write"]
 const turnEndings: Record<FinishReason, TurnEnding | null> = { stop: null, aborted: "aborted", error: "failed" }
@@ -150,7 +151,7 @@ export function createConversations(input: {
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
     const botDirectory = await input.bots.directory({ id: botId })
     const customTools = [createAskTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
-    const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
+    const tools = toolsForExecutionProfile(bot.executionProfile, toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)]))
     const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
 
     if (bot.projectId && !project) {
@@ -174,6 +175,7 @@ export function createConversations(input: {
       effort: bot.effort,
       model: bot.model,
       permissionMode: bot.permissionMode,
+      ...(bot.executionProfile ? { executionProfile: bot.executionProfile } : {}),
       customTools,
       instructions,
       ...(sessionFile ? { sessionFile } : {}),
@@ -618,6 +620,7 @@ export function createConversations(input: {
   }
 
   return {
+    runTask: runTurn,
     history(rawInput: unknown) {
       const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
 

@@ -1,4 +1,5 @@
 import { Type } from "@earendil-works/pi-ai"
+import { getSupportedThinkingLevels } from "@earendil-works/pi-ai/compat"
 import {
   createAgentSession,
   DefaultResourceLoader,
@@ -240,6 +241,9 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
   return {
     async open(input) {
       const { model, modelRuntime } = await options.models.resolve(input.provider, input.model)
+      if (input.executionProfile && !getSupportedThinkingLevels(model).includes(input.effort)) {
+        throw new Error(`Model ${model.id} does not support effort ${input.effort}`)
+      }
       const registrar = createToolRegistrar(input.botId)
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
@@ -249,6 +253,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         noPromptTemplates: true,
         noThemes: true,
         noContextFiles: true,
+        ...(input.executionProfile ? { noExtensions: true } : {}),
         ...(input.instructions ? { systemPrompt: input.instructions } : {}),
       })
       await loader.reload()
@@ -294,6 +299,10 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         addTools: (tools) => registrar.add(tools),
         subscribe(listener) {
           return result.session.subscribe((event) => {
+            if (event.type === "message_end" && event.message.role === "assistant") {
+              input.onUsage?.({ tokens: event.message.usage.totalTokens, cost: event.message.usage.cost.total })
+            }
+
             const normalized = normalizer.normalize(event)
 
             if (normalized) {

@@ -515,6 +515,22 @@ export function createPlugins(input: {
   }
 
   return {
+    async executeForBot(botId: string, accountId: string, name: string, args: Record<string, unknown>, signal?: AbortSignal) {
+      const account = accountOf(accountId)
+      const plugin = pluginOf(account.pluginId)
+
+      if (account.state !== "connected" || !input.database.accesses.listForBot(botId).some((access) => access.accountId === account.id)) {
+        throw new Error("The responsible Bot needs access to a connected Conta")
+      }
+
+      const tool = toolsOf(account).find((candidate) => candidate.name === name)
+
+      if (!tool) {
+        throw new Error(`Tool ${name} is unavailable on this Conta`)
+      }
+
+      return await input.adapters[plugin.kind].execute(sessionFor(account), tool, args, signal)
+    },
     resume() {
       for (const account of input.database.accounts.list()) {
         resumeAccount(account)
