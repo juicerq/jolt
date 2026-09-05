@@ -1,6 +1,8 @@
-import { BaseWindow, WebContentsView, type BrowserWindow } from "electron"
+import { BaseWindow, WebContentsView, type BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from "electron"
 import type { BrowserAction, BrowserBounds, BrowserPreview } from "@src/shared/browser"
 import { BrowserDriver } from "./browser-driver"
+
+const webPreferences = { partition: "persist:jolt-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
 
 export class BrowserPage {
   private readonly driver: BrowserDriver
@@ -14,11 +16,11 @@ export class BrowserPage {
   private readonly lifetime = new AbortController()
   private busy = false
   private requestingControl = false
-  private readonly popups = new Set<BrowserWindow>()
+  private popup?: WebContentsView
 
   constructor(readonly window: BrowserWindow, bot: { botId: string; botName: string }, private readonly changed: () => void) {
-    this.preview = { botId: bot.botId, botName: bot.botName, url: "about:blank", title: "Navegador", control: "bot", reason: null, image: null, error: null }
-    this.view = new WebContentsView({ webPreferences: { partition: "persist:jolt-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } })
+    this.preview = { botId: bot.botId, botName: bot.botName, url: "about:blank", title: "Navegador", control: "bot", popup: false, reason: null, image: null, error: null }
+    this.view = new WebContentsView({ webPreferences })
     this.driver = new BrowserDriver(this.view.webContents)
     this.view.setBounds({ x: 0, y: 0, width: 1280, height: 800 })
     this.background.contentView.addChildView(this.view)
@@ -28,23 +30,17 @@ export class BrowserPage {
     contents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     contents.session.setPermissionCheckHandler(() => false)
     contents.setWindowOpenHandler(({ url }) => {
-      const allowed = /^https?:\/\//.test(url)
-
-      if (allowed && this.preview.control === "user") {
-        return { action: "allow", overrideBrowserWindowOptions: { parent: window, modal: true, width: 640, height: 720, autoHideMenuBar: true, webPreferences: { partition: "persist:jolt-browser", sandbox: true, contextIsolation: true, nodeIntegration: false } } }
+      if (!/^https?:\/\//.test(url) || this.popup) {
+        return { action: "deny" }
       }
 
-      if (allowed) {
-        void contents.loadURL(url).catch((error: Error) => this.fail(error.message))
-      }
+      return { action: "allow", overrideBrowserWindowOptions: { webPreferences }, createWindow: (options) => this.openPopup(options) }
+    })
+    this.observe(contents)
+    void contents.loadURL("about:blank")
+  }
 
-      return { action: "deny" }
-    })
-    contents.on("did-create-window", (popup) => {
-      this.popups.add(popup)
-      popup.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
-      popup.on("closed", () => this.popups.delete(popup))
-    })
+  private observe(contents: WebContents) {
     contents.on("will-navigate", (event, url) => {
       const allowed = /^https?:\/\//.test(url)
 
@@ -74,14 +70,74 @@ export class BrowserPage {
     })
     contents.on("render-process-gone", () => {
       this.fail("A página parou de responder. Feche o navegador e tente novamente.")
-      this.close()
+
+      if (contents === this.popup?.webContents) {
+        this.closePopup()
+      } else {
+        this.close()
+      }
     })
-    void contents.loadURL("about:blank")
+  }
+
+  private openPopup(options: BrowserWindowConstructorOptions) {
+    const popup = new WebContentsView(options)
+    this.popup = popup
+    this.preview.popup = true
+    this.preview.image = null
+    const parent = this.shown ? this.window : this.background
+    parent.contentView.addChildView(popup)
+    popup.setBounds(this.view.getBounds())
+    popup.setVisible(this.preview.control === "user")
+    popup.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
+    this.observe(popup.webContents)
+    popup.webContents.on("before-input-event", (event, input) => {
+      if (input.type === "keyDown" && input.key === "Escape") {
+        event.preventDefault()
+        this.window.webContents.focus()
+        this.window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" })
+      }
+    })
+    popup.webContents.once("destroyed", () => {
+      const owner = this.shown ? this.window : this.background
+
+      if (!owner.isDestroyed()) {
+        owner.contentView.removeChildView(popup)
+      }
+
+      this.popup = undefined
+      this.preview.popup = false
+      this.preview.image = null
+
+      if (!this.closed) {
+        this.update()
+
+        if (this.shown) {
+          this.view.webContents.focus()
+        }
+      }
+    })
+
+    if (this.preview.control === "bot") {
+      void this.takeControl("Conclua a interação do site e devolva o controle quando terminar.")
+    } else {
+      this.changed()
+      popup.webContents.focus()
+    }
+
+    return popup.webContents
+  }
+
+  closePopup() {
+    this.popup?.webContents.close()
+  }
+
+  private get activeView() {
+    return this.popup ?? this.view
   }
 
   private update() {
-    this.preview.url = this.view.webContents.getURL()
-    this.preview.title = this.view.webContents.getTitle() || "Navegador"
+    this.preview.url = this.activeView.webContents.getURL()
+    this.preview.title = this.activeView.webContents.getTitle() || "Navegador"
     this.changed()
   }
 
@@ -101,25 +157,37 @@ export class BrowserPage {
 
     this.requestingControl = false
     this.preview.control = "user"
+    this.popup?.setVisible(true)
 
     if (reason) {
       this.preview.reason = reason
     }
 
     this.changed()
+
+    if (this.shown) {
+      this.activeView.webContents.focus()
+    }
   }
 
   show(bounds: BrowserBounds) {
     if (!this.shown) {
       this.background.contentView.removeChildView(this.view)
       this.window.contentView.addChildView(this.view)
+
+      if (this.popup) {
+        this.background.contentView.removeChildView(this.popup)
+        this.window.contentView.addChildView(this.popup)
+      }
+
       this.shown = true
     }
 
     this.view.setBounds(bounds)
+    this.popup?.setBounds(bounds)
 
     if (this.preview.control === "user") {
-      this.view.webContents.focus()
+      this.activeView.webContents.focus()
     }
   }
 
@@ -130,12 +198,18 @@ export class BrowserPage {
 
     this.window.contentView.removeChildView(this.view)
     this.background.contentView.addChildView(this.view)
+
+    if (this.popup) {
+      this.window.contentView.removeChildView(this.popup)
+      this.background.contentView.addChildView(this.popup)
+    }
+
     this.shown = false
   }
 
   resume() {
-    if (this.popups.size) {
-      throw new Error("Close the site login window before returning browser control")
+    if (this.popup) {
+      throw new Error("Close the site popup before returning browser control")
     }
 
     this.controlRevision += 1
@@ -234,11 +308,12 @@ export class BrowserPage {
       return
     }
 
-    const { width, height } = this.view.getBounds()
-    const image = await this.view.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true })
+    const view = this.activeView
+    const { width, height } = view.getBounds()
+    const image = await view.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true })
     const empty = image.isEmpty()
 
-    if (!this.closed && !empty) {
+    if (!this.closed && view === this.activeView && !empty) {
       this.preview.image = image.resize({ width: 320 }).toDataURL()
     }
   }
@@ -250,9 +325,7 @@ export class BrowserPage {
 
     this.closed = true
 
-    for (const popup of this.popups) {
-      popup.destroy()
-    }
+    this.closePopup()
 
     this.lifetime.abort()
     void this.driver.close()

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("desktop", {
   resumeBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:resume", botId),
   minimizeBrowser: (): Promise<void> => ipcRenderer.invoke("agent-browser:minimize"),
   closeBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:close", botId),
+  closeBrowserPopup: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:close-popup", botId),
   onBrowserState: (listener: (state: BrowserState) => void): void => {
     ipcRenderer.on("agent-browser:state", (_event, state: BrowserState) => listener(state))
   },

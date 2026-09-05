@@ -36,6 +36,7 @@ export interface BrowserPreview {
   url: string
   title: string
   control: "bot" | "user"
+  popup: boolean
   reason: string | null
   image: string | null
   error: string | null

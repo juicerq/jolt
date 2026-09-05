@@ -55,6 +55,7 @@ export function BrowserPanel() {
             <p className="text-support text-secondary">{userControl ? "Você está no controle" : "Bot no controle"}</p>
           </div>
           <p className="order-last w-full truncate text-support text-secondary sm:order-none sm:w-auto sm:max-w-1/2">{focused.url}</p>
+          {focused.popup && <Button variant="text" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowserPopup(focused.botId))}>Voltar à página</Button>}
           <IconButton label="Recolher navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}><MinusIcon aria-hidden="true" /></IconButton>
           <IconButton label="Maximizar ou restaurar janela" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.toggleMaximizeWindow())}><Square2StackIcon aria-hidden="true" /></IconButton>
           <IconButton label="Fechar navegador" tooltipPlacement="left" disabled={pending} onClick={() => void handleAction(() => window.desktop.closeBrowser(focused.botId))}><XMarkIcon aria-hidden="true" /></IconButton>
@@ -64,7 +65,7 @@ export function BrowserPanel() {
           <p className="min-w-0 flex-1 basis-full text-support text-secondary sm:basis-0" role={error || focused.error ? "alert" : "status"}>{error ?? focused.error ?? status}</p>
           <div className="ml-auto flex max-w-full items-center justify-end gap-2">
             <Button variant="text" disabled={pending} onClick={() => void handleAction(() => window.desktop.minimizeBrowser())}>Voltar ao chat</Button>
-            <Button className="min-w-0 shrink whitespace-normal [overflow-wrap:anywhere]" disabled={pending} onClick={() => void handleAction(() => userControl ? window.desktop.resumeBrowser(focused.botId) : window.desktop.takeBrowserControl(focused.botId))}>{pending ? "Aguarde…" : controlLabel}</Button>
+            <Button className="min-w-0 shrink whitespace-normal [overflow-wrap:anywhere]" disabled={pending || focused.popup} onClick={() => void handleAction(() => userControl ? window.desktop.resumeBrowser(focused.botId) : window.desktop.takeBrowserControl(focused.botId))}>{pending ? "Aguarde…" : controlLabel}</Button>
           </div>
         </footer>
       </section>
@@ -86,7 +87,7 @@ export function BrowserPanel() {
             <span className="text-support text-secondary">{page.control === "user" ? page.reason ?? "Esperando você devolver o controle" : page.title}</span>
             {page.error && <span className="text-support text-status-error">{page.error}</span>}
           </div>
-          {page.control === "user" && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(page.botId))}>Devolver para {page.botName}</Button></div>}
+          {page.control === "user" && !page.popup && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void handleAction(() => window.desktop.resumeBrowser(page.botId))}>Devolver para {page.botName}</Button></div>}
         </div>
       ))}
       {error && <p className="rounded-lg bg-surface-raised p-3 text-support text-status-error" role="alert">{error}</p>}

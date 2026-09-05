@@ -12,6 +12,7 @@ declare global {
       resumeBrowser(botId: string): Promise<void>
       minimizeBrowser(): Promise<void>
       closeBrowser(botId: string): Promise<void>
+      closeBrowserPopup(botId: string): Promise<void>
       onBrowserState(listener: (state: BrowserState) => void): void
       getEngineConnection(): Promise<EngineConnection>
       chooseWorkingDirectory(): Promise<string | null>

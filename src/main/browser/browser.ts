@@ -92,6 +92,7 @@ export class Browser {
       this.publish()
     })
     handle("minimize", () => this.minimize())
+    handle("close-popup", (raw) => this.page(parse(z.string(), raw)).closePopup())
     handle("close", (raw) => this.close(parse(z.string(), raw)))
     this.timer = setInterval(() => void this.capture(), 1000)
     window.on("closed", () => {
