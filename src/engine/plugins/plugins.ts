@@ -20,7 +20,9 @@ interface PendingRequest { botId: string; request: PluginRequest; connection?: P
 
 type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
-interface PendingConnection { pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest: () => PluginStep | undefined; cancel: () => void }
+interface PendingConnection { connectionId: string; pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest: () => PluginStep | undefined; cancel: () => void; release: () => void; settled: boolean }
+
+const connectionResultRetentionMs = 60_000
 
 const builtInPlugins: Catalogued[] = [
   { id: "gmail", kind: "gmail", name: "Gmail", builtIn: true },
@@ -128,7 +130,7 @@ export function createPlugins(input: {
     const accounts = input.database.accounts.list()
     const accesses = input.database.accesses.list()
 
-    return parse(pluginSchemas.snapshot, {
+    return {
       plugins: catalogue().map((plugin) => {
         const availability = input.adapters[plugin.kind].availability()
 
@@ -143,7 +145,7 @@ export function createPlugins(input: {
           accounts: accounts.filter((account) => account.pluginId === plugin.id).map((account) => present(account, accesses)),
         }
       }),
-    })
+    }
   }
 
   function grantedAccounts(bot: Pick<Bot, "id">) {
@@ -241,16 +243,16 @@ export function createPlugins(input: {
     pending.resolve(outcome.value)
   }
 
-  function ask(bot: Pick<Bot, "id">, plugin: Catalogued, signal?: AbortSignal, target?: string) {
+  async function ask(bot: Pick<Bot, "id">, plugin: Catalogued, signal?: AbortSignal, target?: string): Promise<Requested> {
     if (signal?.aborted) {
-      return Promise.resolve<Requested>({ cancelled: true })
+      return { cancelled: true }
     }
 
     const accounts = input.database.accounts.list().filter((account) => account.pluginId === plugin.id)
     const connectable = input.adapters[plugin.kind].availability().available
     const only = accounts.length === 1 ? accounts[0] : undefined
     const undecided = accounts.length <= 1 && only?.state !== "connected"
-    const request = parse(pluginSchemas.request, {
+    const request: PluginRequest = {
       id: crypto.randomUUID(),
       pluginId: plugin.id,
       pluginName: plugin.name,
@@ -258,19 +260,23 @@ export function createPlugins(input: {
       accounts: target ? [] : accounts.map((account) => ({ id: account.id, label: account.label, state: account.state })),
       connectable,
       connecting: connectable && undecided && !target,
-    })
+    }
     const key = requestKey(bot.id, request.id)
+    const abort = () => settleRequest(key, { value: { cancelled: true } })
 
-    return new Promise<Requested>((resolve, reject) => {
+    return await new Promise<Requested>((resolve, reject) => {
       const pending: PendingRequest = { botId: bot.id, request, resolve, reject }
 
       requests.set(key, pending)
-      signal?.addEventListener("abort", () => settleRequest(key, { value: { cancelled: true } }), { once: true })
+      signal?.addEventListener("abort", abort, { once: true })
       input.conversations.notify(bot.id, { type: "plugin-requested", request })
 
       if (request.connecting) {
         pending.connection = startConnection(plugin, { ...(only ? { accountId: only.id } : {}), botId: bot.id, requestId: request.id }, secretOf(only))
       }
+    }).finally(() => {
+      signal?.removeEventListener("abort", abort)
+      abort()
     })
   }
 
@@ -487,6 +493,13 @@ export function createPlugins(input: {
     const pending = target.botId && target.requestId ? requests.get(requestKey(target.botId, target.requestId)) : undefined
     const connection = input.adapters[plugin.kind].connect({ ...(pending?.request.target ? { target: pending.request.target } : {}), pluginId: plugin.id, name: plugin.name, ...(plugin.config ? { config: plugin.config } : {}), ...(secret ? { secret } : {}), step })
     const connectionId = crypto.randomUUID()
+    let expiry: ReturnType<typeof setTimeout> | undefined
+
+    function release() {
+      clearTimeout(expiry)
+      connections.delete(connectionId)
+    }
+
     const done = connection.connected.then(async (connected) => {
       await connectionFinished(plugin, connected, target)
 
@@ -501,17 +514,19 @@ export function createPlugins(input: {
 
       throw failure
     }).finally(() => {
-      connections.delete(connectionId)
+      record.settled = true
+      expiry = setTimeout(release, connectionResultRetentionMs)
+      expiry.unref()
 
       for (const stream of streams) {
         stream.close()
       }
     })
     done.catch(() => {})
-    const record: PendingConnection = { pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel }
+    const record: PendingConnection = { connectionId, pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel, release, settled: false }
     connections.set(connectionId, record)
 
-    return { connectionId, ...record }
+    return record
   }
 
   return {
@@ -606,7 +621,7 @@ export function createPlugins(input: {
       try {
         const connection = startConnection({ ...plugin, kind: "mcp", builtIn: false }, {}, JSON.stringify(details.env))
 
-        return await connection.done
+        return await connection.done.finally(connection.release)
       } catch (error) {
         input.database.plugins.remove(plugin.id)
 
@@ -657,41 +672,36 @@ export function createPlugins(input: {
         input.conversations.notify(pending.botId, { type: "plugin-requested", request: pending.request })
       }
 
-      return parse(pluginSchemas.connectOutput, { connectionId: started.connectionId })
+      return { connectionId: started.connectionId }
     },
-    connectionSteps(rawInput: unknown): AsyncIterable<PluginStep> {
+    connectionSteps(rawInput: unknown, signal?: AbortSignal) {
+      signal?.throwIfAborted()
       const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
       const connection = connections.get(connectionId)
       const pending = connection?.latest()
-      const queue = createQueue<PluginStep>(pending ? [pending] : [])
+      const queue = createQueue<PluginStep>({
+        initial: pending ? [pending] : [],
+        ...(signal ? { signal } : {}),
+        onClose: () => connection?.streams.delete(queue),
+      })
 
-      if (!connection) {
+      if (connection && !connection.settled) {
+        connection.streams.add(queue)
+      } else {
         queue.close()
       }
 
-      connection?.streams.add(queue)
-
-      return {
-        async *[Symbol.asyncIterator]() {
-          try {
-            for (let step = await queue.next(); step; step = await queue.next()) {
-              yield step
-            }
-          } finally {
-            connection?.streams.delete(queue)
-          }
-        },
-      }
+      return queue
     },
     async awaitConnection(rawInput: unknown) {
       const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
       const connection = connections.get(connectionId)
 
       if (!connection) {
-        return list()
+        throw new Error("Connection result expired. Connect the Plugin again.")
       }
 
-      return connection.done
+      return await connection.done.finally(connection.release)
     },
     async disconnect(rawInput: unknown) {
       const { accountId } = parse(pluginSchemas.accountInput, rawInput)
@@ -743,8 +753,18 @@ export function createPlugins(input: {
         settleRequest(key, { value: { cancelled: true } })
       }
 
-      for (const connection of connections.values()) {
-        connection.cancel()
+      const pendingConnections = [...connections.values()]
+
+      for (const connection of pendingConnections) {
+        if (!connection.settled) {
+          connection.cancel()
+        }
+      }
+
+      await Promise.allSettled(pendingConnections.map((connection) => connection.done))
+
+      for (const connection of pendingConnections) {
+        connection.release()
       }
 
       for (const account of input.database.accounts.list()) {

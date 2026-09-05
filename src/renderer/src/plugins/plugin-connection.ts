@@ -7,8 +7,8 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
   const queryClient = useQueryClient()
   const [step, setStep] = useState<PluginStep>()
 
-  async function follow(connectionId: string) {
-    const steps = await client.raw.plugins.connectionSteps({ connectionId })
+  async function follow(connectionId: string, signal: AbortSignal) {
+    const steps = await client.raw.plugins.connectionSteps({ connectionId }, { signal })
 
     for await (const next of steps) {
       setStep(next)
@@ -23,9 +23,18 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
     async mutationFn(input: PluginConnectInput) {
       setStep(undefined)
       const started = await client.raw.plugins.connect(input)
-      void follow(started.connectionId).catch(() => {})
+      const controller = new AbortController()
 
-      return client.raw.plugins.awaitConnection({ connectionId: started.connectionId })
+      try {
+        const [, snapshot] = await Promise.all([
+          follow(started.connectionId, controller.signal),
+          client.raw.plugins.awaitConnection({ connectionId: started.connectionId }),
+        ])
+
+        return snapshot
+      } finally {
+        controller.abort()
+      }
     },
     onSettled() {
       setStep(undefined)

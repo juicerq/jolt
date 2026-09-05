@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util"
 import type { Observation } from "../src/shared/observability/observation"
-import { browser } from "./browser"
+import { browser, connectBrowser } from "./browser"
 import { observationLog, observations, waitForObservations } from "./observations"
 import { type Probe, startProbe, stopProbe, summarizeFrames, summarizeKeys } from "./page-probe"
 
@@ -100,7 +100,7 @@ function summarize(label: string, samples: Sample[]) {
   return { label, rounds: samples.length, typed, msPerKey: Math.round(elapsedMs / Math.max(1, typed)), ...summarizeKeys(keys), ...summarizeFrames({ frames, longFrames }) }
 }
 
-browser("connect", values.port)
+connectBrowser(values.port)
 
 const idle: Sample[] = []
 const streaming: Sample[] = []

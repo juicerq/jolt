@@ -71,7 +71,6 @@ const message = z.strictObject({
 const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, triggerRunId: true, content: true, images: true, replyTo: true })
 const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
 const startedEvent = z.strictObject({ type: z.literal("started"), messageId: id, message: incomingMessage })
-const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
 const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
 const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
 const thinkingStartedEvent = z.strictObject({ type: z.literal("thinking-started") })
@@ -103,7 +102,6 @@ const queueChangedEvent = z.strictObject({ type: z.literal("queue-changed"), que
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
   startedEvent,
-  textEvent,
   messageFinishedEvent,
   thinkingStartedEvent,
   thinkingEvent,

@@ -88,15 +88,13 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       ?? join(privateBotsDirectory, storedBot.id)
     const closed = storedBot.temporary && !workingAssigneeIds.has(storedBot.id)
 
-    return parse(botSchemas.bot, { ...storedBot, effectiveWorkingDirectory, closed, colleagueIds: colleagueIds.get(storedBot.id) ?? [] })
+    return { ...storedBot, effectiveWorkingDirectory, closed, colleagueIds: colleagueIds.get(storedBot.id) ?? [] }
   }
 
   function list() {
     const workingAssigneeIds = database.tasks.workingAssigneeIds()
     const colleagueIds = colleagueIdsByBot()
-    const listedBots = database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds, colleagueIds))
-
-    return parse(botSchemas.botList, listedBots)
+    return database.bots.list().map((storedBot) => present(storedBot, workingAssigneeIds, colleagueIds))
   }
 
   async function store(storedBot: StoredBot) {

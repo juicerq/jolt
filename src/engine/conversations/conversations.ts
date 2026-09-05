@@ -46,7 +46,15 @@ export interface BotExtension {
   inheritance?(leader: Bot, references: string | undefined): BotInheritance
 }
 
-interface ActiveTurn { message: ConversationMessage; settled: Promise<void> }
+export interface TurnResult { reason: FinishReason; response: string; error?: string }
+interface ActiveTurn {
+  message: ConversationMessage
+  settled: Promise<void>
+  signal: AbortSignal
+  sender?: TurnSender
+  abort(): Promise<void>
+  release(): void
+}
 interface TurnSender { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 interface TriggerCall { trigger: Trigger; run: TriggerRun }
@@ -59,12 +67,12 @@ export function createConversations(input: {
   observability: Observability
   extensions: BotExtension[]
 }) {
+  const shutdown = new AbortController()
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
   const compactions = new Map<string, Promise<void>>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
-  const waitingOn = new Map<string, string>()
-  const senders = new Map<string, TurnSender>()
+  const waitingOn = new Set<{ callerId: string; targetId: string }>()
   const messageQueue = createMessageQueue()
   const delegation = createDelegation({
     bots: input.bots,
@@ -109,7 +117,7 @@ export function createConversations(input: {
       },
       async execute(params: Record<string, unknown>) {
         const { content, ...question } = parse(conversationSchemas.askToolInput, params)
-        const sender = senders.get(botId)
+        const sender = active.get(botId)?.sender
 
         if (new Set(question.options.map((option) => option.value)).size !== question.options.length) {
           throw new Error("Question option values must be unique")
@@ -228,7 +236,7 @@ export function createConversations(input: {
   }
 
   function awaitedBy(botId: string) {
-    const waited = waitingOn.get(botId)
+    const waited = [...waitingOn].filter((wait) => wait.callerId === botId).map((wait) => wait.targetId)
     const assigned = Array.from(active).flatMap(([id, turn]) => {
       const task = turn.message.author === "bot" && turn.message.taskId ? input.tasks.get(turn.message.taskId) : undefined
 
@@ -239,11 +247,7 @@ export function createConversations(input: {
       return [id]
     })
 
-    if (!waited) {
-      return assigned
-    }
-
-    return [waited, ...assigned]
+    return [...waited, ...assigned]
   }
 
   function blockedBy(callerId: string, targetId: string) {
@@ -294,7 +298,9 @@ export function createConversations(input: {
     })
   }
 
-  async function claim(botId: string, message: IncomingMessage, signal?: AbortSignal): Promise<{ message: ConversationMessage; release(): void }> {
+  async function claim(botId: string, message: IncomingMessage, signal?: AbortSignal): Promise<ActiveTurn> {
+    signal?.throwIfAborted()
+
     if (compactions.has(botId)) {
       throw new Error("Bot is compacting its Context")
     }
@@ -306,16 +312,21 @@ export function createConversations(input: {
     }
 
     if (current && message.author === "bot") {
-      const callerId = message.authorBotId ?? ""
+      const callerId = message.authorBotId
+
+      if (!callerId) {
+        throw new Error("Tarefa sender is missing")
+      }
       const bot = input.bots.get({ id: botId })
 
       assertCallable({ id: callerId }, { id: botId, name: bot?.name ?? botId })
-      waitingOn.set(callerId, botId)
+      const wait = { callerId, targetId: botId }
+      waitingOn.add(wait)
 
       try {
         await untilSettled(current.settled, signal)
       } finally {
-        waitingOn.delete(callerId)
+        waitingOn.delete(wait)
       }
 
       return claim(botId, message, signal)
@@ -326,24 +337,30 @@ export function createConversations(input: {
     }
 
     if (current) {
-      await input.runtime.abort(botId)
-      await current.settled
+      await current.abort()
+
+      return claim(botId, { ...message, taskId: message.taskId ?? current.message.taskId }, signal)
     }
 
-    let settle = () => {}
-    const settled = new Promise<void>((resolve) => {
-      settle = resolve
-    })
-    const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, taskId: message.taskId ?? current?.message.taskId ?? null, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
-    active.set(botId, { message: opened, settled })
-
-    return {
+    const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+    const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
+    const cancellation = new AbortController()
+    const turn: ActiveTurn = {
       message: opened,
+      settled,
+      signal: AbortSignal.any([cancellation.signal, ...(signal ? [signal] : [])]),
+      async abort() {
+        cancellation.abort()
+        await settled
+      },
       release() {
         active.delete(botId)
         settle()
       },
     }
+    active.set(botId, turn)
+
+    return turn
   }
 
   function deliver(botId: string, event: ConversationEvent) {
@@ -372,7 +389,7 @@ export function createConversations(input: {
   }
 
   async function flushQueue(botId: string) {
-    const sender = senders.get(botId)
+    const sender = active.get(botId)?.sender
 
     if (!sender) {
       return
@@ -388,6 +405,10 @@ export function createConversations(input: {
   }
 
   async function drainQueue(botId: string) {
+    if (shutdown.signal.aborted || active.has(botId)) {
+      return
+    }
+
     const [next] = messageQueue.list(botId)
 
     if (!next) {
@@ -410,24 +431,27 @@ export function createConversations(input: {
     }
 
     publishQueue(botId)
-    await start(botId, queuedIncoming(taken)).catch((error: unknown) => {
+    await runTurn(botId, queuedIncoming(taken)).catch((error: unknown) => {
       messageQueue.restore(botId, taken)
       publishQueue(botId)
       input.observability.event({ name: "conversation.queuefailed", context: { botId }, error })
     })
   }
 
-  async function* runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; trigger?: TriggerCall; signal?: AbortSignal }): AsyncGenerator<ConversationEvent> {
-    const turn = await claim(botId, message, options?.signal)
+  async function runTurn(botId: string, message: IncomingMessage, options?: { routine?: RoutineCall; trigger?: TriggerCall; signal?: AbortSignal }) {
+    const requestedSignal = options?.signal ? AbortSignal.any([shutdown.signal, options.signal]) : shutdown.signal
+    const turn = await claim(botId, message, requestedSignal)
+    const { signal } = turn
     let context: TurnContext
 
     try {
-      if (options?.signal?.aborted) {
+      if (signal.aborted) {
         throw new Error("The person interrupted you before that Bot started")
       }
 
       context = contextFor(turn.message, options)
       await open(botId)
+      signal.throwIfAborted()
       input.database.conversations.append(turn.message)
     } catch (error) {
       turn.release()
@@ -440,10 +464,11 @@ export function createConversations(input: {
         input.observability.event({ name: "conversation.abortfailed", context: { botId }, error })
       })
     }
-    options?.signal?.addEventListener("abort", interrupt, { once: true })
+    signal.addEventListener("abort", interrupt, { once: true })
 
-    const queue = createQueue<ConversationEvent>()
+    const completion = Promise.withResolvers<TurnResult>()
     let finished = false
+    const responses: string[] = []
     let responseBytes = 0
     let terminalMessageFinished = false
     let pendingText = ""
@@ -451,7 +476,7 @@ export function createConversations(input: {
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
-    senders.set(botId, { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming })
+    turn.sender = { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming }
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
       if (runtimeEvent.type === "tool-started") {
@@ -464,8 +489,6 @@ export function createConversations(input: {
         return
       }
 
-      let deliveredEvent = activity.record(runtimeEvent)
-
       eventCount++
 
       if (!receivedFirstEvent) {
@@ -476,11 +499,13 @@ export function createConversations(input: {
         })
       }
 
-      if (deliveredEvent.type === "text") {
-        pendingText += deliveredEvent.text
+      if (runtimeEvent.type === "text") {
+        pendingText += runtimeEvent.text
 
         return
       }
+
+      const deliveredEvent = activity.record(runtimeEvent)
 
       if (deliveredEvent.type === "message-finished") {
         const ending = runtimeEvent.type === "message-finished" && runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
@@ -500,7 +525,6 @@ export function createConversations(input: {
         finish(deliveredEvent.reason, deliveredEvent.error)
       }
 
-      queue.push(deliveredEvent)
       deliver(botId, deliveredEvent)
     })
     void input.runtime.prompt(botId, { content: message.content, images: message.images, context }).catch((error) => {
@@ -511,11 +535,14 @@ export function createConversations(input: {
       const event = { type: "finished", reason: "error", error: describeError(error) } as const
 
       finish(event.reason, event.error)
-      queue.push(event)
       deliver(botId, event)
     })
 
     function finish(reason: FinishReason, error?: unknown) {
+      if (finished) {
+        return
+      }
+
       const ending = turnEndings[reason]
       const errorMessage = reason === "error" ? describeError(error) : undefined
 
@@ -533,9 +560,9 @@ export function createConversations(input: {
         ...(error ? { error } : {}),
       })
       turn.release()
-      senders.delete(botId)
       unsubscribe()
-      options?.signal?.removeEventListener("abort", interrupt)
+      signal.removeEventListener("abort", interrupt)
+      completion.resolve({ reason, response: responses.join("\n\n"), ...(errorMessage ? { error: errorMessage } : {}) })
     }
 
     function speakPending() {
@@ -555,7 +582,6 @@ export function createConversations(input: {
 
       const event: ConversationEvent = { type: "message-finished", message }
 
-      queue.push(event)
       deliver(botId, event)
     }
 
@@ -583,38 +609,28 @@ export function createConversations(input: {
         input.observability.event({ name: "conversation.persistencefailed", context: { botId }, error: persistError })
       }
 
+      if (content) {
+        responses.push(content)
+      }
+
       responseBytes += Buffer.byteLength(content)
 
       const event: ConversationEvent = { type: "message-finished", message }
 
-      queue.push(event)
       deliver(botId, event)
 
       return message
     }
 
-    while (!finished || queue.size > 0) {
-      const event = await queue.next()
-
-      if (event) {
-        yield event
+    void completion.promise.then(async (result) => {
+      if (result.reason === "stop") {
+        await drainQueue(botId)
       }
-    }
-  }
-
-  async function start(botId: string, message: IncomingMessage, options?: { routine: RoutineCall }) {
-    const turn = runTurn(botId, message, options)
-    await turn.next()
-
-    void Array.fromAsync(turn).then((events) => {
-      const settled = events.findLast((event): event is Extract<ConversationEvent, { type: "finished" }> => event.type === "finished")
-
-      if (settled?.reason === "stop") {
-        return drainQueue(botId)
-      }
-
-      return
+    }).catch((error: unknown) => {
+      input.observability.event({ name: "conversation.queuefailed", context: { botId }, error })
     })
+
+    return { finished: completion.promise }
   }
 
   return {
@@ -636,27 +652,22 @@ export function createConversations(input: {
 
       return input.database.conversations.related(taskId)
     },
-    events(): AsyncIterable<BotConversationEvent> {
+    events(signal?: AbortSignal) {
+      signal?.throwIfAborted()
       const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
         { botId, event: { type: "started", messageId: turn.message.id, message: incoming(turn.message) } },
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
         ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])
       const queued = messageQueue.all().map(([botId, messages]): BotConversationEvent => ({ botId, event: { type: "queue-changed", queued: messages } }))
-      const queue = createQueue<BotConversationEvent>([...initial, ...queued])
+      const queue = createQueue<BotConversationEvent>({
+        initial: [...initial, ...queued],
+        ...(signal ? { signal } : {}),
+        onClose: () => streams.delete(queue),
+      })
       streams.add(queue)
 
-      return {
-        async *[Symbol.asyncIterator]() {
-          try {
-            for (let event = await queue.next(); event; event = await queue.next()) {
-              yield event
-            }
-          } finally {
-            streams.delete(queue)
-          }
-        },
-      }
+      return queue
     },
     active(botId: string) {
       return active.get(botId)?.message
@@ -668,6 +679,7 @@ export function createConversations(input: {
       input.runtime.addTools(botId, tools)
     },
     async compact(rawInput: unknown) {
+      shutdown.signal.throwIfAborted()
       const { botId, instructions } = parse(conversationSchemas.compactInput, rawInput)
 
       if (active.has(botId)) {
@@ -678,10 +690,7 @@ export function createConversations(input: {
         throw new Error("Bot is already compacting its Context")
       }
 
-      let settle = () => {}
-      const settled = new Promise<void>((resolve) => {
-        settle = resolve
-      })
+      const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
       compactions.set(botId, settled)
 
       try {
@@ -721,12 +730,12 @@ export function createConversations(input: {
       const message: IncomingMessage = { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: resolvedContent, images, replyTo }
 
       if (!active.has(botId)) {
-        await start(botId, message)
+        await runTurn(botId, message)
 
         return
       }
 
-      const sender = senders.get(botId)
+      const sender = active.get(botId)?.sender
       const immediate = delivery === "now" || !!replyTo
 
       if (immediate && sender) {
@@ -771,25 +780,27 @@ export function createConversations(input: {
       publishQueue(botId)
     },
     async call(routine: RoutineCall) {
-      await start(routine.botId, { author: "routine", authorBotId: null, taskId: null, triggerRunId: null, content: routine.content, images: [], replyTo: null }, { routine })
+      await runTurn(routine.botId, { author: "routine", authorBotId: null, taskId: null, triggerRunId: null, content: routine.content, images: [], replyTo: null }, { routine })
     },
     async callTrigger(call: TriggerCall) {
       const message: IncomingMessage = { author: "trigger", authorBotId: null, taskId: null, triggerRunId: call.run.id, content: call.trigger.instruction, images: [], replyTo: null }
-      const events = await Array.fromAsync(runTurn(call.trigger.botId, message, { trigger: call }))
-      const finished = events.findLast((event): event is Extract<ConversationEvent, { type: "finished" }> => event.type === "finished")
+      const turn = await runTurn(call.trigger.botId, message, { trigger: call })
+      const finished = await turn.finished
 
-      if (finished?.reason !== "stop") {
-        throw new Error(finished?.error ?? "Gatilho turn did not finish")
+      if (finished.reason !== "stop") {
+        throw new Error(finished.error ?? "Gatilho turn did not finish")
       }
     },
     async abort(rawInput: unknown) {
       const { botId } = parse(conversationSchemas.botInput, rawInput)
 
-      if (!active.has(botId)) {
+      const turn = active.get(botId)
+
+      if (!turn) {
         throw new Error("Bot is not working")
       }
 
-      await input.runtime.abort(botId)
+      await turn.abort()
     },
     async close(botId: string) {
       messageQueue.clear(botId)
@@ -797,14 +808,15 @@ export function createConversations(input: {
       const current = active.get(botId)
 
       if (current) {
-        await input.runtime.abort(botId)
-        await current.settled
+        await current.abort()
       }
 
       input.runtime.close(botId)
       sessions.delete(botId)
     },
-    dispose() {
+    async dispose() {
+      shutdown.abort()
+      await Promise.allSettled([...active.values()].map((turn) => turn.settled).concat([...compactions.values()]))
       input.runtime.dispose()
       sessions.clear()
       active.clear()

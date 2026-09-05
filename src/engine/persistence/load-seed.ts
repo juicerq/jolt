@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { parseArgs } from "node:util"
 import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
 import type { StoredBot } from "@src/shared/bots"
@@ -232,7 +232,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
 
 if (import.meta.main) {
   const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, seed: { type: "string", default: "1" } } })
-  const userDataDirectory = join(process.cwd(), values["user-data"])
+  const userDataDirectory = resolve(values["user-data"])
   const databaseExists = await Bun.file(join(userDataDirectory, "jolt.sqlite")).exists()
 
   if (databaseExists) {

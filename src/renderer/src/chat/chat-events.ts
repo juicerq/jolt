@@ -4,7 +4,6 @@ import { findTeamBot } from "../bots/team"
 import type { EngineClient } from "../engine-client"
 import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
-  appendChatText,
   appendChatThinking,
   finishChatMessage,
   finishChatThinking,
@@ -12,7 +11,7 @@ import {
   requestChatPermission,
   requestChatPlugin,
   resolveChatPermission,
-  resetChatQueues,
+  resetChatConnection,
   resolveChatPlugin,
   setChatCompacting,
   setChatPluginStep,
@@ -32,19 +31,12 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   const controller = new AbortController()
   const chunks = createChatStreamBuffer({
     delayMs: chunkFlushDelayMs,
-    flush(botId, kind, content) {
-      if (kind === "text") {
-        appendChatText(botId, content)
-        return
-      }
-
-      appendChatThinking(botId, content)
-    },
+    flush: appendChatThinking,
   })
 
-  async function handle({ botId, event }: BotConversationEvent) {
-    if (event.type === "text" || event.type === "thinking") {
-      chunks.push(botId, event.type, event.text)
+  function handle({ botId, event }: BotConversationEvent) {
+    if (event.type === "thinking") {
+      chunks.push(botId, event.text)
       return
     }
 
@@ -126,14 +118,16 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     const bot = findTeamBot(queryClient.getQueryData(projectsQuery.queryKey), botId)
     const response = settleChatRun(botId, settledStatuses[event.reason])
 
-    await Promise.all([
+    void Promise.all([
       queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       invalidateTeam(),
       alertTurnFinished({ bot, reason: event.reason, response, ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
         console.error("O aviso do turno falhou", alertError)
       }),
-    ])
+    ]).catch((error: unknown) => {
+      console.error("Não foi possível atualizar o resultado do turno", error)
+    })
   }
 
   async function invalidateTeam() {
@@ -143,7 +137,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   async function consume(events: AsyncIterable<BotConversationEvent>) {
     try {
       for await (const entry of events) {
-        await handle(entry)
+        handle(entry)
       }
     } finally {
       chunks.drainAll()
@@ -152,18 +146,41 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
   async function listen() {
     while (!controller.signal.aborted) {
-      const events = await client.raw.conversations.events(undefined, { signal: controller.signal }).catch(() => {})
+      try {
+        const events = await client.raw.conversations.events(undefined, { signal: controller.signal })
+        resetChatConnection()
+        void queryClient.invalidateQueries().catch((error: unknown) => {
+          console.error("Não foi possível atualizar o estado das conversas", error)
+        })
+        await consume(events)
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
 
-      if (events) {
-        resetChatQueues()
-        await consume(events).catch(() => {})
+        console.error("A conexão com as conversas foi interrompida", error)
       }
 
-      await new Promise<void>((resolve) => setTimeout(resolve, reconnectDelayMs))
+      if (controller.signal.aborted) {
+        return
+      }
+
+      await new Promise<void>((resolve) => {
+        const resume = () => {
+          clearTimeout(timer)
+          controller.signal.removeEventListener("abort", resume)
+          resolve()
+        }
+        const timer = setTimeout(resume, reconnectDelayMs)
+        controller.signal.addEventListener("abort", resume, { once: true })
+      })
     }
   }
 
   void listen()
 
-  return () => controller.abort()
+  return () => {
+    controller.abort()
+    chunks.drainAll()
+  }
 }

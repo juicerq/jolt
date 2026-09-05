@@ -203,7 +203,7 @@ const memory = createMemory({
   providers,
   observability: observationSystem.observability,
   sessionFactory: piSessionFactory,
-  conversations: { active: (botId) => conversations.active(botId), events: () => conversations.events() },
+  conversations: { active: (botId) => conversations.active(botId), events: (signal) => conversations.events(signal) },
 })
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
@@ -218,9 +218,22 @@ const diagnostics = createDiagnostics({
   providerState: providers.current,
 })
 const handler = new RPCHandler(
-  createEngineRouter(startedAt, observationSystem.observability, diagnostics, observationSystem.receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, {
-    decide: (decision) => piRuntime.resolvePermission(decision),
-  }, plugins),
+  createEngineRouter({
+    startedAt,
+    observability: observationSystem.observability,
+    diagnostics,
+    receiver: observationSystem.receiver,
+    providers,
+    bots,
+    projects,
+    conversations,
+    tasks,
+    routines,
+    triggers,
+    memory,
+    permissions: { decide: (decision) => piRuntime.resolvePermission(decision) },
+    plugins,
+  }),
 )
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -304,11 +317,7 @@ async function shutdown() {
     async () => {
       engineState = "stopping"
       void server.stop(false)
-      memory.dispose()
-      routines.dispose()
-      triggers.dispose()
-      conversations.dispose()
-      await plugins.dispose()
+      await Promise.all([routines.dispose(), memory.dispose(), triggers.dispose(), conversations.dispose(), plugins.dispose()])
       await drainRequests()
       await server.stop(true).catch(() => {
         process.stderr.write("Bun Engine forced shutdown failed\n")

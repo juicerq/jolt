@@ -155,10 +155,17 @@ export function createRoutines(input: {
   observability: Observability
   conversations: { call(routine: Routine & { nextCallAt: string }): Promise<void> }
 }) {
+  let disposed = false
+  let firing: Promise<void> | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function schedule() {
     clearTimeout(timer)
+
+    if (disposed || firing) {
+      return
+    }
+
     const [earliest] = input.database.routines.listActive()
 
     if (!earliest?.nextCallAt) {
@@ -167,8 +174,11 @@ export function createRoutines(input: {
 
     const delay = Math.min(Math.max(Date.parse(earliest.nextCallAt) - Date.now(), 0), longestWait)
     timer = setTimeout(() => {
-      fire().catch((error) => {
+      firing = fire().catch((error: unknown) => {
         input.observability.event({ name: "routines.firefailed", error })
+      }).finally(() => {
+        firing = undefined
+        schedule()
       })
     }, delay)
   }
@@ -177,12 +187,22 @@ export function createRoutines(input: {
     const now = new Date()
     const due = input.database.routines.listActive().filter((routine) => routine.nextCallAt && Date.parse(routine.nextCallAt) <= now.getTime())
 
-    for (const routine of due) {
+    for (const scheduled of due) {
+      if (disposed) {
+        return
+      }
+
+      const routine = input.database.routines.get(scheduled.id)
+
+      if (routine?.status !== "active" || !routine.nextCallAt || Date.parse(routine.nextCallAt) > now.getTime()) {
+        continue
+      }
+
       if (routine.frequency.form !== "once") {
         input.database.routines.update(routine.id, { nextCallAt: nextCall(routine.frequency, now).toISOString() })
       }
 
-      await input.conversations.call({ ...routine, nextCallAt: routine.nextCallAt ?? now.toISOString() }).then(
+      await input.conversations.call({ ...routine, nextCallAt: routine.nextCallAt }).then(
         () => {
           if (routine.frequency.form === "once") {
             input.database.routines.update(routine.id, { status: "completed", nextCallAt: null })
@@ -197,8 +217,6 @@ export function createRoutines(input: {
         },
       )
     }
-
-    schedule()
   }
 
   function owner(botId: string) {
@@ -265,20 +283,6 @@ export function createRoutines(input: {
       input.database.routines.remove(routine.id)
       schedule()
     })
-  }
-
-  const openedAt = new Date()
-
-  for (const routine of input.database.routines.listActive()) {
-    if (!routine.nextCallAt || Date.parse(routine.nextCallAt) > openedAt.getTime()) {
-      continue
-    }
-
-    if (routine.frequency.form === "once") {
-      input.database.routines.update(routine.id, { status: "failed", nextCallAt: null })
-    } else {
-      input.database.routines.update(routine.id, { nextCallAt: nextCall(routine.frequency, openedAt).toISOString() })
-    }
   }
 
   schedule()
@@ -360,8 +364,10 @@ export function createRoutines(input: {
         ...(lines.length > 0 ? ["Your Rotinas:", ...lines] : ["You have no Rotinas."]),
       ].join("\n")
     },
-    dispose() {
+    async dispose() {
+      disposed = true
       clearTimeout(timer)
+      await firing
     },
   }
 }

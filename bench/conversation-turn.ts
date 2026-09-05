@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util"
 import type { Observation } from "../src/shared/observability/observation"
-import { browser } from "./browser"
+import { browser, connectBrowser } from "./browser"
 import { observationLog, observations, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/jolt-turn.cpuprofile" } } })
@@ -54,7 +54,7 @@ function summarize(trace: { traceEvents: TraceEvent[] }) {
   return { wallMs: Math.round(wallUs / 1000), busyMs: Math.round(busyUs / 1000), busyShare: `${Math.round((busyUs / Math.max(1, wallUs)) * 100)}%` }
 }
 
-browser("connect", values.port)
+connectBrowser(values.port)
 browser("find", "role", "button", "click", "--name", "de Leve com")
 await Bun.sleep(1_000)
 

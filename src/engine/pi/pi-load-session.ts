@@ -67,21 +67,22 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
   return {
     async open(): Promise<PiSession> {
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
-      let aborted = false
+      let current: AbortController | undefined
 
       return {
         async compact() {
           return { tokensBefore: 12_000, estimatedTokensAfter: 4_000 }
         },
         async prompt() {
-          aborted = false
+          const turn = new AbortController()
+          current = turn
 
           for (const event of scriptedTurn()) {
-            if (aborted) {
+            await Bun.sleep(chunkDelayMs)
+
+            if (turn.signal.aborted) {
               return
             }
-
-            await Bun.sleep(chunkDelayMs)
 
             for (const listener of listeners) {
               listener(event)
@@ -90,7 +91,7 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
         },
         async steer() {},
         async abort() {
-          aborted = true
+          current?.abort()
 
           for (const listener of listeners) {
             listener({ type: "finished", reason: "aborted" })
@@ -101,7 +102,10 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
 
           return () => listeners.delete(listener)
         },
-        dispose() {},
+        dispose() {
+          current?.abort()
+          listeners.clear()
+        },
       }
     },
   }

@@ -31,335 +31,119 @@ async function* surfacedStream<T>(stream: AsyncIterable<T>) {
   }
 }
 
-function observationContext(context: EngineContext) {
-  return {
-    ...(context.traceId ? { traceId: context.traceId } : {}),
-    ...(context.spanId ? { spanId: context.spanId } : {}),
-  }
-}
-
-export function createEngineRouter(
-  startedAt: string,
-  observability: Observability,
-  diagnostics: ReturnType<typeof createDiagnostics>,
-  receiver: ObservationReceiver,
-  providers: ReturnType<typeof createPiProvider>,
-  bots: ReturnType<typeof createBots>,
-  projects: ReturnType<typeof createProjects>,
-  conversations: ReturnType<typeof createConversations>,
-  tasks: ReturnType<typeof createTasks>,
-  routines: ReturnType<typeof createRoutines>,
-  triggers: ReturnType<typeof createTriggers>,
-  memory: ReturnType<typeof createMemory>,
-  permissions: { decide(input: PermissionDecisionInput): void },
-  plugins: ReturnType<typeof createPlugins>,
-) {
-  const operations = implement(engineContract).use(async ({ next }) => {
+export function createEngineRouter({ startedAt, observability, diagnostics, receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, permissions, plugins }: {
+  startedAt: string
+  observability: Observability
+  diagnostics: ReturnType<typeof createDiagnostics>
+  receiver: ObservationReceiver
+  providers: ReturnType<typeof createPiProvider>
+  bots: ReturnType<typeof createBots>
+  projects: ReturnType<typeof createProjects>
+  conversations: ReturnType<typeof createConversations>
+  tasks: ReturnType<typeof createTasks>
+  routines: ReturnType<typeof createRoutines>
+  triggers: ReturnType<typeof createTriggers>
+  memory: ReturnType<typeof createMemory>
+  permissions: { decide(input: PermissionDecisionInput): void }
+  plugins: ReturnType<typeof createPlugins>
+}) {
+  const operations = implement(engineContract).$context<EngineContext>().use(async ({ next, context, path }) => {
     try {
-      return await next()
+      const operation = path.join(".").toLowerCase()
+
+      if (operation === "diagnostics.get" || operation.startsWith("observations.")) {
+        return await next()
+      }
+
+      return await observability.span({ name: `orpc.${operation}`, context }, () => next())
     } catch (error) {
       throw surfaced(error)
     }
   })
 
   return operations.router({
-    health: operations.health.handler(({ context }: { context: EngineContext }) =>
-      observability.span({ name: "orpc.health", context: observationContext(context) }, () => ({
-        status: "ready",
-        runtime: `Bun ${Bun.version}`,
-        startedAt,
-      })),
-    ),
+    health: operations.health.handler(() => ({ status: "ready", runtime: `Bun ${Bun.version}`, startedAt })),
     diagnostics: {
       get: operations.diagnostics.get.handler(() => diagnostics.get()),
-      export: operations.diagnostics.export.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.diagnosticexport", context: observationContext(context) },
-          () => diagnostics.export(),
-        ),
-      ),
+      export: operations.diagnostics.export.handler(() => diagnostics.export()),
     },
     providers: {
-      list: operations.providers.list.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.providerlist", context: observationContext(context) },
-          () => providers.list(),
-        ),
-      ),
-      models: operations.providers.models.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.providermodels", context: observationContext(context) },
-          () => providers.models(),
-        ),
-      ),
-      connect: operations.providers.connect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.providerconnect", context: observationContext(context) },
-          () => providers.connect(input),
-        ),
-      ),
-      disconnect: operations.providers.disconnect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.providerdisconnect", context: observationContext(context) },
-          () => providers.disconnect(input),
-        ),
-      ),
+      list: operations.providers.list.handler(() => providers.list()),
+      models: operations.providers.models.handler(() => providers.models()),
+      connect: operations.providers.connect.handler(({ input }) => providers.connect(input)),
+      disconnect: operations.providers.disconnect.handler(({ input }) => providers.disconnect(input)),
     },
     projects: {
-      create: operations.projects.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.projectcreate", context: observationContext(context) },
-          () => projects.create(input),
-        ),
-      ),
-      list: operations.projects.list.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.projectlist", context: observationContext(context) },
-          () => projects.list(),
-        ),
-      ),
+      create: operations.projects.create.handler(({ input }) => projects.create(input)),
+      list: operations.projects.list.handler(() => projects.list()),
     },
     bots: {
-      addMember: operations.bots.addMember.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botmemberadd", context: observationContext(context) },
-          () => bots.addMember(input),
-        ),
-      ),
-      create: operations.bots.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botcreate", context: observationContext(context) },
-          () => bots.create(input),
-        ),
-      ),
-      list: operations.bots.list.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.botlist", context: observationContext(context) },
-          () => bots.list(),
-        ),
-      ),
-      get: operations.bots.get.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botget", context: observationContext(context) },
-          () => {
-            const bot = bots.get(input)
+      addMember: operations.bots.addMember.handler(({ input }) => bots.addMember(input)),
+      create: operations.bots.create.handler(({ input }) => bots.create(input)),
+      list: operations.bots.list.handler(() => bots.list()),
+      get: operations.bots.get.handler(({ input }) => {
+        const bot = bots.get(input)
 
-            if (!bot) {
-              throw new Error("Bot not found")
-            }
+        if (!bot) {
+          throw new ORPCError("NOT_FOUND", { message: "Bot not found" })
+        }
 
-            return bot
-          },
-        ),
-      ),
-      update: operations.bots.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botupdate", context: observationContext(context) },
-          () => bots.update(input),
-        ),
-      ),
-      updateExecution: operations.bots.updateExecution.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botexecutionupdate", context: observationContext(context) },
-          () => bots.updateExecution(input),
-        ),
-      ),
-      remove: operations.bots.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botremove", context: observationContext(context) },
-          () => bots.remove(input),
-        ),
-      ),
-      removeColleague: operations.bots.removeColleague.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.botcolleagueremove", context: observationContext(context) },
-          () => bots.removeColleague(input),
-        ),
-      ),
+        return bot
+      }),
+      update: operations.bots.update.handler(({ input }) => bots.update(input)),
+      updateExecution: operations.bots.updateExecution.handler(({ input }) => bots.updateExecution(input)),
+      remove: operations.bots.remove.handler(({ input }) => bots.remove(input)),
+      removeColleague: operations.bots.removeColleague.handler(({ input }) => bots.removeColleague(input)),
     },
     conversations: {
-      history: operations.conversations.history.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationhistory", context: observationContext(context) },
-          () => conversations.history(input),
-        ),
-      ),
-      events: operations.conversations.events.handler(() => surfacedStream(conversations.events())),
-      send: operations.conversations.send.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationsend", context: observationContext(context) },
-          () => conversations.send(input),
-        ),
-      ),
-      compact: operations.conversations.compact.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationcompact", context: observationContext(context) },
-          () => conversations.compact(input),
-        ),
-      ),
-      abort: operations.conversations.abort.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationabort", context: observationContext(context) },
-          () => conversations.abort(input),
-        ),
-      ),
-      promote: operations.conversations.promote.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationpromote", context: observationContext(context) },
-          () => conversations.promote(input),
-        ),
-      ),
-      unqueue: operations.conversations.unqueue.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationunqueue", context: observationContext(context) },
-          () => conversations.unqueue(input),
-        ),
-      ),
-      related: operations.conversations.related.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.conversationrelated", context: observationContext(context) },
-          () => conversations.related(input),
-        ),
-      ),
+      history: operations.conversations.history.handler(({ input }) => conversations.history(input)),
+      events: operations.conversations.events.handler(({ signal }) => surfacedStream(conversations.events(signal))),
+      send: operations.conversations.send.handler(({ input }) => conversations.send(input)),
+      compact: operations.conversations.compact.handler(({ input }) => conversations.compact(input)),
+      abort: operations.conversations.abort.handler(({ input }) => conversations.abort(input)),
+      promote: operations.conversations.promote.handler(({ input }) => conversations.promote(input)),
+      unqueue: operations.conversations.unqueue.handler(({ input }) => conversations.unqueue(input)),
+      related: operations.conversations.related.handler(({ input }) => conversations.related(input)),
     },
     permissions: {
-      decide: operations.permissions.decide.handler(({ context, input }: { context: EngineContext; input: PermissionDecisionInput }) =>
-        observability.span(
-          { name: "orpc.permissiondecide", context: observationContext(context) },
-          () => permissions.decide(input),
-        ),
-      ),
+      decide: operations.permissions.decide.handler(({ input }) => permissions.decide(input)),
     },
     tasks: {
-      listForBot: operations.tasks.listForBot.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.tasklist", context: observationContext(context) },
-          () => tasks.listForBot(input),
-        ),
-      ),
+      listForBot: operations.tasks.listForBot.handler(({ input }) => tasks.listForBot(input)),
     },
     routines: {
-      create: operations.routines.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.routinecreate", context: observationContext(context) },
-          () => routines.create(input),
-        ),
-      ),
-      list: operations.routines.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.routinelist", context: observationContext(context) },
-          () => routines.list(input),
-        ),
-      ),
-      update: operations.routines.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.routineupdate", context: observationContext(context) },
-          () => routines.update(input),
-        ),
-      ),
-      remove: operations.routines.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.routineremove", context: observationContext(context) },
-          () => routines.remove(input),
-        ),
-      ),
+      create: operations.routines.create.handler(({ input }) => routines.create(input)),
+      list: operations.routines.list.handler(({ input }) => routines.list(input)),
+      update: operations.routines.update.handler(({ input }) => routines.update(input)),
+      remove: operations.routines.remove.handler(({ input }) => routines.remove(input)),
     },
     triggers: {
-      create: operations.triggers.create.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span({ name: "orpc.triggercreate", context: observationContext(context) }, () => triggers.create(input))),
-      list: operations.triggers.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span({ name: "orpc.triggerlist", context: observationContext(context) }, () => triggers.list(input))),
-      update: operations.triggers.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span({ name: "orpc.triggerupdate", context: observationContext(context) }, () => triggers.update(input))),
-      remove: operations.triggers.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span({ name: "orpc.triggerremove", context: observationContext(context) }, () => triggers.remove(input))),
+      create: operations.triggers.create.handler(({ input }) => triggers.create(input)),
+      list: operations.triggers.list.handler(({ input }) => triggers.list(input)),
+      update: operations.triggers.update.handler(({ input }) => triggers.update(input)),
+      remove: operations.triggers.remove.handler(({ input }) => triggers.remove(input)),
     },
     memory: {
       settings: operations.memory.settings.handler(() => memory.settings()),
-      configure: operations.memory.configure.handler(({ input }: { input: unknown }) => memory.configure(input)),
+      configure: operations.memory.configure.handler(({ input }) => memory.configure(input)),
       status: operations.memory.status.handler(() => memory.status()),
-      retry: operations.memory.retry.handler(({ input }: { input: unknown }) => memory.retry(input)),
-      list: operations.memory.list.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.memorylist", context: observationContext(context) },
-          () => memory.list(input),
-        ),
-      ),
-      add: operations.memory.add.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.memoryadd", context: observationContext(context) },
-          () => memory.add(input),
-        ),
-      ),
-      update: operations.memory.update.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.memoryupdate", context: observationContext(context) },
-          () => memory.update(input),
-        ),
-      ),
-      forget: operations.memory.forget.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.memoryforget", context: observationContext(context) },
-          () => memory.forget(input),
-        ),
-      ),
-      clear: operations.memory.clear.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.memoryclear", context: observationContext(context) },
-          () => memory.clear(input),
-        ),
-      ),
+      retry: operations.memory.retry.handler(({ input }) => memory.retry(input)),
+      list: operations.memory.list.handler(({ input }) => memory.list(input)),
+      add: operations.memory.add.handler(({ input }) => memory.add(input)),
+      update: operations.memory.update.handler(({ input }) => memory.update(input)),
+      forget: operations.memory.forget.handler(({ input }) => memory.forget(input)),
+      clear: operations.memory.clear.handler(({ input }) => memory.clear(input)),
     },
     plugins: {
-      list: operations.plugins.list.handler(({ context }: { context: EngineContext }) =>
-        observability.span(
-          { name: "orpc.pluginlist", context: observationContext(context) },
-          () => plugins.list(),
-        ),
-      ),
-      addCustom: operations.plugins.addCustom.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.pluginaddcustom", context: observationContext(context) },
-          () => plugins.addCustom(input),
-        ),
-      ),
-      remove: operations.plugins.remove.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.pluginremove", context: observationContext(context) },
-          () => plugins.remove(input),
-        ),
-      ),
-      connect: operations.plugins.connect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.pluginconnect", context: observationContext(context) },
-          () => plugins.connect(input),
-        ),
-      ),
-      connectionSteps: operations.plugins.connectionSteps.handler(({ input }: { input: unknown }) => surfacedStream(plugins.connectionSteps(input))),
-      awaitConnection: operations.plugins.awaitConnection.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.pluginawaitconnection", context: observationContext(context) },
-          () => plugins.awaitConnection(input),
-        ),
-      ),
-      disconnect: operations.plugins.disconnect.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.plugindisconnect", context: observationContext(context) },
-          () => plugins.disconnect(input),
-        ),
-      ),
-      grant: operations.plugins.grant.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.plugingrant", context: observationContext(context) },
-          () => plugins.grant(input),
-        ),
-      ),
-      decide: operations.plugins.decide.handler(({ context, input }: { context: EngineContext; input: unknown }) =>
-        observability.span(
-          { name: "orpc.plugindecide", context: observationContext(context) },
-          () => plugins.decide(input),
-        ),
-      ),
+      list: operations.plugins.list.handler(() => plugins.list()),
+      addCustom: operations.plugins.addCustom.handler(({ input }) => plugins.addCustom(input)),
+      remove: operations.plugins.remove.handler(({ input }) => plugins.remove(input)),
+      connect: operations.plugins.connect.handler(({ input }) => plugins.connect(input)),
+      connectionSteps: operations.plugins.connectionSteps.handler(({ input, signal }) => surfacedStream(plugins.connectionSteps(input, signal))),
+      awaitConnection: operations.plugins.awaitConnection.handler(({ input }) => plugins.awaitConnection(input)),
+      disconnect: operations.plugins.disconnect.handler(({ input }) => plugins.disconnect(input)),
+      grant: operations.plugins.grant.handler(({ input }) => plugins.grant(input)),
+      decide: operations.plugins.decide.handler(({ input }) => plugins.decide(input)),
     },
     observations: {
       rendererSpan: operations.observations.rendererSpan.handler(({ input }) => receiver.span(input)),

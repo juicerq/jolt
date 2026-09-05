@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util"
 import type { Observation } from "../src/shared/observability/observation"
-import { browser, percentile } from "./browser"
+import { browser, connectBrowser, percentile } from "./browser"
 import { observationLog, observations, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, rounds: { type: "string", default: "3" }, port: { type: "string", default: "9222" } } })
@@ -14,7 +14,7 @@ function isOpenSpan(item: Observation) {
   return item.kind === "span" && item.name === "renderer.conversationopen"
 }
 
-browser("connect", values.port)
+connectBrowser(values.port)
 
 const initial = (await observations(logPath)).filter(isOpenSpan).length
 browser("find", "role", "button", "click", "--name", "de Pesquisador com")

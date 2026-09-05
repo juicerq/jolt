@@ -48,7 +48,8 @@ export function createTriggers(input: {
   observability: Observability
   conversations: { active(botId: string): unknown; callTrigger(call: { trigger: Trigger; run: TriggerRun }): Promise<void> }
 }) {
-  const draining = new Set<string>()
+  const draining = new Map<string, Promise<void>>()
+  let disposed = false
   let retryTimer: ReturnType<typeof setTimeout> | undefined
 
   input.database.triggerRuns.recoverRunning(new Date().toISOString())
@@ -117,7 +118,7 @@ export function createTriggers(input: {
       throw new Error("The Bot has no Acesso to that GitHub Conta")
     }
 
-    const trigger = parse(triggerSchemas.trigger, { id: crypto.randomUUID(), ...details, source: "github", createdAt: new Date().toISOString() })
+    const trigger: Trigger = { id: crypto.randomUUID(), ...details, source: "github", createdAt: new Date().toISOString() }
 
     return input.database.triggers.create(trigger)
   }
@@ -141,7 +142,7 @@ export function createTriggers(input: {
   }
 
   function scheduleRetry() {
-    if (retryTimer) {
+    if (disposed || retryTimer) {
       return
     }
 
@@ -152,47 +153,48 @@ export function createTriggers(input: {
   }
 
   async function drainBot(botId: string) {
-    if (draining.has(botId)) {
-      return
-    }
+    while (!disposed && !input.conversations.active(botId)) {
+      const run = input.database.triggerRuns.nextQueued(botId)
 
-    draining.add(botId)
-
-    try {
-      while (!input.conversations.active(botId)) {
-        const run = input.database.triggerRuns.listQueued().find((candidate) => candidate.botId === botId)
-
-        if (!run) {
-          return
-        }
-
-        const trigger = input.database.triggers.get(run.triggerId)
-
-        if (trigger?.status !== "active" || !hasAccess(trigger)) {
-          input.database.triggerRuns.update(run.id, { status: "ignored", finishedAt: new Date().toISOString() })
-          continue
-        }
-
-        input.database.triggerRuns.update(run.id, { status: "running", startedAt: new Date().toISOString() })
-        await input.conversations.callTrigger({ trigger, run }).then(
-          () => input.database.triggerRuns.update(run.id, { status: "completed", finishedAt: new Date().toISOString() }),
-          (error: unknown) => input.database.triggerRuns.update(run.id, { status: "failed", error: error instanceof Error ? error.message : "Gatilho failed", finishedAt: new Date().toISOString() }),
-        )
+      if (!run) {
+        return
       }
-    } finally {
-      draining.delete(botId)
 
-      if (input.database.triggerRuns.listQueued().some((run) => run.botId === botId)) {
-        scheduleRetry()
+      const trigger = input.database.triggers.get(run.triggerId)
+
+      if (trigger?.status !== "active" || !hasAccess(trigger)) {
+        input.database.triggerRuns.update(run.id, { status: "ignored", finishedAt: new Date().toISOString() })
+        continue
       }
+
+      input.database.triggerRuns.update(run.id, { status: "running", startedAt: new Date().toISOString() })
+      await input.conversations.callTrigger({ trigger, run }).then(
+        () => input.database.triggerRuns.update(run.id, { status: "completed", finishedAt: new Date().toISOString() }),
+        (error: unknown) => input.database.triggerRuns.update(run.id, { status: "failed", error: error instanceof Error ? error.message : "Gatilho failed", finishedAt: new Date().toISOString() }),
+      )
     }
   }
 
   function drain() {
-    const botIds = new Set(input.database.triggerRuns.listQueued().map((run) => run.botId))
+    if (disposed) {
+      return
+    }
 
-    for (const botId of botIds) {
-      void drainBot(botId)
+    for (const botId of input.database.triggerRuns.queuedBotIds()) {
+      if (draining.has(botId)) {
+        continue
+      }
+
+      const operation = drainBot(botId).finally(() => {
+        draining.delete(botId)
+
+        if (!disposed && input.database.triggerRuns.nextQueued(botId)) {
+          scheduleRetry()
+        }
+      }).catch((error: unknown) => {
+        input.observability.event({ name: "trigger.drainfailed", context: { botId }, error })
+      })
+      draining.set(botId, operation)
     }
   }
 
@@ -205,7 +207,7 @@ export function createTriggers(input: {
         continue
       }
 
-      const run = parse(triggerSchemas.triggerRun, { id: crypto.randomUUID(), triggerId: trigger.id, botId: trigger.botId, deliveryId: event.deliveryId, event, status: "queued", error: null, createdAt: now, startedAt: null, finishedAt: null })
+      const run: TriggerRun = { id: crypto.randomUUID(), triggerId: trigger.id, botId: trigger.botId, deliveryId: event.deliveryId, event, status: "queued", error: null, createdAt: now, startedAt: null, finishedAt: null }
       const created = input.database.triggerRuns.create(run)
 
       if (created) {
@@ -345,8 +347,10 @@ export function createTriggers(input: {
         ...(triggers.length > 0 ? ["Your GitHub Gatilhos:", ...triggers.map((trigger) => `- ${describe(trigger)}`)] : ["You have no GitHub Gatilhos."]),
       ].join("\n")
     },
-    dispose() {
+    async dispose() {
+      disposed = true
       clearTimeout(retryTimer)
+      await Promise.allSettled(draining.values())
     },
   }
 }

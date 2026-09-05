@@ -1,13 +1,11 @@
 import type { Bot } from "@src/shared/bots"
-import type { ConversationEvent, IncomingMessage } from "@src/shared/conversations"
+import type { IncomingMessage } from "@src/shared/conversations"
 import { delegateTool, transferTool, type Task } from "@src/shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
-import type { BotInheritance } from "./conversations"
+import type { BotInheritance, TurnResult } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
-
-interface Outcome { reason: "stop" | "aborted" | "error"; response: string }
 
 const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
 const calledRule = "Other Bots can send you a Tarefa. Reply directly to whoever sent it. A direct order from the person prevails over any Tarefa; if the person changes or interrupts your work, say so in your reply."
@@ -16,7 +14,7 @@ export function createDelegation(input: {
   bots: ReturnType<typeof createBots>
   tasks: ReturnType<typeof createTasks>
   observability: Observability
-  runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): AsyncGenerator<ConversationEvent>
+  runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): Promise<{ finished: Promise<TurnResult> }>
   active(botId: string): { taskId: string | null } | undefined
   assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">): void
   inheritance(leader: Bot, references: string | undefined): BotInheritance[]
@@ -43,25 +41,15 @@ export function createDelegation(input: {
     return target
   }
 
-  async function handoff(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal): Promise<Outcome> {
+  async function handoff(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal): Promise<TurnResult> {
     return input.observability.span({ name: "delegation.turn", context: { botId: to.id, callerBotId: task.callerBotId, taskId: task.id } }, async () => {
-      const outcome: Outcome = { reason: "error", response: "" }
+      const turn = await input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, triggerRunId: null, content, images: [], replyTo: null }, signal ? { signal } : undefined)
 
-      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, triggerRunId: null, content, images: [], replyTo: null }, { signal })) {
-        if (event.type === "text") {
-          outcome.response += event.text
-        }
-
-        if (event.type === "finished") {
-          outcome.reason = event.reason
-        }
-      }
-
-      return outcome
+      return turn.finished
     })
   }
 
-  function summarize(to: Bot, outcome: Outcome) {
+  function summarize(to: Bot, outcome: TurnResult) {
     if (outcome.reason === "stop") {
       return outcome.response || `${to.name} finished without a reply.`
     }
@@ -73,7 +61,7 @@ export function createDelegation(input: {
     return `${to.name} failed before finishing.`
   }
 
-  function describe(to: Bot, outcome: Outcome) {
+  function describe(to: Bot, outcome: TurnResult) {
     const summary = summarize(to, outcome)
 
     if (outcome.reason === "error") {
@@ -87,7 +75,7 @@ export function createDelegation(input: {
 
   async function delegate(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal) {
     const outcome = await handoff(from, to, task, content, signal).catch((error: unknown) => {
-      input.tasks.finish(task.id, "interrupted")
+      input.tasks.finish(task.id, signal?.aborted ? "interrupted" : "failed")
 
       throw error
     })
@@ -99,7 +87,9 @@ export function createDelegation(input: {
   async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
     const outcome = await delegate(from, to, task, content)
 
-    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null }))
+    const turn = await input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null })
+
+    await turn.finished
   }
 
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
@@ -160,8 +150,8 @@ export function createDelegation(input: {
               throw new Error("You already own this Tarefa")
             }
 
-            input.tasks.transfer(task.id, to.id)
-            const outcome = await handoff(bot, to, { ...task, assigneeBotId: to.id }, params.instructions ?? "", signal)
+            const transferred = input.tasks.transfer(task.id, to.id)
+            const outcome = await handoff(bot, to, transferred, params.instructions ?? "", signal)
 
             return describe(to, outcome)
           },

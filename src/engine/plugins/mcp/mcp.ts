@@ -8,7 +8,7 @@ import { slugify, type PluginAdapter } from "../plugin-adapter"
 
 const environmentSchema = z.record(z.string(), z.string())
 
-interface Server { client: Client; tools: Promise<ToolDescriptor[]> }
+interface Server { client: Client; ready: Promise<ToolDescriptor[]> }
 
 function inheritedEnvironment() {
   return Object.fromEntries(["PATH", "HOME", "USER", "TMPDIR", "LANG"].flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
@@ -29,7 +29,7 @@ function textOf(result: Awaited<ReturnType<Client["callTool"]>>) {
 export function createMcpAdapter(input: { observability: Observability }): PluginAdapter {
   const servers = new Map<string, Server>()
 
-  async function start(key: string, name: string, config: StoredPlugin["config"], secret: string): Promise<Server> {
+  function start({ key, name, config, secret }: { key: string; name: string; config: StoredPlugin["config"]; secret: string }): Server {
     const [command, ...args] = config.command.split(/\s+/).filter(Boolean)
 
     if (!command) {
@@ -47,20 +47,30 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
       }
     }
 
-    await client.connect(transport)
-    const tools = client.listTools().then((listed) => parse(pluginSchemas.toolDescriptorList, listed.tools.map((tool) => ({
-      name: `${prefix}${slugify(tool.name)}`,
-      label: tool.name,
-      description: tool.description ?? tool.name,
-      inputSchema: tool.inputSchema,
-    }))))
-    const server = { client, tools }
+    const ready = (async () => {
+      await client.connect(transport)
+      const listed = await client.listTools()
+
+      return parse(pluginSchemas.toolDescriptorList, listed.tools.map((tool) => ({
+        name: `${prefix}${slugify(tool.name)}`,
+        label: tool.name,
+        description: tool.description ?? tool.name,
+        inputSchema: tool.inputSchema,
+      })))
+    })().catch(async (error: unknown) => {
+      if (servers.get(key)?.client === client) {
+        await stop(key)
+      }
+
+      throw error
+    })
+    const server = { client, ready }
     servers.set(key, server)
 
     return server
   }
 
-  async function serverFor(account: Parameters<PluginAdapter["execute"]>[0]) {
+  function serverFor(account: Parameters<PluginAdapter["execute"]>[0]) {
     const running = servers.get(account.id)
 
     if (running) {
@@ -71,7 +81,7 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
       throw new Error("The Plugin has no command")
     }
 
-    return start(account.id, account.label, account.config, account.secret)
+    return start({ key: account.id, name: account.label, config: account.config, secret: account.secret })
   }
 
   async function stop(key: string) {
@@ -82,7 +92,9 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
     }
 
     servers.delete(key)
-    await server.client.close().catch(() => {})
+    await server.client.close().catch((error: unknown) => {
+      input.observability.event({ name: "plugin.mcpclosefailed", context: { pluginId: key }, error })
+    })
   }
 
   return {
@@ -91,17 +103,17 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
       return { available: true }
     },
     connect(details) {
-      const key = `connect:${details.pluginId}`
+      const key = `connect:${crypto.randomUUID()}`
       const secret = details.secret ?? "{}"
       const connected = (async () => {
         if (!details.config) {
           throw new Error("The Plugin has no command")
         }
 
-        const server = await start(key, details.name, details.config, secret)
+        const server = start({ key, name: details.name, config: details.config, secret })
 
         try {
-          return { label: details.name, secret, tools: await server.tools }
+          return { label: details.name, secret, tools: await server.ready }
         } finally {
           await stop(key)
         }
@@ -115,7 +127,10 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
       }
     },
     async execute(account, tool, params, signal) {
-      const server = await serverFor(account)
+      signal?.throwIfAborted()
+      const server = serverFor(account)
+      await server.ready
+      signal?.throwIfAborted()
       const result = await server.client.callTool({ name: tool.label, arguments: params }, undefined, (signal ? { signal } : {}))
 
       return textOf(result)

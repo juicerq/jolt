@@ -1,6 +1,6 @@
 import type { Nodes } from "hast"
 import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime"
-import { createElement, type ReactElement } from "react"
+import type { ReactElement } from "react"
 import { Fragment, jsx, jsxs } from "react/jsx-runtime"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
@@ -11,7 +11,6 @@ import { visit } from "unist-util-visit"
 const urlProperties = ["href", "src"] as const
 const urlDelimiters = ["/", "?", "#"]
 const safeProtocol = /^(https?|ircs?|mailto|xmpp)$/i
-const fenceLine = /^(`{3,}|~{3,})/gm
 
 function safeUrl(value: string) {
   const colon = value.indexOf(":")
@@ -24,23 +23,6 @@ function safeUrl(value: string) {
   }
 
   return ""
-}
-
-function stableLength(content: string) {
-  let boundary = content.lastIndexOf("\n\n")
-
-  while (boundary > 0) {
-    const head = content.slice(0, boundary + 2)
-    const fences = head.match(fenceLine)?.length ?? 0
-
-    if (fences % 2 === 0) {
-      return head.length
-    }
-
-    boundary = content.lastIndexOf("\n\n", boundary - 1)
-  }
-
-  return 0
 }
 
 export function createMarkdownRenderer({ components, cacheBytes }: { components: Partial<Components>; cacheBytes: number }) {
@@ -100,15 +82,5 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
     return element
   }
 
-  function renderStreaming(content: string) {
-    const stable = stableLength(content)
-
-    if (stable === 0) {
-      return render(content)
-    }
-
-    return createElement(Fragment, null, render(content.slice(0, stable)), render(content.slice(stable)))
-  }
-
-  return { render, renderStreaming }
+  return { render }
 }

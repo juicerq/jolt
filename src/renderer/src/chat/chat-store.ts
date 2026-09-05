@@ -19,7 +19,6 @@ export interface ChatRun {
   messageId: string
   message: IncomingMessage
   completedMessages: ConversationMessage[]
-  responseContent: string
   steps: ChatActivityStep[]
   waitingMessage: string
   compacting: boolean
@@ -45,8 +44,8 @@ export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: []
 
 export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {}, queued: {} })
 
-export function resetChatQueues() {
-  chatStore.setState((state) => ({ ...state, queued: {} }))
+export function resetChatConnection() {
+  chatStore.setState((state) => ({ ...state, runs: {}, statuses: {}, queued: {} }))
 }
 
 export function setChatQueue(botId: string, queued: QueuedMessage[]) {
@@ -76,10 +75,9 @@ export function removeChatDraftImage(botId: string, index: number) {
 export function startChatRun(botId: string, message: IncomingMessage, messageId: string) {
   chatStore.setState((state) => ({
     ...state,
-    drafts: { ...state.drafts, [botId]: message.author === "person" ? emptyChatDraft : state.drafts[botId] ?? emptyChatDraft },
     runs: {
       ...state.runs,
-      [botId]: { messageId, message, completedMessages: [], responseContent: "", steps: [], permissionRequests: [], pluginRequests: [], pluginSteps: {}, waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
+      [botId]: { messageId, message, completedMessages: [], steps: [], permissionRequests: [], pluginRequests: [], pluginSteps: {}, waitingMessage: nextChatWaitingMessage(), compacting: false, status: "running" },
     },
     statuses: { ...state.statuses, [botId]: "working" },
   }))
@@ -89,16 +87,12 @@ export function setChatDraft(botId: string, draft: ChatDraft) {
   updateDraft(botId, () => draft)
 }
 
-export function appendChatText(botId: string, text: string) {
-  updateRun(botId, (run) => ({ ...run, responseContent: `${run.responseContent}${text}` }))
-}
-
 export function finishChatMessage(botId: string, message?: ConversationMessage) {
   if (!message) {
     return
   }
 
-  updateRun(botId, (run) => ({ ...run, completedMessages: [...run.completedMessages, message], responseContent: "", steps: [] }))
+  updateRun(botId, (run) => ({ ...run, completedMessages: [...run.completedMessages, message], steps: [] }))
 }
 
 export function startChatThinking(botId: string) {
@@ -227,8 +221,8 @@ export function settleChatRun(botId: string, status: "available" | "completed" |
     return
   }
 
-  const response = run?.responseContent || run?.completedMessages.at(-1)?.content
-  const finalStatus = status === "completed" && run?.completedMessages.at(-1)?.question ? "awaiting-response" : status
+  const response = run.completedMessages.findLast((message) => message.authorBotId === botId)?.content
+  const finalStatus = status === "completed" && run.completedMessages.at(-1)?.question ? "awaiting-response" : status
 
   chatStore.setState((state) => ({
     ...state,

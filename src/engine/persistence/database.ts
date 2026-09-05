@@ -415,8 +415,11 @@ export function openDatabase(path: string, observability: Observability) {
           return parseOptional(triggerSchemas.triggerRun, created)
         })
       },
-      listQueued() {
-        return observability.span({ name: "database.triggerrunqueued" }, () => parse(triggerSchemas.triggerRunList, database.select().from(triggerRuns).where(eq(triggerRuns.status, "queued")).orderBy(asc(triggerRuns.createdAt), asc(insertion(triggerRuns))).all()))
+      queuedBotIds() {
+        return observability.span({ name: "database.triggerrunbots" }, () => database.selectDistinct({ botId: triggerRuns.botId }).from(triggerRuns).where(eq(triggerRuns.status, "queued")).all().map((run) => run.botId))
+      },
+      nextQueued(botId: string) {
+        return observability.span({ name: "database.triggerrunqueued", context: { botId } }, () => parseOptional(triggerSchemas.triggerRun, database.select().from(triggerRuns).where(and(eq(triggerRuns.status, "queued"), eq(triggerRuns.botId, botId))).orderBy(asc(triggerRuns.createdAt), asc(insertion(triggerRuns))).limit(1).get()))
       },
       update(id: string, changes: Partial<Pick<TriggerRun, "status" | "error" | "startedAt" | "finishedAt">>) {
         return observability.span({ name: "database.triggerrunupdate" }, () => parseOptional(triggerSchemas.triggerRun, database.update(triggerRuns).set(changes).where(eq(triggerRuns.id, id)).returning().get()))

@@ -1,13 +1,12 @@
-import { conversationSchemas, type ConversationActivity, type ConversationEvent, type IncomingMessage } from "@src/shared/conversations"
+import type { ConversationActivity, ConversationEvent, IncomingMessage } from "@src/shared/conversations"
 import type { PiRuntimeEvent } from "../pi/pi-agent-runtime"
-import { parse } from "@src/shared/parse"
 
 type ConversationStep = ConversationActivity["steps"][number]
 type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
 type ToolStep = Extract<ConversationStep, { type: "tool" }>
 type ActiveTool = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
 type ActiveStep =
-  | (ThinkingStep & { startedAt?: number })
+  | ThinkingStep
   | (Omit<ToolStep, "tools"> & { tools: ActiveTool[] })
 
 export function createConversationActivityRecorder(messageId: string, message: IncomingMessage) {
@@ -15,7 +14,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
   let steps: ActiveStep[] = []
 
   return {
-    record(runtimeEvent: PiRuntimeEvent): ConversationEvent {
+    record(runtimeEvent: Exclude<PiRuntimeEvent, { type: "text" }>): ConversationEvent {
       if (runtimeEvent.type === "started") {
         thinkingStartedAt = undefined
         steps = []
@@ -25,7 +24,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
 
       if (runtimeEvent.type === "thinking-started") {
         thinkingStartedAt = performance.now()
-        steps.push({ type: "thinking", content: "", startedAt: thinkingStartedAt })
+        steps.push({ type: "thinking", content: "" })
 
         return { type: "thinking-started" }
       }
@@ -39,7 +38,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
           steps.push({ type: "thinking", content: runtimeEvent.text })
         }
 
-        return parse(conversationSchemas.event, runtimeEvent)
+        return runtimeEvent
       }
 
       if (runtimeEvent.type === "thinking-finished") {
@@ -58,7 +57,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
           steps.push({ type: "tool", name: runtimeEvent.tool, tools: [tool] })
         }
 
-        return parse(conversationSchemas.event, runtimeEvent)
+        return runtimeEvent
       }
 
       if (runtimeEvent.type === "tool-finished") {
@@ -71,7 +70,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
             }
           : step)
 
-        return parse(conversationSchemas.event, runtimeEvent)
+        return runtimeEvent
       }
 
       if (runtimeEvent.type === "finished" && thinkingStartedAt !== undefined) {
@@ -82,19 +81,17 @@ export function createConversationActivityRecorder(messageId: string, message: I
         return { type: "message-finished" }
       }
 
-      return parse(conversationSchemas.event, runtimeEvent)
+      return runtimeEvent
     },
     takeSnapshot(): ConversationActivity {
       const snapshot = {
         steps: steps.flatMap((step): ConversationActivity["steps"] => {
           if (step.type === "thinking") {
-            const { startedAt: _startedAt, ...thinkingStep } = step
-
-            if (!thinkingStep.content && !thinkingStep.durationMs) {
+            if (!step.content && !step.durationMs) {
               return []
             }
 
-            return [thinkingStep]
+            return [step]
           }
 
           const tools = step.tools.filter((tool): tool is ToolStep["tools"][number] => tool.status !== "running")
@@ -120,7 +117,6 @@ export function createConversationActivityRecorder(messageId: string, message: I
 
     if (lastStep?.type === "thinking") {
       lastStep.durationMs = durationMs
-      delete lastStep.startedAt
     }
 
     thinkingStartedAt = undefined

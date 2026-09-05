@@ -80,13 +80,13 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   async function handleSend(draft: ChatDraft, deliver: "queue" | "now") {
     const message = { content: draft.content.trim(), images: draft.images, replyTo: null }
 
+    setChatDraft(bot.id, emptyChatDraft)
+
     if (!chatStore.state.runs[bot.id]) {
       await sendPersonInput(message, draft.mentions)
 
       return
     }
-
-    setChatDraft(bot.id, emptyChatDraft)
 
     await client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, draft.mentions), deliver })
       .catch((sendError: unknown) => {
@@ -271,10 +271,9 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
       {run.completedMessages.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
       <article className="flex w-fit max-w-[720px] flex-col gap-3 self-start">
         {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
-        {run.responseContent && <ChatStamped className="chat-bot-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatContent content={run.responseContent} streaming /></ChatStamped>}
         {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} step={run.pluginSteps[pluginRequest.id]} /></ChatStamped>}
-        {workingSilently && <ChatWorkingIndicator botName={bot.name} hasResponse={!!run.responseContent} />}
+        {workingSilently && <ChatWorkingIndicator botName={bot.name} />}
         {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>
@@ -285,9 +284,9 @@ async function unavailableQuestionAnswer() {
   return false
 }
 
-function ChatWorkingIndicator({ botName, hasResponse }: { botName: string; hasResponse: boolean }) {
+function ChatWorkingIndicator({ botName }: { botName: string }) {
   return (
-    <div className={`flex w-fit items-center gap-1 ${hasResponse ? "mt-3" : ""}`} role="status" aria-label={`${botName} está trabalhando`}>
+    <div className="flex w-fit items-center gap-1" role="status" aria-label={`${botName} está trabalhando`}>
       <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />
       <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-delay:150ms] [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />
       <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-delay:300ms] [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />

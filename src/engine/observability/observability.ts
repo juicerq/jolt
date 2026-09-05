@@ -52,19 +52,7 @@ interface ObservationSystemOptions {
   outputs?: ObservationOutput[]
 }
 
-const allowedAttributeKeys = new Set([
-  "bytes",
-  "code",
-  "count",
-  "method",
-  "port",
-  "process",
-  "reason",
-  "runtime",
-  "state",
-  "status",
-  "version",
-])
+const allowedAttributeKeys = new Set(Object.keys(observationAttributes.shape))
 
 function sanitizeAttributes(input?: Record<string, unknown>) {
   if (!input) {

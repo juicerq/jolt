@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util"
-import { browser, evaluate } from "./browser"
+import { browser, connectBrowser, evaluate } from "./browser"
 import { startProbe, stopProbe, summarizeFrames } from "./page-probe"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: "9222" }, steps: { type: "string", default: "40" }, px: { type: "string", default: "1200" } } })
@@ -42,6 +42,6 @@ function measure(name: string) {
   }
 }
 
-browser("connect", values.port)
+connectBrowser(values.port)
 
 console.table(bots.map(measure))
