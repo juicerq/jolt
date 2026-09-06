@@ -9,15 +9,25 @@ const level = z.enum(["info", "error"])
 
 export const observationAttributes = z.strictObject({
   bytes: z.number().optional(),
+  cacheReadTokens: z.number().optional(),
+  cacheWriteTokens: z.number().optional(),
   code: z.string().optional(),
+  contextWindow: z.number().optional(),
+  cost: z.number().optional(),
   count: z.number().optional(),
+  inputTokens: z.number().optional(),
   method: z.string().optional(),
+  model: z.string().optional(),
+  outputTokens: z.number().optional(),
+  percent: z.number().optional(),
   port: z.number().optional(),
   process: z.string().optional(),
   reason: z.string().optional(),
   runtime: z.string().optional(),
   state: z.string().optional(),
   status: z.string().optional(),
+  tokens: z.number().optional(),
+  tool: z.string().optional(),
   version: z.string().optional(),
 })
 
@@ -87,6 +97,7 @@ export const externalObservationSpan = z.strictObject({
 })
 
 export type Observation = z.infer<typeof observation>
+export type ObservationAttributes = z.infer<typeof observationAttributes>
 export type ObservationContext = z.infer<typeof observationContext>
 export type NormalizedObservationError = z.infer<typeof normalizedObservationError>
 export type ExternalObservationSpan = z.infer<typeof externalObservationSpan>

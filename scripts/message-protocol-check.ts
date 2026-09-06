@@ -6,7 +6,7 @@ import type { Bot } from "@src/shared/bots"
 import { askTool, sendMessageTool, type TurnContext } from "@src/shared/conversations"
 import { createConversationTools } from "@src/engine/conversations/conversation-tools"
 import { botInstructions } from "@src/engine/conversations/bot-instructions"
-import type { PiRuntimeEvent, PiTool } from "@src/engine/pi/pi-agent-runtime"
+import type { PiTool } from "@src/engine/pi/pi-agent-runtime"
 import { createPiModels } from "@src/engine/pi/pi-models"
 import { createPiSessionFactory } from "@src/engine/pi/pi-session-adapter"
 
@@ -130,7 +130,7 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
     ephemeral: true,
     instructions: botInstructions({ bot, directory: cwd, extensions: [routineInstructions] }),
   })
-  const unsubscribe = session.subscribe((event: PiRuntimeEvent) => {
+  const unsubscribe = session.subscribe((event) => {
     if (event.type === "text") {
       undeliveredText += event.text
     }

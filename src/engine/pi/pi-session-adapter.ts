@@ -1,22 +1,24 @@
 import { Type } from "@earendil-works/pi-ai"
 import {
+  calculateContextTokens,
   createAgentSession,
   DefaultResourceLoader,
   defineTool,
   SessionManager,
   SettingsManager,
+  type AgentSession,
   type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
 } from "@earendil-works/pi-coding-agent"
-import type { TSchema } from "@earendil-works/pi-ai"
+import type { AssistantMessage, TSchema } from "@earendil-works/pi-ai"
 import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import { createMessagingExtension } from "./pi-messaging"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { PiModels } from "./pi-models"
-import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
+import type { PiMeasurement, PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content" }
 const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
@@ -170,6 +172,94 @@ function createEventNormalizer() {
   }
 }
 
+function usageMeasurement(message: AssistantMessage): PiMeasurement | undefined {
+  const { usage } = message
+  const tokens = calculateContextTokens(usage)
+
+  if (tokens === 0) {
+    return
+  }
+
+  return {
+    type: "measurement",
+    name: "pi.usage",
+    attributes: {
+      model: message.model,
+      state: message.stopReason,
+      tokens,
+      inputTokens: usage.input,
+      outputTokens: usage.output,
+      cacheReadTokens: usage.cacheRead,
+      cacheWriteTokens: usage.cacheWrite,
+      cost: usage.cost.total,
+    },
+  }
+}
+
+function contextMeasurement(session: Pick<AgentSession, "getContextUsage">): PiMeasurement | undefined {
+  const usage = session.getContextUsage()
+
+  if (!usage || usage.tokens === null || usage.percent === null) {
+    return
+  }
+
+  return { type: "measurement", name: "pi.context", attributes: { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent } }
+}
+
+function compactionState(event: Extract<AgentSessionEvent, { type: "compaction_end" }>) {
+  if (event.aborted) {
+    return "aborted"
+  }
+
+  if (event.errorMessage) {
+    return "failed"
+  }
+
+  return "done"
+}
+
+function compactionMeasurement(event: Extract<AgentSessionEvent, { type: "compaction_end" }>): PiMeasurement {
+  const { result } = event
+
+  return {
+    type: "measurement",
+    name: "pi.compaction",
+    attributes: {
+      reason: event.reason,
+      state: compactionState(event),
+      ...(result ? { tokens: result.tokensBefore, bytes: Buffer.byteLength(result.summary) } : {}),
+      ...(result?.usage ? { inputTokens: result.usage.input, outputTokens: result.usage.output, cost: result.usage.cost.total } : {}),
+    },
+    ...(event.errorMessage ? { error: event.errorMessage } : {}),
+  }
+}
+
+function toolMeasurement(event: Extract<AgentSessionEvent, { type: "tool_execution_end" }>): PiMeasurement {
+  const bytes = textBlocks(event.result).reduce((total, block) => total + Buffer.byteLength(block.text), 0)
+
+  return { type: "measurement", name: "pi.tool", attributes: { tool: event.toolName, state: event.isError ? "failed" : "done", bytes } }
+}
+
+function measure(event: AgentSessionEvent, session: Pick<AgentSession, "getContextUsage">) {
+  if (event.type === "message_end" && event.message.role === "assistant") {
+    return usageMeasurement(event.message)
+  }
+
+  if (event.type === "tool_execution_end") {
+    return toolMeasurement(event)
+  }
+
+  if (event.type === "agent_settled") {
+    return contextMeasurement(session)
+  }
+
+  if (event.type === "compaction_end") {
+    return compactionMeasurement(event)
+  }
+
+  return
+}
+
 function terminalMessageReason(reason: string) {
   if (reason === "aborted") {
     return "aborted" as const
@@ -211,10 +301,14 @@ function truncate(value: string, limit: number) {
   return `${value.slice(0, limit - 3)}...`
 }
 
+function textBlocks(result: unknown) {
+  const content: unknown[] = result && typeof result === "object" && "content" in result && Array.isArray(result.content) ? result.content : []
+
+  return content.filter((block): block is { type: "text"; text: string } => !!block && typeof block === "object" && Reflect.get(block, "type") === "text" && typeof Reflect.get(block, "text") === "string")
+}
+
 function summarizeToolError(result: unknown) {
-  const content = result && typeof result === "object" && "content" in result && Array.isArray(result.content) ? result.content : []
-  const text = content.find((block): block is { type: "text"; text: string } => !!block && typeof block === "object" && block.type === "text" && typeof block.text === "string")
-  const summary = text?.text.split(/\n\s*\n/, 1)[0]?.trim() ?? ""
+  const summary = textBlocks(result)[0]?.text.split(/\n\s*\n/, 1)[0]?.trim() ?? ""
 
   if (!summary) {
     return
@@ -266,7 +360,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         thinkingLevel: input.effort,
         resourceLoader: loader,
         sessionManager,
-        settingsManager: SettingsManager.inMemory({ compaction: { keepRecentTokens: 10_000 } }),
+        settingsManager: SettingsManager.inMemory(),
         customTools: (input.customTools ?? []).map(toPiTool),
       })
       result.session.setActiveToolsByName(input.tools)
@@ -300,6 +394,12 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         addTools: (tools) => registrar.add(tools),
         subscribe(listener) {
           return result.session.subscribe((event) => {
+            const measurement = measure(event, result.session)
+
+            if (measurement) {
+              listener(measurement)
+            }
+
             const normalized = normalizer.normalize(event)
 
             if (normalized) {

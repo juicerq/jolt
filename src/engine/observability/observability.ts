@@ -12,6 +12,7 @@ import {
   type ObservationContext,
 } from "@src/shared/observability/observation"
 import { parse } from "@src/shared/parse"
+import type { ZodType } from "zod"
 
 interface EventInput {
   name: string
@@ -52,7 +53,7 @@ interface ObservationSystemOptions {
   outputs?: ObservationOutput[]
 }
 
-const allowedAttributeKeys = new Set(Object.keys(observationAttributes.shape))
+const attributeSchemas: Partial<Record<string, ZodType>> = observationAttributes.shape
 
 function sanitizeAttributes(input?: Record<string, unknown>) {
   if (!input) {
@@ -61,15 +62,13 @@ function sanitizeAttributes(input?: Record<string, unknown>) {
 
   try {
     const entries = Object.entries(input).flatMap(([key, value]) => {
-      if (!allowedAttributeKeys.has(key)) {
+      const schema = attributeSchemas[key]
+
+      if (!schema || value === undefined) {
         return []
       }
 
-      const valid = key === "bytes" || key === "count" || key === "port"
-        ? typeof value === "number" && Number.isFinite(value)
-        : typeof value === "string"
-
-      if (!valid) {
+      if (!schema.safeParse(value).success) {
         process.stderr.write(`Invalid observation attribute dropped: ${key}\n`)
 
         return []

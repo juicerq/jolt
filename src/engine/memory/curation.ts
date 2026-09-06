@@ -3,7 +3,7 @@ import { memorySchemas, type Memory, type Note, type StoredMemory } from "@src/s
 import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
-import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
+import { recordMeasurement, type PiCustomTool, type PiSessionFactory } from "../pi/pi-agent-runtime"
 import { parse } from "@src/shared/parse"
 
 const rules = [
@@ -52,11 +52,12 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
         const draft = new Map(original.map((memory) => [memory.id, memory]))
         const customTools = curationTools(bot.id, notes, draft)
         const selected = input.database.curation.model()
+        const provider = selected?.provider ?? bot.provider
         const session = await input.sessionFactory.open({
           botId: bot.id,
           cwd,
           tools: customTools.map((tool) => tool.name),
-          provider: selected?.provider ?? bot.provider,
+          provider,
           effort: selected ? "medium" : bot.effort,
           model: selected?.model ?? bot.model,
           policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },
@@ -66,6 +67,12 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
         })
         const completion = Promise.withResolvers<void>()
         const unsubscribe = session.subscribe((event) => {
+          if (event.type === "measurement") {
+            recordMeasurement(input.observability, { botId: bot.id, provider }, event)
+
+            return
+          }
+
           if (event.type !== "finished") {
             return
           }

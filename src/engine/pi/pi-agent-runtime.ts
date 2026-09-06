@@ -1,6 +1,7 @@
 import type { BotEffort } from "@src/shared/bots"
 import type { BotPermissionMode } from "@src/shared/bot-permissions"
 import type { ConversationCompactionResult, MessageImage, TurnContext } from "@src/shared/conversations"
+import type { ObservationAttributes, ObservationContext } from "@src/shared/observability/observation"
 import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
 import type { ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
@@ -20,6 +21,22 @@ export type PiRuntimeEvent =
   | { type: "compaction-started"; reason: "manual" | "threshold" | "overflow" }
   | { type: "compaction-finished" }
   | { type: "finished"; reason: "stop" | "aborted" | "error"; error?: string }
+
+export interface PiMeasurement {
+  type: "measurement"
+  name: "pi.usage" | "pi.context" | "pi.compaction" | "pi.tool"
+  attributes: ObservationAttributes
+  error?: string
+}
+
+export function recordMeasurement(observability: Observability, context: ObservationContext, measurement: PiMeasurement) {
+  observability.event({
+    name: measurement.name,
+    attributes: measurement.attributes,
+    context,
+    ...(measurement.error ? { error: new Error(measurement.error) } : {}),
+  })
+}
 
 interface ToolInputSchema {
   type: "object"
@@ -59,7 +76,7 @@ export interface PiSession {
   steer(input: Pick<PiPrompt, "content" | "images">): Promise<void>
   abort(): Promise<void>
   addTools?(tools: PiTool[]): void
-  subscribe(listener: (event: PiRuntimeEvent) => void): () => void
+  subscribe(listener: (event: PiRuntimeEvent | PiMeasurement) => void): () => void
   dispose(): void
 }
 
@@ -205,17 +222,15 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
       let receivedFirstEvent = false
       const unsubscribe = session.subscribe((event) => {
+        if (event.type === "measurement") {
+          recordMeasurement(observability, { botId: input.botId, provider: input.provider }, event)
+
+          return
+        }
+
         if (!receivedFirstEvent) {
           receivedFirstEvent = true
           observability.event({ name: "pi.firstevent", context: { botId: input.botId, provider: input.provider } })
-        }
-
-        if (event.type === "tool-started" || event.type === "tool-finished") {
-          observability.event({ name: "pi.toolevent", attributes: { state: event.type }, context: { botId: input.botId, provider: input.provider } })
-        }
-
-        if (event.type === "compaction-started") {
-          observability.event({ name: "pi.compactionstarted", attributes: { reason: event.reason }, context: { botId: input.botId, provider: input.provider } })
         }
 
         const annotated = annotate(input.botId, policy, event)
