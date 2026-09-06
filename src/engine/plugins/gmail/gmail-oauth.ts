@@ -86,7 +86,7 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
       }
 
       if (url.searchParams.get("state") !== state) {
-        return new Response("This sign-in link is not the one Jolt is waiting for.", { status: 400 })
+        return new Response("This sign-in link is not the one Mimo is waiting for.", { status: 400 })
       }
 
       const code = url.searchParams.get("code")
@@ -98,9 +98,9 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
       try {
         const exchanged = await exchange(endpoints.token, client, { grant_type: "authorization_code", code, code_verifier: verifier, redirect_uri: redirectUri })
 
-        return finish({ credentials: exchanged }, new Response("Gmail connected. You can close this tab and go back to Jolt."))
+        return finish({ credentials: exchanged }, new Response("Gmail connected. You can close this tab and go back to Mimo."))
       } catch (error) {
-        return finish({ error: error instanceof Error ? error : new Error("Token exchange failed") }, new Response("Jolt could not finish the connection. You can close this tab.", { status: 500 }))
+        return finish({ error: error instanceof Error ? error : new Error("Token exchange failed") }, new Response("Mimo could not finish the connection. You can close this tab.", { status: 500 }))
       }
     },
   })

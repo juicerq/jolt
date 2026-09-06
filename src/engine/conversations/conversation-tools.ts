@@ -6,7 +6,7 @@ export function createConversationTools(send: (content: string, question: Messag
   return [
     {
       name: sendMessageTool,
-      description: "Send one message to the current Jolt conversation immediately. Each message develops one idea, usually in two or three sentences. You can send another message or use other tools afterward without waiting for a reply. Use successive calls for detailed explanations. Plain assistant text is not delivered to the person.",
+      description: "Send one message to the current Mimo conversation immediately. Each message develops one idea, usually in two or three sentences. You can send another message or use other tools afterward without waiting for a reply. Use successive calls for detailed explanations. Plain assistant text is not delivered to the person.",
       inputSchema: {
         type: "object",
         properties: { content: { type: "string", minLength: 1, maxLength: messageContentLimit, description: "One complete conversational idea for the person to read. Split a longer explanation into successive calls." } },

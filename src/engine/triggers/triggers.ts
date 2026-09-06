@@ -300,7 +300,7 @@ export function createTriggers(input: {
         "repositories?": "Comma-separated repositories as id=owner/name. Get ids from github_repositories. Required to create.",
         "labels?": "Optional comma-separated labels. Every listed label must be present.",
         "instruction?": "What you do after the event matches. Required to create.",
-        "includeOwnEvents?": "yes to match events created by the Jolt GitHub App. Defaults to no.",
+        "includeOwnEvents?": "yes to match events created by the Mimo GitHub App. Defaults to no.",
         "enabled?": "no to pause, yes to activate. Defaults to yes.",
       },
       async execute(params) {

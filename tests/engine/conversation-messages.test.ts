@@ -11,7 +11,7 @@ import { askTool, messageContentLimit, sendMessageTool } from "@src/shared/conve
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 
-const directory = mkdtempSync(join(tmpdir(), "jolt-messages-"))
+const directory = mkdtempSync(join(tmpdir(), "mimo-messages-"))
 
 beforeEach(() => mkdirSync(directory, { recursive: true }))
 const cleanups: (() => Promise<void>)[] = []
@@ -26,7 +26,7 @@ afterEach(async () => {
 
 async function conversation() {
   const { observability } = createObservationSystem({ appSessionId: "messages", logDirectory: join(directory, "logs"), development: false })
-  const databasePath = join(directory, "jolt.sqlite")
+  const databasePath = join(directory, "mimo.sqlite")
   const database = openDatabase(databasePath, observability)
   const listeners = new Set<(event: PiRuntimeEvent) => void>()
   const opened = Promise.withResolvers<PiSessionInput>()

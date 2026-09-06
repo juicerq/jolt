@@ -1,6 +1,6 @@
 import { Store } from "@tanstack/react-store"
 
-const activityDetailsStorageKey = "jolt.activity-details-visible"
+const activityDetailsStorageKey = "mimo.activity-details-visible"
 
 export const appSettingsStore = new Store({
   activityDetailsVisible: localStorage.getItem(activityDetailsStorageKey) === "true",

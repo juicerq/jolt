@@ -89,7 +89,7 @@ Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar.
 _Evitar_: Memória, log, diário, rascunho
 
 **Curadoria**:
-A passagem separada em que o Jolt avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
+A passagem separada em que o Mimo avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Modelo da Curadoria**:
@@ -97,7 +97,7 @@ A escolha geral de qual Modelo executa a Curadoria de todos os Bots, usando um F
 _Evitar_: Modelo do Time, Modelo do Líder
 
 **Origem**:
-De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
+De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Mimo inclui a Origem no Contexto e a registra; o Bot não a escreve.
 _Evitar_: Fonte, autor, proveniência
 
 **Limite da Memória**:
@@ -153,7 +153,7 @@ O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
 
 **Detalhes do trabalho**:
-A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Jolt, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
 _Evitar_: Passos do agente, apagar Atividade, Mensagem
 
 **Duração do pensamento**:
@@ -205,7 +205,7 @@ O trabalho de um Bot realizado na máquina da pessoa.
 _Evitar_: Execução remota, execução em VPS
 
 **Rotina**:
-Um pedido fixo que o Jolt entrega a um Bot na Frequência escolhida. Pertence a um único Bot, que pode ter várias. A pessoa ou o próprio Bot cria, altera, pausa e remove uma Rotina. Um Integrante temporário não tem Rotina.
+Um pedido fixo que o Mimo entrega a um Bot na Frequência escolhida. Pertence a um único Bot, que pode ter várias. A pessoa ou o próprio Bot cria, altera, pausa e remove uma Rotina. Um Integrante temporário não tem Rotina.
 _Evitar_: Cron, agendamento, gatilho, job, timer
 
 **Frequência**:
@@ -213,11 +213,11 @@ Quando uma Rotina chama o Bot. Ela tem três formas: Intervalo, a cada tantos mi
 _Evitar_: Cron, expressão, agenda, schedule
 
 **Chamada**:
-Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Jolt estava fechado acontece uma única vez ao abrir.
+Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Mimo estava fechado acontece uma única vez ao abrir.
 _Evitar_: Tick, execução, disparo, mensagem da pessoa
 
 **Evento externo**:
-Um fato que um Plugin entrega ao Jolt, como a abertura de uma issue no GitHub. Receber um Evento externo não chama um Bot por si só.
+Um fato que um Plugin entrega ao Mimo, como a abertura de uma issue no GitHub. Receber um Evento externo não chama um Bot por si só.
 _Evitar_: Gatilho, Disparo, mensagem
 
 **Gatilho**:
@@ -229,7 +229,7 @@ Uma ocorrência persistida em que um Evento externo combinou com um Gatilho. O D
 _Evitar_: Chamada, Evento externo, execução, webhook
 
 **Plugin**:
-Um serviço externo que o Jolt sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.
+Um serviço externo que o Mimo sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.
 _Evitar_: Integração, conector, extensão, MCP como sinônimo de Plugin
 
 **Conta**:
@@ -253,7 +253,7 @@ A capacidade de todo Bot de procurar informação na internet e ler uma página,
 _Evitar_: Busca, navegação, Plugin de pesquisa
 
 **Navegador do Bot**:
-A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Jolt.
+A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:

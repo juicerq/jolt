@@ -14,14 +14,14 @@ import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
 
-if (process.env.JOLT_USER_DATA) {
-  app.setPath("userData", process.env.JOLT_USER_DATA)
+if (process.env.MIMO_USER_DATA) {
+  app.setPath("userData", process.env.MIMO_USER_DATA)
 }
 
-app.setName(app.isPackaged ? "Jolt" : "Jolt Dev")
+app.setName(app.isPackaged ? "Mimo" : "Mimo Dev")
 
 if (process.platform === "linux" && !app.isPackaged) {
-  app.setDesktopName("jolt-dev.desktop")
+  app.setDesktopName("mimo-dev.desktop")
 }
 
 const environmentFile = join(app.getAppPath(), ".env")
@@ -31,7 +31,7 @@ if (!app.isPackaged && existsSync(environmentFile)) {
 }
 
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
-const engineName = process.platform === "win32" ? "jolt-engine.exe" : "jolt-engine"
+const engineName = process.platform === "win32" ? "mimo-engine.exe" : "mimo-engine"
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", engineName)
   : join(app.getAppPath(), "dist-engine", engineName)
@@ -46,15 +46,15 @@ const engine = new EngineProcess({
     return browser.execute(request, signal)
   },
   executable,
-  databasePath: join(app.getPath("userData"), "jolt.sqlite"),
+  databasePath: join(app.getPath("userData"), "mimo.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
-  ...(process.env.JOLT_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.JOLT_GOOGLE_CLIENT_ID, ...(process.env.JOLT_GOOGLE_CLIENT_SECRET ? { secret: process.env.JOLT_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
-  githubRelayUrl: process.env.JOLT_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
+  ...(process.env.MIMO_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.MIMO_GOOGLE_CLIENT_ID, ...(process.env.MIMO_GOOGLE_CLIENT_SECRET ? { secret: process.env.MIMO_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
+  githubRelayUrl: process.env.MIMO_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
-  loadProvider: !app.isPackaged && process.env.JOLT_LOAD_PROVIDER === "true",
+  loadProvider: !app.isPackaged && process.env.MIMO_LOAD_PROVIDER === "true",
   onUnexpectedExit(error) {
     console.error(error)
     app.quit()

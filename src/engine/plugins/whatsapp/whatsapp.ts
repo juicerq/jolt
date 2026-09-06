@@ -24,7 +24,7 @@ const whatsappTools: ToolDescriptor[] = [
   {
     name: "whatsapp_chats",
     label: "Lista de conversas do WhatsApp",
-    description: "List the person's WhatsApp chats, most recent first. Each chat shows its id, its name, what kind of chat it is, when the last message arrived, how many messages Jolt has stored, and the last message itself with its sender. Use this first: it is cheap, and it gives you the chat ids that whatsapp_read and whatsapp_send need. Jolt only stores what arrived while it was open.",
+    description: "List the person's WhatsApp chats, most recent first. Each chat shows its id, its name, what kind of chat it is, when the last message arrived, how many messages Mimo has stored, and the last message itself with its sender. Use this first: it is cheap, and it gives you the chat ids that whatsapp_read and whatsapp_send need. Mimo only stores what arrived while it was open.",
     inputSchema: {
       type: "object",
       properties: {
@@ -36,7 +36,7 @@ const whatsappTools: ToolDescriptor[] = [
   {
     name: "whatsapp_read",
     label: "Leitura de conversa do WhatsApp",
-    description: "Read the stored messages of one or more WhatsApp chats, oldest first, with sender, time and text. Pass every chat you need in one call. Non-text messages read as a marker such as [image]. The stored history has gaps: Jolt loses what arrived while it was closed and never recovers it. Do not assume you read the whole conversation.",
+    description: "Read the stored messages of one or more WhatsApp chats, oldest first, with sender, time and text. Pass every chat you need in one call. Non-text messages read as a marker such as [image]. The stored history has gaps: Mimo loses what arrived while it was closed and never recovers it. Do not assume you read the whole conversation.",
     inputSchema: {
       type: "object",
       properties: {
@@ -317,7 +317,7 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
         .slice(0, details.limit)
 
       if (chats.length === 0) {
-        return "No stored chats match. Jolt stores WhatsApp messages only while it is open."
+        return "No stored chats match. Mimo stores WhatsApp messages only while it is open."
       }
 
       return chats.map((entry) => describeChat(entry.chat, entry.kind)).join("\n\n")

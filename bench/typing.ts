@@ -4,7 +4,7 @@ import { browser, connectBrowser } from "./browser"
 import { observationLog, observations, waitForObservations } from "./observations"
 import { type Probe, startProbe, stopProbe, summarizeFrames, summarizeKeys } from "./page-probe"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "3" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "3" } } })
 const logPath = observationLog(values["user-data"])
 const rounds = Number(values.rounds)
 const text = "Preciso revisar o modulo de cobranca antes da reuniao e listar o que muda em cada arquivo."

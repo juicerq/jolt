@@ -284,7 +284,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         },
         async prompt({ content, images = [], context }) {
           if (context) {
-            await result.session.sendCustomMessage({ customType: "jolt.turn-context", content: `Jolt context for the next message:\n${JSON.stringify(context)}`, display: false })
+            await result.session.sendCustomMessage({ customType: "mimo.turn-context", content: `Mimo context for the next message:\n${JSON.stringify(context)}`, display: false })
           }
 
           return result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) })

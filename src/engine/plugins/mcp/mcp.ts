@@ -37,7 +37,7 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
     }
 
     const env = { ...inheritedEnvironment(), ...parse(environmentSchema, JSON.parse(secret || "{}")) }
-    const client = new Client({ name: "jolt", version: "1.0.0" })
+    const client = new Client({ name: "mimo", version: "1.0.0" })
     const prefix = `${slugify(name)}_`
     const transport = new StdioClientTransport({ command, args, env, stderr: "ignore" })
     client.onclose = () => {

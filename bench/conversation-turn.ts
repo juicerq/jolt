@@ -3,7 +3,7 @@ import type { Observation } from "../src/shared/observability/observation"
 import { browser, connectBrowser } from "./browser"
 import { observationLog, observations, waitForObservations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/jolt-turn.cpuprofile" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/mimo-turn.cpuprofile" } } })
 const logPath = observationLog(values["user-data"])
 
 function isFinishedTurn(item: Observation) {

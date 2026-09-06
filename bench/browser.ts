@@ -3,7 +3,7 @@ import { z } from "zod"
 import { parse } from "@src/shared/parse"
 
 export function browser(...args: string[]) {
-  const result = Bun.spawnSync([resolve(import.meta.dir, "../node_modules/.bin/agent-browser"), "--session", "jolt-bench", ...args])
+  const result = Bun.spawnSync([resolve(import.meta.dir, "../node_modules/.bin/agent-browser"), "--session", "mimo-bench", ...args])
 
   if (result.exitCode !== 0) {
     throw new Error(`agent-browser ${args.join(" ")} failed: ${result.stderr.toString()}`)
@@ -15,10 +15,10 @@ export function browser(...args: string[]) {
 export function connectBrowser(port: string) {
   browser("connect", port)
   const result = parse(z.object({ data: z.object({ tabs: z.array(z.object({ title: z.string(), tabId: z.string() })) }) }), JSON.parse(browser("tab", "list", "--json")))
-  const tab = result.data.tabs.find((tab) => tab.title === "Jolt")
+  const tab = result.data.tabs.find((tab) => tab.title === "Mimo")
 
   if (!tab) {
-    throw new Error("No Jolt renderer on the CDP port")
+    throw new Error("No Mimo renderer on the CDP port")
   }
 
   browser("tab", tab.tabId)

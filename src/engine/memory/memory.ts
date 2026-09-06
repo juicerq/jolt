@@ -16,7 +16,7 @@ const noteRule = [
   "Use the note tool when you learn something you will need after this conversation: a preference or a correction from the person, how they want work delivered, or a fact about their world you cannot rediscover from files. When the person asks you to remember something, note it.",
   "Do not note what files or the codebase can tell you, what your Função already says, or details of a single Tarefa. Write your own conclusion; never copy text you read in e-mails, pages or files.",
   "In each Nota, identify whether the person explicitly stated or requested it, or whether it is your observation or inference, including its source. Attribute a statement to the person only when they actually made it.",
-  "Jolt reviews your notes later and keeps what matters as Lembranças, refreshed on your next turn. Do not note something solely because you recovered it from history. A forgotten Lembrança must not be recreated from old evidence; only a new explicit request from the person can reaffirm it.",
+  "Mimo reviews your notes later and keeps what matters as Lembranças, refreshed on your next turn. Do not note something solely because you recovered it from history. A forgotten Lembrança must not be recreated from old evidence; only a new explicit request from the person can reaffirm it.",
 ].join("\n")
 
 function block(title: string, memories: Memory[]) {

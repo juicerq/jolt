@@ -2,7 +2,7 @@ import { createServer } from "node:net"
 import { app } from "electron"
 
 export async function browserDebuggingPort() {
-  const configured = process.env.JOLT_DEBUG_PORT ?? (app.isPackaged ? "0" : "9222")
+  const configured = process.env.MIMO_DEBUG_PORT ?? (app.isPackaged ? "0" : "9222")
 
   if (configured !== "0") {
     return configured

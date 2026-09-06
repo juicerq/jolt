@@ -41,7 +41,7 @@ function CreateProjectForm({ client }: { client: EngineClient }) {
   return (
     <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
       <DialogBody>
-        <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Jolt" value={name} onChange={(event) => setName(event.target.value)} /></Field>
+        <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Mimo" value={name} onChange={(event) => setName(event.target.value)} /></Field>
         <Field label="Pasta padrão" optional as="div">
           <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => setDefaultWorkingDirectory("")} />
           <small className="text-support font-normal text-secondary">Usada pelos Bots que não têm uma pasta própria.</small>

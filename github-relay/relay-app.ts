@@ -41,7 +41,7 @@ function selectionPage(state: string, installations: { id: string; accountLogin:
 }
 
 function connectedPage(accountLogin: string) {
-  return page("GitHub conectado ao Jolt", `<p>A Conta ${html(accountLogin)} foi conectada. Você pode fechar esta página e voltar ao Jolt.</p>`)
+  return page("GitHub conectado ao Mimo", `<p>A Conta ${html(accountLogin)} foi conectada. Você pode fechar esta página e voltar ao Mimo.</p>`)
 }
 
 export function createRelayApp(input: { database: RelayDatabase; github: GithubApp }) {
@@ -92,7 +92,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
     input.database.complete(state, installation.id, installation.accountLogin)
 
     if (target) {
-      return page(`Acesso a ${target} liberado`, "<p>O Bot vai continuar seu pedido no Jolt. Você pode fechar esta página.</p>")
+      return page(`Acesso a ${target} liberado`, "<p>O Bot vai continuar seu pedido no Mimo. Você pode fechar esta página.</p>")
     }
 
     return connectedPage(installation.accountLogin)
@@ -132,7 +132,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
           console.error(error)
         }
 
-        return page("Não foi possível conectar o GitHub", "<p>Esta tentativa expirou ou não pôde ser autorizada. Volte ao Jolt e clique em Conectar para tentar novamente.</p>")
+        return page("Não foi possível conectar o GitHub", "<p>Esta tentativa expirou ou não pôde ser autorizada. Volte ao Mimo e clique em Conectar para tentar novamente.</p>")
       }
 
       if (unauthorized) {
@@ -197,16 +197,16 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
 
         if (target) {
           input.database.notice(query.state, `A autorização de ${target} aguarda aprovação da organização.`)
-          return page("Aguardando aprovação da organização", `<meta http-equiv="refresh" content="10;url=/github/select?state=${encodeURIComponent(query.state)}"><p>A solicitação foi enviada ao GitHub. Esta página verificará o acesso enquanto estiver aberta. Se a aprovação demorar, você pode cancelar no Jolt e tentar novamente depois.</p>`)
+          return page("Aguardando aprovação da organização", `<meta http-equiv="refresh" content="10;url=/github/select?state=${encodeURIComponent(query.state)}"><p>A solicitação foi enviada ao GitHub. Esta página verificará o acesso enquanto estiver aberta. Se a aprovação demorar, você pode cancelar no Mimo e tentar novamente depois.</p>`)
         }
 
         input.database.cancel(query.state)
-        return page("Instalação aguardando aprovação", "<p>A organização precisa aprovar a instalação. Depois da aprovação, volte ao Jolt e conecte o GitHub.</p>")
+        return page("Instalação aguardando aprovação", "<p>A organização precisa aprovar a instalação. Depois da aprovação, volte ao Mimo e conecte o GitHub.</p>")
       }
 
       if (!query.installation_id) {
         input.database.cancel(query.state)
-        return page("Instalação não concluída", "<p>O GitHub não confirmou a instalação. Volte ao Jolt para tentar novamente.</p>")
+        return page("Instalação não concluída", "<p>O GitHub não confirmou a instalação. Volte ao Mimo para tentar novamente.</p>")
       }
 
       return await complete(query.state, query.installation_id)
@@ -219,7 +219,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       if (query.error || !query.code) {
         input.database.cancel(query.state)
         set.headers["content-type"] = "text/html; charset=utf-8"
-        return page("Conexão cancelada", "<p>Nenhuma conta foi conectada. Você pode voltar ao Jolt e tentar novamente.</p>")
+        return page("Conexão cancelada", "<p>Nenhuma conta foi conectada. Você pode voltar ao Mimo e tentar novamente.</p>")
       }
 
       const userToken = await input.github.exchangeAuthorization(query.code, authorization.verifier)
@@ -234,7 +234,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       const completed = input.database.completed(query.state)
 
       if (completed) {
-        return page(completed.target ? `Acesso a ${completed.target} liberado` : "GitHub conectado ao Jolt", "<p>Você pode fechar esta página e voltar ao Jolt.</p>")
+        return page(completed.target ? `Acesso a ${completed.target} liberado` : "GitHub conectado ao Mimo", "<p>Você pode fechar esta página e voltar ao Mimo.</p>")
       }
 
       const token = input.database.authenticated(query.state)

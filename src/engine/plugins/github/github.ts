@@ -110,7 +110,7 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
     headers.set("accept", "application/vnd.github+json")
     headers.set("authorization", `Bearer ${token}`)
     headers.set("content-type", "application/json")
-    headers.set("user-agent", "Jolt")
+    headers.set("user-agent", "Mimo")
     headers.set("x-github-api-version", githubApiVersion)
     const response = await fetch(new URL(path, "https://api.github.com"), {
       ...init,

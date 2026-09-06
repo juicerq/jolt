@@ -21,7 +21,7 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
         <div className="mx-auto flex w-[min(560px,calc(100%-48px))] flex-1 flex-col gap-8 pt-12 pb-12">
           <header>
             <h2 className="m-0 text-title font-semibold text-primary">Configurações</h2>
-            <p className="m-0 mt-1 text-support font-normal text-muted">Preferências do Jolt neste computador</p>
+            <p className="m-0 mt-1 text-support font-normal text-muted">Preferências do Mimo neste computador</p>
           </header>
           {import.meta.env.DEV && (
             <SettingsSection title="Conversa">

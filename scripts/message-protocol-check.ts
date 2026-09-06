@@ -31,7 +31,7 @@ const routineInstructions = [
 
 const bot: Bot = {
   id: "protocol-check",
-  avatarSeed: "jolt:new:Teste",
+  avatarSeed: "mimo:new:Teste",
   leaderBotId: null,
   projectId: null,
   name: "Teste",
@@ -170,7 +170,7 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
 }
 
 const models = createPiModels()
-const root = await mkdtemp(join(tmpdir(), "jolt-protocol-"))
+const root = await mkdtemp(join(tmpdir(), "mimo-protocol-"))
 const cwd = join(root, "bot")
 const sessionsDirectory = join(root, "sessions")
 const agentDirectory = join(root, "agent")

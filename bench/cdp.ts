@@ -7,10 +7,10 @@ const evaluation = z.object({ result: z.object({ value: z.unknown().optional() }
 
 export async function connectCdp(port: string) {
   const listed = parse(targets, await (await fetch(`http://127.0.0.1:${port}/json`)).json())
-  const page = listed.find((target) => target.type === "page" && target.title === "Jolt")
+  const page = listed.find((target) => target.type === "page" && target.title === "Mimo")
 
   if (!page) {
-    throw new Error("No Jolt renderer on the CDP port")
+    throw new Error("No Mimo renderer on the CDP port")
   }
 
   const socket = new WebSocket(page.webSocketDebuggerUrl)

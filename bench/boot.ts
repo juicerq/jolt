@@ -3,7 +3,7 @@ import { join } from "node:path"
 import type { Observation } from "../src/shared/observability/observation"
 import { observationLog, observations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, rounds: { type: "string", default: "5" }, "settle-ms": { type: "string", default: "7000" }, provider: { type: "string", default: "load" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, rounds: { type: "string", default: "5" }, "settle-ms": { type: "string", default: "7000" }, provider: { type: "string", default: "load" } } })
 const userData = join(process.cwd(), values["user-data"])
 const logPath = observationLog(values["user-data"])
 const rounds = Number(values.rounds)
@@ -33,7 +33,7 @@ function startedAt(span: Span) {
 async function bootOnce() {
   const offset = (await Bun.file(logPath).text()).length
   const spawnedAt = Date.now()
-  const app = Bun.spawn(["./node_modules/.bin/electron", "."], { env: { ...process.env, JOLT_USER_DATA: userData, JOLT_LOAD_PROVIDER: loadProvider ? "true" : "false" }, stdout: "ignore", stderr: "ignore" })
+  const app = Bun.spawn(["./node_modules/.bin/electron", "."], { env: { ...process.env, MIMO_USER_DATA: userData, MIMO_LOAD_PROVIDER: loadProvider ? "true" : "false" }, stdout: "ignore", stderr: "ignore" })
 
   await Bun.sleep(settleMs)
   app.kill("SIGTERM")

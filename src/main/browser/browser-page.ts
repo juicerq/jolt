@@ -2,7 +2,7 @@ import { BaseWindow, WebContentsView, type BrowserWindow, type BrowserWindowCons
 import type { BrowserAction, BrowserBounds, BrowserPreview } from "@src/shared/browser"
 import { BrowserDriver } from "./browser-driver"
 
-const webPreferences = { partition: "persist:jolt-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
+const webPreferences = { partition: "persist:mimo-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
 
 export class BrowserPage {
   private readonly driver: BrowserDriver

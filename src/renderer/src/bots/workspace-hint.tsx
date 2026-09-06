@@ -7,5 +7,5 @@ export function WorkspaceHint({ source, workingDirectoryOverride }: { source?: {
     return <small className="text-support font-normal text-muted">Pasta de {source.name}: <span className="font-mono [overflow-wrap:anywhere]">{source.directory}</span></small>
   }
 
-  return <small className="text-support font-normal text-muted">O Bot usará uma pasta privada do Jolt até você escolher outra.</small>
+  return <small className="text-support font-normal text-muted">O Bot usará uma pasta privada do Mimo até você escolher outra.</small>
 }

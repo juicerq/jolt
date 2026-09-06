@@ -20,7 +20,7 @@ afterEach(async () => {
 const deliveredContent = "A primeira etapa grava a entrega antes de confirmar o recebimento."
 
 test.each(["corrige", "ignora"])("Fornecedor que %s o lembrete recebe uma única tentativa de corrigir o envio", async (behavior) => {
-  const root = await mkdtemp(join(tmpdir(), "jolt-protocol-test-"))
+  const root = await mkdtemp(join(tmpdir(), "mimo-protocol-test-"))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const models = createPiModels()
   const faux = fauxProvider({ tokensPerSecond: 0 })

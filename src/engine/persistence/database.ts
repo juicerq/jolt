@@ -428,7 +428,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.triggerrunrecover" }, () => database.transaction((transaction) => {
           const turnStarted = transaction.select({ value: sql`1` }).from(messages).where(eq(messages.triggerRunId, triggerRuns.id))
           const requeued = transaction.update(triggerRuns).set({ status: "queued", startedAt: null }).where(and(eq(triggerRuns.status, "running"), notExists(turnStarted))).run().changes
-          const interrupted = transaction.update(triggerRuns).set({ status: "failed", error: "Jolt stopped during this Disparo", finishedAt }).where(eq(triggerRuns.status, "running")).run().changes
+          const interrupted = transaction.update(triggerRuns).set({ status: "failed", error: "Mimo stopped during this Disparo", finishedAt }).where(eq(triggerRuns.status, "running")).run().changes
 
           return { requeued, interrupted }
         }))

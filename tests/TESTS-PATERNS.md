@@ -34,11 +34,11 @@ bun run test:stress
 
 Esse comando varia a ordem e repete cada arquivo três vezes. Também é possível acrescentar `--randomize --rerun-each 3` ao comando focado. Quando falhar, preserve o alvo e as opções usados e acrescente `--seed=<seed exibida>` para reproduzir a ordem. A seed não reproduz o agendamento de processos ou a latência do sistema.
 
-O runner não compila o Engine. Cenários que executarem `dist-engine/jolt-engine` precisam de `bun run build:engine` antes. O CI de PR executa o build antes da suíte.
+O runner não compila o Engine. Cenários que executarem `dist-engine/mimo-engine` precisam de `bun run build:engine` antes. O CI de PR executa o build antes da suíte.
 
 ## Estado e recursos
 
-- Para persistência, use um banco local descartável por caso com o schema real. Nunca reutilize `.jolt-dev/`, `.jolt-load/` ou dados pessoais.
+- Para persistência, use um banco local descartável por caso com o schema real. Nunca reutilize `.mimo-dev/`, `.mimo-load/` ou dados pessoais.
 - Aguarde `observability.flush()` e feche o banco antes de remover o diretório temporário. Um hook de limpeza registrado antes pode apagar os arquivos enquanto esses recursos ainda estão ativos.
 - Use `setSystemTime` para regras de data e restaure o relógio depois. Ele não avança timers.
 - Use `test.each` para entradas da mesma regra com resultados relevantes distintos.
