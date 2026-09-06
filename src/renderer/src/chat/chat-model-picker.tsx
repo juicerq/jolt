@@ -90,7 +90,7 @@ export function ChatModelPicker({ bot, client, disabled }: { bot: Bot; client: E
           />
         )}
         <div className="max-h-64 overflow-y-auto">
-          {groups.length === 0 && <p className="m-0 px-2 py-1.5 text-support text-secondary">{total === 0 ? "Nenhum Fornecedor conectado." : "Nenhum Modelo com esse nome."}</p>}
+          {groups.length === 0 && <p className="m-0 px-2 py-1.5 text-support text-secondary">{total === 0 ? "Nenhum modelo disponível. Confira suas Inscrições nas Configurações." : "Nenhum modelo encontrado."}</p>}
           {groups.map((group) => (
             <div key={group.provider} role="group" aria-labelledby={`${popoverId}-${group.provider}`}>
               <MenuLabel id={`${popoverId}-${group.provider}`}>{group.name}</MenuLabel>

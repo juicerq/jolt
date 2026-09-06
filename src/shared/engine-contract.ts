@@ -2,7 +2,7 @@ import { eventIterator, oc } from "@orpc/contract"
 import { z } from "zod"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan } from "./observability/observation"
-import { providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
+import { providerLogin, providerLoginInput, providerLoginReply, providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
@@ -26,6 +26,10 @@ export const engineContract = {
     export: oc.output(diagnosticExportResult).route({ method: "POST", path: "/diagnostics/export" }),
   },
   providers: {
+    login: oc.output(providerLogin).route({ method: "POST", path: "/providers/login" }),
+    loginStatus: oc.input(providerLoginInput).output(providerLogin).route({ method: "POST", path: "/providers/login/status" }),
+    loginReply: oc.input(providerLoginReply).route({ method: "POST", path: "/providers/login/reply" }),
+    cancelLogin: oc.input(providerLoginInput).output(providerLogin).route({ method: "POST", path: "/providers/login/cancel" }),
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
     models: oc.output(providerModelsList).route({ method: "GET", path: "/providers/models" }),
     connect: oc.input(providerConnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/connect" }),

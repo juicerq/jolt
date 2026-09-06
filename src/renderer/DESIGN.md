@@ -296,8 +296,9 @@ scrolls. It uses the same tonal active state as the other sidebar destinations
 and becomes an icon with a tooltip in the compact sidebar.
 
 The conversation plane runs to the bottom and right window margins. It uses one
-24px outer radius and one outline. The content column stays readable instead of
-expanding with the window: messages top out near 720px, and the prompt follows
+24px outer radius and one outline. The message column grows with the window up
+to 848px of usable width.
+The prompt shares the message column’s 848px maximum usable width and follows
 the same horizontal center.
 
 The message list scrolls at the full height of the conversation while the prompt

@@ -34,7 +34,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
     <BotPage label={`Rotinas de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       <SettingsSection title="Rotinas">
-        {routines?.length === 0 && <p className="m-0 text-support text-muted">Nenhuma Rotina. {bot.name} só trabalha quando você chama.</p>}
+        {routines?.length === 0 && <p className="m-0 text-support text-muted">Crie uma Rotina para {bot.name} trabalhar nos horários que você escolher.</p>}
         {routines && routines.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
             {routines.map((routine) => (

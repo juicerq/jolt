@@ -87,8 +87,19 @@ function describeToolCall(id: string, tool: string, input: unknown, label?: stri
 
   const detail = readDetail(input, detailFields[tool] ?? "path")
   const brief = readDetail(input, briefFields[tool])
+  const edit = tool === "edit" ? { oldText: readDetail(input, "oldText"), newText: readDetail(input, "newText") } : undefined
 
-  return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
+  return { id, tool, ...(edit ? { arguments: edit } : {}), ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
+}
+
+async function observesInside(policy: Pick<PiPermissionPolicy, "allowedRoot" | "botDirectory">, input: unknown) {
+  const path = typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
+
+  if (await pathIsInside(policy.allowedRoot, path)) {
+    return true
+  }
+
+  return !!policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))
 }
 
 async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
@@ -97,8 +108,7 @@ async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input
   }
 
   const observes = observationTools.has(tool)
-  const path = observes && typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
-  const inside = observes && (await pathIsInside(policy.allowedRoot, path) || (policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))))
+  const inside = observes && await observesInside(policy, input)
 
   if (inside) {
     return { allowed: true as const }

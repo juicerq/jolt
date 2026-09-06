@@ -33,7 +33,7 @@ export function ChatQueue({ bot, client }: { bot: Bot; client: EngineClient }) {
           />
         ))}
       </ul>
-      {awaitingDecision && <p className="m-0 px-2 pt-1 pb-1 text-support text-muted" role="status">A entrega espera a sua decisão acima.</p>}
+      {awaitingDecision && <p className="m-0 px-2 pt-1 pb-1 text-support text-muted" role="status">Responda ao pedido acima para continuar o envio.</p>}
     </div>
   )
 }

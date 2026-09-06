@@ -8,7 +8,7 @@ import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
 
-export const promptWidthClassName = "mx-auto w-[min(680px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
+export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
 import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
@@ -16,7 +16,7 @@ import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
-import { addChatDraftImages, addChatDraftMention, type ChatDraft, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
+import { addChatDraftImages, addChatDraftMention, type ChatDraft, type ChatRun, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
 
 interface ChatComposerProps {
   bot: Bot
@@ -33,7 +33,10 @@ function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSug
   return mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
 }
 
-function ChatComposerActions({ command, working, aborting, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; working: boolean; aborting: boolean; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
+function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; run?: Pick<ChatRun, "status">; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
+  const working = !!run
+  const aborting = run?.status === "aborting"
+
   return (
     <div className="col-start-5 flex items-center gap-2">
       {working && (empty || blocked)
@@ -61,7 +64,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const commandBlocked = !!draft.command && !!run
   const busy = commandPending
   const settingsDisabled = !!run || commandPending
-  const aborting = run?.status === "aborting"
+  const editor = editorText(draft, bot.name)
 
   async function attachFiles(files: Iterable<File>) {
     const images = await readMessageImages(files)
@@ -225,8 +228,8 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           id={`prompt-${bot.id}`}
           content={draft.content}
           mentions={draft.mentions}
-          placeholder={draft.command ? chatCommandPlaceholders[draft.command] : `Converse com ${bot.name}...`}
-          label={draft.command ? `Texto do Comando ${draft.command}` : `Mensagem para ${bot.name}`}
+          placeholder={editor.placeholder}
+          label={editor.label}
           disabled={busy}
           menuOpen={menuOpen}
           menuId={menuId}
@@ -237,9 +240,17 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       </div>
       <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
       <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
-      <ChatComposerActions command={command} working={!!run} aborting={aborting} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
+      <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
     </form>
   )
+}
+
+function editorText(draft: Pick<ChatDraft, "command">, botName: string) {
+  if (draft.command) {
+    return { placeholder: chatCommandPlaceholders[draft.command], label: `Texto do Comando ${draft.command}` }
+  }
+
+  return { placeholder: `Converse com ${botName}...`, label: `Mensagem para ${botName}` }
 }
 
 function abortLabel({ aborting, blocked }: { aborting: boolean; blocked: boolean }) {

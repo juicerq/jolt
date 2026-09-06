@@ -9,9 +9,37 @@ type ActiveStep =
   | ThinkingStep
   | (Omit<ToolStep, "tools"> & { tools: ActiveTool[] })
 
+function startedTool(event: Extract<PiRuntimeEvent, { type: "tool-started" }>): ActiveTool {
+  return { callId: event.callId, name: event.tool, ...(event.label ? { label: event.label } : {}), ...(event.detail ? { detail: event.detail } : {}), ...(event.brief ? { brief: event.brief } : {}), status: "running" }
+}
+
 export function createConversationActivityRecorder(messageId: string, message: IncomingMessage) {
   let thinkingStartedAt: number | undefined
   let steps: ActiveStep[] = []
+
+  function appendThinking(text: string) {
+    const lastStep = steps.at(-1)
+
+    if (lastStep?.type === "thinking") {
+      lastStep.content += text
+
+      return
+    }
+
+    steps.push({ type: "thinking", content: text })
+  }
+
+  function appendTool(name: string, tool: ActiveTool) {
+    const lastStep = steps.at(-1)
+
+    if (lastStep?.type === "tool" && lastStep.name === name) {
+      lastStep.tools.push(tool)
+
+      return
+    }
+
+    steps.push({ type: "tool", name, tools: [tool] })
+  }
 
   return {
     record(runtimeEvent: Exclude<PiRuntimeEvent, { type: "text" }>): ConversationEvent {
@@ -30,13 +58,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
       }
 
       if (runtimeEvent.type === "thinking") {
-        const lastStep = steps.at(-1)
-
-        if (lastStep?.type === "thinking") {
-          lastStep.content += runtimeEvent.text
-        } else {
-          steps.push({ type: "thinking", content: runtimeEvent.text })
-        }
+        appendThinking(runtimeEvent.text)
 
         return runtimeEvent
       }
@@ -48,14 +70,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
       }
 
       if (runtimeEvent.type === "tool-started") {
-        const tool = { callId: runtimeEvent.callId, name: runtimeEvent.tool, ...(runtimeEvent.label ? { label: runtimeEvent.label } : {}), ...(runtimeEvent.detail ? { detail: runtimeEvent.detail } : {}), ...(runtimeEvent.brief ? { brief: runtimeEvent.brief } : {}), status: "running" as const }
-        const lastStep = steps.at(-1)
-
-        if (lastStep?.type === "tool" && lastStep.name === runtimeEvent.tool) {
-          lastStep.tools.push(tool)
-        } else {
-          steps.push({ type: "tool", name: runtimeEvent.tool, tools: [tool] })
-        }
+        appendTool(runtimeEvent.tool, startedTool(runtimeEvent))
 
         return runtimeEvent
       }

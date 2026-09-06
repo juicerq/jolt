@@ -28,7 +28,7 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
               <div className={`${settingsPanelClassName} flex items-center justify-between gap-6`}>
                 <div className="min-w-0 flex-1">
                   <p className="m-0 text-control font-medium text-primary">Mostrar detalhes do trabalho</p>
-                  <p className="m-0 mt-1 max-w-[46ch] text-support font-normal text-muted">Mostra pensamentos, arquivos e ações dos Bots. Ocultar não apaga o histórico.</p>
+                  <p className="m-0 mt-1 max-w-[46ch] text-support font-normal text-muted">Veja o raciocínio e as ações dos Bots durante o trabalho.</p>
                 </div>
                 <Switch checked={activityDetailsVisible} aria-label="Mostrar detalhes do trabalho" onChange={setActivityDetailsVisible} />
               </div>

@@ -68,6 +68,10 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       export: operations.diagnostics.export.handler(() => diagnostics.export()),
     },
     providers: {
+      login: operations.providers.login.handler(() => providers.authentication.start()),
+      loginStatus: operations.providers.loginStatus.handler(({ input }) => providers.authentication.status(input)),
+      loginReply: operations.providers.loginReply.handler(({ input }) => providers.authentication.reply(input)),
+      cancelLogin: operations.providers.cancelLogin.handler(({ input }) => providers.authentication.cancel(input)),
       list: operations.providers.list.handler(() => providers.list()),
       models: operations.providers.models.handler(() => providers.models()),
       connect: operations.providers.connect.handler(({ input }) => providers.connect(input)),

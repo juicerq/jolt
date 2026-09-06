@@ -43,7 +43,7 @@ export function BotTriggers({ bot, client, onClose, onEdit }: { bot: Bot; client
     <BotPage label={`Gatilhos de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       <SettingsSection title="Gatilhos">
-        {triggers?.length === 0 && <p className="m-0 text-support text-muted">Nenhum Gatilho. Peça a {bot.name} para agir quando algo acontecer no GitHub.</p>}
+        {triggers?.length === 0 && <p className="m-0 text-support text-muted">Peça a {bot.name} na conversa para criar um Gatilho a partir de eventos do GitHub.</p>}
         {triggers && triggers.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
             {triggers.map((trigger) => (
@@ -55,7 +55,7 @@ export function BotTriggers({ bot, client, onClose, onEdit }: { bot: Bot; client
                   <p className="m-0 mt-1 line-clamp-2 whitespace-pre-wrap text-support text-secondary">{trigger.instruction}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label={trigger.status === "active" ? "Pausar Gatilho" : "Ativar Gatilho"} onClick={() => toggle(trigger)}>{trigger.status === "active" ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>
+                  <IconButton iconSize={14} size={28} type="button" disabled={busy} label={trigger.status === "active" ? "Pausar Gatilho" : "Retomar Gatilho"} onClick={() => toggle(trigger)}>{trigger.status === "active" ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</IconButton>
                   <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Editar Gatilho" onClick={() => onEdit(trigger.id)}><PencilIcon aria-hidden="true" /></IconButton>
                   <IconButton iconSize={14} size={28} type="button" disabled={busy} label="Remover Gatilho" onClick={() => setRemovingTrigger(trigger)}><TrashIcon aria-hidden="true" /></IconButton>
                 </div>

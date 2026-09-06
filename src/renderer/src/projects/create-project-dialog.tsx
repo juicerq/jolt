@@ -44,7 +44,7 @@ function CreateProjectForm({ client }: { client: EngineClient }) {
         <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Jolt" value={name} onChange={(event) => setName(event.target.value)} /></Field>
         <Field label="Pasta padrão" optional as="div">
           <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => setDefaultWorkingDirectory("")} />
-          <small className="text-support font-normal text-secondary">Opcional. Sem uma pasta padrão, cada Bot usa sua pasta própria ou seu Diretório privado.</small>
+          <small className="text-support font-normal text-secondary">Usada pelos Bots que não têm uma pasta própria.</small>
         </Field>
         {directory.error && <p className="text-support text-status-error">Falha ao escolher a pasta: {directory.error}</p>}
         {error && <p className="text-support text-status-error">Falha ao criar o Projeto: {error.message}</p>}

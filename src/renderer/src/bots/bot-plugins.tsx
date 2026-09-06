@@ -10,15 +10,16 @@ function pluginsWithAccounts(plugins: Plugin[]) {
   return plugins.filter((plugin) => plugin.accounts.length > 0)
 }
 
-function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, "id">; plugins: Plugin[]; busy: boolean; onGrant: (accountId: string, granted: boolean) => void }) {
+function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, "id" | "name" | "temporary">; plugins: Plugin[]; busy: boolean; onGrant: (accountId: string, granted: boolean) => void }) {
   const listed = pluginsWithAccounts(plugins)
 
   if (listed.length === 0) {
-    return <p className="m-0 text-support font-normal text-muted">Nenhuma Conta conectada ainda. Peça ao Bot na conversa ou conecte na tela de Plugins.</p>
+    return <p className="m-0 text-support font-normal text-muted">{bot.temporary ? "Nenhuma conta disponível para este Integrante temporário." : "Conecte uma conta na tela de Plugins ou peça ao Bot na conversa."}</p>
   }
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="m-0 text-support font-normal text-muted">{bot.temporary ? "Este Integrante usa apenas as contas liberadas pelo Líder ao contratá-lo." : `Escolha as contas que ${bot.name} pode usar, respeitando a Permissão do Bot.`}</p>
       {listed.map((plugin) => (
         <div className="flex flex-col gap-2" key={plugin.id}>
           <p className="m-0 text-control font-semibold text-secondary">{plugin.name}</p>
@@ -48,7 +49,6 @@ export function BotPlugins({ bot, client }: { bot: Bot; client: EngineClient }) 
   return (
     <SettingsSection title="Plugins">
       <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
-        <p className="m-0 text-support font-normal text-muted">{bot.temporary ? `Um Integrante temporário usa só as Contas que o Líder passou ao contratar.` : `${bot.name} usa as Contas que você ligar aqui. A Permissão do Bot vale para essas ferramentas também.`}</p>
         {data && <BotPluginList bot={bot} plugins={data.plugins} busy={isPending || bot.temporary} onGrant={(accountId, granted) => grant({ botId: bot.id, accountId, granted })} />}
         {failure && <p className="m-0 text-support text-status-error">Falha nos Plugins: {failure}</p>}
       </div>

@@ -134,17 +134,7 @@ function createEventNormalizer() {
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
-      const reason = event.message.stopReason
-      const terminalReason = terminalMessageReason(reason)
-
-      lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
-      lastError = event.message.errorMessage?.trim().slice(0, 500) || undefined
-
-      if (!terminalReason) {
-        return
-      }
-
-      return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
+      return finishMessage(event.message)
     }
 
     if (event.type === "agent_settled") {
@@ -154,6 +144,20 @@ function createEventNormalizer() {
     }
 
     return normalizeStateless(event)
+  }
+
+  function finishMessage(message: Extract<Extract<AgentSessionEvent, { type: "message_end" }>["message"], { role: "assistant" }>): PiRuntimeEvent | undefined {
+    const reason = message.stopReason
+    const terminalReason = terminalMessageReason(reason)
+
+    lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
+    lastError = message.errorMessage?.trim().slice(0, 500) || undefined
+
+    if (!terminalReason) {
+      return
+    }
+
+    return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
   }
 
   return {

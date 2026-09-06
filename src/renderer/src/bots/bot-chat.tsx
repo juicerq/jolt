@@ -10,6 +10,7 @@ import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
 import { BrainIcon } from "../ui/brain-icon"
 import { InlineAction } from "../ui/inline-action"
+import { ProviderWelcome } from "../settings/provider-welcome"
 import { BotMemory } from "./bot-memory"
 import { BotMembers } from "./bot-members"
 import { BotRoutineEditor } from "./bot-routine-editor"
@@ -26,7 +27,11 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   const bot = botId ? findTeamBot(groups, botId) : undefined
 
   if (!botId) {
-    return <EmptyState title="Escolha um Bot" description={<>Abra um da lista ou <InlineAction type="button" onClick={openCreateBot}>crie um novo</InlineAction>.</>} />
+    if (groups && (groups.unassignedBots.length > 0 || groups.projects.some((project) => project.bots.length > 0))) {
+      return <EmptyState title="Escolha um Bot" description={<>Abra um da lista ou <InlineAction type="button" onClick={openCreateBot}>crie um novo</InlineAction>.</>} />
+    }
+
+    return <ProviderWelcome client={client} />
   }
 
   if (error) {

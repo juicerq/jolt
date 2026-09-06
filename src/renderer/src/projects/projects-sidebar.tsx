@@ -45,15 +45,9 @@ const teamAvatarHoverClassNames = [
 
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
-  const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
   const settingsOpen = useSelector(botsStore, (state) => state.screen === "settings")
-  const statuses = useSelector(chatStore, (state) => state.statuses)
   const [search, setSearch] = useState("")
-  const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
-  const query = search.trim().toLocaleLowerCase("pt-BR")
-  const visibleData = data && query ? filterProjects(data, query) : data
-  const hasVisibleBots = !!visibleData && (visibleData.projects.length > 0 || visibleData.unassignedBots.length > 0)
 
   return (
     <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
@@ -67,46 +61,77 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
         <CompactBotSearch value={search} onChange={setSearch} />
         <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
       </div>
-      {error && <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>}
-      {isPending && <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>}
       {draft && <DraftRow draft={draft} />}
-      {data && data.projects.length === 0 && data.unassignedBots.length === 0 && !draft && (
-        <SidebarEmpty title="Nenhum Bot"><InlineAction type="button" onClick={openCreateBot}>Crie um Bot</InlineAction> ou Projeto para começar.</SidebarEmpty>
-      )}
-      {data && query && !hasVisibleBots && <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>}
-      {visibleData && hasVisibleBots && (
-        <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto max-[720px]:block" aria-label="Projetos e Bots">
-          {visibleData.projects.map((project) => (
-            <section className="[&+&]:mt-5" key={project.id} aria-labelledby={`project-${project.id}`}>
-              <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
-              {project.bots.length === 0 ? (
-                <p className="m-0 px-2.5 pt-[7px] pb-[9px] text-support text-muted max-[720px]:hidden">Nenhum Bot</p>
-              ) : (
-                <ul className="m-0 list-none p-0 max-[720px]:block">
-                  {project.bots.map((bot) => (
-                    <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
-          {visibleData.unassignedBots.length > 0 && (
-            <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
-              {visibleData.projects.length > 0 && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
-              <ul className="m-0 list-none p-0 max-[720px]:block">
-                {visibleData.unassignedBots.map((bot) => (
-                  <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
-                ))}
-              </ul>
-            </section>
-          )}
-        </nav>
-      )}
+      <SidebarProjects client={client} search={search} draftOpen={!!draft} />
       <div className="mt-auto flex flex-col gap-1 pt-2">
         <SidebarUpdateButton />
         <SidebarSettingsButton active={settingsOpen} />
       </div>
     </aside>
+  )
+}
+
+function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+  const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
+  const statuses = useSelector(chatStore, (state) => state.statuses)
+  const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
+
+  if (error) {
+    return <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>
+  }
+
+  if (isPending) {
+    return <p className="mx-2.5 my-3 text-support text-secondary">Carregando Projetos...</p>
+  }
+
+  const hasBots = data.projects.length > 0 || data.unassignedBots.length > 0
+
+  if (!hasBots && draftOpen) {
+    return null
+  }
+
+  if (!hasBots) {
+    return <SidebarEmpty title="Nenhum Bot"><InlineAction type="button" onClick={openCreateBot}>Crie um Bot</InlineAction> ou Projeto para começar.</SidebarEmpty>
+  }
+
+  const query = search.trim().toLocaleLowerCase("pt-BR")
+  const visibleData = query ? filterProjects(data, query) : data
+
+  if (visibleData.projects.length === 0 && visibleData.unassignedBots.length === 0) {
+    return <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>
+  }
+
+  return (
+    <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto max-[720px]:block" aria-label="Projetos e Bots">
+      {visibleData.projects.map((project) => <ProjectSection key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} />)}
+      {visibleData.unassignedBots.length > 0 && (
+        <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
+          {visibleData.projects.length > 0 && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
+          <ul className="m-0 list-none p-0 max-[720px]:block">
+            {visibleData.unassignedBots.map((bot) => (
+              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
+            ))}
+          </ul>
+        </section>
+      )}
+    </nav>
+  )
+}
+
+function ProjectSection({ project, selectedBotId, statuses }: { project: ProjectGroups["projects"][number]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
+  return (
+    <section className="[&+&]:mt-5" aria-labelledby={`project-${project.id}`}>
+      <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
+      {project.bots.length === 0 ? (
+        <p className="m-0 px-2.5 pt-[7px] pb-[9px] text-support text-muted max-[720px]:hidden">Nenhum Bot</p>
+      ) : (
+        <ul className="m-0 list-none p-0 max-[720px]:block">
+          {project.bots.map((bot) => (
+            <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

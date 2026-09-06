@@ -50,7 +50,7 @@ export function openPlugins() {
 }
 
 export function openSettings() {
-  botsStore.setState((state) => ({ ...state, screen: "settings", draft: null, dialog: null }))
+  botsStore.setState((state) => ({ ...state, screen: "settings", dialog: null }))
 }
 
 export function closeWorkspaceScreen() {

@@ -25,16 +25,16 @@ export async function alertTurnFinished({ bot, reason, response, error }: { bot:
 function notificationBody(reason: FinishReason, response: string | undefined, error: string | undefined) {
   if (reason === "error") {
     if (!error) {
-      return "O turno falhou"
+      return "Não foi possível concluir a resposta"
     }
 
-    return `O turno falhou: ${error}`
+    return `Não foi possível concluir a resposta: ${error}`
   }
 
   const text = response ? plainText(response) : ""
 
   if (!text) {
-    return "Terminou o turno"
+    return "Resposta concluída"
   }
 
   if (text.length <= bodyLimit) {

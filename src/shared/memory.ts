@@ -48,3 +48,4 @@ export type Note = z.infer<typeof note>
 export type StoredMemory = z.infer<typeof storedMemory>
 export type Memory = z.infer<typeof memory>
 export type CurationModel = z.infer<typeof curationModel>
+export type CurationSettings = z.infer<typeof memorySchemas.settings>

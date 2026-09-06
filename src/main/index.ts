@@ -20,6 +20,10 @@ if (process.env.JOLT_USER_DATA) {
 
 app.setName(app.isPackaged ? "Jolt" : "Jolt Dev")
 
+if (process.platform === "linux" && !app.isPackaged) {
+  app.setDesktopName("jolt-dev.desktop")
+}
+
 const environmentFile = join(app.getAppPath(), ".env")
 
 if (!app.isPackaged && existsSync(environmentFile)) {

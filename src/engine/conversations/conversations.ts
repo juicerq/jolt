@@ -7,7 +7,7 @@ import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
-import { conversationSchemas, askTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { conversationSchemas, askTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { botInstructions } from "./bot-instructions"
@@ -298,6 +298,25 @@ export function createConversations(input: {
     })
   }
 
+  async function waitForTurn(botId: string, callerId: IncomingMessage["authorBotId"], current: Pick<ActiveTurn, "settled">, signal?: AbortSignal) {
+    if (!callerId) {
+      throw new Error("Tarefa sender is missing")
+    }
+
+    const bot = input.bots.get({ id: botId })
+
+    assertCallable({ id: callerId }, { id: botId, name: bot?.name ?? botId })
+
+    const wait = { callerId, targetId: botId }
+    waitingOn.add(wait)
+
+    try {
+      await untilSettled(current.settled, signal)
+    } finally {
+      waitingOn.delete(wait)
+    }
+  }
+
   async function claim(botId: string, message: IncomingMessage, signal?: AbortSignal): Promise<ActiveTurn> {
     signal?.throwIfAborted()
 
@@ -312,22 +331,7 @@ export function createConversations(input: {
     }
 
     if (current && message.author === "bot") {
-      const callerId = message.authorBotId
-
-      if (!callerId) {
-        throw new Error("Tarefa sender is missing")
-      }
-      const bot = input.bots.get({ id: botId })
-
-      assertCallable({ id: callerId }, { id: botId, name: bot?.name ?? botId })
-      const wait = { callerId, targetId: botId }
-      waitingOn.add(wait)
-
-      try {
-        await untilSettled(current.settled, signal)
-      } finally {
-        waitingOn.delete(wait)
-      }
+      await waitForTurn(botId, message.authorBotId, current, signal)
 
       return claim(botId, message, signal)
     }
@@ -633,6 +637,17 @@ export function createConversations(input: {
     return { finished: completion.promise }
   }
 
+  function resolveReplyContent(botId: string, replyTo: MessageReply) {
+    const questionMessage = input.database.conversations.get(replyTo.messageId)
+    const option = questionMessage?.question?.options.find((candidate) => candidate.value === replyTo.optionValue)
+
+    if (!questionMessage || questionMessage.botId !== botId || questionMessage.author !== "bot" || !option) {
+      throw new Error("Question option is no longer available")
+    }
+
+    return option.label
+  }
+
   return {
     history(rawInput: unknown) {
       const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
@@ -710,18 +725,7 @@ export function createConversations(input: {
         throw new Error("Message is empty")
       }
 
-      let resolvedContent = content
-
-      if (replyTo) {
-        const questionMessage = input.database.conversations.get(replyTo.messageId)
-        const option = questionMessage?.question?.options.find((candidate) => candidate.value === replyTo.optionValue)
-
-        if (!questionMessage || questionMessage.botId !== botId || questionMessage.author !== "bot" || !option) {
-          throw new Error("Question option is no longer available")
-        }
-
-        resolvedContent = option.label
-      }
+      const resolvedContent = replyTo ? resolveReplyContent(botId, replyTo) : content
 
       for (const mentionedBotId of mentionedBotIds) {
         input.bots.addColleague(botId, mentionedBotId)

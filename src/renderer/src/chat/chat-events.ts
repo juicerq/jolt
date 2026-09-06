@@ -42,6 +42,15 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     chunks.drain(botId)
 
+    if (event.type === "finished") {
+      finishTurn(botId, event)
+      return
+    }
+
+    applyChatEvent(botId, event)
+  }
+
+  function applyChatEvent(botId: string, event: Exclude<BotConversationEvent["event"], { type: "thinking" | "finished" }>) {
     if (event.type === "started") {
       startChatRun(botId, event.message, event.messageId)
       void invalidateTeam().catch(() => {})
@@ -94,12 +103,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     }
 
     if (event.type === "plugin-step") {
-      setChatPluginStep(botId, event.requestId, event.step)
-
-      if (event.step.type === "browser") {
-        void window.desktop.openInBrowser(event.step.url).catch(() => {})
-      }
-
+      applyPluginStep(botId, event)
       return
     }
 
@@ -113,7 +117,17 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       setChatQueue(botId, event.queued)
       return
     }
+  }
 
+  function applyPluginStep(botId: string, event: Extract<BotConversationEvent["event"], { type: "plugin-step" }>) {
+    setChatPluginStep(botId, event.requestId, event.step)
+
+    if (event.step.type === "browser") {
+      void window.desktop.openInBrowser(event.step.url).catch(() => {})
+    }
+  }
+
+  function finishTurn(botId: string, event: Extract<BotConversationEvent["event"], { type: "finished" }>) {
     const projectsQuery = client.query.projects.list.queryOptions()
     const bot = findTeamBot(queryClient.getQueryData(projectsQuery.queryKey), botId)
     const response = settleChatRun(botId, settledStatuses[event.reason])

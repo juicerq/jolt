@@ -1,4 +1,4 @@
-import { Browsers, DisconnectReason, jidNormalizedUser, makeWASocket, type WASocket } from "baileys"
+import { Browsers, type ConnectionState, DisconnectReason, jidNormalizedUser, makeWASocket, type WASocket } from "baileys"
 import { z } from "zod"
 import { parse } from "@src/shared/parse"
 import type { PluginStep, ToolDescriptor } from "@src/shared/plugins"
@@ -133,6 +133,21 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
       }
     }
 
+    function handleClose(lastDisconnect: Partial<ConnectionState>["lastDisconnect"]) {
+      const status = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output?.statusCode
+
+      if (closed || status === DisconnectReason.loggedOut) {
+        loggedOut = status === DisconnectReason.loggedOut
+        rejectOpened(new Error("The WhatsApp session was closed"))
+        current = undefined
+
+        return
+      }
+
+      input.observability.event({ name: "plugin.whatsappreconnecting", context: { pluginId: "whatsapp" }, attributes: { reason: lastDisconnect?.error?.message ?? "closed", ...(status ? { status: String(status) } : {}) } })
+      setTimeout(start, reconnectDelayMs)
+    }
+
     function start() {
       const socket = makeWASocket({
         auth: auth.state,
@@ -190,22 +205,9 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
           resolveOpened(jidNormalizedUser(socket.user?.id ?? "").split("@")[0] ?? "WhatsApp")
         }
 
-        if (update.connection !== "close") {
-          return
+        if (update.connection === "close") {
+          handleClose(update.lastDisconnect)
         }
-
-        const status = (update.lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output?.statusCode
-
-        if (closed || status === DisconnectReason.loggedOut) {
-          loggedOut = status === DisconnectReason.loggedOut
-          rejectOpened(new Error("The WhatsApp session was closed"))
-          current = undefined
-
-          return
-        }
-
-        input.observability.event({ name: "plugin.whatsappreconnecting", context: { pluginId: "whatsapp" }, attributes: { reason: update.lastDisconnect?.error?.message ?? "closed", ...(status ? { status: String(status) } : {}) } })
-        setTimeout(start, reconnectDelayMs)
       })
     }
 
