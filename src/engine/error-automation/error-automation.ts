@@ -670,7 +670,7 @@ export function createErrorAutomation(input: {
     async verify(raw: unknown) {
       const value = parse(errorAutomationSchemas.verify, raw)
       const record = cases.get(value.caseId)
-      if (!record || !record.prNumber || !["merged", "published"].includes(record.state)) {
+      if (!record?.prNumber || !["merged", "published"].includes(record.state)) {
         throw new Error("Verify only after the PR was merged and its deployed commit was established")
       }
       const { config, verificationSecret } = configured()

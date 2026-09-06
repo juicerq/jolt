@@ -6,7 +6,7 @@ import { parse } from "@src/shared/parse"
 export function redactErrorText(value: string) {
   return value
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
-    .replace(/\b(?:Bearer\s+|(?:sk-|gh[pousr]_))[\w.\-]+/gi, "[token]")
+    .replace(/\b(?:Bearer\s+|(?:sk-|gh[pousr]_))[\w.-]+/gi, "[token]")
     .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+\b/g, "[token]")
     .replace(/((?:password|passwd|secret|access[_-]?token|api[_-]?key|authorization|cookie)\s*[=:]\s*)[^\s,;]+/gi, "$1[redacted]")
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, "[document]")
