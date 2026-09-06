@@ -1,50 +1,43 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openBotList, openCreateBot, openPlugins, openSettings, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openCreateBot, openPlugins, openSettings, selectBot } from "@src/renderer/src/bots/bots-store"
 
 const initialState = { ...botsStore.state }
 
-describe("mobile navigation between the Bot list and the conversation plane", () => {
+describe("navigation between Bots, screens and the draft", () => {
   beforeEach(() => {
     botsStore.setState(() => initialState)
   })
 
-  test("starts on the list and leaves it when a Bot, a screen or a draft opens", () => {
-    expect(botsStore.state.listOpen).toBe(true)
-
-    selectBot("bot-1")
-    expect(botsStore.state.listOpen).toBe(false)
-
-    openBotList()
-    expect(botsStore.state.listOpen).toBe(true)
-
+  test("selecting a Bot closes the screen and the draft and returns to its conversation", () => {
     openSettings()
-    expect(botsStore.state.listOpen).toBe(false)
-
-    openBotList()
-    openPlugins()
-    expect(botsStore.state.listOpen).toBe(false)
-
-    openBotList()
     openCreateBot()
-    expect(botsStore.state.listOpen).toBe(false)
+    selectBot("bot-1")
+    expect(botsStore.state).toMatchObject({ selectedBotId: "bot-1", botRoute: { name: "chat" }, screen: null, draft: null })
   })
 
-  test("closing a screen or a draft returns to the list", () => {
-    openSettings()
-    closeWorkspaceScreen()
-    expect(botsStore.state).toMatchObject({ screen: null, listOpen: true })
+  test("a screen replaces the draft; closing it keeps the selected Bot", () => {
+    selectBot("bot-1")
+    openCreateBot()
+    openPlugins()
+    expect(botsStore.state).toMatchObject({ screen: "plugins", draft: null })
 
+    closeWorkspaceScreen()
+    expect(botsStore.state).toMatchObject({ screen: null, selectedBotId: "bot-1" })
+  })
+
+  test("discarding the draft keeps the selected Bot", () => {
+    selectBot("bot-1")
     openCreateBot()
     discardDraft()
-    expect(botsStore.state).toMatchObject({ draft: null, listOpen: true })
+    expect(botsStore.state).toMatchObject({ draft: null, selectedBotId: "bot-1" })
   })
 
-  test("removing the selected Bot returns to the list; removing another Bot does not", () => {
+  test("removing the selected Bot clears the selection; removing another Bot does not", () => {
     selectBot("bot-1")
     forgetBot("bot-2")
-    expect(botsStore.state).toMatchObject({ selectedBotId: "bot-1", listOpen: false })
+    expect(botsStore.state.selectedBotId).toBe("bot-1")
 
     forgetBot("bot-1")
-    expect(botsStore.state).toMatchObject({ selectedBotId: null, listOpen: true })
+    expect(botsStore.state.selectedBotId).toBeNull()
   })
 })

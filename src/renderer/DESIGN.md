@@ -287,10 +287,11 @@ stay faint at rest and reach full ink on pointer or keyboard intent. A separate
 12px strip across the top owns window dragging without covering the search field.
 
 The sidebar holds the Bot list directly. It does not start with a team picker.
-Its top row combines Bot search with the quiet actions for creating a Project
-or Bot. Selection uses a tonal row, not a leading line, checkmark, or accent
-color. A quiet Settings row stays at the bottom while the Bot list scrolls. It
-uses the same tonal active state as the other sidebar destinations.
+Its top row combines Bot search with one quiet "+" that opens a menu below it
+with Novo Bot and Novo Projeto. Selection uses a tonal row, not a leading line,
+checkmark, or accent color. Quiet Plugins and Settings rows stay at the bottom,
+in that order, while the Bot list scrolls. They use the same tonal active state
+as the other sidebar destinations.
 
 The conversation plane runs to the bottom and right window margins. It uses one
 24px outer radius and one outline. The message column grows with the window up
@@ -326,26 +327,33 @@ outside this scale need a visible alignment reason.
 
 ## Mobile
 
-Below 48rem, the Tailwind `md` breakpoint, the window holds one screen at a
-time. The Bot list is the first screen: search and the three quiet actions on
-top, the Bot rows, and the Settings row at the bottom. Choosing a Bot, Plugins,
-Settings, or New Bot slides the conversation plane in over the full width,
-without the shell radius, outline, or channel. Closing Plugins, Settings, or
-New Bot returns to the list.
+Below 48rem, the Tailwind `md` breakpoint, the sidebar compacts into a 64px
+rail beside the conversation plane, which loses the shell radius, outline, and
+channel. The rail holds a search icon on top, then the Leaders and independent
+Bots as 38px Blobatars with their status light, each inside a 48px tonal tile
+when selected or when one of its members is, and at the bottom the "+",
+Plugins, and Settings icons. The search icon opens the full list as a bottom
+sheet with the search field at its bottom edge, focused, so the list grows
+upward from the keyboard; choosing a Bot closes the sheet. The "+" opens Novo
+Bot and Novo Projeto as a sheet.
 
-The conversation plane gains a 52px top bar: a back action at the left, then
-the Bot's 32px Blobatar with its status light, the name in control type and
-the state in metadata type, and at the right an ellipsis that opens the Bot's
-pages as a bottom sheet. On a page, the bar names the page instead of the Bot,
-and back returns to its parent: the conversation, or Rotinas and Gatilhos for
-their editors. The edge tab and the window controls do not render.
+The conversation plane gains a 52px top bar with the Bot's 32px Blobatar and
+its status light, the name in control type and the state in metadata type. On
+a page, a back action at the left returns to its parent, the conversation, or
+Rotinas and Gatilhos for their editors, and the bar names the page instead of
+the Bot; Plugins, Settings, and Novo Bot get the same back action to close.
+The edge tab stays and owns the Bot's pages as on desktop, but starts closed:
+a swipe leftward from the right edge opens it, a swipe rightward over it or
+choosing a page closes it. The window controls do not render.
 
-Dialogs, confirmations, the Bot pages menu, and the prompt's Modelo, Esforço,
-and Permissões menu become bottom sheets: full width, 20px top radius, one top
+Dialogs, confirmations, the rail's sheets, and the prompt's Permissões and
+Modelo menus become bottom sheets: full width, 20px top radius, one top
 outline, the overlay behind, and a 240ms slide from the bottom that reduced
-motion removes. The three prompt chips collapse into one chip that reads
-`GPT-5.6 Luna · médio · Perguntar` and truncates; its sheet stacks the three
-lists with dividers. Enter breaks the line in the prompt and the send action
+motion removes. The Modelo chip truncates; its sheet holds the `Modelo` and
+`Esforço` rows and `Redefinir para o padrão`, and a row opens its list as a
+second sheet over the first, titled in control type with a back action at the
+left. Choosing a Modelo moves straight to the Esforço sheet; choosing an
+Esforço closes both. Enter breaks the line in the prompt and the send action
 delivers. Hover-revealed controls stay visible, tooltips never open on touch,
 and a tap on a message shows its author and time below the content instead of
 beside it. Rows that hold text and two actions wrap the actions to a second
@@ -543,22 +551,28 @@ above a bottom row that holds the clip at the left and the send action at the
 right. The layout never changes with the text length; the field grows
 downward until it scrolls. Send stays
 disabled until the draft holds text or an image. The user bubble shows its
-images above the text, up to 240px tall, with the same 8px radius. Between the
-text and the send action sit two quiet chips in metadata type and muted ink.
-The first names the Bot's Modelo and Esforço, such as `GPT-5.6 Luna · médio`. It
-ends in a small chevron and opens a menu above itself. The menu is a raised
-12px card with two sections split by one divider, each under a short label in
-metadata type: the Modelos the Fornecedor offers, then the five Esforço
-levels, baixo, médio, alto, muito alto, máximo. Options are full-width rows in
-control type: secondary ink at rest, hover surface on hover, and the active
-surface with primary ink for the current choice. The Fornecedor default and
-the médio Esforço carry a quiet `Padrão` badge. Choosing one saves at once and
-the menu stays open, so the person can set both before clicking away or
-pressing Escape. The chip stays disabled while the Bot
-responds; the next turn already uses the new choice. The Permissões chip
-follows it and uses the same height, type, chevron, menu anatomy, save behavior,
-and disabled state. It shows `Somente leitura`, `Perguntar`, or `Acesso total`;
-`Perguntar` carries the quiet `Padrão` badge. When a Bot awaits a decision, a
+images above the text, up to 240px tall, with the same 8px radius. Beside the clip sits
+the Permissões chip: a small icon for the mode, `Somente leitura`, `Perguntar`,
+or `Acesso total`, in warning ink for `Acesso total`, then the mode's name and
+a chevron; below `md` only the icon renders. It opens a menu above itself: a
+raised 12px card with the three modes as full-width rows in control type,
+secondary ink at rest, hover surface on hover, the active surface with primary
+ink for the current mode, and `Perguntar` carrying the quiet `Padrão` badge.
+At the right, before the send action, one quiet chip in metadata type names
+the Bot's Modelo in secondary ink and its Esforço in muted ink, such as
+`GPT-5.6 Luna médio`, and ends in a small chevron. It opens a menu above
+itself with a row per setting, `Modelo` and `Esforço`, each showing its
+current value at the right and a chevron, then one divider and `Redefinir
+para o padrão`, which returns the Fornecedor default and médio and stays
+disabled while both already hold. Hovering or clicking a row opens its list
+beside the menu, flipping to the left when the right has no room: the Modelos
+the Fornecedor offers, with a search above eight entries and the group label
+per Fornecedor, or the five Esforço levels, baixo, médio, alto, muito alto,
+máximo. Rows share the menu anatomy and the Fornecedor default and the médio
+Esforço carry the quiet `Padrão` badge. Choosing saves at once and closes the
+menu; the next turn already uses the new choice. Both chips stay disabled
+while the Bot responds.
+When a Bot awaits a decision, a
 low-emphasis status card spans the prompt above the draft. It names the
 requested action, shows the complete target or command without changing its
 whitespace, and ends with the text action `Negar` and the primary action

@@ -24,7 +24,7 @@ import { findTeamBot, teamOf } from "./team"
 
 type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory"
 
-export interface BotRouteAction {
+interface BotRouteAction {
   name: BotRouteActionName
   label: string
   icon: ReactNode
@@ -102,7 +102,7 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
 }
 
 /** The Bot's pages in edge-tab order. Choosing the current page returns to the conversation; on a Rotina, Rotinas returns to the list. */
-export function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, route: BotRoute): BotRouteAction[] {
+function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, route: BotRoute): BotRouteAction[] {
   function open(name: Exclude<BotRouteActionName, "chat">) {
     if (route.name === name) {
       openBotRoute({ name: "chat" })

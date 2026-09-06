@@ -12,7 +12,6 @@ import { useIsMobile } from "../ui/use-is-mobile"
 export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-md:w-[calc(100%-24px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
-import { ChatControlsSheet } from "./chat-controls-sheet"
 import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
@@ -215,7 +214,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   return (
     <form
-      className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
+      className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -242,14 +241,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
-      {mobile
-        ? <ChatControlsSheet bot={bot} client={client} disabled={settingsDisabled} />
-        : (
-          <>
-            <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
-            <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
-          </>
-        )}
+      <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
+      <div className="col-start-4 flex min-w-0">
+        <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
+      </div>
       <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
     </form>
   )

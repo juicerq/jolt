@@ -23,8 +23,6 @@ interface BotsState {
   draft: BotDraft | null
   dialog: "create-project" | null
   screen: "plugins" | "settings" | null
-  /** Mobile only: the Bot list is the screen instead of the conversation plane. Desktop shows both. */
-  listOpen: boolean
 }
 
 export const botsStore = new Store<BotsState>({
@@ -33,7 +31,6 @@ export const botsStore = new Store<BotsState>({
   draft: null,
   dialog: null,
   screen: null,
-  listOpen: true,
 })
 
 export function selectBot(botId: string) {
@@ -41,35 +38,31 @@ export function selectBot(botId: string) {
     beginConversationOpen(botId)
   }
 
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null, listOpen: false }))
+  botsStore.setState((state) => ({ ...state, selectedBotId: botId, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
 }
 
 export function openBotRoute(route: BotRoute) {
   botsStore.setState((state) => ({ ...state, botRoute: route }))
 }
 
-export function openBotList() {
-  botsStore.setState((state) => ({ ...state, listOpen: true }))
-}
-
 export function openPlugins() {
-  botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null, listOpen: false }))
+  botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
 }
 
 export function openSettings() {
-  botsStore.setState((state) => ({ ...state, screen: "settings", dialog: null, listOpen: false }))
+  botsStore.setState((state) => ({ ...state, screen: "settings", dialog: null }))
 }
 
 export function closeWorkspaceScreen() {
-  botsStore.setState((state) => ({ ...state, screen: null, listOpen: true }))
+  botsStore.setState((state) => ({ ...state, screen: null }))
 }
 
 export function forgetBot(botId: string) {
-  botsStore.setState((state) => (state.selectedBotId === botId ? { ...state, selectedBotId: null, listOpen: true } : state))
+  botsStore.setState((state) => (state.selectedBotId === botId ? { ...state, selectedBotId: null } : state))
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { avatarSeed: null, name: "" }, screen: null, listOpen: false }))
+  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { avatarSeed: null, name: "" }, screen: null }))
 }
 
 export function nameDraft(name: string) {
@@ -86,7 +79,7 @@ export function botDraftAvatarSeed(draft: BotDraft) {
 }
 
 export function discardDraft() {
-  botsStore.setState((state) => ({ ...state, draft: null, listOpen: true }))
+  botsStore.setState((state) => ({ ...state, draft: null }))
 }
 
 export function openCreateProject() {

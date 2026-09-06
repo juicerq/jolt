@@ -31,7 +31,7 @@ export function BotPageIdentity({ bot }: { bot: Bot }) {
 
 export function BotPageSaveBar({ form, complete, saving, failure, saveLabel = "Salvar", onDiscard }: { form: string; complete: boolean; saving: boolean; failure?: string; saveLabel?: string; onDiscard: () => void }) {
   return (
-    <div className={`${revealClassName} sticky bottom-0 z-10 border-t border-outline bg-surface max-md:pb-[var(--safe-bottom)]`}>
+    <div className={`${revealClassName} sticky bottom-0 z-10 border-t border-outline bg-surface`}>
       <div className={`${botPageColumnClassName} flex items-center justify-between gap-4 py-3`}>
         <p className={`m-0 text-support ${failure ? "text-status-error" : "text-muted"}`}>{failure ?? "Alterações não salvas"}</p>
         <div className="flex gap-2">

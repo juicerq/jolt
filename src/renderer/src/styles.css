@@ -472,20 +472,9 @@
 /*
  * Mobile (< 48rem, Tailwind `md`). Unlayered on purpose: these rules restyle
  * shared primitives that already carry utility classes, and utilities beat
- * every @layer. Menus and dialogs become bottom sheets; screens slide in.
+ * every @layer. Menus and dialogs become bottom sheets.
  */
 @media (width < 48rem) {
-  .mobile-screen {
-    transition: opacity 200ms ease-out, translate 200ms ease-out;
-  }
-
-  @starting-style {
-    .mobile-screen {
-      opacity: 0;
-      translate: var(--mobile-screen-from, 16px) 0;
-    }
-  }
-
   .mobile-sheet {
     inset: auto 0 0 0;
     width: 100%;
@@ -537,7 +526,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .mobile-screen,
     .mobile-sheet,
     .chat-control-popover {
       transition: none;

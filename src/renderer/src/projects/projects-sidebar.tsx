@@ -1,12 +1,13 @@
-import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { useState, type ReactNode } from "react"
+import { type ReactNode, type Ref, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { BotFace } from "../bots/bot-face"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
+import { chatControlAnchor } from "../chat/chat-control-menu"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
@@ -14,6 +15,7 @@ import { appUpdateStore } from "../settings/app-update-store"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { InlineAction } from "../ui/inline-action"
+import { menuCardClassName, MenuOption } from "../ui/menu"
 import { Tooltip, useTooltip } from "../ui/tooltip"
 
 const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
@@ -24,31 +26,31 @@ const teamAvatarHoverClassNames = [
   "group-hover/stack:translate-x-0.75 group-hover/stack:translate-y-0.25",
 ]
 
-const topActionClassName = "max-md:size-9"
-
-export function ProjectsSidebar({ client, className = "" }: { client: EngineClient; className?: string }) {
+/** Desktop only. Below `md` the BotsRail takes over. */
+export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
   const settingsOpen = useSelector(botsStore, (state) => state.screen === "settings")
   const [search, setSearch] = useState("")
 
   return (
-    <aside className={`mobile-screen flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 [--mobile-screen-from:-16px] max-md:px-3 max-md:pt-[calc(8px+var(--safe-top))] max-md:pb-[calc(8px+var(--safe-bottom))] ${className}`}>
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-2 max-md:pr-[max(0px,var(--window-controls-clearance)_-_12px)]">
+    <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-md:hidden">
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
         <BotSearch value={search} onChange={setSearch} />
-        <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
+        <CreateMenu draftOpen={!!draft} />
       </div>
       {draft && <DraftRow draft={draft} />}
       <SidebarProjects client={client} search={search} draftOpen={!!draft} />
       <div className="mt-auto flex flex-col gap-1 pt-2">
         <SidebarUpdateButton />
-        <SidebarSettingsButton active={settingsOpen} />
+        <SidebarNavButton active={pluginsOpen} icon={<PuzzlePieceIcon className="size-4 shrink-0" aria-hidden="true" />} label="Plugins" onClick={openPlugins} />
+        <SidebarNavButton active={settingsOpen} icon={<Cog6ToothIcon className="size-4 shrink-0" aria-hidden="true" />} label="Configurações" onClick={openSettings} />
       </div>
     </aside>
   )
 }
 
-function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+export function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -112,19 +114,25 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
   )
 }
 
-function SidebarTopActions({ draftOpen, pluginsOpen }: { draftOpen: boolean; pluginsOpen: boolean }) {
+const createPopoverClassName = `${menuCardClassName} chat-control-popover inset-auto mt-1 [position-area:bottom_span-left] [position-try-fallbacks:flip-block,flip-inline]`
+
+/** A "+" that opens Novo Bot / Novo Projeto: a dropdown on desktop, a sheet on mobile. */
+export function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
+  const popoverId = `create-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
+  const anchor = chatControlAnchor(popoverId)
+
   return (
-    <div className="flex gap-1">
-      <IconButton className={topActionClassName} iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
-        <FolderIcon aria-hidden="true" />
-      </IconButton>
-      <IconButton className={`${topActionClassName} ${draftOpen ? "bg-surface-active text-primary" : ""}`} iconSize={16} size={28} type="button" label="Criar Bot" aria-pressed={draftOpen} onClick={openCreateBot}>
-        <UserPlusIcon aria-hidden="true" />
-      </IconButton>
-      <IconButton className={`${topActionClassName} ${pluginsOpen ? "bg-surface-active text-primary" : ""}`} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
-        <PuzzlePieceIcon aria-hidden="true" />
-      </IconButton>
-    </div>
+    <>
+      <span className="grid" style={anchor.trigger}>
+        <IconButton className={draftOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={size} type="button" label="Criar" aria-pressed={draftOpen} popoverTarget={popoverId}>
+          <PlusIcon aria-hidden="true" />
+        </IconButton>
+      </span>
+      <div className={createPopoverClassName} id={popoverId} popover="auto" aria-label="Criar" style={anchor.popover}>
+        <MenuOption icon={<UserPlusIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />} label="Novo Bot" selected={false} onSelect={openCreateBot} />
+        <MenuOption icon={<FolderIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />} label="Novo Projeto" selected={false} onSelect={openCreateProject} />
+      </div>
+    </>
   )
 }
 
@@ -143,16 +151,16 @@ function SidebarUpdateButton() {
   )
 }
 
-function SidebarSettingsButton({ active }: { active: boolean }) {
+function SidebarNavButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button
-      className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active max-md:h-11 ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
+      className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
       type="button"
       aria-pressed={active}
-      onClick={openSettings}
+      onClick={onClick}
     >
-      <Cog6ToothIcon className="size-4 shrink-0" aria-hidden="true" />
-      Configurações
+      {icon}
+      {label}
     </button>
   )
 }
@@ -188,7 +196,7 @@ function ProjectHeading({ children, id }: { children: string; id: string }) {
   )
 }
 
-function BotSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
   return (
     <label className="relative flex min-w-0 flex-1 items-center">
       <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />
@@ -197,6 +205,7 @@ function BotSearch({ value, onChange }: { value: string; onChange: (value: strin
         type="search"
         aria-label="Buscar Bots"
         placeholder="Buscar Bots"
+        ref={ref}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

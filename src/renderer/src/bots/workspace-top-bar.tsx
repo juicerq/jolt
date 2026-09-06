@@ -1,17 +1,14 @@
-import { ChevronLeftIcon, EllipsisHorizontalIcon } from "@heroicons/react/24/outline"
+import { ChevronLeftIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { type ReactNode, useId } from "react"
+import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
-import { chatControlPopoverClassName } from "../chat/chat-control-menu"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
-import { MenuLabel, MenuOption } from "../ui/menu"
-import { botRouteActions } from "./bot-chat"
 import { BotFace } from "./bot-face"
-import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotList, openBotRoute } from "./bots-store"
+import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute } from "./bots-store"
 import { findTeamBot } from "./team"
 
 const routeTitles: Record<BotRoute["name"], string> = {
@@ -29,7 +26,7 @@ const routeParents: Partial<Record<BotRoute["name"], BotRoute>> = { routine: { n
 
 const screenTitles = { plugins: "Plugins", settings: "Configurações" }
 
-/** Mobile navigation for the conversation plane. Hidden on desktop, where the sidebar and the edge tab do this job. */
+/** Mobile title bar for the conversation plane. Hidden on desktop, where the sidebar and the edge tab do this job; the edge tab also owns the Bot's pages on mobile. */
 export function WorkspaceTopBar({ client }: { client: EngineClient }) {
   const screen = useSelector(botsStore, (state) => state.screen)
   const draft = useSelector(botsStore, (state) => state.draft)
@@ -39,36 +36,35 @@ export function WorkspaceTopBar({ client }: { client: EngineClient }) {
   const bot = selectedBotId ? findTeamBot(groups, selectedBotId) : undefined
 
   if (screen) {
-    return <TopBar back="Voltar aos Bots" onBack={closeWorkspaceScreen}><TopBarTitle>{screenTitles[screen]}</TopBarTitle></TopBar>
+    return <TopBar back={{ label: `Fechar ${screenTitles[screen]}`, onBack: closeWorkspaceScreen }}><TopBarTitle>{screenTitles[screen]}</TopBarTitle></TopBar>
   }
 
   if (draft) {
-    return <TopBar back="Descartar criação" onBack={discardDraft}><TopBarTitle>Novo Bot</TopBarTitle></TopBar>
+    return <TopBar back={{ label: "Descartar criação", onBack: discardDraft }}><TopBarTitle>Novo Bot</TopBarTitle></TopBar>
   }
 
   if (!bot) {
-    return <TopBar back="Voltar aos Bots" onBack={openBotList}><TopBarTitle>Jolt</TopBarTitle></TopBar>
+    return <TopBar><TopBarTitle>Mimo</TopBarTitle></TopBar>
   }
 
   if (route.name === "chat") {
-    return <TopBar back="Voltar aos Bots" onBack={openBotList} actions={<BotActionsMenu bot={bot} route={route} />}><BotIdentity bot={bot} /></TopBar>
+    return <TopBar><BotIdentity bot={bot} /></TopBar>
   }
 
   const parent = routeParents[route.name] ?? { name: "chat" }
 
   return (
-    <TopBar back={`Voltar para ${routeTitles[parent.name]}`} onBack={() => openBotRoute(parent)} actions={<BotActionsMenu bot={bot} route={route} />}>
+    <TopBar back={{ label: `Voltar para ${routeTitles[parent.name]}`, onBack: () => openBotRoute(parent) }}>
       <TopBarTitle>{routeTitles[route.name]}</TopBarTitle>
     </TopBar>
   )
 }
 
-function TopBar({ back, onBack, actions, children }: { back: string; onBack: () => void; actions?: ReactNode; children: ReactNode }) {
+function TopBar({ back, children }: { back?: { label: string; onBack: () => void }; children: ReactNode }) {
   return (
-    <header className="flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pt-[var(--safe-top)] pr-[max(8px,var(--window-controls-clearance))] pl-1.5 md:hidden">
-      <IconButton size={34} type="button" label={back} onClick={onBack}><ChevronLeftIcon aria-hidden="true" /></IconButton>
+    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden ${back ? "pl-1.5" : "pl-3.5"}`}>
+      {back && <IconButton size={34} type="button" label={back.label} onClick={back.onBack}><ChevronLeftIcon aria-hidden="true" /></IconButton>}
       <div className="min-w-0 flex-1">{children}</div>
-      {actions}
     </header>
   )
 }
@@ -94,18 +90,3 @@ function BotIdentity({ bot }: { bot: Bot }) {
   )
 }
 
-function BotActionsMenu({ bot, route }: { bot: Bot; route: BotRoute }) {
-  const popoverId = `bot-actions-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
-
-  return (
-    <>
-      <IconButton size={34} type="button" label={`Ações de ${bot.name}`} popoverTarget={popoverId}><EllipsisHorizontalIcon aria-hidden="true" /></IconButton>
-      <div className={chatControlPopoverClassName} id={popoverId} popover="auto" aria-label={`Ações de ${bot.name}`}>
-        <MenuLabel>{bot.name}</MenuLabel>
-        {botRouteActions(bot, route).map((action) => (
-          <MenuOption key={action.name} icon={<span className="shrink-0 text-muted [&>svg]:size-4" aria-hidden="true">{action.icon}</span>} label={action.label} selected={action.current} onSelect={action.select} />
-        ))}
-      </div>
-    </>
-  )
-}

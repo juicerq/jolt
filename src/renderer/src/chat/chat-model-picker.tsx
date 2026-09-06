@@ -1,4 +1,3 @@
-import { ChevronDownIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { type KeyboardEvent, useEffect, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
@@ -7,7 +6,6 @@ import type { BotExecutionUpdate } from "../bots/bot-update"
 import type { EngineClient } from "../engine-client"
 import { useRefreshProviderModels } from "../settings/provider-mutations"
 import { MenuLabel, MenuOption } from "../ui/menu"
-import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName } from "./chat-control-menu"
 
 const searchThreshold = 8
 const searchClassName = "mb-1.5 w-full rounded-none border-0 border-b border-outline bg-transparent px-2 pt-0.5 pb-2 text-control font-medium text-primary placeholder:font-normal placeholder:text-muted focus-visible:outline-none max-md:text-base"
@@ -30,30 +28,20 @@ export function useBotModel(bot: Pick<Bot, "provider" | "model">, client: Engine
   const catalog = catalogs.find((entry) => entry.provider === bot.provider)
   const currentModelId = bot.model ?? catalog?.default
 
-  return { catalogs, currentModelId, currentModel: catalog?.models.find((model) => model.id === currentModelId) }
+  return { catalogs, currentModelId, defaultModelId: catalog?.default, currentModel: catalog?.models.find((model) => model.id === currentModelId) }
 }
 
-export function ChatModelPicker({ bot, client, execution, disabled }: { bot: Bot; client: EngineClient; execution: BotExecutionUpdate; disabled: boolean }) {
-  const popoverId = `model-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
-  const anchor = chatControlAnchor(popoverId)
-  const [opening, setOpening] = useState(0)
-  const { currentModel, currentModelId } = useBotModel(bot, client)
-
-  return (
-    <>
-      <button className={chatControlChipClassName} type="button" disabled={disabled || execution.isPending} popoverTarget={popoverId} style={anchor.trigger}>
-        {currentModel?.name ?? currentModelId ?? "Modelo"}
-        <ChevronDownIcon aria-hidden="true" />
-      </button>
-      <div className={`${chatControlPopoverClassName} w-64`} id={popoverId} popover="auto" style={anchor.popover} onToggle={() => setOpening((count) => count + 1)}>
-        <ChatModelOptions key={opening} bot={bot} client={client} execution={execution} autoFocusSearch />
-      </div>
-    </>
-  )
+interface ChatModelOptionsProps {
+  bot: Bot
+  client: EngineClient
+  execution: BotExecutionUpdate
+  autoFocusSearch?: boolean
+  /** Runs after any choice, including the current one, once its popover has closed. */
+  onChoose?: () => void
 }
 
 /** The Fornecedor catalogs with a search above the threshold. Mounting it refreshes the catalogs; remount it to reset the search. */
-export function ChatModelOptions({ bot, client, execution, autoFocusSearch = false }: { bot: Bot; client: EngineClient; execution: BotExecutionUpdate; autoFocusSearch?: boolean }) {
+export function ChatModelOptions({ bot, client, execution, autoFocusSearch = false, onChoose }: ChatModelOptionsProps) {
   const id = useId()
   const [query, setQuery] = useState("")
   const { catalogs, currentModelId } = useBotModel(bot, client)
@@ -64,11 +52,11 @@ export function ChatModelOptions({ bot, client, execution, autoFocusSearch = fal
   useEffect(() => refreshModels({}), [refreshModels])
 
   function handleChoose(provider: ProviderName, model: string) {
-    if (provider === bot.provider && model === currentModelId) {
-      return
+    if (provider !== bot.provider || model !== currentModelId) {
+      execution.update({ setting: "model", value: { provider, model } })
     }
 
-    execution.update({ setting: "model", value: { provider, model } })
+    onChoose?.()
   }
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
