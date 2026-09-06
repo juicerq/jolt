@@ -5,6 +5,7 @@ import type { Bot } from "@src/shared/bots"
 import type { ProviderModels, ProviderName } from "@src/shared/providers"
 import { useUpdateBotExecution } from "../bots/bot-update"
 import type { EngineClient } from "../engine-client"
+import { useRefreshProviderModels } from "../settings/provider-mutations"
 import { MenuLabel, MenuOption } from "../ui/menu"
 import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName } from "./chat-control-menu"
 
@@ -29,6 +30,7 @@ export function ChatModelPicker({ bot, client, disabled }: { bot: Bot; client: E
   const searchRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState("")
   const { data } = useQuery({ ...client.query.providers.models.queryOptions(), staleTime: Infinity })
+  const { mutate: refreshModels } = useRefreshProviderModels(client)
   const catalogs = data ?? []
   const catalog = catalogs.find((entry) => entry.provider === bot.provider)
   const currentModelId = bot.model ?? catalog?.default
@@ -49,6 +51,7 @@ export function ChatModelPicker({ bot, client, disabled }: { bot: Bot; client: E
     setQuery("")
 
     if (event.newState === "open") {
+      refreshModels({})
       searchRef.current?.focus()
     }
   }

@@ -81,6 +81,9 @@ export function createPiProvider(observability: Observability, models: PiModels)
 
   return {
     authentication,
+    async refreshModels() {
+      await observability.span({ name: "provider.catalogrefresh" }, () => models.refresh()).catch(() => {})
+    },
     list,
     async models() {
       await list()

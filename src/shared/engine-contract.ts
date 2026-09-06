@@ -32,6 +32,7 @@ export const engineContract = {
     cancelLogin: oc.input(providerLoginInput).output(providerLogin).route({ method: "POST", path: "/providers/login/cancel" }),
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
     models: oc.output(providerModelsList).route({ method: "GET", path: "/providers/models" }),
+    refreshModels: oc.route({ method: "POST", path: "/providers/models/refresh" }),
     connect: oc.input(providerConnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/connect" }),
     disconnect: oc.input(providerDisconnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/disconnect" }),
   },

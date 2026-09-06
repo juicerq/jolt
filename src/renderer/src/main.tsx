@@ -6,6 +6,7 @@ import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
 import { browserStore } from "./browser/browser-store"
 import { markUpdateReady } from "./settings/app-update-store"
+import { refreshProviders } from "./settings/provider-mutations"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./styles.css"
 
@@ -31,3 +32,5 @@ ReactDOM.createRoot(root).render(
     </QueryClientProvider>
   </React.StrictMode>,
 )
+
+void engineClient.raw.providers.refreshModels({}).then(() => refreshProviders(engineClient, queryClient)).catch(() => {})
