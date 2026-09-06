@@ -1,4 +1,4 @@
-import { access, stat } from "node:fs/promises"
+import { access, stat, writeFile } from "node:fs/promises"
 import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
@@ -101,6 +101,11 @@ void app.whenReady().then(async () => {
   const starting = engine.start()
 
   ipcMain.handle("engine:get-connection", () => starting)
+
+  if (!app.isPackaged) {
+    // Lido pelo Vite (/engine-connection.json) e por scripts/mobile.ts para abrir o Mimo no celular.
+    void starting.then((connection) => writeFile(join(app.getPath("userData"), "engine-connection.json"), JSON.stringify({ ...connection, rendererUrl: process.env.ELECTRON_RENDERER_URL })))
+  }
 
   const window = new BrowserWindow({
     width: 960,

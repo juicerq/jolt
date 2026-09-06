@@ -8,6 +8,7 @@ import { browserStore } from "./browser/browser-store"
 import { markUpdateReady } from "./settings/app-update-store"
 import { refreshProviders } from "./settings/provider-mutations"
 import { subscribeChatEvents } from "./chat/chat-events"
+import "./desktop-shim"
 import "./styles.css"
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
