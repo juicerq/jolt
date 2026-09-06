@@ -84,6 +84,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
     },
     bots: {
       addMember: operations.bots.addMember.handler(({ input }) => bots.addMember(input)),
+      detachMember: operations.bots.detachMember.handler(({ input }) => bots.detachMember(input)),
       create: operations.bots.create.handler(({ input }) => bots.create(input)),
       list: operations.bots.list.handler(() => bots.list()),
       get: operations.bots.get.handler(({ input }) => {
@@ -106,6 +107,8 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       send: operations.conversations.send.handler(({ input }) => conversations.send(input)),
       compact: operations.conversations.compact.handler(({ input }) => conversations.compact(input)),
       abort: operations.conversations.abort.handler(({ input }) => conversations.abort(input)),
+      abortTeam: operations.conversations.abortTeam.handler(({ input }) => conversations.abortTeam(input)),
+      teamWorking: operations.conversations.teamWorking.handler(({ input }) => conversations.teamWorking(input)),
       promote: operations.conversations.promote.handler(({ input }) => conversations.promote(input)),
       unqueue: operations.conversations.unqueue.handler(({ input }) => conversations.unqueue(input)),
       related: operations.conversations.related.handler(({ input }) => conversations.related(input)),

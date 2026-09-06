@@ -180,6 +180,11 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     bots: {
+      detachMember(id: string) {
+        const row = database.update(bots).set({ leaderBotId: null }).where(eq(bots.id, id)).returning().get()
+
+        return parseOptional(botSchemas.storedBot, row)
+      },
       addMember(bot: Pick<StoredBot, "id" | "leaderBotId" | "projectId" | "workingDirectoryOverride">) {
         return observability.span({ name: "database.botmemberadd", context: { botId: bot.id } }, () => database.transaction((transaction) => {
           const updated = transaction.update(bots).set({ leaderBotId: bot.leaderBotId, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride }).where(eq(bots.id, bot.id)).returning().get()

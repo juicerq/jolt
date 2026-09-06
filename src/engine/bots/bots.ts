@@ -106,6 +106,12 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     )
   }
 
+  function assertTeamIdle(bot: Pick<StoredBot, "id" | "leaderBotId">, leaderId?: string) {
+    if ([bot.id, bot.leaderBotId, leaderId].some((id) => id && conversations.isActive(id)) || database.tasks.listForBot(bot.id).some((task) => task.status === "working")) {
+      throw new Error("Aguarde o Bot e os Líderes terminarem o trabalho antes de mudar o time.")
+    }
+  }
+
   return {
     addMember(rawInput: unknown) {
       const input = parse(botSchemas.addMemberInput, rawInput)
@@ -128,12 +134,38 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         throw new Error("Escolha um Bot permanente que não tenha Integrantes.")
       }
 
-      if ([bot.id, leader.id, bot.leaderBotId].some((id) => id && conversations.isActive(id)) || database.tasks.listForBot(bot.id).some((task) => task.status === "working")) {
-        throw new Error("Aguarde o Bot e os Líderes terminarem o trabalho antes de mudar o time.")
-      }
+      assertTeamIdle(bot, leader.id)
 
       return observability.span({ name: "bots.memberadd", context: { botId: bot.id, leaderBotId: leader.id } }, () => {
         const updated = database.bots.addMember({ id: bot.id, leaderBotId: leader.id, projectId: leader.projectId, workingDirectoryOverride: bot.projectId === leader.projectId ? bot.workingDirectoryOverride : present(bot).effectiveWorkingDirectory })
+
+        if (!updated) {
+          throw new Error("Bot não encontrado.")
+        }
+
+        return present(updated)
+      })
+    },
+    detachMember(rawInput: unknown) {
+      const { id } = parse(botSchemas.idInput, rawInput)
+      const bot = database.bots.get(id)
+
+      if (!bot) {
+        throw new Error("Bot não encontrado. Atualize a lista e tente novamente.")
+      }
+
+      if (bot.temporary) {
+        throw new Error("Integrantes temporários permanecem ligados à sua Tarefa e não podem ser desvinculados.")
+      }
+
+      if (!bot.leaderBotId) {
+        return present(bot)
+      }
+
+      assertTeamIdle(bot)
+
+      return observability.span({ name: "bots.memberdetach", context: { botId: bot.id, leaderBotId: bot.leaderBotId } }, () => {
+        const updated = database.bots.detachMember(bot.id)
 
         if (!updated) {
           throw new Error("Bot não encontrado.")

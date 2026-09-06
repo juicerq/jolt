@@ -19,6 +19,8 @@ export function createDelegation(input: {
   assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">): void
   inheritance(leader: Bot, references: string | undefined): BotInheritance[]
 }) {
+  const running = new Map<string, { task: Task; botIds: Set<string>; cancellation: AbortController; signal: AbortSignal; settled: Promise<void> }>()
+
   function members(leader: Pick<Bot, "id">) {
     return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
   }
@@ -84,27 +86,47 @@ export function createDelegation(input: {
     return outcome
   }
 
-  async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
-    const outcome = await delegate(from, to, task, content)
-
-    const turn = await input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null })
-
-    await turn.finished
-  }
-
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
+    signal?.throwIfAborted()
+
+    const parentId = input.active(from.id)?.taskId
+    const parent = parentId ? running.get(parentId) : undefined
+    const cancellation = new AbortController()
+    const workSignal = AbortSignal.any([cancellation.signal, ...(parent ? [parent.signal] : []), ...(params.wait !== "no" && signal ? [signal] : [])])
+    workSignal.throwIfAborted()
+
     const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id })
-    const content = params.instructions ?? ""
+    const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+    running.set(task.id, { task, botIds: new Set([from.id, to.id, ...parent?.botIds ?? []]), cancellation, signal: workSignal, settled })
+
+    const finished = executeAssignment().finally(() => {
+      running.delete(task.id)
+      settle()
+    })
+
+    async function executeAssignment() {
+      const outcome = await delegate(from, to, task, params.instructions ?? "", workSignal)
+
+      if (params.wait === "no" && !workSignal.aborted) {
+        const turn = await input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null }, { signal: workSignal })
+
+        await turn.finished
+      }
+
+      return outcome
+    }
 
     if (params.wait === "no") {
-      void deliverLater(from, to, task, content).catch((error) => {
-        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
+      void finished.catch((error: unknown) => {
+        if (!workSignal.aborted) {
+          input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
+        }
       })
 
       return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
     }
 
-    return describe(to, await delegate(from, to, task, content, signal))
+    return describe(to, await finished)
   }
 
   function delegateTo(bot: Bot): PiCustomTool {
@@ -122,7 +144,27 @@ export function createDelegation(input: {
     }
   }
 
+  function workFor(botIds: Set<string>) {
+    return [...running.values()].filter((work) => {
+      const task = input.tasks.get(work.task.id) ?? work.task
+
+      return botIds.has(task.assigneeBotId) || [...work.botIds].some((id) => botIds.has(id))
+    })
+  }
+
   return {
+    hasWork(botIds: Set<string>) {
+      return workFor(botIds).length > 0
+    },
+    async abortFor(botIds: Set<string>) {
+      const pending = workFor(botIds)
+
+      for (const work of pending) {
+        work.cancellation.abort()
+      }
+
+      await Promise.all(pending.map((work) => work.settled))
+    },
     tools(bot: Bot): PiCustomTool[] {
       if (bot.leaderBotId) {
         const transfer: PiCustomTool = {
@@ -177,8 +219,14 @@ export function createDelegation(input: {
           "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
         },
         async execute(params, signal) {
+          signal?.throwIfAborted()
           const inherited = input.inheritance(bot, params.plugins)
           const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
+
+          if (signal?.aborted) {
+            await input.bots.remove({ id: to.id })
+            signal.throwIfAborted()
+          }
 
           for (const inheritance of inherited) {
             inheritance.apply(to)

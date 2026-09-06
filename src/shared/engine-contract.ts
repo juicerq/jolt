@@ -43,6 +43,7 @@ export const engineContract = {
   bots: {
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
     addMember: oc.input(botSchemas.addMemberInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{leaderBotId}/members" }),
+    detachMember: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/detach" }),
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
@@ -56,6 +57,8 @@ export const engineContract = {
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     compact: oc.input(conversationSchemas.compactInput).output(conversationSchemas.compactionResult).route({ method: "POST", path: "/bots/{botId}/compact" }),
     abort: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
+    abortTeam: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/team/abort" }),
+    teamWorking: oc.input(conversationSchemas.botInput).output(z.boolean()).route({ method: "GET", path: "/bots/{botId}/team/working" }),
     promote: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/promote" }),
     unqueue: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/remove" }),
     related: oc.input(conversationSchemas.taskInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/tasks/{taskId}/messages" }),

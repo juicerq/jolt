@@ -145,7 +145,10 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   }
 
   async function invalidateTeam() {
-    await queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: client.query.projects.key() }),
+      queryClient.invalidateQueries({ queryKey: client.query.conversations.teamWorking.key() }),
+    ])
   }
 
   async function consume(events: AsyncIterable<BotConversationEvent>) {

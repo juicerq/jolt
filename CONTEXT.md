@@ -28,6 +28,14 @@ _Evitar_: Convidar, duplicar Bot
 O estado de um Integrante temporário cuja Tarefa terminou.
 _Evitar_: Removido, arquivado, deletado
 
+**Desvincular do time**:
+Tornar um Integrante permanente um Bot independente, quando ele e o Líder estiverem livres e não houver Tarefa em andamento do Integrante. Preserva Projeto, pasta, Conversa, Função, Memória própria, Colegas e Acessos; ele deixa de ler a Memória do Líder e pode entrar em um time novamente.
+_Evitar_: Excluir, encerrar
+
+**Interromper trabalho do time**:
+Parar os Turnos do Líder e dos seus Integrantes e cancelar as delegações relacionadas, incluindo as que aguardam outro Bot e as que chamaram Colegas, sem interromper trabalhos independentes desses Colegas. Os retornos cancelados não reativam o trabalho, as mensagens da Fila permanecem e as Rotinas e os Gatilhos futuros continuam configurados.
+_Evitar_: Excluir time, pausar Rotinas
+
 **Excluir**:
 Apagar um Bot de forma definitiva, junto com sua Conversa, sua Memória e seu Diretório. Excluir um Líder exclui também seus Integrantes. Um Bot que está trabalhando é interrompido antes de ser excluído. Difere de Encerrado, que preserva o histórico.
 _Evitar_: Remover, deletar, encerrar, arquivar

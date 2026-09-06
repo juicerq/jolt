@@ -75,6 +75,7 @@ export function createConversations(input: {
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const waitingOn = new Set<{ callerId: string; targetId: string }>()
   const messageQueue = createMessageQueue()
+  const stopping = new Set<string>()
   const delegation = createDelegation({
     bots: input.bots,
     tasks: input.tasks,
@@ -286,6 +287,10 @@ export function createConversations(input: {
   async function claim(botId: string, message: IncomingMessage, signal?: AbortSignal): Promise<ActiveTurn> {
     signal?.throwIfAborted()
 
+    if (stopping.has(botId)) {
+      throw new Error("Aguarde a interrupção do trabalho do time terminar.")
+    }
+
     if (compactions.has(botId)) {
       throw new Error("Bot is compacting its Context")
     }
@@ -375,7 +380,7 @@ export function createConversations(input: {
   }
 
   async function drainQueue(botId: string) {
-    if (shutdown.signal.aborted || active.has(botId)) {
+    if (shutdown.signal.aborted || stopping.has(botId) || active.has(botId)) {
       return
     }
 
@@ -617,7 +622,23 @@ export function createConversations(input: {
     return chosen.map((option) => option.label).join(", ")
   }
 
+  function teamBotIds(rawInput: unknown) {
+    const { botId } = parse(conversationSchemas.botInput, rawInput)
+    const leader = input.bots.get({ id: botId })
+
+    if (!leader || leader.leaderBotId) {
+      throw new Error("Escolha o Líder para acompanhar o trabalho do time.")
+    }
+
+    return new Set([leader.id, ...input.bots.list().filter((bot) => bot.leaderBotId === leader.id).map((bot) => bot.id)])
+  }
+
   return {
+    teamWorking(rawInput: unknown) {
+      const botIds = teamBotIds(rawInput)
+
+      return [...botIds].some((id) => active.has(id)) || delegation.hasWork(botIds)
+    },
     history(rawInput: unknown) {
       const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
 
@@ -774,6 +795,27 @@ export function createConversations(input: {
       }
 
       await turn.abort()
+    },
+    async abortTeam(rawInput: unknown) {
+      const botIds = teamBotIds(rawInput)
+
+      if ([...botIds].some((id) => stopping.has(id))) {
+        throw new Error("O trabalho do time já está sendo interrompido.")
+      }
+
+      for (const id of botIds) {
+        stopping.add(id)
+      }
+
+      try {
+        await Promise.all([delegation.abortFor(botIds), ...[...botIds].map(async (id) => {
+          await active.get(id)?.abort()
+        })])
+      } finally {
+        for (const id of botIds) {
+          stopping.delete(id)
+        }
+      }
     },
     async close(botId: string) {
       messageQueue.clear(botId)
