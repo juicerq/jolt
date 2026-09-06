@@ -77,15 +77,19 @@ function ProviderConnectionRow({ provider, client }: { provider: ProviderAvailab
 
   return (
     <li className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 max-md:flex-wrap">
         <span className={`size-[7px] shrink-0 rounded-full ${statusDotClassNames[provider.status]}`} role="img" aria-label={statusLabels[provider.status]} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 max-md:min-w-[55%]">
           <p className="m-0 text-control font-medium text-primary">{provider.name}</p>
           <p className="m-0 mt-0.5 text-support text-muted">{describeProvider(provider)}</p>
         </div>
-        {provider.connection === "api-key" && connected && <Button variant="text" type="button" disabled={busy} onClick={() => disconnect({ provider: provider.provider })}>Desconectar</Button>}
-        {provider.connection === "api-key" && !connected && provider.detectedKey && <Button variant="secondary" type="button" disabled={busy} onClick={() => connect({ provider: provider.provider })}>Usar a chave</Button>}
-        {provider.connection === "api-key" && !connected && <Button variant={provider.detectedKey ? "text" : "secondary"} type="button" disabled={busy} onClick={() => setPasting(true)}>{provider.detectedKey ? "Colar outra" : "Conectar"}</Button>}
+        {provider.connection === "api-key" && (
+          <div className="flex shrink-0 items-center gap-2 max-md:ml-auto">
+            {connected && <Button variant="text" type="button" disabled={busy} onClick={() => disconnect({ provider: provider.provider })}>Desconectar</Button>}
+            {!connected && provider.detectedKey && <Button variant="secondary" type="button" disabled={busy} onClick={() => connect({ provider: provider.provider })}>Usar a chave</Button>}
+            {!connected && <Button variant={provider.detectedKey ? "text" : "secondary"} type="button" disabled={busy} onClick={() => setPasting(true)}>{provider.detectedKey ? "Colar outra" : "Conectar"}</Button>}
+          </div>
+        )}
       </div>
       {failure && <p className="m-0 text-support text-status-error">{failure}</p>}
       {pasting && <ConnectProviderDialog name={provider.name} onClose={() => setPasting(false)} onConnect={(key) => connect({ provider: provider.provider, key })} />}

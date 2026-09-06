@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
 export const fieldControlClassName =
-  "w-full rounded-lg border border-outline-strong bg-canvas px-3 py-2.5 text-control font-medium text-primary placeholder:text-muted focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+  "w-full rounded-lg border border-outline-strong bg-canvas px-3 py-2.5 text-control font-medium text-primary placeholder:text-muted focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-md:text-base"
 
 const fieldClassName = "flex min-w-0 flex-col gap-2 text-control font-semibold text-secondary"
 

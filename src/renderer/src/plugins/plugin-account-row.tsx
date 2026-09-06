@@ -22,13 +22,13 @@ function describeAccount(account: Pick<PluginAccount, "state" | "botIds">) {
 
 export function PluginAccountRow({ account, actions }: { account: Pick<PluginAccount, "label" | "state" | "botIds">; actions?: ReactNode }) {
   return (
-    <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+    <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 max-md:flex-wrap">
       <span className={`size-[7px] shrink-0 rounded-full ${accountStateClassNames[account.state]}`} role="img" aria-label={accountStateLabels[account.state]} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 max-md:min-w-[55%]">
         <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-control font-medium text-primary">{account.label}</p>
         <p className="m-0 text-support text-muted">{describeAccount(account)}</p>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 items-center gap-2 max-md:ml-auto">{actions}</div>}
     </li>
   )
 }

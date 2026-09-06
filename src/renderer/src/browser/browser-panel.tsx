@@ -47,7 +47,7 @@ export function BrowserPanel() {
       : `Você está acompanhando. ${focused.botName} continua no controle.`
 
     return (
-      <section ref={focusPanel} tabIndex={-1} className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>
+      <section ref={focusPanel} tabIndex={-1} className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary max-md:pt-[calc(16px+var(--safe-top))] max-md:pb-[calc(16px+var(--safe-bottom))]" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>
         <header className="flex shrink-0 flex-wrap items-center gap-3 pb-4">
           <GlobeAltIcon className="size-5 shrink-0 text-secondary" aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -73,7 +73,7 @@ export function BrowserPanel() {
   }
 
   return (
-    <aside className="absolute top-16 right-6 z-30 flex max-h-[calc(100vh-96px)] w-64 flex-col gap-3 overflow-y-auto max-[720px]:right-4 max-[720px]:w-48" aria-label="Navegadores dos Bots">
+    <aside className="absolute top-16 right-6 z-30 flex max-h-[calc(100vh-96px)] w-64 flex-col gap-3 overflow-y-auto max-md:top-[calc(64px+var(--safe-top))] max-md:right-3 max-md:w-44" aria-label="Navegadores dos Bots">
       {state.pages.map((page) => (
         <div key={page.botId} className="overflow-hidden rounded-xl border border-outline bg-surface-raised shadow-[0_2px_8px_rgb(0_0_0/45%)]">
           <button className="group block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:opacity-60" disabled={pending} onClick={() => void handleAction(() => window.desktop.watchBrowser(page.botId))} aria-label={page.control === "user" ? `Abrir navegador de ${page.botName}` : `Assistir ao navegador de ${page.botName}`}>

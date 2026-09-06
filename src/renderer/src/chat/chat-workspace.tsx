@@ -121,7 +121,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }
 
   return (
-    <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)]">
+    <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)] max-md:before:hidden">
       <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <><ChatQueue bot={bot} client={client} /><ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} /></>} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
@@ -201,7 +201,7 @@ function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuest
   const bubble = message.content || message.ending
 
   return (
-    <article className="w-fit max-w-[720px] self-start">
+    <article className="w-fit max-w-[min(720px,100%)] self-start">
       {activityDetailsVisible && message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
       <ChatStamped className={bubble ? "chat-bot-bubble" : ""} copy={message.content} name={bot.name} time={time} anchor={bubble ? "bubble" : "text"}>
         {message.content && <ChatContent content={message.content} />}
@@ -269,13 +269,13 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
     <>
       {!shown && <ChatRunMessage activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />}
       {run.completedMessages.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
-      <article className="flex w-fit max-w-[720px] flex-col gap-3 self-start">
+      <article className="flex w-fit max-w-[min(720px,100%)] flex-col gap-3 self-start">
         {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
         {run.responseContent && <ChatStamped className="chat-bot-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatContent content={run.responseContent} streaming /></ChatStamped>}
         {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} step={run.pluginSteps[pluginRequest.id]} /></ChatStamped>}
         {workingSilently && <ChatWorkingIndicator botName={bot.name} hasResponse={!!run.responseContent} />}
-        {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-[700px]:flex-wrap max-[700px]:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
+        {run.error && <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--color-status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-status-error)_10%,var(--color-surface))] p-3 max-md:flex-wrap max-md:items-start"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>
   )
@@ -297,7 +297,7 @@ function ChatWorkingIndicator({ botName, hasResponse }: { botName: string; hasRe
 
 function ChatClosed({ bot }: { bot: Bot }) {
   return (
-    <p className="mx-auto my-0 w-[min(680px,calc(100%-48px))] rounded-full border border-outline bg-surface-raised px-4 py-3 text-center text-support text-muted max-[700px]:w-[calc(100%-28px)]" role="status">
+    <p className="mx-auto my-0 w-[min(680px,calc(100%-48px))] rounded-full border border-outline bg-surface-raised px-4 py-3 text-center text-support text-muted max-md:w-[calc(100%-24px)]" role="status">
       {bot.name} encerrou com a Tarefa. O histórico fica aqui.
     </p>
   )

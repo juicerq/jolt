@@ -103,7 +103,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
             <label className="sr-only" htmlFor="bot-settings-name">Nome</label>
             <input className={`${headerLineClassName} text-title font-semibold text-primary placeholder:font-normal`} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} />
             <label className="sr-only" htmlFor="bot-settings-outcome">Resultado esperado</label>
-            <input className={`${headerLineClassName} text-control font-medium text-secondary`} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" title="Resultado esperado" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} />
+            <input className={`${headerLineClassName} text-control font-medium text-secondary max-md:text-base`} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" title="Resultado esperado" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} />
           </div>
         </header>
         <SettingsSection title="Função">

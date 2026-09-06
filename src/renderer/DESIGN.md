@@ -289,11 +289,8 @@ stay faint at rest and reach full ink on pointer or keyboard intent. A separate
 The sidebar holds the Bot list directly. It does not start with a team picker.
 Its top row combines Bot search with the quiet actions for creating a Project
 or Bot. Selection uses a tonal row, not a leading line, checkmark, or accent
-color. In the compact sidebar, search and the three actions form a centered 2×2
-icon grid; search opens its field beside the sidebar without resizing either
-persistent region. A quiet Settings row stays at the bottom while the Bot list
-scrolls. It uses the same tonal active state as the other sidebar destinations
-and becomes an icon with a tooltip in the compact sidebar.
+color. A quiet Settings row stays at the bottom while the Bot list scrolls. It
+uses the same tonal active state as the other sidebar destinations.
 
 The conversation plane runs to the bottom and right window margins. It uses one
 24px outer radius and one outline. The content column stays readable instead of
@@ -326,6 +323,34 @@ Spacing follows 4, 8, 12, 16, 24, 32, and 48px. A label sits 8px from its
 control. Related controls sit 12 or 16px apart. Sections use 24 or 32px. Values
 outside this scale need a visible alignment reason.
 
+## Mobile
+
+Below 48rem, the Tailwind `md` breakpoint, the window holds one screen at a
+time. The Bot list is the first screen: search and the three quiet actions on
+top, the Bot rows, and the Settings row at the bottom. Choosing a Bot, Plugins,
+Settings, or New Bot slides the conversation plane in over the full width,
+without the shell radius, outline, or channel. Closing Plugins, Settings, or
+New Bot returns to the list.
+
+The conversation plane gains a 52px top bar: a back action at the left, then
+the Bot's 32px Blobatar with its status light, the name in control type and
+the state in metadata type, and at the right an ellipsis that opens the Bot's
+pages as a bottom sheet. On a page, the bar names the page instead of the Bot,
+and back returns to its parent: the conversation, or Rotinas and Gatilhos for
+their editors. The edge tab and the window controls do not render.
+
+Dialogs, confirmations, the Bot pages menu, and the prompt's Modelo, Esforço,
+and Permissões menu become bottom sheets: full width, 20px top radius, one top
+outline, the overlay behind, and a 240ms slide from the bottom that reduced
+motion removes. The three prompt chips collapse into one chip that reads
+`GPT-5.6 Luna · médio · Perguntar` and truncates; its sheet stacks the three
+lists with dividers. Enter breaks the line in the prompt and the send action
+delivers. Hover-revealed controls stay visible, tooltips never open on touch,
+and a tap on a message shows its author and time below the content instead of
+beside it. Rows that hold text and two actions wrap the actions to a second
+line. Text inputs use 16px so the device does not zoom on focus. Safe areas pad
+the top bar, the list, the prompt, and every sheet.
+
 ## Elevation & Depth
 
 Persistent regions use tone and one outline. They do not cast shadows. The
@@ -355,9 +380,7 @@ Text buttons and form fields do not become pills.
 **Bot row.** A 32px Blobatar sits beside two text lines. The first line is the
 Bot name in control type and primary ink. The second line combines a 6px status
 light, a short state, and a clipped work summary in metadata type. Hover and
-selection use tone. The row keeps the same outline in every state. In the
-compact sidebar, the name moves below the Blobatar in at most two metadata lines
-and the supporting line disappears.
+selection use tone. The row keeps the same outline in every state.
 
 **Leader row.** It has the same anatomy as a Bot row and two disclosure states.
 Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes

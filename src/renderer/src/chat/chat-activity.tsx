@@ -95,7 +95,7 @@ export function ChatActivity({ activity, botName, compacting, time, status, wait
 
   return (
     <div className="group mb-4 w-fit text-support text-muted">
-      <details onClick={blurMouseClick} className="group/activity max-w-[620px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
+      <details onClick={blurMouseClick} className="group/activity max-w-[min(620px,100%)] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none">
         <summary className={chatChipClassName}>
           <SparklesIcon className="size-4" aria-hidden="true" />
           <span aria-live="polite">{formatChatActivitySummary(activity)}</span>
@@ -115,7 +115,7 @@ function LiveActivity({ steps, botName, pending }: { steps: VisibleStep[]; botNa
   const currentIndex = pending ? -1 : steps.length - 1
 
   return (
-    <div className="-mr-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[620px] gap-1 pl-3 text-support text-muted" role="status" aria-label={label}>
+    <div className="-mr-[7px] -mt-[5px] mb-[11px] grid w-fit max-w-[min(620px,100%)] gap-1 pl-3 text-support text-muted" role="status" aria-label={label}>
       {steps.map((step, index) => (
         <ActivityStage key={`${step.type}-${index}`} step={step} mode={index === currentIndex ? "current" : "compact"} />
       ))}
@@ -150,7 +150,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
         <strong className="text-support font-medium text-secondary">{label}</strong>
         {mode === "compact" && details.length === 1 && <ActivityDetail className={detailClassName} prose={prose}>{details[0]}</ActivityDetail>}
       </div>
-      {hasDetailList && <ChevronDownIcon className="mt-px size-[13px] opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/stage:opacity-100 group-focus-within/stage:opacity-100 group-open/stage:rotate-180 motion-reduce:transition-none" aria-hidden="true" />}
+      {hasDetailList && <ChevronDownIcon className="mt-px size-[13px] opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover/stage:opacity-100 group-focus-within/stage:opacity-100 group-open/stage:rotate-180 max-md:opacity-100 motion-reduce:transition-none" aria-hidden="true" />}
     </>
   )
 

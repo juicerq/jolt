@@ -2,6 +2,9 @@ import { XMarkIcon } from "@heroicons/react/24/outline"
 import { type KeyboardEvent, type ReactNode, useId } from "react"
 import { IconButton } from "./icon-button"
 
+const sheetClassName = "mobile-sheet relative inset-auto m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,100%)] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong text-primary shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)]"
+
+/** Centered on desktop; a bottom sheet on mobile. */
 function DialogFrame({ titleId, className, onClose, children }: { titleId: string; className: string; onClose: () => void; children: ReactNode }) {
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape") {
@@ -13,8 +16,8 @@ function DialogFrame({ titleId, className, onClose, children }: { titleId: strin
   }
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-overlay p-6 backdrop-blur-sm" role="presentation" onKeyDown={handleKeyDown} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <dialog className={className} aria-labelledby={titleId} aria-modal="true" open>
+    <div className="fixed inset-0 z-40 grid place-items-center bg-overlay p-6 backdrop-blur-sm max-md:items-end max-md:justify-items-stretch max-md:p-0" role="presentation" onKeyDown={handleKeyDown} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <dialog className={`${sheetClassName} ${className}`} aria-labelledby={titleId} aria-modal="true" open>
         {children}
       </dialog>
     </div>
@@ -25,8 +28,8 @@ export function Dialog({ eyebrow, title, onClose, children }: { eyebrow: string;
   const titleId = useId()
 
   return (
-    <DialogFrame titleId={titleId} className="relative inset-auto m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,100%)] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong bg-surface-raised p-0 text-primary shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)]" onClose={onClose}>
-        <header className="flex items-center justify-between gap-4 border-b border-outline px-6 pt-6 pb-[18px]">
+    <DialogFrame titleId={titleId} className="bg-surface-raised p-0 max-md:pb-[var(--safe-bottom)]" onClose={onClose}>
+        <header className="flex items-center justify-between gap-4 border-b border-outline px-6 pt-6 pb-[18px] max-md:px-5 max-md:pt-5 max-md:pb-4">
           <div className="min-w-0"><p className="text-metadata font-semibold tracking-[0.08em] text-muted uppercase">{eyebrow}</p><h2 className="mt-1.25 text-title font-semibold text-primary" id={titleId}>{title}</h2></div>
           <IconButton className="shrink-0" type="button" label="Fechar" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
         </header>
@@ -39,7 +42,7 @@ export function ConfirmationDialog({ icon, title, onClose, children, actions }: 
   const titleId = useId()
 
   return (
-    <DialogFrame titleId={titleId} className="relative inset-auto m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,100%)] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong bg-surface p-2 text-primary shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)]" onClose={onClose}>
+    <DialogFrame titleId={titleId} className="bg-surface p-2 max-md:pb-[calc(8px+var(--safe-bottom))]" onClose={onClose}>
       <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-outline bg-surface-raised">
         <header className="flex items-center gap-3 px-5 pt-5 pb-3">
           <span className="size-5 flex-none text-secondary [&>svg]:size-full" aria-hidden="true">{icon}</span>
@@ -54,9 +57,9 @@ export function ConfirmationDialog({ icon, title, onClose, children, actions }: 
 }
 
 export function DialogBody({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-6">{children}</div>
+  return <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-6 max-md:p-5">{children}</div>
 }
 
 export function DialogActions({ children }: { children: ReactNode }) {
-  return <footer className="flex items-center justify-between gap-4 border-t border-outline px-6 py-4">{children}</footer>
+  return <footer className="flex items-center justify-between gap-4 border-t border-outline px-6 py-4 max-md:px-5">{children}</footer>
 }

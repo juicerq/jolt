@@ -212,6 +212,22 @@
 }
 
 @layer base {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+
+  button,
+  [role="button"],
+  a,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -262,9 +278,9 @@
     background: color-mix(in srgb, var(--color-status-awaiting-decision) 8%, var(--color-surface-raised));
   }
 
-  @media (width <= 700px) {
+  @media (width < 48rem) {
     .chat-request-bubble {
-      width: calc(100vw - 148px);
+      width: calc(100vw - 32px);
     }
   }
 
@@ -450,5 +466,80 @@
     margin-top: 4px;
     letter-spacing: normal;
     text-transform: none;
+  }
+}
+
+/*
+ * Mobile (< 48rem, Tailwind `md`). Unlayered on purpose: these rules restyle
+ * shared primitives that already carry utility classes, and utilities beat
+ * every @layer. Menus and dialogs become bottom sheets; screens slide in.
+ */
+@media (width < 48rem) {
+  .mobile-screen {
+    transition: opacity 200ms ease-out, translate 200ms ease-out;
+  }
+
+  @starting-style {
+    .mobile-screen {
+      opacity: 0;
+      translate: var(--mobile-screen-from, 16px) 0;
+    }
+  }
+
+  .mobile-sheet {
+    width: 100%;
+    max-width: none;
+    max-height: 85dvh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    border-width: 1px 0 0;
+    box-shadow: 0 -12px 40px rgb(0 0 0 / 40%);
+    transition: translate 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @starting-style {
+    .mobile-sheet {
+      translate: 0 100%;
+    }
+  }
+
+  .chat-control-popover {
+    position: fixed;
+    inset: auto 0 0 0;
+    position-area: none;
+    width: auto;
+    min-width: 0;
+    max-height: 85dvh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    border-width: 1px 0 0;
+    padding: 8px 8px calc(8px + var(--safe-bottom));
+    overflow-y: auto;
+    box-shadow: 0 -12px 40px rgb(0 0 0 / 40%);
+    transform: translateY(100%);
+  }
+
+  .chat-control-popover:popover-open {
+    transform: none;
+    transition-duration: 240ms;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @starting-style {
+    .chat-control-popover:popover-open {
+      transform: translateY(100%);
+    }
+  }
+
+  .chat-control-popover::backdrop {
+    background: var(--color-overlay);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-screen,
+    .mobile-sheet,
+    .chat-control-popover {
+      transition: none;
+    }
   }
 }

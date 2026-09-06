@@ -56,8 +56,8 @@ function ChatQueueRow({ message, busy, onPromote, onRemove }: { message: QueuedM
       <span className={`min-w-0 flex-1 truncate text-control ${preview ? "text-secondary" : "text-muted"}`} title={preview}>{preview || "Sem texto"}</span>
       {message.promoted
         ? <span className="shrink-0 text-metadata text-muted">Adiantando…</span>
-        : <IconButton className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" iconSize={13} size={24} type="button" disabled={busy} label="Enviar agora" tooltipPlacement="top" onClick={onPromote}><BoltIcon aria-hidden="true" /></IconButton>}
-      <IconButton className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" iconSize={13} size={24} type="button" disabled={busy} label="Remover da fila" tooltipPlacement="top" onClick={onRemove}><XMarkIcon aria-hidden="true" /></IconButton>
+        : <IconButton className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} size={24} type="button" disabled={busy} label="Enviar agora" tooltipPlacement="top" onClick={onPromote}><BoltIcon aria-hidden="true" /></IconButton>}
+      <IconButton className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} size={24} type="button" disabled={busy} label="Remover da fila" tooltipPlacement="top" onClick={onRemove}><XMarkIcon aria-hidden="true" /></IconButton>
     </li>
   )
 }
