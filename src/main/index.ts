@@ -46,13 +46,33 @@ function showMainWindow() {
   mainWindow.focus()
 }
 
+/** Minimizes the focused window; otherwise shows it. Alt+J on Linux sends SIGUSR2 here through toggle-jolt.sh. */
+function toggleMainWindow() {
+  if (mainWindow?.isVisible() && !mainWindow.isMinimized() && mainWindow.isFocused()) {
+    mainWindow.minimize()
+    return
+  }
+
+  showOnReady = true
+  showMainWindow()
+}
+
 app.on("second-instance", (_event, argv) => {
+  if (argv.includes("--toggle")) {
+    toggleMainWindow()
+    return
+  }
+
   if (!argv.includes("--background")) {
     showOnReady = true
     showMainWindow()
   }
 })
 app.on("activate", showMainWindow)
+
+if (process.platform !== "win32") {
+  process.on("SIGUSR2", toggleMainWindow)
+}
 
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
 const engineName = process.platform === "win32" ? "mimo-engine.exe" : "mimo-engine"
