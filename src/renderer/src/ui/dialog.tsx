@@ -75,3 +75,15 @@ export function DialogBody({ children }: { children: ReactNode }) {
 export function DialogActions({ children }: { children: ReactNode }) {
   return <footer className="flex items-center justify-between gap-4 border-t border-outline px-6 py-4">{children}</footer>
 }
+
+export function ImageDialog({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const titleId = useId()
+
+  return (
+    <DialogFrame titleId={titleId} className="fixed inset-0 m-auto box-border h-fit max-h-[calc(100vh-48px)] w-fit max-w-[calc(100vw-48px)] overflow-hidden rounded-[18px] border border-outline-strong bg-surface-raised p-2 text-primary backdrop:bg-transparent shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)]" onClose={onClose}>
+      <h2 className="sr-only" id={titleId}>{alt}</h2>
+      <img className="block max-h-[calc(100vh-64px)] max-w-full rounded-[12px] object-contain" src={src} alt={alt} />
+      <IconButton className="top-4 right-4" position="absolute" shape="circle" size={28} tone="canvas" type="button" label="Fechar" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
+    </DialogFrame>
+  )
+}

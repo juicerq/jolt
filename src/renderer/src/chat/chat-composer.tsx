@@ -11,7 +11,7 @@ import { menuCardClassName } from "../ui/menu"
 export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
-import { messageImageAccept, messageImageSource, readMessageImages } from "./chat-images"
+import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatModelEffort } from "./chat-model-effort"
@@ -309,7 +309,7 @@ function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRe
     <ul className="order-first col-span-full m-0 flex list-none flex-wrap gap-2 p-1">
       {images.map((image, index) => (
         <li key={`${index}-${image.data.length}`} className="group relative">
-          <img className="block size-12 rounded-lg border border-outline-strong object-cover" src={messageImageSource(image)} alt={`Imagem ${index + 1}`} />
+          <ChatImage className="block size-12 rounded-lg border border-outline-strong object-cover" image={image} index={index} />
           <IconButton className="-top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" iconSize={13} position="absolute" shape="circle" size={24} tone="canvas" type="button" label="Remover imagem" tooltipPlacement="top" onClick={() => onRemove(index)}><XMarkIcon aria-hidden="true" /></IconButton>
         </li>
       ))}

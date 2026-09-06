@@ -21,7 +21,7 @@ import {
 } from "./chat-store"
 import { ChatComposer } from "./chat-composer"
 import { ChatQueue } from "./chat-queue"
-import { messageImageSource } from "./chat-images"
+import { ChatImage } from "./chat-images"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
@@ -227,7 +227,7 @@ function PersonBubble({ time, content, images, mentions }: { time: string; conte
     <ChatStamped className="flex max-w-[min(640px,84%)] flex-col gap-2 self-end rounded-[16px_16px_4px_16px] bg-surface-active px-4 py-3" copy={content} name="Você" time={time} side="left" anchor="bubble">
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {images.map((image, index) => <img key={`${index}-${image.data.length}`} className="block max-h-60 max-w-full rounded-lg border border-outline-strong object-contain" src={messageImageSource(image)} alt={`Imagem ${index + 1}`} />)}
+          {images.map((image, index) => <ChatImage key={`${index}-${image.data.length}`} className="block max-h-60 max-w-full rounded-lg border border-outline-strong object-contain" image={image} index={index} />)}
         </div>
       )}
       {content && (
