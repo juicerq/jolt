@@ -1,8 +1,10 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { createGithubAdapter } from "@src/engine/plugins/github/github"
 import { createObservationSystem } from "@src/engine/observability/observability"
+import { rejects } from "./support/expect"
 
 afterEach(() => mock.restore())
+
 
 function issue(number: number) {
   return { number, title: "Checkout failure", body: "<!-- dogama:error:123 -->", state: "open", html_url: `https://github.com/dogama/app/issues/${number}`, user: { login: "mimo" }, labels: [{ name: "bug" }], created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
@@ -62,7 +64,7 @@ test("issue creation returns confirmed data after a separate read", async () => 
   const api = setup((url, init) => {
     if (init?.method === "POST") {
       expect(url.pathname).toBe("/repos/dogama/app/issues")
-      expect(JSON.parse(String(init.body))).toEqual({ title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] })
+      expect(JSON.parse(init.body as string)).toEqual({ title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] })
 
       return Response.json(issue(42), { status: 201 })
     }
@@ -82,7 +84,7 @@ test("issue update replaces labels and verifies the new state", async () => {
     expect(url.pathname).toBe("/repos/dogama/app/issues/42")
 
     if (init?.method === "PATCH") {
-      expect(JSON.parse(String(init.body))).toEqual({ labels: [], state: "closed" })
+      expect(JSON.parse(init.body as string)).toEqual({ labels: [], state: "closed" })
     }
 
     return Response.json({ ...issue(42), state: "closed", labels: [] })
@@ -97,7 +99,7 @@ test("issue update replaces labels and verifies the new state", async () => {
 test("silently ignored labels are a failed write, with the issue identity for reconciliation", async () => {
   const api = setup((_url, init) => Response.json({ ...issue(42), labels: init?.method === "POST" ? [{ name: "bug" }] : [] }))
 
-  await expect(api.execute("github_issue_create", { title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] })).rejects.toThrow("GitHub issue #42 did not confirm")
+  await rejects(api.execute("github_issue_create", { title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] }), "GitHub issue #42 did not confirm")
   expect(api.requests).toHaveLength(2)
 })
 
@@ -114,7 +116,7 @@ test.each(["rejected", "timeout", "read-back failure"])("creation does not retry
     return Response.json({ message: "Failed" }, { status: 422 })
   })
 
-  await expect(api.execute("github_issue_create", { title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] })).rejects.toThrow()
+  await rejects(api.execute("github_issue_create", { title: "Checkout failure", body: "<!-- dogama:error:123 -->", labels: ["bug"] }))
   expect(api.requests.filter((request) => request.init?.method === "POST")).toHaveLength(1)
 })
 
@@ -128,7 +130,7 @@ test.each([
 ])("%s rejects invalid input before accessing GitHub", async (name, input) => {
   const api = setup(() => { throw new Error("Unexpected HTTP request") })
 
-  await expect(api.execute(name, input)).rejects.toThrow()
+  await rejects(api.execute(name, input))
   expect(api.requests).toHaveLength(0)
 })
 

@@ -28,7 +28,7 @@ export async function acquireEngineLock(databasePath: string) {
   const readiness = await new Response(child.stdout).text()
 
   if (readiness !== "ready") {
-    child.stdin.end()
+    await child.stdin.end()
     const exitCode = await child.exited
     throw new Error(exitCode === 73 ? "Another Mimo Engine already owns this database" : "Mimo could not acquire its database lock")
   }
@@ -45,7 +45,7 @@ export async function acquireEngineLock(databasePath: string) {
     async release() {
       if (!released) {
         released = true
-        child.stdin.end()
+        await child.stdin.end()
       }
 
       await child.exited

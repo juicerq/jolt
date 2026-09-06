@@ -9,11 +9,47 @@ function contextHash(delivery: ErrorDelivery) {
   return createHash("sha256").update(JSON.stringify({ contexts, type: delivery.type, fingerprint: delivery.fingerprint, codeVersion: delivery.codeVersion, reopenedAt: delivery.reopenedAt })).digest("hex")
 }
 
+// Valida o relatório contra a execução que o produziu e devolve o erro que ele representa.
+function evaluateReport(run: ErrorRun, result: { report?: ErrorReport; error?: string }) {
+  const validated = errorAutomationSchemas.report.safeParse(result.report)
+  const report = validated.success ? validated.data : null
+  const invalidReport = (result.report !== undefined && (!report || report.caseId !== run.caseId || report.revision !== run.revision)) || (run.kind === "analysis" && !report)
+
+  return { report, error: result.error ?? (invalidReport ? "Run did not produce a valid report for its case and revision" : null) }
+}
+
+// Traduz o desfecho de uma execução aceita nas mudanças do caso.
+function finishedCaseChanges(run: ErrorRun, report: ErrorReport | null, error: string | null, finishedAt: string) {
+  const changes: Partial<ErrorCase> = { leaseId: null, leaseUntil: null, updatedAt: finishedAt }
+
+  if (run.kind === "analysis") {
+    changes.state = error ? "inconclusive" : "review"
+    changes.report = error ? null : report
+    changes.decision = null
+    changes.failure = error
+  }
+
+  if (run.kind === "correction" && error) {
+    changes.state = "fix_failed"
+    changes.failure = error
+  }
+
+  if (run.kind === "review" && error) {
+    changes.failure = error
+  }
+
+  return changes
+}
+
 export function createErrorCases(sqlite: Database) {
   function get(id: string) {
     const row = sqlite.query<{ data: string }, [string]>("SELECT data FROM error_cases WHERE id = ?").get(id)
 
-    return row ? parse(errorAutomationSchemas.caseRecord, JSON.parse(row.data)) : undefined
+    if (!row) {
+      return
+    }
+
+    return parse(errorAutomationSchemas.caseRecord, JSON.parse(row.data))
   }
 
   function requireCase(id: string) {
@@ -108,7 +144,11 @@ export function createErrorCases(sqlite: Database) {
     getConfig() {
       const row = settings()
 
-      return row ? { config: parse(errorAutomationSchemas.config, JSON.parse(row.config)), secret: row.secret, verificationSecret: row.verification_secret } : null
+      if (!row) {
+        return null
+      }
+
+      return { config: parse(errorAutomationSchemas.config, JSON.parse(row.config)), secret: row.secret, verificationSecret: row.verification_secret }
     },
     configure(config: ErrorAutomationConfig, secret?: string, verificationSecret?: string) {
       const value = parse(errorAutomationSchemas.config, config)
@@ -122,7 +162,7 @@ export function createErrorCases(sqlite: Database) {
       const counts = Object.fromEntries(sqlite.query<{ state: string; count: number }, []>("SELECT state, count(*) AS count FROM error_cases GROUP BY state").all().map((row) => [row.state, row.count]))
       const classifications = Object.fromEntries(sqlite.query<{ classification: string; count: number }, []>("SELECT json_extract(data, '$.report.classification') AS classification, count(*) AS count FROM error_cases WHERE json_extract(data, '$.report.classification') IS NOT NULL GROUP BY classification").all().map((row) => [row.classification, row.count]))
       const oldestQueuedAt = sqlite.query<{ date: string | null }, []>("SELECT min(coalesce(json_extract(data, '$.queuedAt'), created_at)) AS date FROM error_cases WHERE state = 'queued'").get()?.date ?? null
-      const usage = sqlite.query<{ tokens: number; cost: number }, [string]>("SELECT coalesce(sum(json_extract(data, '$.tokens')), 0) AS tokens, coalesce(sum(json_extract(data, '$.cost')), 0) AS cost FROM error_runs WHERE created_at >= ?").get(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)!
+      const usage = sqlite.query<{ tokens: number; cost: number }, [string]>("SELECT coalesce(sum(json_extract(data, '$.tokens')), 0) AS tokens, coalesce(sum(json_extract(data, '$.cost')), 0) AS cost FROM error_runs WHERE created_at >= ?").get(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`) ?? { tokens: 0, cost: 0 }
 
       return parse(errorAutomationSchemas.status, { config: row ? JSON.parse(row.config) : null, sourceConnected: !!row?.secret, verificationConnected: !!row?.verification_secret, cases: list(500), runs, todayTurns: todayTurns(), lastReceivedAt: row?.last_received_at ?? null, failure: row?.failure ?? null, counts, classifications, oldestQueuedAt, todayTokens: usage.tokens, todayNominalCost: usage.cost })
     },
@@ -236,7 +276,12 @@ export function createErrorCases(sqlite: Database) {
     },
     latestRun(caseId: string, kind: ErrorRun["kind"], context: string) {
       const row = sqlite.query<{ data: string }, [string, string, string]>("SELECT data FROM error_runs WHERE case_id = ? AND kind = ? AND json_extract(data, '$.contextHash') = ? ORDER BY created_at DESC, id DESC LIMIT 1").get(caseId, kind, context)
-      return row ? parse(errorAutomationSchemas.run, JSON.parse(row.data)) : undefined
+
+      if (!row) {
+        return
+      }
+
+      return parse(errorAutomationSchemas.run, JSON.parse(row.data))
     },
     touchLease(runId: string, leaseMs: number) {
       if (!Number.isSafeInteger(leaseMs) || leaseMs <= 0) {
@@ -267,10 +312,7 @@ export function createErrorCases(sqlite: Database) {
         }
 
         const finishedAt = new Date().toISOString()
-        const validated = errorAutomationSchemas.report.safeParse(result.report)
-        const report = validated.success ? validated.data : null
-        const invalidReport = (result.report !== undefined && (!report || report.caseId !== run.caseId || report.revision !== run.revision)) || (run.kind === "analysis" && !report)
-        const error = result.error ?? (invalidReport ? "Run did not produce a valid report for its case and revision" : null)
+        const { report, error } = evaluateReport(run, result)
         const accepted = current.leaseId === run.id && current.contextHash === run.contextHash && run.status === "running"
         const completedStatus = error ? "failed" : "done"
         saveRun({ ...run, status: accepted ? completedStatus : "stale", report: result.rawResponse ?? (result.report === undefined ? null : JSON.stringify(result.report)), error, tokens: result.tokens ?? run.tokens, cost: result.cost ?? run.cost, finishedAt })
@@ -279,25 +321,7 @@ export function createErrorCases(sqlite: Database) {
           return { current: false, case: current }
         }
 
-        const changes: Partial<ErrorCase> = { leaseId: null, leaseUntil: null, updatedAt: finishedAt }
-
-        if (run.kind === "analysis") {
-          changes.state = error ? "inconclusive" : "review"
-          changes.report = error ? null : report
-          changes.decision = null
-          changes.failure = error
-        }
-
-        if (run.kind === "correction" && error) {
-          changes.state = "fix_failed"
-          changes.failure = error
-        }
-
-        if (run.kind === "review" && error) {
-          changes.failure = error
-        }
-
-        return { current: true, case: save({ ...current, ...changes }) }
+        return { current: true, case: save({ ...current, ...finishedCaseChanges(run, report, error, finishedAt) }) }
       }).immediate()
     },
     decide(raw: unknown) {

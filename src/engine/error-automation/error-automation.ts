@@ -54,6 +54,37 @@ export function createErrorAutomation(input: {
     return settings
   }
 
+  function leaderId(kind: ErrorRun["kind"]) {
+    const { config } = configured()
+    const id = kind === "correction" ? config.correctionLeaderId : config.analysisLeaderId
+
+    if (!id) {
+      throw new Error("Configure the Leader responsible for this operation")
+    }
+
+    return id
+  }
+
+  function currentCase(caseId: string) {
+    const current = cases.get(caseId)
+
+    if (!current) {
+      throw new Error("The error case is no longer persisted")
+    }
+
+    return current
+  }
+
+  function usageDelta(botId: string, before: { tokens: number; cost: number } | undefined) {
+    const usage = input.runtime.usage(botId)
+
+    if (!usage) {
+      return
+    }
+
+    return { tokens: Math.max(0, usage.tokens - (before?.tokens ?? 0)), cost: Math.max(0, usage.cost - (before?.cost ?? 0)) }
+  }
+
   async function sourceJson(path: string, body?: { ids: string[] }) {
     const { config, secret } = configured()
 
@@ -138,7 +169,7 @@ export function createErrorAutomation(input: {
   async function runBot(run: ErrorRun, bot: Bot, content: string) {
     const controller = running.get(run.id) ?? new AbortController()
     const timeout = setTimeout(() => controller.abort(), leaseMs - 10_000)
-    const task = input.tasks.create({ callerBotId: run.kind === "correction" ? configured().config.correctionLeaderId! : configured().config.analysisLeaderId!, assigneeBotId: bot.id })
+    const task = input.tasks.create({ callerBotId: leaderId(run.kind), assigneeBotId: bot.id })
     cases.bindRun(run.id, bot.id, task.id)
     const before = input.runtime.usage(bot.id)
     let response = ""
@@ -157,14 +188,12 @@ export function createErrorAutomation(input: {
         throw new Error(`The ${run.kind} turn ${reason === "aborted" ? "was interrupted" : "failed"}`)
       }
 
-      const usage = input.runtime.usage(bot.id)
-
-      return { response, ...(usage ? { tokens: Math.max(0, usage.tokens - (before?.tokens ?? 0)), cost: Math.max(0, usage.cost - (before?.cost ?? 0)) } : {}) }
+      return { response, ...usageDelta(bot.id, before) }
     } finally {
       clearTimeout(timeout)
-      const usage = input.runtime.usage(bot.id)
+      const usage = usageDelta(bot.id, before)
       if (usage) {
-        cases.recordUsage(run.id, { tokens: Math.max(0, usage.tokens - (before?.tokens ?? 0)), cost: Math.max(0, usage.cost - (before?.cost ?? 0)) })
+        cases.recordUsage(run.id, usage)
       }
       input.tasks.finish(task.id, reason === "stop" ? "done" : "failed")
       if (bot.temporary) {
@@ -177,7 +206,7 @@ export function createErrorAutomation(input: {
     const { config } = configured()
     await assertDogamaRepository(config.repositoryDirectory)
     const source = await serializedGit(() => workspace(config).mirror(record.delivery.codeVersion ?? "HEAD"))
-    const leader = input.bots.get({ id: config.analysisLeaderId! })
+    const leader = input.bots.get({ id: leaderId("analysis") })
 
     if (!leader) {
       throw new Error("Analysis Leader is missing")
@@ -198,7 +227,7 @@ export function createErrorAutomation(input: {
   }
 
   async function review(record: ErrorCase, run: ErrorRun) {
-    const leader = input.bots.get({ id: configured().config.analysisLeaderId! })
+    const leader = input.bots.get({ id: leaderId("review") })
 
     if (!leader || !record.report) {
       throw new Error("A report and its Leader are required for review")
@@ -215,6 +244,56 @@ export function createErrorAutomation(input: {
 
     if (current?.state === "review") {
       cases.update(record.id, { state: "inconclusive", failure: "Leader finished without a persisted decision" })
+    }
+  }
+
+  function stillConfirmed(record: ErrorCase) {
+    const current = cases.get(record.id)
+    return configured().config.publish && current?.state === "confirmed" && current.contextHash === record.contextHash
+  }
+
+  function publishedTransition(record: ErrorCase) {
+    const latest = currentCase(record.id)
+
+    if (latest.state !== "confirmed" || latest.contextHash !== record.contextHash) {
+      return {}
+    }
+
+    return { state: "issue_open" as const, failure: null }
+  }
+
+  async function updatePublishedIssue(record: ErrorCase, found: z.infer<typeof issueResult>, draft: ReturnType<typeof errorIssueDraft>, publicationLabels: string[]) {
+    if (!stillConfirmed(record)) {
+      return
+    }
+
+    const updated = parse(issueResult, await github("github_issue_update", { number: found.number, title: draft.title, body: draft.body, state: "open", labels: [...new Set([...found.labels, ...publicationLabels])] }))
+    const staleBranch = record.prState === "published" && record.branch && !record.branch.endsWith(record.contextHash.slice(0, 12))
+    cases.update(record.id, { issueState: "published", issueNumber: updated.number, issueUrl: updated.url,
+      ...publishedTransition(record),
+      ...((found.state === "closed" || staleBranch) ? { branch: null, prNumber: null, prUrl: null, prState: "none" as const, publishedVersion: null, verification: null } : {}),
+    })
+  }
+
+  async function createIssue(record: ErrorCase, draft: ReturnType<typeof errorIssueDraft>, publicationLabels: string[]) {
+    const current = currentCase(record.id)
+
+    if (!stillConfirmed(record)) {
+      return
+    }
+
+    if (current.issueState !== "none") {
+      cases.update(record.id, { issueState: "unknown", failure: "Issue creation has an unknown result; waiting for reconciliation. A missing search result does not permit another create." })
+      return
+    }
+
+    cases.update(record.id, { issueState: "creating" })
+
+    try {
+      const created = parse(issueResult, await github("github_issue_create", { ...draft, labels: publicationLabels }))
+      cases.update(record.id, { issueState: "published", issueNumber: created.number, issueUrl: created.url, ...publishedTransition(record) })
+    } catch (error) {
+      cases.update(record.id, { issueState: "unknown", failure: failure(error) })
     }
   }
 
@@ -243,43 +322,7 @@ export function createErrorAutomation(input: {
     }
 
     const found = existing.at(0)
-
-    if (found) {
-      const current = cases.get(record.id)
-      if (!configured().config.publish || current?.state !== "confirmed" || current.contextHash !== record.contextHash) {
-        return
-      }
-      const updated = parse(issueResult, await github("github_issue_update", { number: found.number, title: draft.title, body: draft.body, state: "open", labels: [...new Set([...found.labels, ...publicationLabels])] }))
-      const latest = cases.get(record.id)!
-      cases.update(record.id, { issueState: "published", issueNumber: updated.number, issueUrl: updated.url,
-        ...(latest.state === "confirmed" && latest.contextHash === record.contextHash ? { state: "issue_open" as const, failure: null } : {}),
-        ...((found.state === "closed" || (record.prState === "published" && record.branch && !record.branch.endsWith(record.contextHash.slice(0, 12)))) ? { branch: null, prNumber: null, prUrl: null, prState: "none" as const, publishedVersion: null, verification: null } : {}),
-      })
-      return
-    }
-
-    const current = cases.get(record.id)!
-
-    if (!configured().config.publish || current.state !== "confirmed" || current.contextHash !== record.contextHash) {
-      return
-    }
-
-    if (current.issueState !== "none") {
-      cases.update(record.id, { issueState: "unknown", failure: "Issue creation has an unknown result; waiting for reconciliation. A missing search result does not permit another create." })
-      return
-    }
-
-    cases.update(record.id, { issueState: "creating" })
-
-    try {
-      const created = parse(issueResult, await github("github_issue_create", { ...draft, labels: publicationLabels }))
-      const latest = cases.get(record.id)!
-      cases.update(record.id, { issueState: "published", issueNumber: created.number, issueUrl: created.url,
-        ...(latest.state === "confirmed" && latest.contextHash === record.contextHash ? { state: "issue_open" as const, failure: null } : {}),
-      })
-    } catch (error) {
-      cases.update(record.id, { issueState: "unknown", failure: failure(error) })
-    }
+    await (found ? updatePublishedIssue(record, found, draft, publicationLabels) : createIssue(record, draft, publicationLabels))
   }
 
   async function eligibleIssue(record: ErrorCase) {
@@ -324,6 +367,42 @@ export function createErrorAutomation(input: {
     return !disposed && configured().config.correct && current?.contextHash === record.contextHash && current.state === "fixing"
   }
 
+  function assertCorrectionAuthorization(config: ErrorAutomationConfig) {
+    const current = configured().config
+    if (current.githubAccountId !== config.githubAccountId || current.correctionLeaderId !== config.correctionLeaderId) {
+      throw new Error("Correction authorization changed; review before publishing")
+    }
+  }
+
+  async function commitCorrection(directory: string, issueNumber: number) {
+    await assertErrorCorrectionFiles(directory)
+    const changed = await errorGit(directory, ["status", "--porcelain"])
+    if (changed) {
+      await errorGit(directory, ["add", "--all"])
+      await errorGit(directory, ["commit", "-m", `fix: resolve Dogama error #${issueNumber}`])
+    }
+    const ahead = await errorGit(directory, ["rev-list", "--count", "origin/dev..HEAD"])
+    if (Number(ahead) === 0) {
+      throw new Error("The corrector did not produce a change to propose")
+    }
+    await assertErrorCorrectionFiles(directory)
+  }
+
+  async function publishCorrectionPull(record: ErrorCase, branch: string, verification: string) {
+    const title = redactErrorText(`Corrige erro #${record.issueNumber}: ${record.delivery.title}`).slice(0, 180)
+    const correctionReport = cases.latestRun(record.id, "correction", record.contextHash)?.report
+    if (!correctionReport) {
+      throw new Error("The correction report must be persisted before publishing its PR")
+    }
+    const body = redactErrorText(`Resolve #${record.issueNumber}.\n\nCorreção investigada em worktree isolada por um corretor independente.\n\n## Causa, correção e limitações\n${correctionReport.slice(-12_000)}\n\n## Verificação\nExecutada em ambiente de teste isolado: check:api e suíte Bun da Dogama, além de git diff --check.\n\n${verification.slice(-12_000)}\n\nReferência interna: ${record.id}. Esta PR requer revisão e não comprova publicação em produção.\n\n<!-- mimo-dogama-error:${record.id} -->`)
+    // Preserve uncertainty before the external write, including a process dying after GitHub accepted it.
+    cases.update(record.id, { prState: "creating", failure: "PR creation outcome unknown; reconciliation required" })
+    await github("github_pull_request_create", { title, body, head: branch, base: "dev", draft: true }, true)
+    if (!await reconcilePull({ ...record, branch })) {
+      throw new Error("PR creation outcome unknown; confirmation read did not find it")
+    }
+  }
+
   async function finalizeCorrection(record: ErrorCase, runId: string) {
     if (!currentCorrection(record)) {
       return
@@ -335,38 +414,26 @@ export function createErrorAutomation(input: {
       cases.update(record.id, { prState: "unknown", failure: "PR creation outcome unknown; waiting for reconciliation" })
       return
     }
-    if (!configured().config.correct || !await eligibleIssue(record)) {
+    const issue = await eligibleIssue(record)
+    if (!configured().config.correct || !issue) {
       cases.update(record.id, { state: "issue_open", failure: "Correction is paused or the issue is no longer eligible" })
       return
     }
     const { config } = configured()
     await assertDogamaRepository(config.repositoryDirectory)
     await recoverCheckResources()
-    const work = await serializedGit(() => workspace(config).provision(record.issueNumber!, record.contextHash.slice(0, 12)))
+    const work = await serializedGit(() => workspace(config).provision(issue.number, record.contextHash.slice(0, 12)))
     const verification = await verifyErrorCorrection(work.directory, runId, running.get(runId)?.signal)
     if (!currentCorrection(record)) {
       return
     }
     cases.update(record.id, { verification: redactErrorText(verification).slice(-20_000) })
-    await assertErrorCorrectionFiles(work.directory)
-    const changed = await errorGit(work.directory, ["status", "--porcelain"])
-    if (changed) {
-      await errorGit(work.directory, ["add", "--all"])
-      await errorGit(work.directory, ["commit", "-m", `fix: resolve Dogama error #${record.issueNumber}`])
-    }
-    const ahead = await errorGit(work.directory, ["rev-list", "--count", "origin/dev..HEAD"])
-    if (Number(ahead) === 0) {
-      throw new Error("The corrector did not produce a change to propose")
-    }
-    await assertErrorCorrectionFiles(work.directory)
+    await commitCorrection(work.directory, issue.number)
     await assertDogamaRepository(work.directory)
     if (!await eligibleIssue(record) || !currentCorrection(record)) {
       return
     }
-    const beforePush = configured().config
-    if (beforePush.githubAccountId !== config.githubAccountId || beforePush.correctionLeaderId !== config.correctionLeaderId) {
-      throw new Error("Correction authorization changed; review before publishing")
-    }
+    assertCorrectionAuthorization(config)
     // Host Git owns the fixed branch push. The worker cannot access Git credentials or choose its destination.
     await errorGit(work.directory, ["push", "origin", `HEAD:refs/heads/${work.branch}`])
     if (await reconcilePull({ ...record, branch: work.branch })) {
@@ -375,22 +442,8 @@ export function createErrorAutomation(input: {
     if (!await eligibleIssue(record) || !currentCorrection(record)) {
       return
     }
-    const beforeCreate = configured().config
-    if (beforeCreate.githubAccountId !== config.githubAccountId || beforeCreate.correctionLeaderId !== config.correctionLeaderId) {
-      throw new Error("Correction authorization changed; review before publishing")
-    }
-    const title = redactErrorText(`Corrige erro #${record.issueNumber}: ${record.delivery.title}`).slice(0, 180)
-    const correctionReport = cases.latestRun(record.id, "correction", record.contextHash)?.report
-    if (!correctionReport) {
-      throw new Error("The correction report must be persisted before publishing its PR")
-    }
-    const body = redactErrorText(`Resolve #${record.issueNumber}.\n\nCorreção investigada em worktree isolada por um corretor independente.\n\n## Causa, correção e limitações\n${correctionReport.slice(-12_000)}\n\n## Verificação\nExecutada em ambiente de teste isolado: check:api e suíte Bun da Dogama, além de git diff --check.\n\n${verification.slice(-12_000)}\n\nReferência interna: ${record.id}. Esta PR requer revisão e não comprova publicação em produção.\n\n<!-- mimo-dogama-error:${record.id} -->`)
-    // Preserve uncertainty before the external write, including a process dying after GitHub accepted it.
-    cases.update(record.id, { prState: "creating", failure: "PR creation outcome unknown; reconciliation required" })
-    await github("github_pull_request_create", { title, body, head: work.branch, base: "dev", draft: true }, true)
-    if (!await reconcilePull({ ...record, branch: work.branch })) {
-      throw new Error("PR creation outcome unknown; confirmation read did not find it")
-    }
+    assertCorrectionAuthorization(config)
+    await publishCorrectionPull(record, work.branch, verification)
   }
 
   async function correct(record: ErrorCase, run: ErrorRun) {
@@ -407,7 +460,7 @@ export function createErrorAutomation(input: {
       throw new Error(`PR #${ongoing.number} is still open for an earlier context; review it before starting another correction`)
     }
     await recoverCheckResources()
-    const work = await serializedGit(() => workspace(config).provision(record.issueNumber!, record.contextHash.slice(0, 12)))
+    const work = await serializedGit(() => workspace(config).provision(issue.number, record.contextHash.slice(0, 12)))
     cases.update(record.id, { branch: work.branch })
     if (await reconcilePull({ ...record, branch: work.branch })) {
       cases.finish(run.id, {})
@@ -417,7 +470,7 @@ export function createErrorAutomation(input: {
       throw new Error("An open PR references this correction but its branch or base could not be reconciled; human review is required")
     }
     await prepareErrorDependencies(work.directory, running.get(run.id)?.signal)
-    const leader = input.bots.get({ id: config.correctionLeaderId! })
+    const leader = input.bots.get({ id: leaderId("correction") })
     if (!leader) {
       throw new Error("Correction Leader is missing")
     }
@@ -443,6 +496,134 @@ export function createErrorAutomation(input: {
     return { ...(result.tokens === undefined ? {} : { tokens: result.tokens }), ...(result.cost === undefined ? {} : { cost: result.cost }) }
   }
 
+  async function retireStaleResources(cutoff: Date) {
+    // Keep case evidence, deliveries and run audit indefinitely; retire only disposable execution data after 30 days.
+    for (const botId of cases.retiredBots(cutoff.toISOString())) {
+      const bot = input.bots.get({ id: botId })
+      if (bot?.temporary && bot.executionProfile && !input.conversations.active(botId)) {
+        await input.bots.remove({ id: botId })
+      }
+    }
+    const root = join(input.rootDirectory, "workspaces")
+    const used = new Set(input.database.bots.list().map((bot) => bot.workingDirectoryOverride).filter((path): path is string => !!path).map(dirname))
+    for (const entry of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+      const path = join(root, entry.name)
+      if (/^mirror-[a-f0-9]{12}-[a-zA-Z0-9]+$/.test(entry.name) && entry.isDirectory() && !used.has(path) && (await lstat(path)).mtime < cutoff) {
+        await rm(path, { recursive: true, force: true })
+      }
+    }
+  }
+
+  function awaitsPullReconcile(record: ErrorCase) {
+    return record.state === "pr_open" || (record.state === "fix_failed" && record.prState !== "none")
+  }
+
+  function canStartTurn(config: ErrorAutomationConfig) {
+    return (config.analyze || config.correct) && config.dailyTurnLimit !== null && !disposed
+  }
+
+  function resumeCorrection(record: ErrorCase) {
+    const resumeId = crypto.randomUUID()
+    running.set(resumeId, new AbortController())
+    const resumed = finalizeCorrection(record, resumeId).catch((error: unknown) => {
+      const current = cases.get(record.id)
+      if (!disposed && current?.contextHash === record.contextHash && current.state === "fixing") {
+        cases.update(record.id, { state: "fix_failed", failure: failure(error) })
+      }
+    }).finally(() => { running.delete(resumeId); jobs.delete(record.id) })
+    jobs.set(record.id, resumed)
+  }
+
+  async function readyForCorrection(record: ErrorCase) {
+    const issue = await eligibleIssue(record).catch((error: unknown) => { cases.update(record.id, { failure: failure(error) }); return undefined })
+
+    if (!issue) {
+      return false
+    }
+
+    const free = await statfs(input.rootDirectory)
+    // A clean Dogama installation measured 4.4 GiB; reserve room for builds and overlapping jobs before claiming a paid turn.
+    const required = (jobs.size + 1) * 6 * 1024 ** 3
+
+    if (free.bavail * free.bsize < required) {
+      cases.update(record.id, { failure: `Correction paused: at least ${required / 1024 ** 3} GiB free is required for the isolated workspace` })
+      return false
+    }
+
+    return true
+  }
+
+  function startRun(record: ErrorCase, kind: ErrorRun["kind"], config: ErrorAutomationConfig) {
+    const run = config.dailyTurnLimit === null ? undefined : cases.claim(record.id, kind, config.dailyTurnLimit, config.concurrency, leaseMs)
+
+    if (!run) {
+      return
+    }
+
+    const controller = new AbortController()
+    running.set(run.id, controller)
+    const heartbeat = setInterval(() => {
+      if (running.has(run.id)) { cases.touchLease(run.id, leaseMs) }
+    }, 60_000)
+    const work = { analysis: analyze, review, correction: correct }[kind](record, run)
+    const job = work.catch((error: unknown) => {
+      if (disposed) {
+        return
+      }
+      const finished = cases.finish(run.id, { error: failure(error) })
+      const current = cases.get(record.id)
+      if (kind === "correction" && current?.contextHash === record.contextHash && (finished.current || current.state === "fixing")) {
+        cases.update(record.id, { state: "fix_failed", failure: failure(error) })
+      }
+    }).finally(() => {
+      clearInterval(heartbeat)
+      running.delete(run.id)
+      jobs.delete(record.id)
+    })
+    jobs.set(record.id, job)
+  }
+
+  async function advanceCase(record: ErrorCase) {
+    const { config } = configured()
+
+    if (record.state === "confirmed" && record.report) {
+      await publish(record).catch((error: unknown) => cases.update(record.id, { failure: failure(error) }))
+    }
+
+    if (jobs.has(record.id)) {
+      return
+    }
+
+    if (config.correct && awaitsPullReconcile(record)) {
+      await reconcilePull(record).catch((error: unknown) => cases.update(record.id, { failure: failure(error) }))
+    }
+
+    if (jobs.size >= config.concurrency) {
+      return
+    }
+
+    if (config.correct && record.state === "fixing" && !record.leaseId) {
+      resumeCorrection(record)
+      return
+    }
+
+    if (!canStartTurn(config)) {
+      return
+    }
+
+    const kind = nextRun(config, record)
+
+    if (!kind) {
+      return
+    }
+
+    if (kind === "correction" && !await readyForCorrection(record)) {
+      return
+    }
+
+    startRun(record, kind, config)
+  }
+
   async function cycle() {
     const settings = cases.getConfig()
 
@@ -453,27 +634,14 @@ export function createErrorAutomation(input: {
     cases.recover()
     await mkdir(input.rootDirectory, { recursive: true })
     const disk = await statfs(input.rootDirectory)
+
     if (disk.bavail * disk.bsize < 512 * 1024 * 1024) {
       cases.noteSource("Less than 512 MiB free: collection and new turns paused; pending deliveries remain at the source")
       return
     }
+
     if (Date.now() - lastRetention > 86_400_000) {
-      // Keep case evidence, deliveries and run audit indefinitely; retire only disposable execution data after 30 days.
-      const cutoff = new Date(Date.now() - 30 * 86_400_000)
-      for (const botId of cases.retiredBots(cutoff.toISOString())) {
-        const bot = input.bots.get({ id: botId })
-        if (bot?.temporary && bot.executionProfile && !input.conversations.active(botId)) {
-          await input.bots.remove({ id: botId })
-        }
-      }
-      const root = join(input.rootDirectory, "workspaces")
-      const used = new Set(input.database.bots.list().map((bot) => bot.workingDirectoryOverride).filter((path): path is string => !!path).map(dirname))
-      for (const entry of await readdir(root, { withFileTypes: true }).catch(() => [])) {
-        const path = join(root, entry.name)
-        if (/^mirror-[a-f0-9]{12}-[a-zA-Z0-9]+$/.test(entry.name) && entry.isDirectory() && !used.has(path) && (await lstat(path)).mtime < cutoff) {
-          await rm(path, { recursive: true, force: true })
-        }
-      }
+      await retireStaleResources(new Date(Date.now() - 30 * 86_400_000))
       lastRetention = Date.now()
     }
 
@@ -482,86 +650,7 @@ export function createErrorAutomation(input: {
     }
 
     for (const record of cases.list()) {
-      const { config } = configured()
-
-      if (record.state === "confirmed" && record.report) {
-        await publish(record).catch((error: unknown) => cases.update(record.id, { failure: failure(error) }))
-      }
-
-      if (jobs.has(record.id)) {
-        continue
-      }
-
-      if (config.correct && (record.state === "pr_open" || (record.state === "fix_failed" && record.prState !== "none"))) {
-        await reconcilePull(record).catch((error: unknown) => cases.update(record.id, { failure: failure(error) }))
-      }
-
-      if (jobs.size >= config.concurrency) {
-        continue
-      }
-
-      if (config.correct && record.state === "fixing" && !record.leaseId) {
-        const resumeId = crypto.randomUUID()
-        running.set(resumeId, new AbortController())
-        const resumed = finalizeCorrection(record, resumeId).catch((error: unknown) => {
-          const current = cases.get(record.id)
-          if (!disposed && current?.contextHash === record.contextHash && current.state === "fixing") {
-            cases.update(record.id, { state: "fix_failed", failure: failure(error) })
-          }
-        }).finally(() => { running.delete(resumeId); jobs.delete(record.id) })
-        jobs.set(record.id, resumed)
-        continue
-      }
-
-      if ((!config.analyze && !config.correct) || config.dailyTurnLimit === null || disposed) {
-        continue
-      }
-
-      const kind = nextRun(config, record)
-
-      if (!kind || (kind === "review" && input.conversations.active(config.analysisLeaderId!))) {
-        continue
-      }
-
-      if (kind === "correction" && !await eligibleIssue(record).catch((error: unknown) => { cases.update(record.id, { failure: failure(error) }); return undefined })) {
-        continue
-      }
-
-      if (kind === "correction") {
-        const free = await statfs(input.rootDirectory)
-        // A clean Dogama installation measured 4.4 GiB; reserve room for builds and overlapping jobs before claiming a paid turn.
-        const required = (jobs.size + 1) * 6 * 1024 ** 3
-        if (free.bavail * free.bsize < required) {
-          cases.update(record.id, { failure: `Correction paused: at least ${required / 1024 ** 3} GiB free is required for the isolated workspace` })
-          continue
-        }
-      }
-
-      const run = cases.claim(record.id, kind, config.dailyTurnLimit, config.concurrency, leaseMs)
-
-      if (run) {
-        const controller = new AbortController()
-        running.set(run.id, controller)
-        const heartbeat = setInterval(() => {
-          if (running.has(run.id)) { cases.touchLease(run.id, leaseMs) }
-        }, 60_000)
-        const work = { analysis: analyze, review, correction: correct }[kind](record, run)
-        const job = work.catch((error: unknown) => {
-          if (disposed) {
-            return
-          }
-          const finished = cases.finish(run.id, { error: failure(error) })
-          const current = cases.get(record.id)
-          if (kind === "correction" && current?.contextHash === record.contextHash && (finished.current || current.state === "fixing")) {
-            cases.update(record.id, { state: "fix_failed", failure: failure(error) })
-          }
-        }).finally(() => {
-          clearInterval(heartbeat)
-          running.delete(run.id)
-          jobs.delete(record.id)
-        })
-        jobs.set(record.id, job)
-      }
+      await advanceCase(record)
     }
   }
 
@@ -570,6 +659,10 @@ export function createErrorAutomation(input: {
       return "analysis"
     }
     if (config.analyze && record.state === "review") {
+      if (config.analysisLeaderId && input.conversations.active(config.analysisLeaderId)) {
+        return
+      }
+
       return "review"
     }
     if (config.correct && ["issue_open", "fix_failed"].includes(record.state) && record.prState === "none" && cases.attempts(record.id, "correction", record.contextHash) < 2) {
@@ -603,15 +696,42 @@ export function createErrorAutomation(input: {
       const { sourceToken, verificationToken, ...config } = parse(errorAutomationSchemas.configure, raw)
       const previous = cases.getConfig()
 
-      if ((config.analyze || config.correct) && !config.dailyTurnLimit) {
-        throw new Error("Set a daily turn limit before enabling execution")
+      function assertRequestedChange() {
+        if ((config.analyze || config.correct) && !config.dailyTurnLimit) {
+          throw new Error("Set a daily turn limit before enabling execution")
+        }
+        if (previous && previous.config.sourceUrl !== config.sourceUrl && !sourceToken) {
+          throw new Error("Provide a service token when changing the diagnostic source")
+        }
+        if (previous?.verificationSecret && previous.config.sourceUrl !== config.sourceUrl && !verificationToken) {
+          throw new Error("Provide a new verification token when changing the diagnostic source")
+        }
       }
-      if (previous && previous.config.sourceUrl !== config.sourceUrl && !sourceToken) {
-        throw new Error("Provide a service token when changing the diagnostic source")
+
+      function sealed(token: string | undefined) {
+        if (!token) {
+          return
+        }
+
+        return input.secrets.seal(token)
       }
-      if (previous?.verificationSecret && previous.config.sourceUrl !== config.sourceUrl && !verificationToken) {
-        throw new Error("Provide a new verification token when changing the diagnostic source")
+
+      function applyGithubGrants(analysisLeaderId: string, correctionLeaderId: string) {
+        if (config.githubAccountId) {
+          const account = input.database.accounts.get(config.githubAccountId)
+          if (account?.pluginId !== "github" || account.state !== "connected") {
+            throw new Error("Choose a connected GitHub Conta")
+          }
+          input.plugins.grant({ botId: analysisLeaderId, accountId: config.githubAccountId, granted: true })
+          input.plugins.grant({ botId: correctionLeaderId, accountId: config.githubAccountId, granted: true })
+        }
+        if (previous?.config.githubAccountId && previous.config.githubAccountId !== config.githubAccountId && input.database.accounts.get(previous.config.githubAccountId)) {
+          input.plugins.grant({ botId: analysisLeaderId, accountId: previous.config.githubAccountId, granted: false })
+          input.plugins.grant({ botId: correctionLeaderId, accountId: previous.config.githubAccountId, granted: false })
+        }
       }
+
+      assertRequestedChange()
       const dogama = input.bots.get({ id: config.dogamaBotId })
 
       if (!dogama || dogama.leaderBotId || dogama.projectId !== config.projectId) {
@@ -638,25 +758,14 @@ export function createErrorAutomation(input: {
 
       const analysisLeader = await leader(previous?.config.analysisLeaderId ?? null, "Líder de Erros")
       // Persist each root as it is created, so retrying configuration does not create another Leader.
-      cases.configure({ ...config, analysisLeaderId: analysisLeader.id, correctionLeaderId: previous?.config.correctionLeaderId ?? null, analyze: false, publish: false, correct: false }, sourceToken ? input.secrets.seal(sourceToken) : undefined, verificationToken ? input.secrets.seal(verificationToken) : undefined)
+      cases.configure({ ...config, analysisLeaderId: analysisLeader.id, correctionLeaderId: previous?.config.correctionLeaderId ?? null, analyze: false, publish: false, correct: false }, sealed(sourceToken), sealed(verificationToken))
       const correctionLeader = await leader(previous?.config.correctionLeaderId ?? null, "Líder de Correções")
       input.bots.addColleague(dogama.id, analysisLeader.id)
       input.bots.addColleague(dogama.id, correctionLeader.id)
       input.bots.addColleague(analysisLeader.id, correctionLeader.id)
       input.bots.addColleague(correctionLeader.id, analysisLeader.id)
 
-      if (config.githubAccountId) {
-        const account = input.database.accounts.get(config.githubAccountId)
-        if (account?.pluginId !== "github" || account.state !== "connected") {
-          throw new Error("Choose a connected GitHub Conta")
-        }
-        input.plugins.grant({ botId: analysisLeader.id, accountId: config.githubAccountId, granted: true })
-        input.plugins.grant({ botId: correctionLeader.id, accountId: config.githubAccountId, granted: true })
-      }
-      if (previous?.config.githubAccountId && previous.config.githubAccountId !== config.githubAccountId && input.database.accounts.get(previous.config.githubAccountId)) {
-        input.plugins.grant({ botId: analysisLeader.id, accountId: previous.config.githubAccountId, granted: false })
-        input.plugins.grant({ botId: correctionLeader.id, accountId: previous.config.githubAccountId, granted: false })
-      }
+      applyGithubGrants(analysisLeader.id, correctionLeader.id)
       cases.configure({ ...config, analysisLeaderId: analysisLeader.id, correctionLeaderId: correctionLeader.id })
       return cases.status()
     },
@@ -695,7 +804,7 @@ export function createErrorAutomation(input: {
       if (result.errorId !== record.errorId || result.publishedVersion !== value.publishedVersion) {
         throw new Error("Dogama did not confirm this error and published version")
       }
-      const latest = cases.get(record.id)!
+      const latest = currentCase(record.id)
       if (latest.contextHash !== record.contextHash || latest.revision !== record.revision) {
         throw new Error("New error evidence arrived during verification; review the current case")
       }

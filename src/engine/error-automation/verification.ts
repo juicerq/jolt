@@ -102,6 +102,27 @@ export async function prepareErrorDependencies(directory: string, signal?: Abort
   }
 }
 
+async function removeCheckEnvironment(directory: string) {
+  for (const file of await readdir(directory, { withFileTypes: true })) {
+    if (!file.isFile()) {
+      continue
+    }
+
+    const path = join(directory, file.name)
+    const temporaryRun = file.name.match(/^\.mimo-check-(.+)\.env\.tmp$/)?.[1]
+
+    if (temporaryRun && runIdentity.test(temporaryRun)) {
+      await rm(path)
+    } else if (file.name === ".env" && (await lstat(path)).size < 200_000) {
+      const values = parseEnv(await readFile(path, "utf8"))
+
+      if (values.NODE_ENV === "test" && runIdentity.test(values.MIMO_ERROR_CHECK_RUN_ID ?? "")) {
+        await rm(path)
+      }
+    }
+  }
+}
+
 export async function cleanupErrorChecks(workspacesRoot: string) {
   await mkdir(workspacesRoot, { recursive: true })
   const root = await realpath(workspacesRoot)
@@ -119,29 +140,8 @@ export async function cleanupErrorChecks(workspacesRoot: string) {
   }
 
   for (const entry of await readdir(root, { withFileTypes: true })) {
-    if (!entry.isDirectory() || !/^error-[1-9]\d*(?:-[a-f0-9]{12})?$/.test(entry.name)) {
-      continue
-    }
-
-    const directory = join(root, entry.name)
-
-    for (const file of await readdir(directory, { withFileTypes: true })) {
-      if (!file.isFile()) {
-        continue
-      }
-
-      const path = join(directory, file.name)
-      const temporaryRun = file.name.match(/^\.mimo-check-(.+)\.env\.tmp$/)?.[1]
-
-      if (temporaryRun && runIdentity.test(temporaryRun)) {
-        await rm(path)
-      } else if (file.name === ".env" && (await lstat(path)).size < 200_000) {
-        const values = parseEnv(await readFile(path, "utf8"))
-
-        if (values.NODE_ENV === "test" && runIdentity.test(values.MIMO_ERROR_CHECK_RUN_ID ?? "")) {
-          await rm(path)
-        }
-      }
+    if (entry.isDirectory() && /^error-[1-9]\d*(?:-[a-f0-9]{12})?$/.test(entry.name)) {
+      await removeCheckEnvironment(join(root, entry.name))
     }
   }
 }

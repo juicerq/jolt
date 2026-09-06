@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { lstat, mkdir, readFile, rm, symlink } from "node:fs/promises"
 import { join } from "node:path"
 import { errorGit, verifyErrorCorrection } from "@src/engine/error-automation/verification"
+import { rejects } from "./support/expect"
 import { testDirectory } from "./support/test-directory"
 
 const directory = testDirectory("mimo-verification-boundary-")
@@ -14,12 +15,12 @@ test("verification preserves an existing env and refuses a dangling env symlink 
   await errorGit(directory, ["commit", "-m", "test fixture"])
   const env = join(directory, ".env")
   await Bun.write(env, "private-local-value")
-  await expect(verifyErrorCorrection(directory, crypto.randomUUID())).rejects.toThrow("EEXIST")
+  await rejects(verifyErrorCorrection(directory, crypto.randomUUID()), "EEXIST")
   expect(await readFile(env, "utf8")).toBe("private-local-value")
   await rm(env)
   const outside = join(directory, "outside-target")
   await symlink(outside, env)
-  await expect(verifyErrorCorrection(directory, crypto.randomUUID())).rejects.toThrow("EEXIST")
+  await rejects(verifyErrorCorrection(directory, crypto.randomUUID()), "EEXIST")
   expect(await Bun.file(outside).exists()).toBe(false)
   expect((await lstat(env)).isSymbolicLink()).toBe(true)
 })

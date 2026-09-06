@@ -221,7 +221,8 @@ export async function sandboxedBash(directory: string, command: string, signal?:
 export async function assertDogamaRepository(directory: string) {
   for (const args of [["remote", "get-url", "--all", "origin"], ["remote", "get-url", "--push", "--all", "origin"]]) {
     const origins = (await git(directory, args)).split("\n")
-    if (origins.length !== 1 || !/^(?:git@github\.com:|ssh:\/\/git@github\.com\/|https:\/\/github\.com\/)dogama-erp\/app(?:\.git)?\/?$/.test(origins[0]!)) {
+    const origin = origins.length === 1 ? origins[0] : undefined
+    if (!origin || !/^(?:git@github\.com:|ssh:\/\/git@github\.com\/|https:\/\/github\.com\/)dogama-erp\/app(?:\.git)?\/?$/.test(origin)) {
       throw new Error("The correction repository origin must be dogama-erp/app on github.com")
     }
   }

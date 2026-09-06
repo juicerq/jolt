@@ -9,6 +9,7 @@ import { openDatabase, type AppDatabase } from "@src/engine/persistence/database
 import { createPermissionExtension, type PiPermissionPolicy } from "@src/engine/pi/pi-permissions"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { toolsForExecutionProfile } from "@src/shared/bot-profiles"
+import { must, rejects } from "./support/expect"
 import { testDirectory } from "./support/test-directory"
 
 const directory = testDirectory("mimo-error-profiles-")
@@ -62,13 +63,13 @@ test("hiring persists ordinary defaults or the managed Luna profile before the f
     const leader = await bots.create({ name: "Leader" })
     const observed: unknown[] = []
     const delegation = createDelegation({ bots, tasks, observability, active() { return undefined }, assertCallable() {}, inheritance() { return [] }, async runTurn(botId) {
-      const worker = database.bots.get(botId)!
-      const task = database.tasks.listForBot(botId)[0]!
+      const worker = must(database.bots.get(botId), "O worker recém-contratado")
+      const task = must(database.tasks.listForBot(botId)[0], "A tarefa do worker")
       observed.push({ model: worker.model, effort: worker.effort, permissionMode: worker.permissionMode, memoryEnabled: worker.memoryEnabled, executionProfile: worker.executionProfile, directory: worker.workingDirectoryOverride, taskStatus: task.status })
 
       return { finished: Promise.resolve({ reason: "stop" as const, response: "" }) }
     } })
-    const hire = delegation.tools(leader).find((tool) => tool.name === "hire")!
+    const hire = must(delegation.tools(leader).find((tool) => tool.name === "hire"), "A ferramenta hire")
     await hire.execute({ name: "General", role: "Help", outcome: "Read the task", wait: "yes", permanent: "no" })
     await hire.execute({ name: "Analyst", role: "Analyze", outcome: "Find the cause", wait: "yes", permanent: "no", profile: "error-analyst", directory: workspace })
     expect(observed).toEqual([
@@ -84,9 +85,9 @@ test("managed profiles reject direct member hiring, outside workspaces and ordin
     const leader = await bots.create({ name: "Leader" })
     const details = { name: "Analyst", function: { outcome: "Analyze" }, permanent: true, executionProfile: "error-analyst", workingDirectoryOverride: workspace }
     const analyst = await bots.hire(leader, details)
-    await expect(bots.hire(analyst, { name: "Nested", function: { outcome: "Analyze" }, permanent: true })).rejects.toThrow("member cannot lead")
-    await expect(bots.hire(leader, { ...details, workingDirectoryOverride: directory })).rejects.toThrow("managed mirror or correction worktree")
-    await expect(bots.update({ id: analyst.id, name: "Changed", function: analyst.function, projectId: null, workingDirectoryOverride: workspace, memoryEnabled: true, effort: "low", model: null, permissionMode: "full" })).rejects.toThrow("managed error Bots")
+    await rejects(bots.hire(analyst, { name: "Nested", function: { outcome: "Analyze" }, permanent: true }), "member cannot lead")
+    await rejects(bots.hire(leader, { ...details, workingDirectoryOverride: directory }), "managed mirror or correction worktree")
+    await rejects(bots.update({ id: analyst.id, name: "Changed", function: analyst.function, projectId: null, workingDirectoryOverride: workspace, memoryEnabled: true, effort: "low", model: null, permissionMode: "full" }), "managed error Bots")
     expect(() => bots.updateExecution({ id: analyst.id, setting: "permissionMode", value: "full" })).toThrow("managed error Bots")
     expect(database.bots.list()).toHaveLength(2)
     expect(database.bots.get(analyst.id)).toMatchObject({ name: "Analyst", memoryEnabled: false, effort: "max", model: "gpt-5.6-luna", permissionMode: "read-only" })
@@ -97,7 +98,7 @@ test("an unsupported managed model is rejected before a worker or task is persis
   await withBots(async ({ bots, database, workspace, validateExecution }) => {
     const leader = await bots.create({ name: "Leader" })
     validateExecution.mockRejectedValue(new Error("Model does not support effort max"))
-    await expect(bots.hire(leader, { name: "Analyst", function: { outcome: "Analyze" }, permanent: false, executionProfile: "error-analyst", workingDirectoryOverride: workspace })).rejects.toThrow("does not support effort max")
+    await rejects(bots.hire(leader, { name: "Analyst", function: { outcome: "Analyze" }, permanent: false, executionProfile: "error-analyst", workingDirectoryOverride: workspace }), "does not support effort max")
     expect(database.bots.list().map((bot) => bot.id)).toEqual([leader.id])
     expect(database.tasks.listForBot(leader.id)).toEqual([])
   })

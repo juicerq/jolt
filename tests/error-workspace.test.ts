@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { mkdir, readFile, symlink } from "node:fs/promises"
 import { join } from "node:path"
 import { assertDogamaRepository, assertErrorCorrectionFiles, createErrorWorkspace, sandboxedBash } from "@src/engine/error-automation/workspace"
+import { rejects } from "./support/expect"
 import { testDirectory } from "./support/test-directory"
 
 const root = testDirectory("mimo-error-workspace-")
@@ -34,22 +35,22 @@ async function repository() {
 
 test("publication refuses another remote and privileged files even after staging or committing", async () => {
   const directory = await repository()
-  await expect(assertDogamaRepository(directory)).rejects.toThrow("dogama-erp/app")
+  await rejects(assertDogamaRepository(directory), "dogama-erp/app")
   await git(directory, "remote", "set-url", "origin", "git@github.com:dogama-erp/app.git")
   await assertDogamaRepository(directory)
   await git(directory, "config", "remote.origin.pushurl", "git@github.com:someone/other.git")
-  await expect(assertDogamaRepository(directory)).rejects.toThrow("dogama-erp/app")
+  await rejects(assertDogamaRepository(directory), "dogama-erp/app")
   await git(directory, "config", "--unset", "remote.origin.pushurl")
   await git(directory, "update-ref", "refs/remotes/origin/dev", "HEAD")
   await Bun.write(join(directory, "index.ts"), "export const value = 2\n")
   await assertErrorCorrectionFiles(directory)
   await mkdir(join(directory, ".github/workflows"), { recursive: true })
   await Bun.write(join(directory, ".github/workflows/injected.yml"), "on: push\n")
-  await expect(assertErrorCorrectionFiles(directory)).rejects.toThrow("workflows")
+  await rejects(assertErrorCorrectionFiles(directory), "workflows")
   await git(directory, "add", "--all")
-  await expect(assertErrorCorrectionFiles(directory)).rejects.toThrow("workflows")
+  await rejects(assertErrorCorrectionFiles(directory), "workflows")
   await git(directory, "commit", "-m", "untrusted change")
-  await expect(assertErrorCorrectionFiles(directory)).rejects.toThrow("workflows")
+  await rejects(assertErrorCorrectionFiles(directory), "workflows")
 })
 
 test("a newly deployed commit is fetched into the managed repository without changing the personal checkout", async () => {
@@ -67,7 +68,7 @@ test("a newly deployed commit is fetched into the managed repository without cha
   expect(mirror.commit).toBe(commit)
   expect(await readFile(join(mirror.directory, "index.ts"), "utf8")).toBe("export const value = 3\n")
   expect(await readFile(join(directory, "index.ts"), "utf8")).toBe("personal edit\n")
-  await expect(git(directory, "cat-file", "-e", commit)).rejects.toThrow()
+  await rejects(git(directory, "cat-file", "-e", commit))
 })
 
 test("mirror exports the confirmed commit without local edits, credential files or symlinks", async () => {
@@ -85,7 +86,7 @@ test("mirror exports the confirmed commit without local edits, credential files 
   expect(mirror.commit).toBe(commit)
   expect(await readFile(join(mirror.directory, "index.ts"), "utf8")).toBe("export const value = 1\n")
   expect(await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: mirror.directory, dot: true }))).toEqual(["index.ts"])
-  await expect(workspace.mirror("--output=/tmp/injected")).rejects.toThrow("must be an available commit")
+  await rejects(workspace.mirror("--output=/tmp/injected"), "must be an available commit")
 })
 
 test("provision uses updated origin/dev and preserves both personal and existing corrective edits", async () => {

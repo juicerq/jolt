@@ -17,6 +17,7 @@ import { createSecrets } from "@src/engine/plugins/secrets"
 import { createWhatsappAdapter } from "@src/engine/plugins/whatsapp/whatsapp"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { errorAutomationSchemas, type ErrorDelivery } from "@src/shared/error-automation"
+import { must, rejects } from "./support/expect"
 import { testDirectory } from "./support/test-directory"
 
 const directory = testDirectory("mimo-error-automation-")
@@ -29,7 +30,7 @@ function diagnostic(): ErrorDelivery {
 
 function confirmed(database: AppDatabase) {
   const record = database.errorCases.ingest(diagnostic())
-  const run = database.errorCases.claim(record.id, "analysis", 10, 1, 60_000)!
+  const run = must(database.errorCases.claim(record.id, "analysis", 10, 1, 60_000), "A execução reivindicada")
   database.errorCases.finish(run.id, { report: { caseId: record.id, revision: run.revision, codeVersion: "a".repeat(40), classification: "product_bug", observed: "Checkout fails before payment", expected: "Checkout completes", expectedSource: "Checkout contract", impact: "Users cannot pay", proof: { kind: "causal_chain", description: "Unhandled input reaches a throw" }, evidence: [{ path: "src/checkout.ts", line: 12, quote: "throw new Error()", explanation: "Invalid input is not handled" }], gaps: [], internalFixHypothesis: "PRIVATE PATCH HYPOTHESIS" } })
 
   return database.errorCases.decide({ caseId: record.id, revision: run.revision, verdict: "confirmed", reason: "Source proves the causal chain" })
@@ -73,7 +74,7 @@ async function withOperation(check: (context: Awaited<ReturnType<typeof openOper
   } finally {
     await context.operation.dispose()
     await context.plugins.dispose()
-    context.conversations.dispose()
+    await context.conversations.dispose()
     context.database.close()
     await context.observability.flush()
   }
@@ -99,6 +100,14 @@ function intercept(respond: (url: URL, init?: RequestInit) => Response | Promise
   return requests
 }
 
+function requestBody<T>(init?: RequestInit): T {
+  if (typeof init?.body !== "string") {
+    throw new Error("A requisição interceptada não enviou um corpo JSON")
+  }
+
+  return JSON.parse(init.body) as T
+}
+
 function remoteIssue(fields: { title: string; body: string; labels: string[] }) {
   return { number: 42, title: fields.title, body: fields.body, labels: fields.labels.map((name) => ({ name })), state: "open", html_url: "https://github.com/dogama-erp/app/issues/42", user: { login: "mimo" }, created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
 }
@@ -110,23 +119,23 @@ test.each([false, true])("new issues require human correction release unless exp
     const remote: { issue?: ReturnType<typeof remoteIssue> } = {}
     intercept((url, init) => {
       if (init?.method === "POST") {
-        remote.issue = remoteIssue(JSON.parse(String(init.body)))
+        remote.issue = remoteIssue(requestBody(init))
         return Response.json(remote.issue)
       }
       return Response.json(url.pathname.endsWith("/issues") ? [] : remote.issue)
     })
     await operation.run()
     expect(database.errorCases.get(record.id)?.state).toBe("issue_open")
-    expect(remote.issue!.labels.some((label) => label.name === "automation:fix")).toBe(releaseCorrections)
+    expect(must(remote.issue, "A issue publicada").labels.some((label) => label.name === "automation:fix")).toBe(releaseCorrections)
   })
 })
 
 test("a Leader cannot mutate cases outside its reserved review", async () => {
   await withOperation(async ({ database, operation, bots }) => {
     const record = confirmed(database)
-    const leader = bots.get({ id: "analysis-leader" })!
+    const leader = must(bots.get({ id: "analysis-leader" }), "O Líder de análise")
     const tools = operation.tools(leader)
-    await expect(tools.find((tool) => tool.name === "error_case_reanalyze")!.execute({ caseId: record.id })).rejects.toThrow("currently reserved review")
+    await rejects(must(tools.find((tool) => tool.name === "error_case_reanalyze"), "A ferramenta error_case_reanalyze").execute({ caseId: record.id }), "currently reserved review")
     expect(database.errorCases.get(record.id)?.state).toBe("confirmed")
   })
 })
@@ -152,7 +161,7 @@ test("collection commits before acknowledging and retries a failed ACK without d
         persisted.close()
       }
 
-      acknowledgements.push(JSON.parse(String(init?.body)).ids)
+      acknowledgements.push(requestBody<{ ids: string[] }>(init).ids)
 
       if (acknowledgements.length === 1) {
         return Response.json({ error: "Unavailable" }, { status: 503 })
@@ -175,7 +184,7 @@ test("a confirmed report with publication paused produces a draft without contac
     const record = confirmed(database)
     const requests = intercept(() => { throw new Error("No external request expected") })
     await operation.run()
-    const current = database.errorCases.get(record.id)!
+    const current = must(database.errorCases.get(record.id), "O caso persistido")
     expect(current).toMatchObject({ state: "confirmed", issueState: "none" })
     expect(current.issueDraft).toContain(`<!-- mimo-dogama-error:${record.id} -->`)
     expect(current.issueDraft).toContain("Checkout fails before payment")
@@ -193,7 +202,7 @@ test("an accepted creation with a lost response waits through an empty listing a
       expect(url.hostname).toBe("api.github.com")
 
       if (init?.method === "POST") {
-        remote.issue = remoteIssue(JSON.parse(String(init.body)))
+        remote.issue = remoteIssue(requestBody(init))
         throw new Error("Connection closed after GitHub accepted the write")
       }
 
@@ -206,8 +215,8 @@ test("an accepted creation with a lost response waits through an empty listing a
       expect(url.pathname).toBe("/repos/dogama-erp/app/issues/42")
 
       if (init?.method === "PATCH") {
-        const fields = JSON.parse(String(init.body))
-        Object.assign(remote.issue!, fields, { labels: fields.labels.map((name: string) => ({ name })) })
+        const fields = requestBody<{ labels: string[] }>(init)
+        Object.assign(must(remote.issue, "A issue publicada"), fields, { labels: fields.labels.map((name) => ({ name })) })
       }
 
       return Response.json(remote.issue)
@@ -301,7 +310,7 @@ test.each([["creating", "fixing"], ["unknown", "fixing"], ["creating", "fix_fail
     await operation.run()
     await operation.dispose()
     expect(database.errorCases.get(record.id)).toMatchObject({ state: initialState, branch, prNumber: null })
-    expect(["creating", "unknown"]).toContain(database.errorCases.get(record.id)!.prState)
+    expect(["creating", "unknown"]).toContain(must(database.errorCases.get(record.id), "O caso persistido").prState)
     expect(database.errorCases.attempts(record.id, "correction")).toBe(0)
     remote.visible = true
     const resumed = createOperation()

@@ -7,6 +7,15 @@ import { testDirectory } from "./support/test-directory"
 
 const directory = testDirectory("mimo-error-cases-")
 
+// Falha o cenário na origem quando a reserva não acontece, em vez de propagar um undefined silencioso.
+function claimed(run: ErrorRun | undefined) {
+  if (!run) {
+    throw new Error("Esperava uma execução reservada")
+  }
+
+  return run
+}
+
 afterEach(() => setSystemTime())
 
 function delivery(changes: Partial<ErrorDelivery>): ErrorDelivery {
@@ -54,7 +63,7 @@ test("frequency-only deliveries retain the lease; new context preserves unknown 
   await withDatabase(({ errorCases: cases }) => {
     const first = cases.ingest(delivery({}))
     cases.update(first.id, { issueState: "unknown", issueDraft: "durable marker", branch: "fix/error-1" })
-    const run = cases.claim(first.id, "analysis", 10, 2, 60_000)!
+    const run = claimed(cases.claim(first.id, "analysis", 10, 2, 60_000))
     const repeated = cases.ingest(delivery({ id: "delivery-2", revision: "9007199254740994", count: "2", contexts: [{ id: "context-2", content: "checkout stack", pruned: false }] }))
     expect(repeated.leaseId).toBe(run.id)
     expect(repeated.contextHash).toBe(first.contextHash)
@@ -76,7 +85,7 @@ test("independent SQLite clients share exclusive leases, heartbeats and recovery
     const second = reopen()
 
     try {
-      const run = cases.claim(first.id, "analysis", 10, 1, 1_000)!
+      const run = claimed(cases.claim(first.id, "analysis", 10, 1, 1_000))
       expect(second.errorCases.claim(first.id, "analysis", 10, 1, 1_000)).toBeUndefined()
       expect(second.errorCases.claim(other.id, "analysis", 10, 1, 1_000)).toBeUndefined()
       setSystemTime(new Date("2026-09-05T12:00:00.500Z"))
@@ -86,7 +95,7 @@ test("independent SQLite clients share exclusive leases, heartbeats and recovery
       setSystemTime(new Date("2026-09-05T12:00:03Z"))
       expect(cases.touchLease(run.id, 1_000)).toBe(false)
       expect(second.errorCases.recover()).toBe(1)
-      const replacement = second.errorCases.claim(first.id, "analysis", 10, 1, 1_000)!
+      const replacement = claimed(second.errorCases.claim(first.id, "analysis", 10, 1, 1_000))
       expect(replacement.id).not.toBe(run.id)
       expect(cases.touchLease(run.id, 1_000)).toBe(false)
       expect(cases.finish(run.id, { report: report(run, {}) }).current).toBe(false)
@@ -107,7 +116,7 @@ test("restart recovers every unfinished kind immediately while preserving public
       const record = cases.ingest(delivery({ id: `delivery-${index}`, errorId: `error-${index}` }))
       cases.update(record.id, { state: scenario.ready, issueState: "published", issueNumber: 42 + index, issueUrl: `https://github.com/dogama/app/issues/${42 + index}`, branch: `fix/error-${index}`, prState: "creating" })
 
-      return { ...scenario, run: cases.claim(record.id, scenario.kind, 10, 3, 60_000)! }
+      return { ...scenario, run: claimed(cases.claim(record.id, scenario.kind, 10, 3, 60_000)) }
     })
     expect(cases.recover()).toBe(0)
     const restarted = reopen()
@@ -131,14 +140,14 @@ test("daily budget counts analysis, review and correction, while correction atte
   await withDatabase(({ errorCases: cases }) => {
     setSystemTime(new Date("2026-09-05T12:00:00Z"))
     const first = cases.ingest(delivery({}))
-    const analysis = cases.claim(first.id, "analysis", 3, 1, 60_000)!
+    const analysis = claimed(cases.claim(first.id, "analysis", 3, 1, 60_000))
     cases.ingest(delivery({ id: "frequency", revision: "9007199254740994", count: "2" }))
     expect(cases.finish(analysis.id, { report: report(analysis, {}) }).current).toBe(true)
-    const review = cases.claim(first.id, "review", 3, 1, 60_000)!
+    const review = claimed(cases.claim(first.id, "review", 3, 1, 60_000))
     cases.decide({ caseId: first.id, revision: analysis.revision, verdict: "confirmed", reason: "Causal chain verified" })
     expect(cases.finish(review.id, { rawResponse: "approved" }).case.state).toBe("confirmed")
     cases.update(first.id, { state: "issue_open", issueState: "published", issueNumber: 42 })
-    const correction = cases.claim(first.id, "correction", 3, 1, 60_000)!
+    const correction = claimed(cases.claim(first.id, "correction", 3, 1, 60_000))
     cases.finish(correction.id, { error: "Correction failed", tokens: 50 })
     expect(cases.attempts(first.id, "correction")).toBe(1)
     expect(cases.status().todayTurns).toBe(3)
@@ -155,14 +164,14 @@ test("status aggregates all cases beyond the display limit and retains usage rec
   await withDatabase(({ errorCases: cases }) => {
     setSystemTime(new Date("2026-09-04T12:00:00Z"))
     const historic = cases.ingest(delivery({ id: "historic", errorId: "historic" }))
-    const oldRun = cases.claim(historic.id, "analysis", 10, 1, 60_000)!
+    const oldRun = claimed(cases.claim(historic.id, "analysis", 10, 1, 60_000))
     cases.finish(oldRun.id, { report: report(oldRun, { classification: "external" }), tokens: 999, cost: 99 })
     cases.decide({ caseId: historic.id, revision: oldRun.revision, verdict: "external", reason: "Provider outage" })
     setSystemTime(new Date("2026-09-05T12:00:00Z"))
     const records = Array.from({ length: 501 }, (_, index) => cases.ingest(delivery({ id: `delivery-${index}`, errorId: `error-${index}` })))
-    const success = cases.claim(records[0]!.id, "analysis", 10, 2, 60_000)!
+    const success = claimed(cases.claim(records[0].id, "analysis", 10, 2, 60_000))
     cases.finish(success.id, { report: report(success, {}), tokens: 100, cost: 1 })
-    const failed = cases.claim(records[1]!.id, "analysis", 10, 2, 60_000)!
+    const failed = claimed(cases.claim(records[1].id, "analysis", 10, 2, 60_000))
     cases.recordUsage(failed.id, { tokens: 25, cost: 0.25 })
     cases.finish(failed.id, { rawResponse: "not JSON", error: "Invalid report" })
     const status = cases.status()
@@ -193,7 +202,7 @@ test("retirement selects only bots whose latest finished run is old and preserve
 
     for (const botId of ["retired", "reused", "running"]) {
       const record = cases.ingest(delivery({ id: botId, errorId: botId }))
-      const run = cases.claim(record.id, "analysis", 10, 3, 100 * 86_400_000)!
+      const run = claimed(cases.claim(record.id, "analysis", 10, 3, 100 * 86_400_000))
       cases.bindRun(run.id, botId, `task-${botId}`)
 
       if (botId !== "running") {
@@ -203,7 +212,7 @@ test("retirement selects only bots whose latest finished run is old and preserve
 
     setSystemTime(new Date("2026-09-05T12:00:00Z"))
     const recent = cases.ingest(delivery({ id: "recent", errorId: "recent" }))
-    const reused = cases.claim(recent.id, "analysis", 10, 3, 60_000)!
+    const reused = claimed(cases.claim(recent.id, "analysis", 10, 3, 60_000))
     cases.bindRun(reused.id, "reused", "recent-task")
     cases.finish(reused.id, { report: report(reused, {}) })
     expect(cases.retiredBots("2026-08-06T12:00:00Z")).toEqual(["retired"])
@@ -229,7 +238,7 @@ test("two processes racing for the same case create exactly one run", async () =
 
     try {
       for (const child of processes) {
-        child.stdin.end()
+        await child.stdin.end()
       }
 
       const results = await Promise.all(processes.map(async (child) => {
@@ -254,7 +263,7 @@ test("two processes racing for the same case create exactly one run", async () =
 test.each(["valid", "invalid"])("finishing a %s report twice preserves its first recorded outcome and usage", async (validity) => {
   await withDatabase(({ errorCases: cases }) => {
     const first = cases.ingest(delivery({}))
-    const run = cases.claim(first.id, "analysis", 10, 1, 60_000)!
+    const run = claimed(cases.claim(first.id, "analysis", 10, 1, 60_000))
 
     if (validity === "valid") {
       cases.finish(run.id, { report: report(run, {}), tokens: 120, cost: 0.03 })
@@ -277,7 +286,7 @@ test.each(["valid", "invalid"])("finishing a %s report twice preserves its first
 test.each(["case", "revision"])("a report for a different %s is stored as a failure", async (mismatch) => {
   await withDatabase(({ errorCases: cases }) => {
     const first = cases.ingest(delivery({}))
-    const run = cases.claim(first.id, "analysis", 10, 1, 60_000)!
+    const run = claimed(cases.claim(first.id, "analysis", 10, 1, 60_000))
     const invalid = report(run, mismatch === "case" ? { caseId: "other" } : { revision: "1" })
     const result = cases.finish(run.id, { report: invalid })
     expect(result.case.state).toBe("inconclusive")
@@ -294,7 +303,7 @@ test.each<Partial<ErrorReport>>([
 ])("the leader cannot confirm a report missing sufficient proof: %j", async (changes) => {
   await withDatabase(({ errorCases: cases }) => {
     const first = cases.ingest(delivery({}))
-    const run = cases.claim(first.id, "analysis", 10, 1, 60_000)!
+    const run = claimed(cases.claim(first.id, "analysis", 10, 1, 60_000))
     cases.finish(run.id, { report: report(run, changes) })
     expect(() => cases.decide({ caseId: first.id, revision: run.revision, verdict: "confirmed", reason: "Looks like a bug" })).toThrow("requires matching classification, proof, evidence and no gaps")
     expect(cases.get(first.id)?.decision).toBeNull()

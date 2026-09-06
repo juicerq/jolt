@@ -11,7 +11,12 @@ const { values } = parseArgs({
 })
 const userData = values["user-data"]
 
-if (!userData || !isAbsolute(userData) || /[\x00-\x1f\x7f]/.test(userData)
+// Caracteres de controle no caminho corromperiam a unit do systemd, então são recusados antes de escrever.
+function hasControlCharacters(value: string) {
+  return value.split("").some((character) => character < " " || character === "\u007f")
+}
+
+if (!userData || !isAbsolute(userData) || hasControlCharacters(userData)
   || !!values["dry-run"] === !!values.install || (values.enable && !values.install)) {
   throw new Error("Usage: bun scripts/install-error-service.ts --user-data /absolute/path (--dry-run | --install [--enable])")
 }
