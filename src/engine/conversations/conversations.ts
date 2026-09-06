@@ -7,7 +7,8 @@ import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
-import { conversationSchemas, askTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { conversationSchemas, askTool, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { createConversationTools } from "./conversation-tools"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { botInstructions } from "./bot-instructions"
@@ -87,53 +88,6 @@ export function createConversations(input: {
 
   closeUnanswered()
 
-  function createAskTool(botId: string): PiTool {
-    return {
-      name: askTool,
-      description: "Ask the person to choose between options. This ends your turn: say what you need in content, list the options, then stop.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          content: { type: "string", description: "The question the person will read" },
-          options: {
-            type: "array",
-            minItems: 2,
-            maxItems: 12,
-            items: {
-              type: "object",
-              properties: {
-                value: { type: "string", description: "A short stable value for this option" },
-                label: { type: "string", description: "The option shown to the person" },
-                description: { type: "string", description: "Optional detail that distinguishes this option" },
-              },
-              required: ["value", "label"],
-              additionalProperties: false,
-            },
-          },
-          allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
-        },
-        required: ["content", "options", "allowOther"],
-        additionalProperties: false,
-      },
-      async execute(params: Record<string, unknown>) {
-        const { content, ...question } = parse(conversationSchemas.askToolInput, params)
-        const sender = active.get(botId)?.sender
-
-        if (new Set(question.options.map((option) => option.value)).size !== question.options.length) {
-          throw new Error("Question option values must be unique")
-        }
-
-        if (!sender) {
-          throw new Error("No active conversation turn")
-        }
-
-        sender.bot(content, question)
-
-        return "Question sent. Stop now and wait for the person to answer in a new turn."
-      },
-    }
-  }
-
   function closeUnanswered() {
     const unanswered = input.database.conversations.lastMessages().filter((message) => message.authorBotId !== message.botId)
 
@@ -157,7 +111,19 @@ export function createConversations(input: {
 
     const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
     const botDirectory = await input.bots.directory({ id: botId })
-    const customTools = [createAskTool(bot.id), ...extensions.flatMap((extension) => extension.tools(bot))]
+    const customTools = [
+      ...createConversationTools((content, question) => {
+        const turn = active.get(botId)
+
+        if (!turn?.sender) {
+          throw new Error("No active conversation turn")
+        }
+
+        turn.signal.throwIfAborted()
+        turn.sender.bot(content, question)
+      }),
+      ...extensions.flatMap((extension) => extension.tools(bot)),
+    ]
     const tools = toolsForPermissionMode(bot.permissionMode, [...defaultTools, ...customTools.map((tool) => tool.name)])
     const project = bot.projectId ? input.database.projects.get(bot.projectId) : undefined
 
@@ -475,7 +441,6 @@ export function createConversations(input: {
     const responses: string[] = []
     let responseBytes = 0
     let terminalMessageFinished = false
-    let pendingText = ""
     const activity = createConversationActivityRecorder(turn.message.id, incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
@@ -483,11 +448,7 @@ export function createConversations(input: {
     turn.sender = { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming }
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
-      if (runtimeEvent.type === "tool-started") {
-        speakPending()
-      }
-
-      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && runtimeEvent.tool === askTool) {
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && (runtimeEvent.tool === askTool || runtimeEvent.tool === sendMessageTool)) {
         eventCount++
 
         return
@@ -504,8 +465,6 @@ export function createConversations(input: {
       }
 
       if (runtimeEvent.type === "text") {
-        pendingText += runtimeEvent.text
-
         return
       }
 
@@ -514,8 +473,6 @@ export function createConversations(input: {
       if (deliveredEvent.type === "message-finished") {
         const ending = runtimeEvent.type === "message-finished" && runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
         const error = runtimeEvent.type === "message-finished" ? runtimeEvent.error : undefined
-
-        speakPending()
 
         if (ending) {
           publishMessage("", ending, error)
@@ -526,6 +483,15 @@ export function createConversations(input: {
       }
 
       if (deliveredEvent.type === "finished") {
+        if (deliveredEvent.reason === "stop" && responses.length === 0) {
+          const error = "O Bot terminou sem enviar uma mensagem. Tente novamente."
+
+          finish("error", error)
+          deliver(botId, { type: "finished", reason: "error", error })
+
+          return
+        }
+
         finish(deliveredEvent.reason, deliveredEvent.error)
       }
 
@@ -550,8 +516,6 @@ export function createConversations(input: {
       const ending = turnEndings[reason]
       const errorMessage = reason === "error" ? describeError(error) : undefined
 
-      speakPending()
-
       if (!terminalMessageFinished && ending) {
         publishMessage("", ending, errorMessage)
       }
@@ -567,16 +531,6 @@ export function createConversations(input: {
       unsubscribe()
       signal.removeEventListener("abort", interrupt)
       completion.resolve({ reason, response: responses.join("\n\n"), ...(errorMessage ? { error: errorMessage } : {}) })
-    }
-
-    function speakPending() {
-      const content = pendingText.trim()
-
-      pendingText = ""
-
-      if (content) {
-        publishMessage(content, null)
-      }
     }
 
     function publishIncoming(incoming: IncomingMessage) {
@@ -611,6 +565,10 @@ export function createConversations(input: {
         input.database.conversations.append(message)
       } catch (persistError) {
         input.observability.event({ name: "conversation.persistencefailed", context: { botId }, error: persistError })
+
+        if (content) {
+          throw persistError
+        }
       }
 
       if (content) {

@@ -15,5 +15,5 @@
       "@drizzle/*": ["./drizzle/*"]
     }
   },
-  "include": ["src", "github-relay", "bench", "scripts/release.ts", "scripts/after-pack.ts", "electron.vite.config.ts", "drizzle.config.ts"]
+  "include": ["src", "tests", "scripts/message-protocol-check.ts", "github-relay", "bench", "scripts/release.ts", "scripts/after-pack.ts", "electron.vite.config.ts", "drizzle.config.ts"]
 }

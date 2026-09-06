@@ -129,7 +129,7 @@ A capacidade do Bot de pesquisar e ler mensagens antigas da sua Conversa, com da
 _Evitar_: Memória, Curadoria, histórico compartilhado
 
 **Mensagem**:
-Um envio deliberado e persistido na Conversa do Bot, materializado exclusivamente a partir do conteúdo passado a `send_message`. Um Turno pode produzir várias Mensagens; texto comum do Fornecedor não aparece na Conversa.
+Um envio deliberado e persistido na Conversa do Bot que desenvolve uma ideia completa. Um Turno pode produzir várias Mensagens sucessivas, sem esperar uma Resposta entre elas; explicações detalhadas preservam esse ritmo de conversa.
 _Evitar_: Turno, Atividade, fragmento de streaming
 
 **Pergunta**:

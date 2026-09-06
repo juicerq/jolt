@@ -7,6 +7,8 @@ import type { TaskStatus } from "./tasks"
 import type { ExternalEvent } from "./triggers"
 
 export const askTool = "ask"
+export const sendMessageTool = "send_message"
+export const messageContentLimit = 800
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine", "trigger"])
@@ -70,6 +72,7 @@ const message = z.strictObject({
 })
 const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, triggerRunId: true, content: true, images: true, replyTo: true })
 const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
+const sendMessageToolInput = z.strictObject({ content: z.string().trim().min(1).max(messageContentLimit, "This message is too long. Send one idea at a time in separate send_message calls; preserve the remaining details in subsequent messages.") })
 const startedEvent = z.strictObject({ type: z.literal("started"), messageId: id, message: incomingMessage })
 const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
 const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
@@ -135,6 +138,7 @@ export const conversationSchemas = {
   queueInput: z.strictObject({ botId: id, id }),
   queuedMessage,
   askToolInput,
+  sendMessageToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),
