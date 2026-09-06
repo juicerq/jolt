@@ -25,7 +25,7 @@ const observationTools = new Set(["read", "grep", "find", "ls"])
 const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, askTool, sendMessageTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
 const readOnlyTools = new Set([...observationTools, askTool, sendMessageTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
 const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
-const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
+const briefFields: Record<string, string> = { hire: "instructions", routine: "frequency" }
 
 export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[]) {
   if (mode !== "read-only") {

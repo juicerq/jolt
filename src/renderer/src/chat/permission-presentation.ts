@@ -73,7 +73,6 @@ function actionDescription(request: PermissionRequest) {
     text(request, "content"),
     text(request, "query"),
     text(request, "name"),
-    text(request, "outcome"),
     request.detail,
     request.brief,
   ].filter(Boolean)

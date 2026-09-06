@@ -189,7 +189,7 @@ O nome de um Bot que a pessoa escolhe com `@` ao escrever uma Mensagem, e que o 
 _Evitar_: Marcação, tag, Comando
 
 **Tarefa**:
-Um trabalho com resultado esperado e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
+Um trabalho com instruções e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
 _Evitar_: Mensagem, atividade
 
 **Resultado da Tarefa**:

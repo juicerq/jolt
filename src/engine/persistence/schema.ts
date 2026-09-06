@@ -45,7 +45,6 @@ export const tasks = snakeCase.table("tasks", {
   id: text().primaryKey(),
   callerBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   assigneeBotId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
-  outcome: text().notNull(),
   status: text({ enum: ["working", "done", "interrupted", "failed"] }).$type<Task["status"]>().notNull(),
   createdAt: text().notNull(),
   finishedAt: text(),

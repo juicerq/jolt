@@ -192,10 +192,10 @@ export function createConversations(input: {
       }
 
       if (message.botId === task.callerBotId) {
-        return { cause: "task-result", taskId: task.id, sender: { id: sender.id, name: sender.name }, outcome: task.outcome, status: task.status, ...moment }
+        return { cause: "task-result", taskId: task.id, sender: { id: sender.id, name: sender.name }, status: task.status, ...moment }
       }
 
-      return { cause: "task-assignment", taskId: task.id, sender: { id: sender.id, name: sender.name }, outcome: task.outcome, ...moment }
+      return { cause: "task-assignment", taskId: task.id, sender: { id: sender.id, name: sender.name }, ...moment }
     }
 
     return { cause: "person", ...moment }

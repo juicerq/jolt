@@ -93,8 +93,8 @@ export function createDelegation(input: {
   }
 
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
-    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
-    const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
+    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id })
+    const content = params.instructions ?? ""
 
     if (params.wait === "no") {
       void deliverLater(from, to, task, content).catch((error) => {
@@ -113,8 +113,7 @@ export function createDelegation(input: {
       description: "Create a Tarefa and delegate it to a member of your team or to a Colega. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
       parameters: {
         bot: "Name or id of the member or Colega",
-        outcome: "Expected result of the Tarefa",
-        instructions: "Instructions for the Bot",
+        instructions: "What the Bot must do and the result you expect",
         wait: waitParameter,
       },
       async execute(params, signal) {
@@ -173,8 +172,7 @@ export function createDelegation(input: {
           role: "The member's Função: what it delivers, in one line",
           "description?": "Responsibilities, limits and how the member presents its work",
           permanent: "\"yes\" to keep the member on your team for future Tarefas. \"no\" for a temporary member that closes when this Tarefa ends.",
-          outcome: "Expected result of the Tarefa",
-          instructions: "Instructions for the member",
+          instructions: "What the member must do and the result you expect",
           wait: waitParameter,
           "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
         },

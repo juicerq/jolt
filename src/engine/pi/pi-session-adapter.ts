@@ -19,7 +19,7 @@ import type { PiModels } from "./pi-models"
 import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content" }
-const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions", routine: "content" }
+const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
 
 function toolSchema(tool: PiTool): TSchema {
   if ("inputSchema" in tool) {

@@ -163,6 +163,6 @@ export type TurnContext = { startedAt: string; timeZone: string } & (
   | { cause: "person" }
   | { cause: "routine"; routineId: string; frequency: Frequency; scheduledFor: string }
   | { cause: "trigger"; triggerId: string; triggerRunId: string; event: ExternalEvent }
-  | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string }; outcome: string }
-  | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; outcome: string; status: TaskStatus }
+  | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string } }
+  | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; status: TaskStatus }
 )

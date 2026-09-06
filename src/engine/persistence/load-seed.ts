@@ -190,10 +190,10 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
   }
 
   function delegatedTurn(leader: StoredBot, member: StoredBot) {
-    const task: Task = { id: crypto.randomUUID(), callerBotId: leader.id, assigneeBotId: member.id, outcome: pick(random, personPrompts), status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
+    const task: Task = { id: crypto.randomUUID(), callerBotId: leader.id, assigneeBotId: member.id, status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
 
     database.tasks.create(task)
-    append({ botId: member.id, author: "bot", authorBotId: leader.id, taskId: task.id, triggerRunId: null, content: task.outcome, images: [], question: null, replyTo: null, activity: null, ending: null })
+    append({ botId: member.id, author: "bot", authorBotId: leader.id, taskId: task.id, triggerRunId: null, content: pick(random, personPrompts), images: [], question: null, replyTo: null, activity: null, ending: null })
     append({ botId: member.id, author: "bot", authorBotId: member.id, taskId: task.id, triggerRunId: null, content: botMarkdown(random), images: [], question: null, replyTo: null, activity: botActivity(random), ending: null })
     append({ botId: leader.id, author: "bot", authorBotId: member.id, taskId: task.id, triggerRunId: null, content: botMarkdown(random), images: [], question: null, replyTo: null, activity: null, ending: null })
     database.tasks.update(task.id, { finishedAt: nextTimestamp() })
