@@ -11,7 +11,7 @@
   "trustedDependencies": ["electron"],
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
-    "dev": "MIMO_USER_DATA=$PWD/.mimo-dev bun run dev:run",
+    "dev": "bun run dev:run",
     "dev:load": "MIMO_USER_DATA=$PWD/.mimo-load MIMO_LOAD_PROVIDER=true bun run dev:run",
     "dev:github-relay": "bun github-relay/index.ts",
     "dev:run": "bun run build:engine && electron-vite dev",

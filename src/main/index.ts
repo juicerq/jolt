@@ -14,8 +14,11 @@ import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
 
+// Uma única pasta de dados por máquina no dev, fora do checkout: worktrees e `bun run dev` abrem o mesmo banco do serviço.
 if (process.env.MIMO_USER_DATA) {
   app.setPath("userData", process.env.MIMO_USER_DATA)
+} else if (!app.isPackaged) {
+  app.setPath("userData", join(app.getPath("appData"), "mimo-dev"))
 }
 
 app.setName(app.isPackaged ? "Mimo" : "Mimo Dev")
@@ -52,7 +55,7 @@ app.on("second-instance", (_event, argv) => {
 })
 app.on("activate", showMainWindow)
 
-// Alt+J on Linux: toggle-jolt.sh minimizes the active window through KWin and sends SIGUSR2 to show it otherwise.
+// Alt+J on Linux: toggle-mimo.sh minimizes the active window through KWin and sends SIGUSR2 to show it otherwise.
 if (process.platform !== "win32") {
   process.on("SIGUSR2", () => {
     showOnReady = true

@@ -9,7 +9,7 @@ bun run build:engine
 bun run build:electron
 ```
 
-`bun run dev` compila o Bun Engine e abre o Electron em modo de desenvolvimento. Ele guarda os dados em `.mimo-dev`, separado do aplicativo instalado. `bun run dev:load` usa `.mimo-load` e o Fornecedor de carga.
+`bun run dev` compila o Bun Engine e abre o Electron em modo de desenvolvimento. Ele guarda os dados em `~/.config/mimo-dev` (`MIMO_USER_DATA` troca a pasta), separado do aplicativo instalado. `bun run dev:load` usa `.mimo-load` e o Fornecedor de carga.
 
 Imports que cruzam pastas usam o alias `@src/...`. `bun run check` roda oxlint, o typecheck e o knip.
 
