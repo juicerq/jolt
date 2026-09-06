@@ -32,7 +32,7 @@ import { ChatMentionChip } from "./chat-mention-chip"
 import { type ChatMention, knownChatMentions, mentionedBotIds, splitChatMentions } from "./chat-mentions"
 import { ChatPermissionRequest } from "./chat-permission-request"
 import { ChatPluginRequest } from "./chat-plugin-request"
-import { ChatQuestion } from "./chat-question"
+import { ChatQuestion, type QuestionAnswer } from "./chat-question"
 import { finishConversationOpen } from "./chat-open-span"
 import { chatGreeting } from "./chat-greetings"
 import { ChatRoutineCall } from "./chat-routine-call"
@@ -95,8 +95,8 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
       })
   }
 
-  async function handleQuestionAnswer(messageId: string, optionValue: string) {
-    return sendPersonInput({ content: "", images: [], replyTo: { messageId, optionValue } }, [])
+  async function handleQuestionAnswer(messageId: string, optionValues: string[]) {
+    return sendPersonInput({ content: "", images: [], replyTo: { messageId, optionValues } }, [])
   }
 
   async function revealEarlier() {
@@ -155,7 +155,7 @@ function ChatRunSlot({ activityDetailsVisible, avatarIdentities, bot, client, na
   return null
 }
 
-function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, message, names, tasks, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; message: ConversationMessage; names: Record<string, string>; tasks: Record<string, Task>; onQuestionAnswer?: (messageId: string, optionValue: string) => Promise<boolean> }) {
+function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, message, names, tasks, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; message: ConversationMessage; names: Record<string, string>; tasks: Record<string, Task>; onQuestionAnswer?: QuestionAnswer }) {
   const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
 
   if (fromOtherBot) {
@@ -197,7 +197,7 @@ function ChatMemberMessage({ bot, message, names, tasks }: { bot: Pick<Bot, "id"
   return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time={formatMessageTime(message.createdAt)} content={message.content} />
 }
 
-function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: (messageId: string, optionValue: string) => Promise<boolean> }) {
+function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: QuestionAnswer }) {
   if (!activityDetailsVisible && !message.content && !message.ending) {
     return null
   }
@@ -208,7 +208,7 @@ function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuest
       {(message.content || message.question) && (
         <ChatStamped className="chat-bot-bubble" copy={message.content} name={bot.name} time={time} anchor="bubble">
           {message.content && <ChatContent content={message.content} />}
-          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValue={answer?.optionValue} interactive={!!onQuestionAnswer && !bot.closed} onAnswer={onQuestionAnswer ?? unavailableQuestionAnswer} />}
+          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} interactive={!!onQuestionAnswer && !bot.closed} onAnswer={onQuestionAnswer ?? unavailableQuestionAnswer} />}
         </ChatStamped>
       )}
       {message.ending && <ChatStamped name={bot.name} time={time} anchor="text"><ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} /></ChatStamped>}

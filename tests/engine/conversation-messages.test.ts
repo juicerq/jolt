@@ -139,11 +139,11 @@ test("pergunta chega uma vez com opções e envios inválidos ou tardios não al
   const c = await conversation()
   expect(await c.tool(sendMessageTool).execute({ content: "  " }).catch((error: unknown) => error)).toBeInstanceOf(Error)
   expect(await c.tool(sendMessageTool).execute({ content: "a".repeat(messageContentLimit + 1) }).catch((error: unknown) => error)).toMatchObject({ message: expect.stringContaining("This message is too long") })
-  const question = { content: "Qual formato?", options: [{ value: "pdf", label: "PDF" }, { value: "md", label: "Markdown" }], allowOther: true }
+  const question = { content: "Qual formato?", options: [{ value: "pdf", label: "PDF" }, { value: "md", label: "Markdown" }], allowOther: true, multiple: false }
   await c.tool(askTool).execute(question)
   c.emit({ type: "text", text: question.content })
   c.finish()
-  expect(c.history().filter((message) => message.author === "bot")).toMatchObject([{ content: question.content, question: { options: question.options, allowOther: true } }])
+  expect(c.history().filter((message) => message.author === "bot")).toMatchObject([{ content: question.content, question: { options: question.options, allowOther: true, multiple: false } }])
   expect(await c.tool(sendMessageTool).execute({ content: "Envio tardio" }).catch((error: unknown) => error)).toMatchObject({ message: "No active conversation turn" })
   expect(c.history()).toHaveLength(2)
 })

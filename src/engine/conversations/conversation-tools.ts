@@ -24,7 +24,7 @@ export function createConversationTools(send: (content: string, question: Messag
     },
     {
       name: askTool,
-      description: "Ask the person to choose between options. This sends the question and ends your turn: say what you need in content, list the options, then stop. Do not send the same question with send_message.",
+      description: "Ask the person to choose between options. This sends the question and ends your turn: say what you need in content, list the options, then stop. Set multiple when more than one option can apply at once; the answer then lists every chosen option. Do not send the same question with send_message.",
       inputSchema: {
         type: "object",
         properties: {
@@ -45,8 +45,9 @@ export function createConversationTools(send: (content: string, question: Messag
             },
           },
           allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
+          multiple: { type: "boolean", description: "Whether the person may choose more than one option" },
         },
-        required: ["content", "options", "allowOther"],
+        required: ["content", "options", "allowOther", "multiple"],
         additionalProperties: false,
       },
       async execute(params: Record<string, unknown>, signal?: AbortSignal) {

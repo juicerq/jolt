@@ -22,8 +22,9 @@ const messageQuestionOption = z.strictObject({
 const messageQuestion = z.strictObject({
   options: z.array(messageQuestionOption).min(2).max(12),
   allowOther: z.boolean(),
+  multiple: z.boolean(),
 })
-const messageReply = z.strictObject({ messageId: id, optionValue: id.max(100) })
+const messageReply = z.strictObject({ messageId: id, optionValues: z.array(id.max(100)).min(1) })
 const queuedMessage = z.strictObject({
   id,
   content: z.string(),

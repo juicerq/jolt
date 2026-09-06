@@ -597,13 +597,24 @@ export function createConversations(input: {
 
   function resolveReplyContent(botId: string, replyTo: MessageReply) {
     const questionMessage = input.database.conversations.get(replyTo.messageId)
-    const option = questionMessage?.question?.options.find((candidate) => candidate.value === replyTo.optionValue)
 
-    if (!questionMessage || questionMessage.botId !== botId || questionMessage.author !== "bot" || !option) {
+    if (!questionMessage?.question || questionMessage.botId !== botId || questionMessage.author !== "bot") {
       throw new Error("Question option is no longer available")
     }
 
-    return option.label
+    const { question } = questionMessage
+    const values = new Set(replyTo.optionValues)
+    const chosen = question.options.filter((option) => values.has(option.value))
+
+    if (chosen.length !== replyTo.optionValues.length) {
+      throw new Error("Question option is no longer available")
+    }
+
+    if (!question.multiple && chosen.length > 1) {
+      throw new Error("Question accepts a single option")
+    }
+
+    return chosen.map((option) => option.label).join(", ")
   }
 
   return {

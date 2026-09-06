@@ -133,11 +133,11 @@ Um envio deliberado e persistido na Conversa do Bot que desenvolve uma ideia com
 _Evitar_: Turno, Atividade, fragmento de streaming
 
 **Pergunta**:
-Uma Mensagem final em que o Bot apresenta opções conhecidas e espera a escolha da pessoa antes de continuar. A Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
+Uma Mensagem final em que o Bot apresenta Opções conhecidas e espera a escolha da pessoa antes de continuar. Ela aceita uma única Opção ou, quando o Bot permite, várias; a Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
 _Evitar_: Formulário, Pedido de permissão, interrupção
 
 **Resposta**:
-Uma Mensagem da pessoa que escolhe uma Opção de uma Pergunta e inicia um novo Turno. Ela preserva o vínculo com a Pergunta mesmo depois que a Conversa é reaberta.
+Uma Mensagem da pessoa que escolhe uma ou mais Opções de uma Pergunta e inicia um novo Turno. Ela preserva o vínculo com a Pergunta mesmo depois que a Conversa é reaberta.
 _Evitar_: Decisão, retorno da ferramenta
 
 **Opção**:
