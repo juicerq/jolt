@@ -1,39 +1,22 @@
-import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { useId, useRef, useState, type ReactNode } from "react"
+import { type ReactNode, type Ref, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { BotFace } from "../bots/bot-face"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
+import { chatControlAnchor } from "../chat/chat-control-menu"
+import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { appUpdateStore } from "../settings/app-update-store"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { InlineAction } from "../ui/inline-action"
+import { menuCardClassName, MenuOption } from "../ui/menu"
 import { Tooltip, useTooltip } from "../ui/tooltip"
-
-const chatStatusLabels: Record<ChatStatus, string> = {
-  available: "Disponível",
-  working: "Trabalhando",
-  "awaiting-decision": "Aguardando decisão",
-  "awaiting-response": "Aguardando resposta",
-  waiting: "Interrompendo",
-  completed: "Concluído",
-  error: "Erro",
-}
-
-const chatStatusClassNames: Record<ChatStatus, string> = {
-  available: "bg-status-success",
-  working: "bg-status-working",
-  "awaiting-decision": "bg-status-awaiting-decision",
-  "awaiting-response": "bg-status-awaiting-decision",
-  waiting: "bg-status-warning",
-  completed: "bg-status-success",
-  error: "bg-status-error",
-}
 
 const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
 
@@ -43,6 +26,7 @@ const teamAvatarHoverClassNames = [
   "group-hover/stack:translate-x-0.75 group-hover/stack:translate-y-0.25",
 ]
 
+/** Desktop only. Below `md` the BotsRail takes over. */
 export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const draft = useSelector(botsStore, (state) => state.draft)
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
@@ -50,28 +34,23 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   const [search, setSearch] = useState("")
 
   return (
-    <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-[720px]:items-stretch max-[720px]:overflow-hidden max-[720px]:pt-2 max-[720px]:pl-2">
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-2 max-[720px]:hidden">
+    <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-md:hidden">
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
         <BotSearch value={search} onChange={setSearch} />
-        <div className="flex gap-1">
-          <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
-        </div>
-      </div>
-      <div className="mb-3 hidden grid-cols-2 gap-1 self-center max-[720px]:grid">
-        <CompactBotSearch value={search} onChange={setSearch} />
-        <SidebarTopActions draftOpen={!!draft} pluginsOpen={pluginsOpen} />
+        <CreateMenu draftOpen={!!draft} />
       </div>
       {draft && <DraftRow draft={draft} />}
       <SidebarProjects client={client} search={search} draftOpen={!!draft} />
       <div className="mt-auto flex flex-col gap-1 pt-2">
         <SidebarUpdateButton />
-        <SidebarSettingsButton active={settingsOpen} />
+        <SidebarNavButton active={pluginsOpen} icon={<PuzzlePieceIcon className="size-4 shrink-0" aria-hidden="true" />} label="Plugins" onClick={openPlugins} />
+        <SidebarNavButton active={settingsOpen} icon={<Cog6ToothIcon className="size-4 shrink-0" aria-hidden="true" />} label="Configurações" onClick={openSettings} />
       </div>
     </aside>
   )
 }
 
-function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+export function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -135,48 +114,23 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
   )
 }
 
-function SidebarTopActions({ draftOpen, pluginsOpen }: { draftOpen: boolean; pluginsOpen: boolean }) {
-  return (
-    <>
-      <IconButton iconSize={16} size={28} type="button" label="Criar Projeto" onClick={openCreateProject}>
-        <FolderIcon aria-hidden="true" />
-      </IconButton>
-      <IconButton className={draftOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Criar Bot" aria-pressed={draftOpen} onClick={openCreateBot}>
-        <UserPlusIcon aria-hidden="true" />
-      </IconButton>
-      <IconButton className={pluginsOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Plugins" aria-pressed={pluginsOpen} onClick={openPlugins}>
-        <PuzzlePieceIcon aria-hidden="true" />
-      </IconButton>
-    </>
-  )
-}
+const createPopoverClassName = `${menuCardClassName} chat-control-popover inset-auto mt-1 [position-area:bottom_span-left] [position-try-fallbacks:flip-block,flip-inline]`
 
-function CompactBotSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const popoverId = `sidebar-search-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
-  const inputRef = useRef<HTMLInputElement | null>(null)
-
-  function handleOpen() {
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }
+/** A "+" that opens Novo Bot / Novo Projeto: a dropdown on desktop, a sheet on mobile. */
+export function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
+  const popoverId = `create-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
+  const anchor = chatControlAnchor(popoverId)
 
   return (
     <>
-      <IconButton className={value ? "bg-surface-active text-primary" : ""} iconSize={16} size={28} type="button" label="Buscar Bots" aria-pressed={!!value} popoverTarget={popoverId} tooltipPlacement="right" onClick={handleOpen}>
-        <MagnifyingGlassIcon aria-hidden="true" />
-      </IconButton>
-      <div className="inset-auto top-2 left-24 m-0 w-56 rounded-xl border border-outline bg-surface-raised p-1.5 shadow-[0_2px_6px_rgb(0_0_0/28%),0_12px_32px_rgb(0_0_0/32%)]" id={popoverId} popover="auto" onKeyDown={(event) => event.key === "Escape" && event.stopPropagation()}>
-        <label className="relative flex items-center">
-          <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />
-          <input
-            className="box-border h-8 w-full rounded-lg border border-outline bg-canvas py-0 pr-2.5 pl-8 text-control text-primary placeholder:text-muted hover:border-outline-strong focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-            type="search"
-            ref={inputRef}
-            aria-label="Buscar Bots"
-            placeholder="Buscar Bots"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-          />
-        </label>
+      <span className="grid" style={anchor.trigger}>
+        <IconButton className={draftOpen ? "bg-surface-active text-primary" : ""} iconSize={16} size={size} type="button" label="Criar" aria-pressed={draftOpen} popoverTarget={popoverId}>
+          <PlusIcon aria-hidden="true" />
+        </IconButton>
+      </span>
+      <div className={createPopoverClassName} id={popoverId} popover="auto" aria-label="Criar" style={anchor.popover}>
+        <MenuOption icon={<UserPlusIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />} label="Novo Bot" selected={false} onSelect={openCreateBot} />
+        <MenuOption icon={<FolderIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />} label="Novo Projeto" selected={false} onSelect={openCreateProject} />
       </div>
     </>
   )
@@ -184,55 +138,38 @@ function CompactBotSearch({ value, onChange }: { value: string; onChange: (value
 
 function SidebarUpdateButton() {
   const updateReady = useSelector(appUpdateStore, (state) => state.updateReady)
-  const tooltip = useTooltip()
 
   if (!updateReady) {
     return null
   }
 
   return (
-    <div className="min-w-0">
-      <Button
-        {...tooltip.anchorProps}
-        className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-[720px]:justify-center max-[720px]:px-0"
-        type="button"
-        aria-label="Atualizar e reiniciar"
-        onClick={() => window.desktop.installUpdate()}
-      >
-        <ArrowPathIcon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="max-[720px]:hidden">Atualizar e reiniciar</span>
-      </Button>
-      <div className="min-[721px]:hidden"><Tooltip {...tooltip.popoverProps} placement="right">Atualizar e reiniciar</Tooltip></div>
-    </div>
+    <Button className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-md:h-11" type="button" onClick={() => window.desktop.installUpdate()}>
+      <ArrowPathIcon className="size-4 shrink-0" aria-hidden="true" />
+      Atualizar e reiniciar
+    </Button>
   )
 }
 
-function SidebarSettingsButton({ active }: { active: boolean }) {
-  const tooltip = useTooltip()
-
+function SidebarNavButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <div className="min-w-0">
-      <button
-        {...tooltip.anchorProps}
-        className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active max-[720px]:justify-center max-[720px]:px-0 ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
-        type="button"
-        aria-label="Configurações"
-        aria-pressed={active}
-        onClick={openSettings}
-      >
-        <Cog6ToothIcon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="max-[720px]:hidden">Configurações</span>
-      </button>
-      <div className="min-[721px]:hidden"><Tooltip {...tooltip.popoverProps} placement="right">Configurações</Tooltip></div>
-    </div>
+    <button
+      className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 
 function DraftRow({ draft }: { draft: BotDraft }) {
   return (
-    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary max-[720px]:justify-center" aria-current="true">
+    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary" aria-current="true">
       <BotFace className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} />
-      <span className="flex min-w-0 flex-1 flex-col gap-1 max-[720px]:hidden">
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
         <small className="text-metadata font-medium text-muted">Em rascunho</small>
       </span>
@@ -251,7 +188,7 @@ function SidebarEmpty({ children, title }: { children: ReactNode; title: string 
 
 function ProjectHeading({ children, id }: { children: string; id: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5 max-[720px]:hidden">
+    <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5">
       <h3 className="m-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-semibold tracking-[0.08em] text-muted uppercase" id={id}>
         {children}
       </h3>
@@ -259,15 +196,16 @@ function ProjectHeading({ children, id }: { children: string; id: string }) {
   )
 }
 
-function BotSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
   return (
-    <label className="relative flex min-w-0 flex-1 items-center max-[720px]:hidden">
+    <label className="relative flex min-w-0 flex-1 items-center">
       <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />
       <input
-        className="box-border h-8 w-full rounded-lg border border-outline bg-canvas py-0 pr-2.5 pl-8 text-control text-primary placeholder:text-muted hover:border-outline-strong focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+        className="box-border h-8 w-full rounded-lg border border-outline bg-canvas py-0 pr-2.5 pl-8 text-control text-primary placeholder:text-muted hover:border-outline-strong focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none max-md:h-9 max-md:text-base"
         type="search"
         aria-label="Buscar Bots"
         placeholder="Buscar Bots"
+        ref={ref}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -318,7 +256,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
       <div className="group/leader relative">
         <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} />
         <IconButton
-          className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100"
+          className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
           iconSize={13}
           position="absolute"
           size={24}
@@ -341,8 +279,8 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
           {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
-              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-[720px]:justify-center" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
-                <span className="max-[720px]:hidden">Encerrados</span>
+              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+                Encerrados
                 <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
               </button>
             </li>
@@ -354,7 +292,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   )
 }
 
-const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5 max-[720px]:ml-2"
+const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5"
 const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
 
 function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status?: ChatStatus }) {
@@ -380,7 +318,7 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
 
   return (
     <button
-      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent max-[720px]:flex-col max-[720px]:justify-center max-[720px]:gap-1.5 max-[720px]:px-1.5 ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5 max-[720px]:pr-1.5" : ""}`}
+      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
       type="button"
       aria-current={selected ? "true" : undefined}
       onClick={() => selectBot(bot.id)}
@@ -399,9 +337,9 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         </span>
       )}
       {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
-      <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden max-[720px]:w-full max-[720px]:flex-none max-[720px]:gap-0 max-[720px]:text-center">
-        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary max-[720px]:line-clamp-2 max-[720px]:whitespace-normal max-[720px]:text-metadata max-[720px]:[overflow-wrap:anywhere]">{bot.name}</strong>
-        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted max-[720px]:hidden">{describeMember(bot)}</small>
+      <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+        <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{bot.name}</strong>
+        <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>
       </span>
     </button>
   )

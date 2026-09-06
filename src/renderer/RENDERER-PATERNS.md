@@ -28,3 +28,7 @@ O Renderer não valida dados: o Bun Engine já validou tudo que envia. Importe d
 ## Classes repetidas em massa
 
 Um `className` longo repetido em centenas de elementos custa na abertura da conversa: o Chromium tokeniza o atributo `class` de cada elemento criado. Estilo para descendentes de um elemento repetido, como as cores `hljs-*` dos blocos de código, fica numa classe própria em `styles.css` dentro de `@layer components`, hoje `.chat-code`. Uma variante arbitrária do Tailwind troca `_` por espaço, então `[&_.hljs-built_in]` nunca casa; a regra CSS não tem esse problema.
+
+## Mobile
+
+O breakpoint é o `md` do Tailwind, 48rem. Estilo que muda no celular usa `max-md:`. Estrutura que muda, como a lista ou o plano da conversa e os chips ou a sheet do composer, lê `useIsMobile()` de `ui/use-is-mobile.ts`, uma assinatura em `matchMedia` via `useSyncExternalStore`. O bloco `@media (width < 48rem)` no fim de `styles.css` fica fora de `@layer` de propósito: ele reestiliza primitivos que já carregam utilities, como `.chat-control-popover`, `.mobile-sheet` e `.mobile-screen`, e utilities vencem qualquer layer.

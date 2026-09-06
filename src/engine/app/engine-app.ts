@@ -12,6 +12,7 @@ import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 import type { createTriggers } from "../triggers/triggers"
 import type { PermissionDecisionInput } from "@src/shared/permissions"
+import type { createErrorAutomation } from "../error-automation/error-automation"
 
 interface EngineContext { traceId?: string; spanId?: string }
 
@@ -31,7 +32,7 @@ async function* surfacedStream<T>(stream: AsyncIterable<T>) {
   }
 }
 
-export function createEngineRouter({ startedAt, observability, diagnostics, receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, permissions, plugins }: {
+export function createEngineRouter({ startedAt, observability, diagnostics, receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, permissions, plugins, errorAutomation }: {
   startedAt: string
   observability: Observability
   diagnostics: ReturnType<typeof createDiagnostics>
@@ -46,6 +47,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
   memory: ReturnType<typeof createMemory>
   permissions: { decide(input: PermissionDecisionInput): void }
   plugins: ReturnType<typeof createPlugins>
+  errorAutomation: ReturnType<typeof createErrorAutomation>
 }) {
   const operations = implement(engineContract).$context<EngineContext>().use(async ({ next, context, path }) => {
     try {
@@ -62,6 +64,14 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
   })
 
   return operations.router({
+    errorAutomation: {
+      status: operations.errorAutomation.status.handler(() => errorAutomation.status()),
+      configure: operations.errorAutomation.configure.handler(({ input }) => errorAutomation.configure(input)),
+      run: operations.errorAutomation.run.handler(() => errorAutomation.run()),
+      decide: operations.errorAutomation.decide.handler(({ input }) => errorAutomation.decide(input)),
+      reanalyze: operations.errorAutomation.reanalyze.handler(({ input }) => errorAutomation.reanalyze(input)),
+      verify: operations.errorAutomation.verify.handler(({ input }) => errorAutomation.verify(input)),
+    },
     health: operations.health.handler(() => ({ status: "ready", runtime: `Bun ${Bun.version}`, startedAt })),
     diagnostics: {
       get: operations.diagnostics.get.handler(() => diagnostics.get()),

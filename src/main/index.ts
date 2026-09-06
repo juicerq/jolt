@@ -1,4 +1,4 @@
-import { access, stat } from "node:fs/promises"
+import { access, stat, writeFile } from "node:fs/promises"
 import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
@@ -14,14 +14,53 @@ import { productServices } from "./product-services"
 import { loadSecretKey } from "./secret-key"
 import { createTurnNotifications } from "./turn-notification"
 
+// Uma única pasta de dados por máquina no dev, fora do checkout: worktrees e `bun run dev` abrem o mesmo banco do serviço.
 if (process.env.MIMO_USER_DATA) {
   app.setPath("userData", process.env.MIMO_USER_DATA)
+} else if (!app.isPackaged) {
+  app.setPath("userData", join(app.getPath("appData"), "mimo-dev"))
 }
 
 app.setName(app.isPackaged ? "Mimo" : "Mimo Dev")
 
 if (process.platform === "linux" && !app.isPackaged) {
   app.setDesktopName("mimo-dev.desktop")
+}
+
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+}
+
+const background = process.argv.includes("--background")
+let showOnReady = !background
+let mainWindow: BrowserWindow | undefined
+let quitting = false
+
+function showMainWindow() {
+  if (!mainWindow) {
+    return
+  }
+
+  // Wayland ignores restore() and focus() on a minimized or covered window; unmapping and mapping it again brings it to the front.
+  mainWindow.hide()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+app.on("second-instance", (_event, argv) => {
+  if (!argv.includes("--background")) {
+    showOnReady = true
+    showMainWindow()
+  }
+})
+app.on("activate", showMainWindow)
+
+// Alt+J on Linux: toggle-mimo.sh minimizes the active window through KWin and sends SIGUSR2 to show it otherwise.
+if (process.platform !== "win32") {
+  process.on("SIGUSR2", () => {
+    showOnReady = true
+    showMainWindow()
+  })
 }
 
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
@@ -51,7 +90,7 @@ const engine = new EngineProcess({
   loadProvider: !app.isPackaged && process.env.MIMO_LOAD_PROVIDER === "true",
   onUnexpectedExit(error) {
     console.error(error)
-    app.quit()
+    app.exit(1)
   },
 })
 
@@ -63,18 +102,36 @@ void app.whenReady().then(async () => {
 
   ipcMain.handle("engine:get-connection", () => starting)
 
+  if (!app.isPackaged) {
+    // Lido pelo Vite (/engine-connection.json) e por scripts/mobile.ts para abrir o Mimo no celular.
+    void starting.then((connection) => writeFile(join(app.getPath("userData"), "engine-connection.json"), JSON.stringify({ ...connection, rendererUrl: process.env.ELECTRON_RENDERER_URL })))
+  }
+
   const window = new BrowserWindow({
     width: 960,
     height: 760,
     frame: false,
     icon,
+    show: false,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
-  window.maximize()
+  mainWindow = window
+
+  if (showOnReady) {
+    window.maximize()
+    showMainWindow()
+  }
+
+  window.on("close", (event) => {
+    if (background && !quitting) {
+      event.preventDefault()
+      window.hide()
+    }
+  })
   browser = new Browser(window)
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
@@ -123,11 +180,17 @@ void app.whenReady().then(async () => {
   await loading
 
   await startAppUpdates({ window, engine })
+}).catch(async (error) => {
+  console.error(error)
+  await engine.stop()
+  app.exit(1)
 })
 
 let engineStopped = false
 
 app.on("before-quit", (event) => {
+  quitting = true
+
   if (engineStopped) {
     return
   }

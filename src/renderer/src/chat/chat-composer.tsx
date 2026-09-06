@@ -7,8 +7,9 @@ import type { MessageImage } from "@src/shared/conversations"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
+import { useIsMobile } from "../ui/use-is-mobile"
 
-export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-[700px]:w-[calc(100%-28px)]"
+export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-md:w-[calc(100%-24px)]"
 import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
 import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
 import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
@@ -53,6 +54,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
+  const mobile = useIsMobile()
   const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError } = useChatCommands(bot, client, draft)
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
@@ -212,7 +214,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
   return (
     <form
-      className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
+      className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -233,13 +235,16 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           disabled={busy}
           menuOpen={menuOpen}
           menuId={menuId}
+          enterBreaksLine={mobile}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
-      <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
       <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
+      <div className="col-start-4 flex min-w-0">
+        <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
+      </div>
       <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
     </form>
   )
@@ -310,7 +315,7 @@ function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRe
       {images.map((image, index) => (
         <li key={`${index}-${image.data.length}`} className="group relative">
           <ChatImage className="block size-12 rounded-lg border border-outline-strong object-cover" image={image} index={index} />
-          <IconButton className="-top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" iconSize={13} position="absolute" shape="circle" size={24} tone="canvas" type="button" label="Remover imagem" tooltipPlacement="top" onClick={() => onRemove(index)}><XMarkIcon aria-hidden="true" /></IconButton>
+          <IconButton className="-top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} position="absolute" shape="circle" size={24} tone="canvas" type="button" label="Remover imagem" tooltipPlacement="top" onClick={() => onRemove(index)}><XMarkIcon aria-hidden="true" /></IconButton>
         </li>
       ))}
     </ul>

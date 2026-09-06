@@ -4,8 +4,11 @@ export const menuSurfaceClassName = "m-0 rounded-xl border border-outline bg-sur
 
 export const menuCardClassName = `${menuSurfaceClassName} w-max min-w-52`
 
-export function MenuLabel({ id, children }: { id?: string; children: ReactNode }) {
-  return <p className="m-0 px-2 pt-1 pb-1 text-metadata font-medium text-muted" id={id}>{children}</p>
+/** The shared row skeleton of a menu: MenuOption and rows that open a submenu paint their own tone on top. */
+export const menuRowClassName = "mb-px flex w-full min-w-0 items-center gap-2 rounded-lg border-0 px-2 py-1.5 text-left text-control font-medium transition-colors duration-150 last:mb-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50 max-md:gap-3 max-md:px-3 max-md:py-2.5 motion-reduce:transition-none"
+
+export function MenuLabel({ id, className = "", children }: { id?: string; className?: string; children: ReactNode }) {
+  return <p className={`m-0 px-2 pt-1 pb-1 text-metadata font-medium text-muted ${className}`} id={id}>{children}</p>
 }
 
 interface MenuOptionProps {
@@ -28,7 +31,7 @@ export function MenuOption({ label, detail, icon, selected, standard = false, di
   }
 
   return (
-    <button className={`mb-px flex w-full min-w-0 items-center gap-2 rounded-lg border-0 px-2 py-1.5 text-left text-control font-medium transition-colors duration-150 last:mb-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50 motion-reduce:transition-none ${tone}`} type="button" aria-pressed={selected} disabled={disabled} onClick={handleClick} onMouseEnter={onHover}>
+    <button className={`${menuRowClassName} ${tone}`} type="button" aria-pressed={selected} disabled={disabled} onClick={handleClick} onMouseEnter={onHover}>
       {icon}
       <span className="shrink-0 first-letter:uppercase">{label}</span>
       {detail && <span className="min-w-0 truncate text-metadata font-normal text-muted">{detail}</span>}

@@ -167,6 +167,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
       effort: "medium",
       model: null,
       permissionMode: "ask",
+      executionProfile: null,
       createdAt: nextTimestamp(),
     }
 

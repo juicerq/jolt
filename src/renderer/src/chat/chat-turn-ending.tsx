@@ -11,7 +11,7 @@ export function ChatTurnEnding({ botName, ending, error }: { botName: string; en
   const detail = ending === "failed" && error ? `: ${error}` : ""
 
   return (
-    <p className="m-0 mt-3 grid w-fit max-w-[720px] grid-cols-[16px_auto] items-center gap-[7px] text-support text-muted [&_svg]:stroke-[1.75]">
+    <p className="m-0 mt-3 grid w-fit max-w-[min(720px,100%)] grid-cols-[16px_auto] items-center gap-[7px] text-support text-muted [&_svg]:stroke-[1.75]">
       <NoSymbolIcon className="size-4" aria-hidden="true" />
       <span>{labels[ending](botName)}{detail}</span>
     </p>

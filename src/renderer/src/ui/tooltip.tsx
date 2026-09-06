@@ -22,6 +22,10 @@ export function useTooltip() {
     popoverRef.current?.hidePopover()
   }
   const showAfterDelay = () => {
+    if (!window.matchMedia("(hover: hover)").matches) {
+      return
+    }
+
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(show, 160)
   }

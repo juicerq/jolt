@@ -35,7 +35,7 @@ export function ChatMemberResult({ kind = "result", name, status = "done", time,
   const Icon = icons[kind]
 
   return (
-    <div className="group w-fit max-w-[720px] self-start">
+    <div className="group w-fit max-w-[min(720px,100%)] self-start">
       <details onClick={blurMouseClick} className="group/call text-support text-muted transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none" open={open}>
         <summary className={chatChipClassName}>
           <Icon className="size-4" aria-hidden="true" />
@@ -43,7 +43,7 @@ export function ChatMemberResult({ kind = "result", name, status = "done", time,
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/call:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
           <ChatStamp name={name} time={time} />
         </summary>
-        <div className={`${chatGuideClassName} mt-2 mb-1 ml-[14px] max-w-[620px] py-1 pl-4 text-secondary [&_*]:text-support`}>
+        <div className={`${chatGuideClassName} mt-2 mb-1 ml-[14px] max-w-[min(620px,100%)] py-1 pl-4 text-secondary [&_*]:text-support`}>
           <ChatContent content={content} />
         </div>
       </details>

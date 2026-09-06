@@ -1,6 +1,7 @@
 import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, UserGroupIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
+import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
@@ -20,6 +21,16 @@ import { BotTriggerEditor } from "./bot-trigger-editor"
 import { BotTriggers } from "./bot-triggers"
 import { type BotRoute, botsStore, openBotRoute, openCreateBot } from "./bots-store"
 import { findTeamBot, teamOf } from "./team"
+
+type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory"
+
+interface BotRouteAction {
+  name: BotRouteActionName
+  label: string
+  icon: ReactNode
+  current: boolean
+  select: () => void
+}
 
 export function BotChat({ client, botId }: { client: EngineClient; botId: string | null }) {
   const route = useSelector(botsStore, (state) => state.botRoute)
@@ -90,8 +101,9 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   return <ChatWorkspace bot={bot} client={client} />
 }
 
-function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
-  function open(name: "settings" | "routines" | "triggers" | "memory" | "members") {
+/** The Bot's pages in edge-tab order. Choosing the current page returns to the conversation; on a Rotina, Rotinas returns to the list. */
+function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, route: BotRoute): BotRouteAction[] {
+  function open(name: Exclude<BotRouteActionName, "chat">) {
     if (route.name === name) {
       openBotRoute({ name: "chat" })
       return
@@ -105,14 +117,24 @@ function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
     openBotRoute({ name })
   }
 
+  return [
+    { name: "chat", label: "Conversa", icon: <ChatBubbleLeftIcon aria-hidden="true" />, current: route.name === "chat", select: () => openBotRoute({ name: "chat" }) },
+    { name: "settings", label: "Configurações", icon: <Cog6ToothIcon aria-hidden="true" />, current: route.name === "settings", select: () => open("settings") },
+    ...(bot.leaderBotId ? [] : [{ name: "members" as const, label: "Integrantes", icon: <UserGroupIcon aria-hidden="true" />, current: route.name === "members", select: () => open("members") }]),
+    ...(bot.temporary ? [] : [
+      { name: "routines" as const, label: "Rotinas", icon: <ClockIcon aria-hidden="true" />, current: route.name === "routines" || route.name === "routine", select: () => open("routines") },
+      { name: "triggers" as const, label: "Gatilhos", icon: <BoltIcon aria-hidden="true" />, current: route.name === "triggers" || route.name === "trigger", select: () => open("triggers") },
+    ]),
+    { name: "memory", label: "Memórias", icon: <BrainIcon aria-hidden="true" />, current: route.name === "memory", select: () => open("memory") },
+  ]
+}
+
+function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
   return (
     <ChatEdgeTab>
-      <IconButton iconSize={16} current={route.name === "chat"} type="button" label={`Conversa de ${bot.name}`} tooltipPlacement="left" onClick={() => openBotRoute({ name: "chat" })}><ChatBubbleLeftIcon aria-hidden="true" /></IconButton>
-      <IconButton iconSize={16} current={route.name === "settings"} type="button" label={`Configurações de ${bot.name}`} tooltipPlacement="left" onClick={() => open("settings")}><Cog6ToothIcon aria-hidden="true" /></IconButton>
-      {!bot.leaderBotId && <IconButton iconSize={16} current={route.name === "members"} type="button" label={`Integrantes de ${bot.name}`} tooltipPlacement="left" onClick={() => open("members")}><UserGroupIcon aria-hidden="true" /></IconButton>}
-      {!bot.temporary && <IconButton iconSize={16} current={route.name === "routines" || route.name === "routine"} type="button" label={`Rotinas de ${bot.name}`} tooltipPlacement="left" onClick={() => open("routines")}><ClockIcon aria-hidden="true" /></IconButton>}
-      {!bot.temporary && <IconButton iconSize={16} current={route.name === "triggers" || route.name === "trigger"} type="button" label={`Gatilhos de ${bot.name}`} tooltipPlacement="left" onClick={() => open("triggers")}><BoltIcon aria-hidden="true" /></IconButton>}
-      <IconButton iconSize={16} current={route.name === "memory"} type="button" label={`Memórias de ${bot.name}`} tooltipPlacement="left" onClick={() => open("memory")}><BrainIcon aria-hidden="true" /></IconButton>
+      {botRouteActions(bot, route).map((action) => (
+        <IconButton key={action.name} iconSize={16} current={action.current} type="button" label={`${action.label} de ${bot.name}`} tooltipPlacement="left" onClick={action.select}>{action.icon}</IconButton>
+      ))}
     </ChatEdgeTab>
   )
 }

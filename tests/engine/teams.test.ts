@@ -105,7 +105,7 @@ async function teamApp() {
     database,
     observability,
     privateBotsDirectory: join(directory, "bots"),
-    providers: { async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] } },
+    providers: { async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] }, async validateExecution() {} },
     conversations: { close: async (id) => conversations.close(id), isActive: (id) => !!conversations.active(id) },
   })
   const conversations = createConversations({ database, bots, tasks, runtime, observability, extensions: [] })

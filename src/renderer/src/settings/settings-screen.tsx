@@ -7,9 +7,11 @@ import { IconButton } from "../ui/icon-button"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
+import { botPageColumnClassName } from "../bots/bot-page"
 import { appSettingsStore, setActivityDetailsVisible } from "./app-settings-store"
 import { ProviderConnections } from "./provider-connections"
 import { MemorySettings } from "./memory-settings"
+import { ErrorAutomationSettings } from "./error-automation-settings"
 
 export function SettingsScreen({ client }: { client: EngineClient }) {
   const activityDetailsVisible = useSelector(appSettingsStore, (state) => state.activityDetailsVisible)
@@ -18,9 +20,9 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
   return (
     <>
       <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-surface" aria-label="Configurações">
-        <div className="mx-auto flex w-[min(560px,calc(100%-48px))] flex-1 flex-col gap-8 pt-12 pb-12">
+        <div className={`${botPageColumnClassName} flex flex-1 flex-col gap-8 pt-12 pb-12 max-md:pt-6 max-md:pb-8`}>
           <header>
-            <h2 className="m-0 text-title font-semibold text-primary">Configurações</h2>
+            <h2 className="m-0 text-title font-semibold text-primary max-md:hidden">Configurações</h2>
             <p className="m-0 mt-1 text-support font-normal text-muted">Preferências do Mimo neste computador</p>
           </header>
           {import.meta.env.DEV && (
@@ -36,6 +38,7 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
           )}
           <ProviderConnections client={client} />
           <MemorySettings client={client} />
+          <ErrorAutomationSettings client={client} />
         </div>
       </section>
       <ChatEdgeTab>

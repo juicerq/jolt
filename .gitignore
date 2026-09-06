@@ -15,3 +15,5 @@ logs/
 .mimo-dev/
 .env
 release/
+.koworker/
+.optmem/

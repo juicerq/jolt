@@ -8,6 +8,7 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { useEscape } from "../ui/use-escape"
+import { botPageColumnClassName } from "../bots/bot-page"
 import { AddPluginDialog } from "./add-plugin-dialog"
 import { PluginAccountRow } from "./plugin-account-row"
 import { useConnectPlugin } from "./plugin-connection"
@@ -21,10 +22,10 @@ export function PluginsScreen({ client }: { client: EngineClient }) {
   return (
     <>
       <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-surface" aria-label="Plugins">
-        <div className="mx-auto flex w-[min(560px,calc(100%-48px))] flex-1 flex-col gap-8 pt-12 pb-12">
-          <header className="flex items-center justify-between gap-4">
+        <div className={`${botPageColumnClassName} flex flex-1 flex-col gap-8 pt-12 pb-12 max-md:pt-6 max-md:pb-8`}>
+          <header className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
             <div className="min-w-0">
-              <h2 className="m-0 text-title font-semibold text-primary">Plugins</h2>
+              <h2 className="m-0 text-title font-semibold text-primary max-md:hidden">Plugins</h2>
               <p className="m-0 mt-1 text-support text-muted">Conecte suas contas e escolha quem pode usá-las nas configurações de cada Bot.</p>
             </div>
             <Button className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => setAdding(true)}><PlusIcon className="size-4" aria-hidden="true" />Adicionar Plugin</Button>

@@ -38,6 +38,7 @@ const bot: Bot = {
   provider,
   function: { outcome: "Ajudar no que você precisar" },
   workingDirectoryOverride: null,
+  executionProfile: null,
   temporary: false,
   memoryEnabled: true,
   effort: "xhigh",
