@@ -38,31 +38,13 @@ function showMainWindow() {
     return
   }
 
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore()
-  }
-
+  // Wayland ignores restore() and focus() on a minimized or covered window; unmapping and mapping it again brings it to the front.
+  mainWindow.hide()
   mainWindow.show()
   mainWindow.focus()
 }
 
-/** Minimizes the focused window; otherwise shows it. Alt+J on Linux sends SIGUSR2 here through toggle-jolt.sh. */
-function toggleMainWindow() {
-  if (mainWindow?.isVisible() && !mainWindow.isMinimized() && mainWindow.isFocused()) {
-    mainWindow.minimize()
-    return
-  }
-
-  showOnReady = true
-  showMainWindow()
-}
-
 app.on("second-instance", (_event, argv) => {
-  if (argv.includes("--toggle")) {
-    toggleMainWindow()
-    return
-  }
-
   if (!argv.includes("--background")) {
     showOnReady = true
     showMainWindow()
@@ -70,8 +52,12 @@ app.on("second-instance", (_event, argv) => {
 })
 app.on("activate", showMainWindow)
 
+// Alt+J on Linux: toggle-jolt.sh minimizes the active window through KWin and sends SIGUSR2 to show it otherwise.
 if (process.platform !== "win32") {
-  process.on("SIGUSR2", toggleMainWindow)
+  process.on("SIGUSR2", () => {
+    showOnReady = true
+    showMainWindow()
+  })
 }
 
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
