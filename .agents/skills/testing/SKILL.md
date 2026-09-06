@@ -1,11 +1,9 @@
 ---
 name: testing
-description: Selecionar, escrever e revisar testes permanentes do Jolt no fechamento de features e correções, ou quando o usuário pedir trabalho em testes.
+description: Selecionar, escrever e revisar testes permanentes no fechamento de features e correções, ou quando o usuário pedir trabalho em testes.
 ---
 
-# Testes do Jolt
-
-Use esta skill no momento definido pelo [AGENTS.md](../../../AGENTS.md). Leia o [guia local](../../../tests/TESTS-PATERNS.md) para executar testes e escolher recursos do Bun. A etapa pode terminar sem testes novos.
+# Testes
 
 ## Selecionar pelo risco
 
@@ -25,9 +23,9 @@ Prepare só os dados exigidos pelo caso. Crie suporte compartilhado quando houve
 
 ## Verificar frontend
 
-Mudanças de interface exigem verificar o resultado renderizado nos estados afetados, incluindo largura estreita e foco quando pertinentes. Acrescente testes permanentes para comportamentos relevantes que atravessem a UI, como envio pelo teclado, rascunho por conversa e composer editável durante streaming.
+Frontend não exige testes automatizados permanentes. Só crie ou amplie esses testes quando o usuário pedir explicitamente.
 
-Mudança de espaçamento, cor, borda ou alinhamento, por si só, não exige teste novo. Não teste strings de classes CSS nem grandes snapshots de componentes. Compare screenshots automaticamente apenas quando houver apresentação estável ou regressão visual recorrente que justifique controlar fontes, dados, animações e ambiente. Revise cada diferença antes de atualizar a referência.
+Verifique as mudanças de interface no app, nos estados e interações afetados, incluindo largura estreita e foco quando pertinentes. Essa verificação pode usar automação temporária e screenshots, sem acrescentar casos à suíte ou refatorar componentes para acomodar testes.
 
 Use os benchmarks existentes para riscos de latência, scroll e memória, com ambiente e linha de base comparáveis. Não converta essas medições em limites de milissegundos na suíte funcional.
 
