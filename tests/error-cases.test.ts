@@ -5,7 +5,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 import type { ErrorDelivery, ErrorReport, ErrorRun } from "@src/shared/error-automation"
 import { testDirectory } from "./support/test-directory"
 
-const directory = testDirectory("jolt-error-cases-")
+const directory = testDirectory("mimo-error-cases-")
 
 afterEach(() => setSystemTime())
 
@@ -19,7 +19,7 @@ function report(run: ErrorRun, changes: Partial<ErrorReport>): ErrorReport {
 
 async function withDatabase(check: (database: AppDatabase, reopen: () => AppDatabase) => void | Promise<void>) {
   const { observability } = createObservationSystem({ appSessionId: "test-errors", logDirectory: join(directory, "logs"), development: false, outputs: [] })
-  const path = join(directory, "jolt.sqlite")
+  const path = join(directory, "mimo.sqlite")
   const database = openDatabase(path, observability)
 
   try {
@@ -217,7 +217,7 @@ test("two processes racing for the same case create exactly one run", async () =
     const script = `
       import { Database } from "bun:sqlite";
       import { createErrorCases } from ${JSON.stringify(new URL("../src/engine/persistence/error-cases.ts", import.meta.url).pathname)};
-      const sqlite = new Database(${JSON.stringify(join(directory, "jolt.sqlite"))});
+      const sqlite = new Database(${JSON.stringify(join(directory, "mimo.sqlite"))});
       sqlite.run("PRAGMA busy_timeout = 5000");
       await Bun.stdin.text();
       try {

@@ -61,7 +61,7 @@ export function errorIssueDraft(record: ErrorCase) {
     `Versão investigada: ${report.codeVersion}. Versão informada pela fonte: ${record.delivery.codeVersion ?? "desconhecida"}.`,
     `## Confirmação\n${record.decision.reason}`,
     `Referência interna: ${record.id}; revisão analisada ${report.revision}.`,
-    `<!-- jolt-dogama-error:${record.id} -->`,
+    `<!-- mimo-dogama-error:${record.id} -->`,
   ].join("\n\n")
 
   return { title: redactErrorText(record.delivery.title).slice(0, 200), body: redactErrorText(body) }

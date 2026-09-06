@@ -3,7 +3,7 @@ import { link, lstat, mkdir, open, readFile, readdir, realpath, rm } from "node:
 import { dirname, join } from "node:path"
 import { parseEnv } from "node:util"
 
-const runnerImage = "jolt-error-checks:bun1.3.14-node24.16.0-gs-v1"
+const runnerImage = "mimo-error-checks:bun1.3.14-node24.16.0-gs-v1"
 const runnerDockerfile = "FROM imbios/bun-node:1.3.14-24.16.0-slim\nRUN apt-get update && apt-get install -y --no-install-recommends ghostscript && rm -rf /var/lib/apt/lists/*\n"
 const runIdentity = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 const preparePrisma = `
@@ -81,12 +81,12 @@ async function workspaceMounts(directory: string) {
 }
 
 export async function errorGit(directory: string, args: string[]) {
-  return await command(["git", "-c", "core.hooksPath=/dev/null", "-c", "user.name=Jolt", "-c", "user.email=jolt@localhost", ...args], directory)
+  return await command(["git", "-c", "core.hooksPath=/dev/null", "-c", "user.name=Mimo", "-c", "user.email=mimo@localhost", ...args], directory)
 }
 
 export async function prepareErrorDependencies(directory: string, signal?: AbortSignal) {
   const workspace = await realpath(directory)
-  const container = `jolt-install-${crypto.randomUUID()}`
+  const container = `mimo-install-${crypto.randomUUID()}`
 
   await command(["docker", "image", "inspect", runnerImage], workspace, signal, 30_000).catch(async () => {
     await command(["docker", "build", "--tag", runnerImage, "-"], workspace, signal, 900_000, runnerDockerfile)
@@ -94,7 +94,7 @@ export async function prepareErrorDependencies(directory: string, signal?: Abort
 
   try {
     await command([
-      "docker", "run", "--rm", "--name", container, "--label", `jolt.error-workspaces=${dirname(workspace)}`, ...await workspaceMounts(workspace),
+      "docker", "run", "--rm", "--name", container, "--label", `mimo.error-workspaces=${dirname(workspace)}`, ...await workspaceMounts(workspace),
       runnerImage, "sh", "-c", `bun install --frozen-lockfile --ignore-scripts && bun -e '${preparePrisma}'`,
     ], workspace, signal)
   } finally {
@@ -105,7 +105,7 @@ export async function prepareErrorDependencies(directory: string, signal?: Abort
 export async function cleanupErrorChecks(workspacesRoot: string) {
   await mkdir(workspacesRoot, { recursive: true })
   const root = await realpath(workspacesRoot)
-  const filter = `label=jolt.error-workspaces=${root}`
+  const filter = `label=mimo.error-workspaces=${root}`
   const containers = (await command(["docker", "ps", "-aq", "--filter", filter], root, undefined, 30_000)).split("\n").filter(Boolean)
 
   if (containers.length) {
@@ -131,14 +131,14 @@ export async function cleanupErrorChecks(workspacesRoot: string) {
       }
 
       const path = join(directory, file.name)
-      const temporaryRun = file.name.match(/^\.jolt-check-(.+)\.env\.tmp$/)?.[1]
+      const temporaryRun = file.name.match(/^\.mimo-check-(.+)\.env\.tmp$/)?.[1]
 
       if (temporaryRun && runIdentity.test(temporaryRun)) {
         await rm(path)
       } else if (file.name === ".env" && (await lstat(path)).size < 200_000) {
         const values = parseEnv(await readFile(path, "utf8"))
 
-        if (values.NODE_ENV === "test" && runIdentity.test(values.JOLT_ERROR_CHECK_RUN_ID ?? "")) {
+        if (values.NODE_ENV === "test" && runIdentity.test(values.MIMO_ERROR_CHECK_RUN_ID ?? "")) {
           await rm(path)
         }
       }
@@ -153,7 +153,7 @@ export async function verifyErrorCorrection(directory: string, runId: string, si
 
   signal?.throwIfAborted()
   const workspace = await realpath(directory)
-  const prefix = `jolt-check-${runId}`
+  const prefix = `mimo-check-${runId}`
   const [frontChanges, toolsChanges] = await Promise.all([
     errorGit(workspace, ["status", "--porcelain", "--untracked-files=all", "--", "apps/front"]),
     errorGit(workspace, ["status", "--porcelain", "--untracked-files=all", "--", "apps/tools"]),
@@ -162,13 +162,13 @@ export async function verifyErrorCorrection(directory: string, runId: string, si
     ...(frontChanges ? ["cd /workspace/apps/front && bunx --no-install tsr generate && bun astro sync && bun tsgo && bun check:astro"] : []),
     ...(toolsChanges ? ["cd /workspace/apps/tools && bun tsgo"] : []),
   ]
-  const resourceLabel = `jolt.error-workspaces=${dirname(workspace)}`
+  const resourceLabel = `mimo.error-workspaces=${dirname(workspace)}`
   const containers: string[] = []
   const fixture = parseEnv(await errorGit(workspace, ["show", "HEAD:apps/tests/.env.test"]))
   const environment = {
     ...fixture,
     NODE_ENV: "test",
-    JOLT_ERROR_CHECK_RUN_ID: runId,
+    MIMO_ERROR_CHECK_RUN_ID: runId,
     NEW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dogama_test",
     DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dogama_test",
     TYPESENSE_HOST: "typesense", TYPESENSE_API_KEY: "123",
@@ -178,7 +178,7 @@ export async function verifyErrorCorrection(directory: string, runId: string, si
     PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION: "yes",
   }
   const envFile = join(workspace, ".env")
-  const temporaryEnv = join(workspace, `.jolt-check-${runId}.env.tmp`)
+  const temporaryEnv = join(workspace, `.mimo-check-${runId}.env.tmp`)
   const envHandle = await open(temporaryEnv, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
   let envPublished = false
 

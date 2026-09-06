@@ -28,7 +28,7 @@ function quote(value: string) {
 }
 
 const unit = `[Unit]
-Description=Jolt Dogama error automation
+Description=Mimo Dogama error automation
 After=graphical-session.target
 
 [Service]
@@ -61,7 +61,7 @@ if (values["dry-run"]) {
 
   const directory = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "systemd/user")
   await mkdir(directory, { recursive: true, mode: 0o700 })
-  await writeFile(join(directory, "jolt-errors.service"), unit, { mode: 0o600 })
+  await writeFile(join(directory, "mimo-errors.service"), unit, { mode: 0o600 })
   const reload = Bun.spawn([systemctl, "--user", "daemon-reload"], { stdout: "inherit", stderr: "inherit" })
 
   if (await reload.exited !== 0) {
@@ -69,12 +69,12 @@ if (values["dry-run"]) {
   }
 
   if (values.enable) {
-    const enable = Bun.spawn([systemctl, "--user", "enable", "--now", "jolt-errors.service"], { stdout: "inherit", stderr: "inherit" })
+    const enable = Bun.spawn([systemctl, "--user", "enable", "--now", "mimo-errors.service"], { stdout: "inherit", stderr: "inherit" })
 
     if (await enable.exited !== 0) {
       throw new Error("Service installed, but systemd could not enable and start it")
     }
   }
 
-  console.log(values.enable ? "Jolt error service installed and enabled." : "Jolt error service installed. It has not been enabled or started.")
+  console.log(values.enable ? "Mimo error service installed and enabled." : "Mimo error service installed. It has not been enabled or started.")
 }

@@ -19,7 +19,7 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { errorAutomationSchemas, type ErrorDelivery } from "@src/shared/error-automation"
 import { testDirectory } from "./support/test-directory"
 
-const directory = testDirectory("jolt-error-automation-")
+const directory = testDirectory("mimo-error-automation-")
 
 afterEach(() => mock.restore())
 
@@ -37,7 +37,7 @@ function confirmed(database: AppDatabase) {
 
 async function openOperation() {
   const { observability } = createObservationSystem({ appSessionId: "test-automation", logDirectory: join(directory, "logs"), development: false, outputs: [] })
-  const databasePath = join(directory, "jolt.sqlite")
+  const databasePath = join(directory, "mimo.sqlite")
   const database = openDatabase(databasePath, observability)
   const secrets = createSecrets("11".repeat(32))
   const runtime = createPiAgentRuntime({ async open() { throw new Error("These coordination scenarios must not start an LLM") } }, observability)
@@ -100,7 +100,7 @@ function intercept(respond: (url: URL, init?: RequestInit) => Response | Promise
 }
 
 function remoteIssue(fields: { title: string; body: string; labels: string[] }) {
-  return { number: 42, title: fields.title, body: fields.body, labels: fields.labels.map((name) => ({ name })), state: "open", html_url: "https://github.com/dogama-erp/app/issues/42", user: { login: "jolt" }, created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
+  return { number: 42, title: fields.title, body: fields.body, labels: fields.labels.map((name) => ({ name })), state: "open", html_url: "https://github.com/dogama-erp/app/issues/42", user: { login: "mimo" }, created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
 }
 
 test.each([false, true])("new issues require human correction release unless explicitly enabled: %s", async (releaseCorrections) => {
@@ -177,7 +177,7 @@ test("a confirmed report with publication paused produces a draft without contac
     await operation.run()
     const current = database.errorCases.get(record.id)!
     expect(current).toMatchObject({ state: "confirmed", issueState: "none" })
-    expect(current.issueDraft).toContain(`<!-- jolt-dogama-error:${record.id} -->`)
+    expect(current.issueDraft).toContain(`<!-- mimo-dogama-error:${record.id} -->`)
     expect(current.issueDraft).toContain("Checkout fails before payment")
     expect(current.issueDraft).not.toContain("PRIVATE PATCH HYPOTHESIS")
     expect(requests).toEqual([])
@@ -261,7 +261,7 @@ test.each([false, true])("reanalyzing during issue lookup preserves the queue an
     const running = operation.run()
     await started.promise
     operation.reanalyze({ caseId: record.id })
-    lookup.resolve(Response.json(existing ? [remoteIssue({ title: "Existing issue", body: `<!-- jolt-dogama-error:${record.id} -->`, labels: ["bug"] })] : []))
+    lookup.resolve(Response.json(existing ? [remoteIssue({ title: "Existing issue", body: `<!-- mimo-dogama-error:${record.id} -->`, labels: ["bug"] })] : []))
     await running
     expect(database.errorCases.get(record.id)).toMatchObject({ state: "queued", issueState: "none", issueNumber: null })
     expect(requests.filter((request) => request.url.hostname === "api.github.com" && request.method !== "GET")).toEqual([])
@@ -271,11 +271,11 @@ test.each([false, true])("reanalyzing during issue lookup preserves the queue an
 test.each([["creating", "fixing"], ["unknown", "fixing"], ["creating", "fix_failed"], ["unknown", "fix_failed"]] as const)("restart reconciles a %s PR from %s without recreating it when listing is initially empty", async (prState, initialState) => {
   await withOperation(async ({ database, config, operation, createOperation }) => {
     const record = confirmed(database)
-    const branch = `jolt/error-42-${record.contextHash.slice(0, 12)}`
+    const branch = `mimo/error-42-${record.contextHash.slice(0, 12)}`
     database.errorCases.update(record.id, { state: initialState, issueState: "published", issueNumber: 42, branch, prState })
     database.errorCases.configure({ ...config, correct: true })
     const remote = { visible: false }
-    const pull = { number: 7, title: "Correct checkout", body: `<!-- jolt-dogama-error:${record.id} -->`, state: "open", draft: true, html_url: "https://github.com/dogama-erp/app/pull/7", user: { login: "jolt" }, head: { ref: branch, sha: "b".repeat(40) }, base: { ref: "dev" }, created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z", merged_at: null }
+    const pull = { number: 7, title: "Correct checkout", body: `<!-- mimo-dogama-error:${record.id} -->`, state: "open", draft: true, html_url: "https://github.com/dogama-erp/app/pull/7", user: { login: "mimo" }, head: { ref: branch, sha: "b".repeat(40) }, base: { ref: "dev" }, created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z", merged_at: null }
     const requests = intercept((url, init) => {
       expect(init?.method ?? "GET").toBe("GET")
 

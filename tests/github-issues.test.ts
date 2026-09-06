@@ -5,7 +5,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 afterEach(() => mock.restore())
 
 function issue(number: number) {
-  return { number, title: "Checkout failure", body: "<!-- dogama:error:123 -->", state: "open", html_url: `https://github.com/dogama/app/issues/${number}`, user: { login: "jolt" }, labels: [{ name: "bug" }], created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
+  return { number, title: "Checkout failure", body: "<!-- dogama:error:123 -->", state: "open", html_url: `https://github.com/dogama/app/issues/${number}`, user: { login: "mimo" }, labels: [{ name: "bug" }], created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
 }
 
 function setup(respond: (url: URL, init?: RequestInit) => Response | Promise<Response>) {

@@ -145,7 +145,7 @@ export function createErrorWorkspace(options: { repositoryDirectory: string; roo
       await prepareRepository()
       await git(managedRepository, ["fetch", "--no-tags", "origin", "+refs/heads/dev:refs/remotes/origin/dev"])
       const suffix = generation ? `-${generation}` : ""
-      const branch = `jolt/error-${issueNumber}${suffix}`
+      const branch = `mimo/error-${issueNumber}${suffix}`
       const directory = join(rootDirectory, `error-${issueNumber}${suffix}`)
 
       if (!existsSync(directory)) {

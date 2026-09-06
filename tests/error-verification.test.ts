@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { errorGit, verifyErrorCorrection } from "@src/engine/error-automation/verification"
 import { testDirectory } from "./support/test-directory"
 
-const directory = testDirectory("jolt-verification-boundary-")
+const directory = testDirectory("mimo-verification-boundary-")
 
 test("verification preserves an existing env and refuses a dangling env symlink before creating services", async () => {
   await mkdir(join(directory, "apps/tests"), { recursive: true })

@@ -11,11 +11,11 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { toolsForExecutionProfile } from "@src/shared/bot-profiles"
 import { testDirectory } from "./support/test-directory"
 
-const directory = testDirectory("jolt-error-profiles-")
+const directory = testDirectory("mimo-error-profiles-")
 
 async function withBots(check: (input: { bots: ReturnType<typeof createBots>; database: AppDatabase; tasks: ReturnType<typeof createTasks>; observability: ReturnType<typeof createObservationSystem>["observability"]; workspace: string; validateExecution: ReturnType<typeof mock<Parameters<typeof createBots>[0]["providers"]["validateExecution"]>> }) => Promise<void>) {
   const { observability } = createObservationSystem({ appSessionId: "test-profiles", logDirectory: join(directory, "logs"), development: false, outputs: [] })
-  const database = openDatabase(join(directory, "jolt.sqlite"), observability)
+  const database = openDatabase(join(directory, "mimo.sqlite"), observability)
   const workspace = join(directory, "error-automation", "workspaces", "analysis")
   await mkdir(workspace, { recursive: true })
   const validateExecution = mock<Parameters<typeof createBots>[0]["providers"]["validateExecution"]>(async () => {})

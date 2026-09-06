@@ -236,7 +236,7 @@ export function createErrorAutomation(input: {
 
     // Listing all states avoids GitHub search-index lag when reconciling an unknown creation.
     const existing = parse(z.array(issueResult), await github("github_issues_list", { state: "all" }))
-      .filter((issue) => issue.body?.includes(`<!-- jolt-dogama-error:${record.id} -->`))
+      .filter((issue) => issue.body?.includes(`<!-- mimo-dogama-error:${record.id} -->`))
 
     if (existing.length > 1) {
       throw new Error("Multiple issues contain this case identity; reconcile manually")
@@ -288,7 +288,7 @@ export function createErrorAutomation(input: {
     }
     const issue = parse(z.object({ number: z.int(), state: z.string(), title: z.string(), body: z.string().nullable(), labels: z.array(z.object({ name: z.string() })) }), await github("github_issue_read", { number: record.issueNumber }, true))
     if (issue.state !== "open" || ![...requiredLabels, "automation:fix"].every((name) => issue.labels.some((label) => label.name === name))
-      || !issue.body?.includes(`<!-- jolt-dogama-error:${record.id} -->`)) {
+      || !issue.body?.includes(`<!-- mimo-dogama-error:${record.id} -->`)) {
       return
     }
     return issue
@@ -384,7 +384,7 @@ export function createErrorAutomation(input: {
     if (!correctionReport) {
       throw new Error("The correction report must be persisted before publishing its PR")
     }
-    const body = redactErrorText(`Resolve #${record.issueNumber}.\n\nCorreção investigada em worktree isolada por um corretor independente.\n\n## Causa, correção e limitações\n${correctionReport.slice(-12_000)}\n\n## Verificação\nExecutada em ambiente de teste isolado: check:api e suíte Bun da Dogama, além de git diff --check.\n\n${verification.slice(-12_000)}\n\nReferência interna: ${record.id}. Esta PR requer revisão e não comprova publicação em produção.\n\n<!-- jolt-dogama-error:${record.id} -->`)
+    const body = redactErrorText(`Resolve #${record.issueNumber}.\n\nCorreção investigada em worktree isolada por um corretor independente.\n\n## Causa, correção e limitações\n${correctionReport.slice(-12_000)}\n\n## Verificação\nExecutada em ambiente de teste isolado: check:api e suíte Bun da Dogama, além de git diff --check.\n\n${verification.slice(-12_000)}\n\nReferência interna: ${record.id}. Esta PR requer revisão e não comprova publicação em produção.\n\n<!-- mimo-dogama-error:${record.id} -->`)
     // Preserve uncertainty before the external write, including a process dying after GitHub accepted it.
     cases.update(record.id, { prState: "creating", failure: "PR creation outcome unknown; reconciliation required" })
     await github("github_pull_request_create", { title, body, head: work.branch, base: "dev", draft: true }, true)
@@ -401,8 +401,8 @@ export function createErrorAutomation(input: {
     const { config } = configured()
     await assertDogamaRepository(config.repositoryDirectory)
     const openPulls = parse(z.array(pullResult.extend({ body: z.string().nullable() })), await github("github_pull_requests_list", { state: "open" }, true))
-    const related = openPulls.filter((pull) => pull.head.ref.startsWith(`jolt/error-${issue.number}-`) || pull.body?.includes(`<!-- jolt-dogama-error:${record.id} -->`))
-    const ongoing = related.find((pull) => pull.head.ref !== `jolt/error-${issue.number}-${record.contextHash.slice(0, 12)}`)
+    const related = openPulls.filter((pull) => pull.head.ref.startsWith(`mimo/error-${issue.number}-`) || pull.body?.includes(`<!-- mimo-dogama-error:${record.id} -->`))
+    const ongoing = related.find((pull) => pull.head.ref !== `mimo/error-${issue.number}-${record.contextHash.slice(0, 12)}`)
     if (ongoing) {
       throw new Error(`PR #${ongoing.number} is still open for an earlier context; review it before starting another correction`)
     }

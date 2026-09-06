@@ -6,7 +6,7 @@ export async function acquireEngineLock(databasePath: string) {
   const flock = Bun.which("flock")
 
   if (!flock) {
-    throw new Error("Jolt requires flock to prevent multiple Engines from opening the same database")
+    throw new Error("Mimo requires flock to prevent multiple Engines from opening the same database")
   }
 
   const path = resolve(databasePath)
@@ -30,13 +30,13 @@ export async function acquireEngineLock(databasePath: string) {
   if (readiness !== "ready") {
     child.stdin.end()
     const exitCode = await child.exited
-    throw new Error(exitCode === 73 ? "Another Jolt Engine already owns this database" : "Jolt could not acquire its database lock")
+    throw new Error(exitCode === 73 ? "Another Mimo Engine already owns this database" : "Mimo could not acquire its database lock")
   }
 
   let released = false
   void child.exited.then(() => {
     if (!released) {
-      console.error("Jolt lost its database lock; stopping the Engine")
+      console.error("Mimo lost its database lock; stopping the Engine")
       process.exit(1)
     }
   })

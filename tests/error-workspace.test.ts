@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { assertDogamaRepository, assertErrorCorrectionFiles, createErrorWorkspace, sandboxedBash } from "@src/engine/error-automation/workspace"
 import { testDirectory } from "./support/test-directory"
 
-const root = testDirectory("jolt-error-workspace-")
+const root = testDirectory("mimo-error-workspace-")
 
 async function git(directory: string, ...args: string[]) {
   const process = Bun.spawn(["git", "-C", directory, ...args], { stdout: "pipe", stderr: "pipe" })
@@ -103,7 +103,7 @@ test("provision uses updated origin/dev and preserves both personal and existing
 
   expect(repeat).toEqual(first)
   expect(next.commit).toBe(updated)
-  expect(first.branch).toBe("jolt/error-42")
+  expect(first.branch).toBe("mimo/error-42")
   expect(await readFile(join(first.directory, "index.ts"), "utf8")).toBe("corrector work")
   expect(await git(directory, "branch", "--show-current")).toBe("dev")
   expect(await readFile(join(directory, "personal.txt"), "utf8")).toBe("keep me")
