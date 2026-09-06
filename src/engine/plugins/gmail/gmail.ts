@@ -165,7 +165,7 @@ export function createGmailAdapter(input: { observability: Observability; client
 
   function client() {
     if (!input.client) {
-      throw new Error("Gmail needs a Google client id. Set MIMO_GOOGLE_CLIENT_ID before starting Mimo.")
+      throw new Error("Gmail needs a Google client id. Build Mimo with MAIN_VITE_GOOGLE_CLIENT_ID set.")
     }
 
     return input.client
@@ -382,7 +382,7 @@ export function createGmailAdapter(input: { observability: Observability; client
     kind: "gmail",
     availability() {
       if (!input.client) {
-        return { available: false, reason: "Gmail needs a Google client id. Set MIMO_GOOGLE_CLIENT_ID before starting Mimo." }
+        return { available: false, reason: "Gmail needs a Google client id. Build Mimo with MAIN_VITE_GOOGLE_CLIENT_ID set." }
       }
 
       return { available: true }

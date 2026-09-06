@@ -1,5 +1,5 @@
 import { access, stat } from "node:fs/promises"
-import { constants, existsSync } from "node:fs"
+import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
 import { z } from "zod"
@@ -24,12 +24,6 @@ if (process.platform === "linux" && !app.isPackaged) {
   app.setDesktopName("mimo-dev.desktop")
 }
 
-const environmentFile = join(app.getAppPath(), ".env")
-
-if (!app.isPackaged && existsSync(environmentFile)) {
-  process.loadEnvFile(environmentFile)
-}
-
 const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
 const engineName = process.platform === "win32" ? "mimo-engine.exe" : "mimo-engine"
 const executable = app.isPackaged
@@ -49,7 +43,7 @@ const engine = new EngineProcess({
   databasePath: join(app.getPath("userData"), "mimo.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
-  ...(process.env.MIMO_GOOGLE_CLIENT_ID ? { googleClient: { id: process.env.MIMO_GOOGLE_CLIENT_ID, ...(process.env.MIMO_GOOGLE_CLIENT_SECRET ? { secret: process.env.MIMO_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
+  ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID ? { googleClient: { id: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID, ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET ? { secret: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
   githubRelayUrl: process.env.MIMO_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,

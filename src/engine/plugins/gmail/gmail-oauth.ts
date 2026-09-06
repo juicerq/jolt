@@ -23,6 +23,41 @@ const credentialsSchema = z.strictObject({ accessToken: z.string().min(1), refre
 
 export type GmailCredentials = z.infer<typeof credentialsSchema>
 
+const pages = {
+  connected: { title: "Gmail conectado", detail: "Pode fechar esta aba e voltar para o Mimo.", tone: "#4ade80" },
+  denied: { title: "O Google não permitiu a conexão", detail: "Pode fechar esta aba e tentar de novo no Mimo.", tone: "#f87171" },
+  failed: { title: "O Mimo não conseguiu concluir a conexão", detail: "Pode fechar esta aba e tentar de novo no Mimo.", tone: "#f87171" },
+  wrongState: { title: "Este link não é o que o Mimo está esperando", detail: "Volte ao Mimo e conecte o Gmail de novo.", tone: "#f87171" },
+}
+
+function page(content: (typeof pages)[keyof typeof pages], status: number) {
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${content.title} · Mimo</title>
+<style>
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0c0a09; color: #f5f3f1; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 26rem; margin: 1.5rem; padding: 2rem; background: #151311; border: 1px solid #302c29; border-radius: 1.5rem; }
+span { display: block; width: 0.625rem; height: 0.625rem; margin-bottom: 1rem; border-radius: 999px; background: ${content.tone}; }
+h1 { margin: 0 0 0.5rem; font-size: 1.25rem; font-weight: 600; }
+p { margin: 0; color: #b3adaa; }
+</style>
+</head>
+<body>
+<main>
+<span></span>
+<h1>${content.title}</h1>
+<p>${content.detail}</p>
+</main>
+</body>
+</html>
+`
+
+  return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8" } })
+}
+
 export function parseCredentials(secret: string) {
   return parse(credentialsSchema, JSON.parse(secret))
 }
@@ -86,21 +121,21 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
       }
 
       if (url.searchParams.get("state") !== state) {
-        return new Response("This sign-in link is not the one Mimo is waiting for.", { status: 400 })
+        return page(pages.wrongState, 400)
       }
 
       const code = url.searchParams.get("code")
 
       if (!code) {
-        return finish({ error: new Error(url.searchParams.get("error") ?? "Google did not return a code") }, new Response("Google did not allow the connection. You can close this tab.", { status: 400 }))
+        return finish({ error: new Error(url.searchParams.get("error") ?? "Google did not return a code") }, page(pages.denied, 400))
       }
 
       try {
         const exchanged = await exchange(endpoints.token, client, { grant_type: "authorization_code", code, code_verifier: verifier, redirect_uri: redirectUri })
 
-        return finish({ credentials: exchanged }, new Response("Gmail connected. You can close this tab and go back to Mimo."))
+        return finish({ credentials: exchanged }, page(pages.connected, 200))
       } catch (error) {
-        return finish({ error: error instanceof Error ? error : new Error("Token exchange failed") }, new Response("Mimo could not finish the connection. You can close this tab.", { status: 500 }))
+        return finish({ error: error instanceof Error ? error : new Error("Token exchange failed") }, page(pages.failed, 500))
       }
     },
   })
