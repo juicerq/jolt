@@ -9,10 +9,13 @@ export class Browser {
   private focusedBotId: string | null = null
   private readonly timer: ReturnType<typeof setInterval>
   private capturing = false
-  private readonly stackingAnchor = new View()
+  private readonly cover = new View()
   private readonly inputShield = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
 
   constructor(private readonly window: BrowserWindow) {
+    this.cover.setBounds({ x: 0, y: 0, width: 1, height: 1 })
+    this.cover.setBackgroundBlur(1)
+    this.cover.setBackgroundColor("#0c0a09")
     this.inputShield.setBackgroundColor("#00000000")
     void this.inputShield.webContents.loadURL("data:text/html,<html><body style='margin:0;background:transparent;overflow:hidden'></body></html>")
     this.inputShield.webContents.on("before-input-event", (event, input) => {
@@ -76,7 +79,7 @@ export class Browser {
           window.contentView.removeChildView(this.inputShield)
         }
 
-        window.contentView.addChildView(this.stackingAnchor)
+        window.contentView.addChildView(this.cover)
       }
     })
     handle("resume", (raw) => {
@@ -151,7 +154,7 @@ export class Browser {
 
     try {
       for (const page of this.pages.values()) {
-        await page.capture().catch(() => {})
+        await Promise.race([page.capture(), new Promise<void>((resolve) => setTimeout(resolve, 2000))]).catch(() => {})
       }
 
       if (this.pages.size) {
@@ -181,7 +184,7 @@ export class Browser {
     let page = this.pages.get(request.botId)
 
     if (!page) {
-      page = new BrowserPage(this.window, request, () => this.publish())
+      page = new BrowserPage({ window: this.window, cover: this.cover }, request, () => this.publish())
       page.view.webContents.on("before-input-event", (event, input) => {
         if (input.type === "keyDown" && input.key === "Escape" && page?.preview.control === "user" && this.focusedBotId === request.botId) {
           event.preventDefault()
