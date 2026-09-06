@@ -1,1 +1,0 @@
-ALTER TABLE `error_automation_settings` ADD `verification_secret` text;

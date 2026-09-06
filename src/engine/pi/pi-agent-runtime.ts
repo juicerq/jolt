@@ -5,7 +5,6 @@ import type { PermissionDecision, PermissionRequest } from "@src/shared/permissi
 import type { ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import type { PiPermissionPolicy } from "./pi-permissions"
-import type { BotExecutionProfile } from "@src/shared/bot-profiles"
 
 export type PiRuntimeEvent =
   | { type: "started" }
@@ -81,8 +80,6 @@ export interface PiSessionInput {
   sessionFile?: string
   instructions?: string
   ephemeral?: boolean
-  executionProfile?: BotExecutionProfile
-  onUsage?(usage: { tokens: number; cost: number }): void
 }
 
 export interface PiSessionFactory {
@@ -113,7 +110,6 @@ export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): Pi
 }
 
 export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observability: Observability) {
-  const usage = new Map<string, { tokens: number; cost: number }>()
   const sessions = new Map<string, { session: PiSession; provider: ProviderName; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
   const pending = new Map<string, { botId: string; request: PermissionRequest; resolve(decision: PermissionDecision): void }>()
   const denied = new Set<string>()
@@ -167,7 +163,6 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   }
 
   function close(botId: string) {
-    usage.delete(botId)
     const entry = sessions.get(botId)
 
     if (!entry) {
@@ -187,9 +182,6 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   }
 
   return {
-    usage(botId: string) {
-      return usage.get(botId)
-    },
     async open(input: Omit<PiSessionInput, "policy"> & { permissionMode: BotPermissionMode }) {
       close(input.botId)
       const policy: PiPermissionPolicy = {
@@ -198,7 +190,6 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
         ...(input.botDirectory ? { botDirectory: input.botDirectory } : {}),
         mode: input.permissionMode,
         labels: toolLabels(input.customTools ?? []),
-        ...(input.executionProfile ? { allowedTools: input.tools, restrictWrites: true } : {}),
         request: (request) => new Promise<PermissionDecision>((resolve) => {
           const key = pendingKey(input.botId, request.id)
 
@@ -210,11 +201,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
           deliver(input.botId, { type: "permission-requested", request })
         }),
       }
-      usage.delete(input.botId)
-      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: input.provider } }, () => sessionFactory.open({ ...input, policy, onUsage: (value) => {
-        const previous = usage.get(input.botId)
-        usage.set(input.botId, { tokens: (previous?.tokens ?? 0) + value.tokens, cost: (previous?.cost ?? 0) + value.cost })
-      } }))
+      const session = await observability.span({ name: "pi.sessionopen", context: { botId: input.botId, provider: input.provider } }, () => sessionFactory.open({ ...input, policy }))
       const listeners = new Set<(event: PiRuntimeEvent) => void>()
       let receivedFirstEvent = false
       const unsubscribe = session.subscribe((event) => {

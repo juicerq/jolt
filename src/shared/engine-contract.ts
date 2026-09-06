@@ -12,7 +12,6 @@ import { pluginSchemas } from "./plugins"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
 import { triggerSchemas } from "./triggers"
-import { errorAutomationSchemas } from "./error-automation"
 
 const healthOutput = z.object({
   status: z.literal("ready"),
@@ -21,14 +20,6 @@ const healthOutput = z.object({
 })
 
 export const engineContract = {
-  errorAutomation: {
-    status: oc.output(errorAutomationSchemas.status).route({ method: "GET", path: "/error-automation" }),
-    configure: oc.input(errorAutomationSchemas.configure).output(errorAutomationSchemas.status).route({ method: "POST", path: "/error-automation/configure" }),
-    run: oc.output(errorAutomationSchemas.status).route({ method: "POST", path: "/error-automation/run" }),
-    decide: oc.input(errorAutomationSchemas.decision).output(errorAutomationSchemas.caseRecord).route({ method: "POST", path: "/error-automation/decide" }),
-    reanalyze: oc.input(errorAutomationSchemas.idInput).output(errorAutomationSchemas.caseRecord).route({ method: "POST", path: "/error-automation/reanalyze" }),
-    verify: oc.input(errorAutomationSchemas.verify).output(errorAutomationSchemas.caseRecord).route({ method: "POST", path: "/error-automation/verify" }),
-  },
   health: oc.output(healthOutput).route({ method: "GET", path: "/health" }),
   diagnostics: {
     get: oc.output(diagnosticsReport).route({ method: "GET", path: "/diagnostics" }),

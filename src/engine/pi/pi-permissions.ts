@@ -1,5 +1,5 @@
-import { lstat, realpath } from "node:fs/promises"
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path"
+import { realpath } from "node:fs/promises"
+import { isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
 import type { BotPermissionMode } from "@src/shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
@@ -14,8 +14,6 @@ interface PiPermissionPolicyBase {
   allowedRoot: string
   botDirectory?: string
   labels?: Record<string, string>
-  allowedTools?: string[]
-  restrictWrites?: boolean
 }
 
 export type PiPermissionPolicy =
@@ -104,44 +102,7 @@ async function observesInside(policy: Pick<PiPermissionPolicy, "allowedRoot" | "
   return !!policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))
 }
 
-type ToolAuthorization =
-  | { allowed: false; reason: "missing_permission" | "path_outside_root" | "person_denied" }
-  | { allowed: true; asked?: true }
-
-// Confere o caminho de uma ferramenta já liberada pela lista explícita de ferramentas.
-async function authorizeListedPath(policy: PiPermissionPolicy, tool: string, input: unknown): Promise<ToolAuthorization> {
-  if (!observationTools.has(tool) && tool !== "edit" && tool !== "write") {
-    return { allowed: true as const }
-  }
-
-  const path = input && typeof input === "object" ? Reflect.get(input, "path") ?? "." : undefined
-  const target = typeof path === "string" ? resolve(policy.allowedRoot, path) : ""
-  const parts = relative(policy.allowedRoot, target).split(/[\\/]/)
-
-  if (parts.some((part) => part === ".git" || part.startsWith(".env") || /^(credentials|secrets?)(\.|$)/i.test(part))) {
-    return { allowed: false as const, reason: "missing_permission" as const }
-  }
-
-  const inside = await pathIsInside(policy.allowedRoot, path)
-  const newFile = tool === "write" && target && !await lstat(target).catch(() => undefined)
-    && await pathIsInside(policy.allowedRoot, dirname(target))
-
-  if (!inside && !newFile) {
-    return { allowed: false as const, reason: "path_outside_root" as const }
-  }
-
-  return { allowed: true as const }
-}
-
-async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string): Promise<ToolAuthorization> {
-  if (policy.allowedTools) {
-    if (!policy.allowedTools.includes(tool)) {
-      return { allowed: false as const, reason: "missing_permission" as const }
-    }
-
-    return authorizeListedPath(policy, tool, input)
-  }
-
+async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
   if (policy.mode === "full") {
     return { allowed: true as const }
   }

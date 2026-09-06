@@ -18,8 +18,6 @@ import messageQuestions from "@drizzle/20260903210921_bouncy_bedlam/migration.sq
 import triggers from "@drizzle/20260904155709_icy_sauron/migration.sql" with { type: "text" }
 import botContinuity from "@drizzle/20260905015106_bot-continuity/migration.sql" with { type: "text" }
 import optionalProjectFolder from "@drizzle/20260905031351_optional-project-folder/migration.sql" with { type: "text" }
-import dogamaErrorAutomation from "@drizzle/20260905194130_dogama-error-automation/migration.sql" with { type: "text" }
-import errorVerificationToken from "@drizzle/20260905200757_error-verification-token/migration.sql" with { type: "text" }
 import dropTaskOutcome from "@drizzle/20260906111558_drop-task-outcome/migration.sql" with { type: "text" }
 import questionMultiple from "@drizzle/20260906111826_question-multiple/migration.sql" with { type: "text" }
 
@@ -43,8 +41,6 @@ export const migrations = [
   { name: "20260904155709_icy_sauron", timestamp: 1788537429000, sql: triggers },
   { name: "20260905015106_bot-continuity", timestamp: 1788573066000, sql: botContinuity },
   { name: "20260905031351_optional-project-folder", timestamp: 1788578031000, sql: optionalProjectFolder },
-  { name: "20260905194130_dogama-error-automation", timestamp: 1788637290000, sql: dogamaErrorAutomation },
-  { name: "20260905200757_error-verification-token", timestamp: 1788638877000, sql: errorVerificationToken },
   { name: "20260906111558_drop-task-outcome", timestamp: 1788693358000, sql: dropTaskOutcome },
   { name: "20260906111826_question-multiple", timestamp: 1788704306000, sql: questionMultiple },
 ] satisfies MigrationsJournal

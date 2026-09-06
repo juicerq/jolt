@@ -29,8 +29,6 @@ import { createRoutines } from "./routines/routines"
 import { createTasks } from "./tasks/tasks"
 import { createTriggers } from "./triggers/triggers"
 import { createWebSearch } from "./web/web-search"
-import { createErrorAutomation } from "./error-automation/error-automation"
-import { acquireEngineLock } from "./persistence/engine-lock"
 
 registerBunOAuthFlows()
 
@@ -123,7 +121,6 @@ function withCors(response: Response, origin: string | null | undefined) {
 const piWarmDelayMs = 1_000
 const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
-const engineLock = process.platform === "linux" ? await acquireEngineLock(environment.BOT_TEAMS_DATABASE_PATH) : undefined
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
 const piModels = createPiModels()
 const providers = createPiProvider(observationSystem.observability, piModels)
@@ -158,7 +155,6 @@ const conversations = createConversations({
   runtime: piRuntime,
   observability: observationSystem.observability,
   extensions: [
-    { tools: (bot) => errorAutomation.tools(bot), instructions: (bot) => bot.executionProfile ? errorAutomation.instructions() : "" },
     { tools: (bot) => browser.tools(bot), instructions: () => "Use browser for interactive websites and authenticated work. It shares a persistent site session with the person. Use handoff for login or human intervention and wait for control to return. Close your browser page when done." },
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
@@ -181,7 +177,7 @@ const triggers = createTriggers({
 const github = createGithubAdapter({
   ...(environment.BOT_TEAMS_GITHUB_RELAY_URL ? { relayUrl: environment.BOT_TEAMS_GITHUB_RELAY_URL } : {}),
   observability: observationSystem.observability,
-  event: (accountId, event) => { triggers.ingest(accountId, event); errorAutomation.onGithubEvent(event) },
+  event: (accountId, event) => triggers.ingest(accountId, event),
 })
 const plugins = createPlugins({
   database,
@@ -200,7 +196,6 @@ const plugins = createPlugins({
   conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
 })
 const webSearch = createWebSearch({ observability: observationSystem.observability })
-const errorAutomation = createErrorAutomation({ database, bots, conversations, tasks, runtime: piRuntime, plugins, secrets: createSecrets(environment.BOT_TEAMS_SECRET_KEY), rootDirectory: join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "error-automation"), observability: observationSystem.observability })
 const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (routine) => conversations.call(routine) } })
 const memory = createMemory({
   database,
@@ -238,7 +233,6 @@ const handler = new RPCHandler(
     memory,
     permissions: { decide: (decision) => piRuntime.resolvePermission(decision) },
     plugins,
-    errorAutomation,
   }),
 )
 const server = Bun.serve({
@@ -323,14 +317,12 @@ async function shutdown() {
     async () => {
       engineState = "stopping"
       void server.stop(false)
-      await errorAutomation.dispose()
       await Promise.all([routines.dispose(), memory.dispose(), triggers.dispose(), conversations.dispose(), plugins.dispose()])
       await drainRequests()
       await server.stop(true).catch(() => {
         process.stderr.write("Bun Engine forced shutdown failed\n")
       })
       database.close()
-      await engineLock?.release()
       engineState = "stopped"
 
       if (mainShutdown) {

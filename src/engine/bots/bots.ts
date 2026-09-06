@@ -1,5 +1,5 @@
-import { mkdir, realpath, rm } from "node:fs/promises"
-import { dirname, isAbsolute, join, relative, sep } from "node:path"
+import { mkdir, rm } from "node:fs/promises"
+import { join } from "node:path"
 import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
 import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "@src/shared/bots"
 import type { ProviderAvailability } from "@src/shared/providers"
@@ -7,14 +7,12 @@ import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
 import { parse } from "@src/shared/parse"
-import { botExecutionProfiles, type BotExecutionProfile } from "@src/shared/bot-profiles"
-import type { createPiProvider } from "../pi/pi-provider"
 
 interface BotsDependencies {
   database: AppDatabase
   observability: Observability
   privateBotsDirectory: string
-  providers: { list(): Promise<ProviderAvailability[]>; validateExecution: ReturnType<typeof createPiProvider>["validateExecution"] }
+  providers: { list(): Promise<ProviderAvailability[]> }
   conversations: { close(botId: string): Promise<void>; isActive(botId: string): boolean }
 }
 
@@ -31,28 +29,6 @@ function executionChange(input: BotExecutionSettingInput) {
 }
 
 export function createBots({ database, observability, privateBotsDirectory, providers, conversations }: BotsDependencies) {
-  async function profileSettings(profile: BotExecutionProfile | undefined, directory: string | undefined) {
-    if (!profile) {
-      return { executionProfile: null, memoryEnabled: true, effort: "medium" as const, model: null, permissionMode: "ask" as const }
-    }
-
-    if (profile !== "error-leader" && !directory) {
-      throw new Error("An error worker requires an isolated working directory")
-    }
-
-    if (profile !== "error-leader" && directory) {
-      const managedRoot = await realpath(join(dirname(privateBotsDirectory), "error-automation", "workspaces"))
-      const distance = relative(managedRoot, await realpath(directory))
-      if (!distance || distance === ".." || distance.startsWith(`..${sep}`) || isAbsolute(distance)) {
-        throw new Error("Error workers must use a managed mirror or correction worktree")
-      }
-    }
-
-    const settings = botExecutionProfiles[profile]
-    await providers.validateExecution("codex", settings.model, "max")
-
-    return { ...settings, provider: "codex" as const, executionProfile: profile, memoryEnabled: false, effort: "max" as const }
-  }
   async function privateDirectory(botId: string) {
     const path = join(privateBotsDirectory, botId)
     await mkdir(path, { recursive: true })
@@ -221,21 +197,15 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         provider: selectedProvider.provider,
         function: input.function ?? { outcome: "Ajudar no que você precisar" },
         temporary: false,
-        ...await profileSettings(input.executionProfile, input.workingDirectoryOverride),
+        memoryEnabled: true,
+        effort: "medium",
+        model: null,
+        permissionMode: "ask",
         createdAt: new Date().toISOString(),
       })
     },
-    async hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
+    hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
       const details = parse(botSchemas.hireInput, rawDetails)
-      const storedLeader = database.bots.get(leader.id)
-
-      if (!storedLeader || storedLeader.leaderBotId || storedLeader.temporary) {
-        throw new Error("A member cannot lead")
-      }
-
-      if (details.workingDirectoryOverride) {
-        await assertAccessibleWorkingDirectory(details.workingDirectoryOverride)
-      }
 
       return store({
         id: crypto.randomUUID(),
@@ -245,9 +215,12 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         avatarSeed: defaultBotAvatarSeed(details.name),
         provider: leader.provider,
         function: details.function,
-        workingDirectoryOverride: details.workingDirectoryOverride ?? leader.workingDirectoryOverride,
+        workingDirectoryOverride: leader.workingDirectoryOverride,
         temporary: !details.permanent,
-        ...await profileSettings(details.executionProfile, details.workingDirectoryOverride),
+        memoryEnabled: true,
+        effort: "medium",
+        model: null,
+        permissionMode: "ask",
         createdAt: new Date().toISOString(),
       })
     },
@@ -308,10 +281,6 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         throw new Error("Bot not found")
       }
 
-      if (storedBot.executionProfile) {
-        throw new Error("Configure managed error Bots through the error operation")
-      }
-
       if (input.projectId) {
         projectWorkingDirectory(input.projectId)
       }
@@ -352,9 +321,6 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     },
     updateExecution(rawInput: unknown) {
       const input = parse(botSchemas.updateExecutionInput, rawInput)
-      if (database.bots.get(input.id)?.executionProfile) {
-        throw new Error("Configure managed error Bots through the error operation")
-      }
       const updated = database.bots.updateExecution(input.id, executionChange(input))
 
       if (!updated) {
