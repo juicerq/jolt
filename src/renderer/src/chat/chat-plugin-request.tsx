@@ -25,11 +25,11 @@ function connectingDetail(step: PluginStep | undefined) {
   }
 
   if (step?.type === "qr") {
-    return "Leia o código no celular. O Bot continua assim que a Conta conectar."
+    return "O Bot continuará após a leitura do código."
   }
 
   if (step?.type === "browser") {
-    return "Autentique no navegador. O Bot continua assim que a Conta conectar."
+    return "Entre na sua conta pelo navegador para o Bot continuar."
   }
 
   return "Conectando..."
@@ -37,11 +37,11 @@ function connectingDetail(step: PluginStep | undefined) {
 
 function pluginRequestDetail(request: Pick<PluginRequest, "pluginName" | "accounts" | "connectable" | "target">) {
   if (request.target) {
-    return "Autorize o acesso no GitHub. O Bot verifica o repositório e continua seu pedido automaticamente."
+    return "Autorize no GitHub para o Bot verificar o repositório e continuar."
   }
 
   if (request.accounts.length > 0) {
-    return `Escolha a Conta de ${request.pluginName} que o Bot pode usar.`
+    return `Escolha a conta que o Bot poderá usar.`
   }
 
   if (!request.connectable) {

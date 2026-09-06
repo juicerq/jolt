@@ -1,5 +1,5 @@
-appId: com.jolt.app
-productName: Jolt
+appId: com.mimo.app
+productName: Mimo
 directories:
   output: release
 files:
@@ -32,7 +32,7 @@ afterPack: ./scripts/after-pack.ts
 publish:
   provider: github
   owner: juicerq
-  repo: jolt
+  repo: mimo
   releaseType: release
 linux:
   extraResources:
@@ -41,7 +41,7 @@ linux:
       filter:
         - agent-browser-linux-${arch}*
   target: AppImage
-  executableName: jolt
+  executableName: mimo
   category: Development
   synopsis: Times de Bots que trabalham no seu computador
   syncDesktopName: true

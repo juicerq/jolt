@@ -12,6 +12,7 @@ const providerAvailability = z.strictObject({
   status: providerStatus,
   connection: providerConnection,
   detectedKey: z.boolean(),
+  connected: z.boolean(),
 })
 
 export const providerAvailabilityList = z.array(providerAvailability)
@@ -25,3 +26,14 @@ export type ProviderAvailability = z.infer<typeof providerAvailability>
 export type ProviderConnection = z.infer<typeof providerConnection>
 export type ProviderModels = z.infer<typeof providerModels>
 export type ProviderName = z.infer<typeof providerName>
+
+export const providerLoginInput = z.strictObject({ id })
+export const providerLoginReply = z.strictObject({ id, url: z.url().max(8192) })
+export const providerLogin = z.strictObject({
+  id,
+  status: z.enum(["pending", "connected", "failed"]),
+  manual: z.boolean(),
+  url: z.url().optional(),
+  message: id.optional(),
+})
+export type ProviderLogin = z.infer<typeof providerLogin>

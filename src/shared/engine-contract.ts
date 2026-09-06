@@ -2,7 +2,7 @@ import { eventIterator, oc } from "@orpc/contract"
 import { z } from "zod"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan } from "./observability/observation"
-import { providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
+import { providerLogin, providerLoginInput, providerLoginReply, providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
 import { botSchemas } from "./bots"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
@@ -35,8 +35,13 @@ export const engineContract = {
     export: oc.output(diagnosticExportResult).route({ method: "POST", path: "/diagnostics/export" }),
   },
   providers: {
+    login: oc.output(providerLogin).route({ method: "POST", path: "/providers/login" }),
+    loginStatus: oc.input(providerLoginInput).output(providerLogin).route({ method: "POST", path: "/providers/login/status" }),
+    loginReply: oc.input(providerLoginReply).route({ method: "POST", path: "/providers/login/reply" }),
+    cancelLogin: oc.input(providerLoginInput).output(providerLogin).route({ method: "POST", path: "/providers/login/cancel" }),
     list: oc.output(providerAvailabilityList).route({ method: "GET", path: "/providers" }),
     models: oc.output(providerModelsList).route({ method: "GET", path: "/providers/models" }),
+    refreshModels: oc.route({ method: "POST", path: "/providers/models/refresh" }),
     connect: oc.input(providerConnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/connect" }),
     disconnect: oc.input(providerDisconnectInput).output(providerAvailabilityList).route({ method: "POST", path: "/providers/disconnect" }),
   },
@@ -47,6 +52,7 @@ export const engineContract = {
   bots: {
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
     addMember: oc.input(botSchemas.addMemberInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{leaderBotId}/members" }),
+    detachMember: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/detach" }),
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
@@ -60,6 +66,8 @@ export const engineContract = {
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     compact: oc.input(conversationSchemas.compactInput).output(conversationSchemas.compactionResult).route({ method: "POST", path: "/bots/{botId}/compact" }),
     abort: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
+    abortTeam: oc.input(conversationSchemas.botInput).route({ method: "POST", path: "/bots/{botId}/team/abort" }),
+    teamWorking: oc.input(conversationSchemas.botInput).output(z.boolean()).route({ method: "GET", path: "/bots/{botId}/team/working" }),
     promote: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/promote" }),
     unqueue: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/remove" }),
     related: oc.input(conversationSchemas.taskInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/tasks/{taskId}/messages" }),

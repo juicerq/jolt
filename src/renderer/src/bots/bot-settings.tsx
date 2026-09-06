@@ -18,6 +18,7 @@ import { BotPlugins } from "./bot-plugins"
 import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { WorkspaceHint } from "./workspace-hint"
+import { BotDetachMember } from "./bot-detach-member"
 
 export interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
 
@@ -140,6 +141,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
       </form>
       <BotPlugins bot={bot} client={client} />
       {!bot.temporary && <BotColleagues bot={bot} client={client} groups={projectGroups} />}
+      {leader && <BotDetachMember bot={bot} leader={leader} client={client} />}
       <section className="flex justify-end" aria-label="Excluir Bot">
         <Button className="inline-flex items-center gap-2" variant="danger" type="button" onClick={() => setConfirmingRemoval(true)}><TrashIcon className="size-4" aria-hidden="true" />Excluir Bot</Button>
       </section>
@@ -155,7 +157,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
             </>
           )}
         >
-          <p className="m-0 text-control text-secondary">Excluir {bot.name} apaga a conversa e a memória{teamNote(members)}. Não é possível desfazer.</p>
+          <BotRemovalDetails bot={bot} members={members} />
           {removeError && <p className="m-0 text-support text-status-error">Falha ao excluir o Bot: {removeError.message}</p>}
         </ConfirmationDialog>
       )}
@@ -163,16 +165,14 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   )
 }
 
-function teamNote(members: Bot[]) {
-  const names = members.map((member) => member.name).join(", ")
-
-  if (members.length === 0) {
-    return ""
-  }
-
-  if (members.length === 1) {
-    return ` e também exclui o Integrante ${names}`
-  }
-
-  return ` e também exclui ${members.length} Integrantes: ${names}`
+function BotRemovalDetails({ bot, members }: { bot: Pick<Bot, "name">; members: Bot[] }) {
+  return <>
+    <p className="m-0 text-control text-secondary">Excluir {bot.name} apaga sua conversa, sua memória e seu Diretório privado. Não é possível desfazer.</p>
+    {members.length > 0 && <>
+      <p className="m-0 text-control text-secondary">Também exclui {members.length} {members.length === 1 ? "Integrante, com sua conversa, memória e Diretório privado:" : "Integrantes, com suas conversas, memórias e Diretórios privados:"}</p>
+      <ul className="m-0 max-h-48 overflow-y-auto pl-5 text-control text-secondary">
+        {members.map((member) => <li key={member.id}>{member.name}{member.closed ? " · Temporário encerrado" : ""}</li>)}
+      </ul>
+    </>}
+  </>
 }

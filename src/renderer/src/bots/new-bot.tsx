@@ -8,7 +8,7 @@ import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { useEscape } from "../ui/use-escape"
 import { revealClassName } from "./bot-form"
-import { botDraftAvatarSeed, type BotDraft, discardDraft, nameDraft, regenerateDraftAvatar, selectBot } from "./bots-store"
+import { botDraftAvatarSeed, type BotDraft, discardDraft, nameDraft, openSettings, regenerateDraftAvatar, selectBot } from "./bots-store"
 
 export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraft }) {
   const queryClient = useQueryClient()
@@ -64,8 +64,8 @@ export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraf
           <div className="mt-4 h-[38px] w-[280px]">
             {hasName && <Button className={`${revealClassName} h-full w-full`} type="submit" disabled={isPending || !executorAvailable}>{isPending ? "Criando..." : "Criar"}</Button>}
           </div>
-          {providersError && <p className="m-0 text-support text-status-error">Falha ao verificar executores: {providersError.message}</p>}
-          {!providersPending && !providersError && !executorAvailable && <p className="m-0 text-support text-status-warning">Conecte um Fornecedor nas Configurações para criar um Bot.</p>}
+          {providersError && <p className="m-0 text-support text-status-error">Não foi possível verificar as inscrições: {providersError.message}</p>}
+          {!providersPending && !providersError && !executorAvailable && <div className="mt-4 flex flex-col items-center gap-3"><p className="m-0 text-support text-secondary">Conecte uma conta para criar este Bot. O nome escolhido fica salvo.</p><Button variant="secondary" type="button" onClick={() => openSettings()}>Conectar</Button></div>}
           {error && <p className="m-0 text-support text-status-error">Falha ao criar o Bot: {error.message}</p>}
         </form>
       </section>

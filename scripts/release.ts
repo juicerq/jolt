@@ -44,4 +44,4 @@ await $`git tag ${tag}`
 await $`git push origin main`
 await $`git push origin ${tag}`
 
-console.log(`${tag} is building at https://github.com/juicerq/jolt/actions`)
+console.log(`${tag} is building at https://github.com/juicerq/mimo/actions`)

@@ -1,10 +1,11 @@
 import { ChevronDownIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
-import { type KeyboardEvent, useId, useState } from "react"
+import { type KeyboardEvent, useEffect, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProviderModels, ProviderName } from "@src/shared/providers"
 import type { BotExecutionUpdate } from "../bots/bot-update"
 import type { EngineClient } from "../engine-client"
+import { useRefreshProviderModels } from "../settings/provider-mutations"
 import { MenuLabel, MenuOption } from "../ui/menu"
 import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName } from "./chat-control-menu"
 
@@ -51,13 +52,16 @@ export function ChatModelPicker({ bot, client, execution, disabled }: { bot: Bot
   )
 }
 
-/** The Fornecedor catalogs with a search above the threshold. Remount it to reset the search. */
+/** The Fornecedor catalogs with a search above the threshold. Mounting it refreshes the catalogs; remount it to reset the search. */
 export function ChatModelOptions({ bot, client, execution, autoFocusSearch = false }: { bot: Bot; client: EngineClient; execution: BotExecutionUpdate; autoFocusSearch?: boolean }) {
   const id = useId()
   const [query, setQuery] = useState("")
   const { catalogs, currentModelId } = useBotModel(bot, client)
+  const { mutate: refreshModels } = useRefreshProviderModels(client)
   const groups = matching(catalogs, query)
   const total = catalogs.reduce((count, entry) => count + entry.models.length, 0)
+
+  useEffect(() => refreshModels({}), [refreshModels])
 
   function handleChoose(provider: ProviderName, model: string) {
     if (provider === bot.provider && model === currentModelId) {
@@ -99,7 +103,7 @@ export function ChatModelOptions({ bot, client, execution, autoFocusSearch = fal
         />
       )}
       <div className="max-h-64 overflow-y-auto max-md:max-h-none">
-        {groups.length === 0 && <p className="m-0 px-2 py-1.5 text-support text-secondary">{total === 0 ? "Nenhum Fornecedor conectado." : "Nenhum Modelo com esse nome."}</p>}
+        {groups.length === 0 && <p className="m-0 px-2 py-1.5 text-support text-secondary">{total === 0 ? "Nenhum modelo disponível. Confira suas Inscrições nas Configurações." : "Nenhum modelo encontrado."}</p>}
         {groups.map((group) => (
           <div key={group.provider} role="group" aria-labelledby={`${id}-${group.provider}`}>
             <MenuLabel id={`${id}-${group.provider}`}>{group.name}</MenuLabel>

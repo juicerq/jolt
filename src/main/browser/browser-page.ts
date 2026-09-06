@@ -1,12 +1,13 @@
-import { BaseWindow, WebContentsView, type BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from "electron"
+import { WebContentsView, type BrowserWindow, type BrowserWindowConstructorOptions, type View, type WebContents } from "electron"
 import type { BrowserAction, BrowserBounds, BrowserPreview } from "@src/shared/browser"
 import { BrowserDriver } from "./browser-driver"
 
-const webPreferences = { partition: "persist:jolt-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
+const webPreferences = { partition: "persist:mimo-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
+const pageSize = { width: 1280, height: 800 }
+const parkedBounds = { x: 1 - pageSize.width, y: 1 - pageSize.height, ...pageSize }
 
 export class BrowserPage {
   private readonly driver: BrowserDriver
-  private readonly background = new BaseWindow({ show: false, width: 1280, height: 800, skipTaskbar: true })
   private shown = false
   readonly view: WebContentsView
   readonly preview: BrowserPreview
@@ -18,13 +19,12 @@ export class BrowserPage {
   private requestingControl = false
   private popup?: WebContentsView
 
-  constructor(readonly window: BrowserWindow, bot: { botId: string; botName: string }, private readonly changed: () => void) {
+  constructor(private readonly host: { window: BrowserWindow; cover: View }, bot: { botId: string; botName: string }, private readonly changed: () => void) {
     this.preview = { botId: bot.botId, botName: bot.botName, url: "about:blank", title: "Navegador", control: "bot", popup: false, reason: null, image: null, error: null }
     this.view = new WebContentsView({ webPreferences })
     this.driver = new BrowserDriver(this.view.webContents)
-    this.view.setBounds({ x: 0, y: 0, width: 1280, height: 800 })
-    this.background.contentView.addChildView(this.view)
-    this.view.setVisible(true)
+    this.view.setBounds(parkedBounds)
+    this.attach(this.view)
     const contents = this.view.webContents
 
     contents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
@@ -38,6 +38,11 @@ export class BrowserPage {
     })
     this.observe(contents)
     void contents.loadURL("about:blank")
+  }
+
+  private attach(view: View) {
+    this.host.window.contentView.addChildView(view)
+    this.host.window.contentView.addChildView(this.host.cover)
   }
 
   private observe(contents: WebContents) {
@@ -59,8 +64,8 @@ export class BrowserPage {
     contents.on("did-navigate-in-page", () => this.update())
     contents.on("page-title-updated", () => this.update())
     contents.on("focus", () => {
-      if (this.shown && this.preview.control === "bot") {
-        this.window.webContents.focus()
+      if (!this.shown || this.preview.control === "bot") {
+        this.host.window.webContents.focus()
       }
     })
     contents.on("did-fail-load", (_event, code, description, _url, mainFrame) => {
@@ -84,24 +89,23 @@ export class BrowserPage {
     this.popup = popup
     this.preview.popup = true
     this.preview.image = null
-    const parent = this.shown ? this.window : this.background
-    parent.contentView.addChildView(popup)
     popup.setBounds(this.view.getBounds())
     popup.setVisible(this.preview.control === "user")
+    this.attach(popup)
     popup.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
     this.observe(popup.webContents)
     popup.webContents.on("before-input-event", (event, input) => {
       if (input.type === "keyDown" && input.key === "Escape") {
         event.preventDefault()
-        this.window.webContents.focus()
-        this.window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" })
+        this.host.window.webContents.focus()
+        this.host.window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" })
       }
     })
     popup.webContents.once("destroyed", () => {
-      const owner = this.shown ? this.window : this.background
+      const windowDestroyed = this.host.window.isDestroyed()
 
-      if (!owner.isDestroyed()) {
-        owner.contentView.removeChildView(popup)
+      if (!windowDestroyed) {
+        this.host.window.contentView.removeChildView(popup)
       }
 
       this.popup = undefined
@@ -172,15 +176,12 @@ export class BrowserPage {
 
   show(bounds: BrowserBounds) {
     if (!this.shown) {
-      this.background.contentView.removeChildView(this.view)
-      this.window.contentView.addChildView(this.view)
+      this.shown = true
+      this.attach(this.view)
 
       if (this.popup) {
-        this.background.contentView.removeChildView(this.popup)
-        this.window.contentView.addChildView(this.popup)
+        this.attach(this.popup)
       }
-
-      this.shown = true
     }
 
     this.view.setBounds(bounds)
@@ -196,15 +197,9 @@ export class BrowserPage {
       return
     }
 
-    this.window.contentView.removeChildView(this.view)
-    this.background.contentView.addChildView(this.view)
-
-    if (this.popup) {
-      this.window.contentView.removeChildView(this.popup)
-      this.background.contentView.addChildView(this.popup)
-    }
-
     this.shown = false
+    this.view.setBounds(parkedBounds)
+    this.popup?.setBounds(parkedBounds)
   }
 
   resume() {
@@ -215,10 +210,6 @@ export class BrowserPage {
     this.controlRevision += 1
     this.preview.control = "bot"
     this.preview.reason = null
-
-    if (!this.shown) {
-      this.view.setBounds({ x: 0, y: 0, width: 1280, height: 800 })
-    }
 
     for (const resolve of this.waiters) {
       resolve()
@@ -334,13 +325,12 @@ export class BrowserPage {
       resolve()
     }
 
-    const windowDestroyed = this.window.isDestroyed()
+    const windowDestroyed = this.host.window.isDestroyed()
 
-    if (!windowDestroyed && this.shown) {
-      this.window.contentView.removeChildView(this.view)
+    if (!windowDestroyed) {
+      this.host.window.contentView.removeChildView(this.view)
     }
 
-    this.background.destroy()
     const destroyed = this.view.webContents.isDestroyed()
 
     if (!destroyed) {

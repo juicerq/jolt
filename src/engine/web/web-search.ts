@@ -77,7 +77,7 @@ async function call(tool: string, args: Record<string, unknown>, signal?: AbortS
   const timeout = AbortSignal.timeout(timeoutMs)
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "user-agent": "jolt" },
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "user-agent": "mimo" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   })

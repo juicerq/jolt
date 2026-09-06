@@ -41,7 +41,7 @@ export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client:
     <BotPage label={`Integrantes de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       <SettingsSection title="Integrantes">
-        {permanent.length === 0 && active.length === 0 && !adding && <p className="m-0 text-support text-secondary">Adicione o primeiro Integrante para {bot.name} liderar um time e distribuir tarefas.</p>}
+        {permanent.length === 0 && active.length === 0 && !adding && <p className="m-0 text-support text-secondary">Adicione Bots ao time para que {bot.name} possa distribuir Tarefas.</p>}
         {!adding && <div className="flex flex-wrap items-center gap-2">
           <Button ref={addButton} className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => { setCreatedName(""); setAdding("create") }}><UserPlusIcon className="size-4" aria-hidden="true" />Criar integrante</Button>
           <Button ref={existingButton} variant="text" type="button" onClick={() => { setCreatedName(""); setAdding("existing") }}>Adicionar Bot existente</Button>
@@ -116,10 +116,10 @@ function MemberCreateForm({ bot, client, onCancel, onCreated }: { bot: Pick<Bot,
         <p className="m-0 mt-1 text-support text-secondary">Um Bot permanente no time de {bot.name}.</p>
       </div>
       <Field label="Nome"><input className={fieldControlClassName} autoFocus autoComplete="off" placeholder="Pesquisador" required value={name} disabled={creating} onChange={(event) => setName(event.target.value)} /></Field>
-      <Field label="O que ele entrega?" optional><input className={fieldControlClassName} autoComplete="off" placeholder="Pesquisar fontes e reunir evidências" value={outcome} disabled={creating} onChange={(event) => setOutcome(event.target.value)} /></Field>
-      {providersPending && <p className="m-0 text-support text-secondary" role="status">Verificando Fornecedores...</p>}
-      {providersError && <p className="m-0 text-support text-status-error" role="alert">Falha ao verificar Fornecedores: {providersError.message}</p>}
-      {!providersPending && !providersError && !executorAvailable && <p className="m-0 text-support text-status-warning">Conecte um Fornecedor nas Configurações para adicionar um Integrante.</p>}
+      <Field label="Resultado esperado" optional><input className={fieldControlClassName} autoComplete="off" placeholder="Pesquisar fontes e reunir evidências" value={outcome} disabled={creating} onChange={(event) => setOutcome(event.target.value)} /></Field>
+      {providersPending && <p className="m-0 text-support text-secondary" role="status">Verificando inscrições…</p>}
+      {providersError && <p className="m-0 text-support text-status-error" role="alert">Não foi possível verificar as inscrições: {providersError.message}</p>}
+      {!providersPending && !providersError && !executorAvailable && <p className="m-0 text-support text-status-warning">Conecte uma conta em Configurações → Inscrições para criar um Integrante.</p>}
       {error && <p className="m-0 text-support text-status-error" role="alert">Falha ao adicionar integrante: {error.message}</p>}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button variant="text" type="button" disabled={creating} onClick={onCancel}>Cancelar</Button>

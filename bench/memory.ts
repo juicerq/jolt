@@ -4,7 +4,7 @@ import type { Observation } from "../src/shared/observability/observation"
 import { connectCdp } from "./cdp"
 import { observationLog, observations, waitForObservations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "10" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "10" } } })
 const logPath = observationLog(values["user-data"])
 const rounds = Number(values.rounds)
 const route = ["Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Leve"]
@@ -47,7 +47,7 @@ function processTree() {
     main: total((args) => args.endsWith('electron .')),
     renderer: total((args) => args.includes("--type=renderer")),
     gpu: total((args) => args.includes("--type=gpu-process")),
-    engine: total((args) => args.endsWith("jolt-engine")),
+    engine: total((args) => args.endsWith("mimo-engine")),
   }
 }
 

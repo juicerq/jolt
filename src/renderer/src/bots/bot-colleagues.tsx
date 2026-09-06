@@ -13,11 +13,7 @@ function colleaguesOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "colleag
   return bot.colleagueIds.flatMap((colleagueId) => leaders.filter((candidate) => candidate.id === colleagueId))
 }
 
-function BotColleagueList({ bot, colleagues, busy, onRevoke }: { bot: Pick<Bot, "name">; colleagues: Bot[]; busy: boolean; onRevoke: (colleagueBotId: string) => void }) {
-  if (colleagues.length === 0) {
-    return <p className="m-0 text-support font-normal text-muted">Nenhum Colega. Mencione um Bot com @ na conversa para apresentá-lo a {bot.name}.</p>
-  }
-
+function BotColleagueList({ colleagues, busy, onRevoke }: { colleagues: Bot[]; busy: boolean; onRevoke: (colleagueBotId: string) => void }) {
   return (
     <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
       {colleagues.map((colleague) => (
@@ -34,6 +30,7 @@ function BotColleagueList({ bot, colleagues, busy, onRevoke }: { bot: Pick<Bot, 
 }
 
 export function BotColleagues({ bot, client, groups }: { bot: Bot; client: EngineClient; groups: ProjectGroups | undefined }) {
+  const colleagues = colleaguesOf(groups, bot)
   const queryClient = useQueryClient()
   const { mutate: revoke, isPending, error } = useMutation(client.query.bots.removeColleague.mutationOptions({
     onSuccess() {
@@ -44,8 +41,12 @@ export function BotColleagues({ bot, client, groups }: { bot: Bot; client: Engin
   return (
     <SettingsSection title="Colegas">
       <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
-        <p className="m-0 text-support font-normal text-muted">{bot.name} pode abrir uma Tarefa para estes Bots. Cada um segue a própria Permissão.</p>
-        <BotColleagueList bot={bot} colleagues={colleaguesOf(groups, bot)} busy={isPending} onRevoke={(colleagueBotId) => revoke({ botId: bot.id, colleagueBotId })} />
+        <p className="m-0 text-support font-normal text-muted">
+          {colleagues.length === 0
+            ? `Mencione um Bot com @ na conversa para que ${bot.name} possa abrir Tarefas para ele.`
+            : `${bot.name} pode abrir Tarefas para estes Bots, respeitando a Permissão de cada um.`}
+        </p>
+        {colleagues.length > 0 && <BotColleagueList colleagues={colleagues} busy={isPending} onRevoke={(colleagueBotId) => revoke({ botId: bot.id, colleagueBotId })} />}
         {error && <p className="m-0 text-support text-status-error">Falha nos Colegas: {error.message}</p>}
       </div>
     </SettingsSection>

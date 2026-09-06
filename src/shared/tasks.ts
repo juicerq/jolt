@@ -6,7 +6,6 @@ const task = z.strictObject({
   id,
   callerBotId: id,
   assigneeBotId: id,
-  outcome: id,
   status: taskStatus,
   createdAt: id,
   finishedAt: id.nullable(),

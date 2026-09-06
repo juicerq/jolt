@@ -24,18 +24,18 @@ export function startProbe() {
       requestAnimationFrame(() => setTimeout(() => probe.keys.push({ delay, paint: performance.now() - event.timeStamp })))
     }
     document.addEventListener("keydown", probe.onKey, true)
-    window.__joltProbe = probe
+    window.__mimoProbe = probe
     return JSON.stringify("started")
   })()`)
 }
 
 export function stopProbe() {
   return evaluate<Probe>(`(() => {
-    const probe = window.__joltProbe
+    const probe = window.__mimoProbe
     cancelAnimationFrame(probe.raf)
     probe.observer.disconnect()
     document.removeEventListener("keydown", probe.onKey, true)
-    delete window.__joltProbe
+    delete window.__mimoProbe
     return JSON.stringify({ keys: probe.keys, frames: probe.frames, longFrames: probe.longFrames })
   })()`)
 }

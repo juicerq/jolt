@@ -1,0 +1,3 @@
+2026/09/06-09:27:22.413 1c5f6e Reusing MANIFEST /mnt/data/Projects/jolt/.jolt-load/Local Storage/leveldb/MANIFEST-000001
+2026/09/06-09:27:22.416 1c5f6e Recovering log #3
+2026/09/06-09:27:22.416 1c5f6e Reusing old log /mnt/data/Projects/jolt/.jolt-load/Local Storage/leveldb/000003.log 

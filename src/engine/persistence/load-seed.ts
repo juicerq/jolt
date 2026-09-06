@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { parseArgs } from "node:util"
 import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
 import type { StoredBot } from "@src/shared/bots"
@@ -51,7 +51,7 @@ const bulletLists = [
 
 const codeBlocks = [
   ["```ts", "export function totalWithDiscount(items: Item[], discount: Discount) {", "  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)", "", "  if (discount.kind === \"percent\") {", "    return subtotal * (1 - discount.value / 100)", "  }", "", "  return Math.max(0, subtotal - discount.value)", "}", "```"],
-  ["```json", "{", "  \"name\": \"jolt\",", "  \"workers\": 4,", "  \"retries\": 0,", "  \"paths\": [\"src\", \"tests\"]", "}", "```"],
+  ["```json", "{", "  \"name\": \"mimo\",", "  \"workers\": 4,", "  \"retries\": 0,", "  \"paths\": [\"src\", \"tests\"]", "}", "```"],
   ["```sh", "bun run build:engine", "bun test tests --no-orphans --parallel=4", "```"],
   ["```ts", "const invoice = await client.invoices.get({ id })", "", "if (!invoice) {", "  throw new Error(\"Invoice not found\")", "}", "", "return present(invoice)", "```"],
 ]
@@ -149,7 +149,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
   }
   const botsDirectory = join(userDataDirectory, "bots")
   const { observability } = createObservationSystem({ appSessionId: crypto.randomUUID(), logDirectory: join(userDataDirectory, "logs"), development: false })
-  const database = openDatabase(join(userDataDirectory, "jolt.sqlite"), observability)
+  const database = openDatabase(join(userDataDirectory, "mimo.sqlite"), observability)
   const created: { name: string; messages: number }[] = []
 
   async function createBot(name: string, leaderBotId: string | null): Promise<StoredBot> {
@@ -191,10 +191,10 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
   }
 
   function delegatedTurn(leader: StoredBot, member: StoredBot) {
-    const task: Task = { id: crypto.randomUUID(), callerBotId: leader.id, assigneeBotId: member.id, outcome: pick(random, personPrompts), status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
+    const task: Task = { id: crypto.randomUUID(), callerBotId: leader.id, assigneeBotId: member.id, status: random() < 0.9 ? "done" : "failed", createdAt: nextTimestamp(), finishedAt: null }
 
     database.tasks.create(task)
-    append({ botId: member.id, author: "bot", authorBotId: leader.id, taskId: task.id, triggerRunId: null, content: task.outcome, images: [], question: null, replyTo: null, activity: null, ending: null })
+    append({ botId: member.id, author: "bot", authorBotId: leader.id, taskId: task.id, triggerRunId: null, content: pick(random, personPrompts), images: [], question: null, replyTo: null, activity: null, ending: null })
     append({ botId: member.id, author: "bot", authorBotId: member.id, taskId: task.id, triggerRunId: null, content: botMarkdown(random), images: [], question: null, replyTo: null, activity: botActivity(random), ending: null })
     append({ botId: leader.id, author: "bot", authorBotId: member.id, taskId: task.id, triggerRunId: null, content: botMarkdown(random), images: [], question: null, replyTo: null, activity: null, ending: null })
     database.tasks.update(task.id, { finishedAt: nextTimestamp() })
@@ -232,9 +232,9 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
 }
 
 if (import.meta.main) {
-  const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".jolt-load" }, seed: { type: "string", default: "1" } } })
-  const userDataDirectory = join(process.cwd(), values["user-data"])
-  const databaseExists = await Bun.file(join(userDataDirectory, "jolt.sqlite")).exists()
+  const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, seed: { type: "string", default: "1" } } })
+  const userDataDirectory = resolve(values["user-data"])
+  const databaseExists = await Bun.file(join(userDataDirectory, "mimo.sqlite")).exists()
 
   if (databaseExists) {
     throw new Error(`${userDataDirectory} já tem um banco. Apague a pasta antes de gerar de novo.`)
@@ -245,5 +245,5 @@ if (import.meta.main) {
   const created = await seedLoadDatabase(userDataDirectory, Number(values.seed))
 
   console.table(created)
-  console.log(`Banco criado em ${userDataDirectory}. Rode: JOLT_USER_DATA=${userDataDirectory} bun run dev`)
+  console.log(`Banco criado em ${userDataDirectory}. Rode: MIMO_USER_DATA=${userDataDirectory} bun run dev`)
 }

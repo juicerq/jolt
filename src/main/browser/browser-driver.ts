@@ -14,7 +14,7 @@ const response = z.discriminatedUnion("success", [
 ])
 
 export class BrowserDriver {
-  private readonly session = `jolt-${process.pid}-${crypto.randomUUID()}`
+  private readonly session = `mimo-${process.pid}-${crypto.randomUUID()}`
   private connected = false
   private address?: string
   private active: Promise<unknown> = Promise.resolve()

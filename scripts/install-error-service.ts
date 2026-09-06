@@ -35,7 +35,7 @@ After=graphical-session.target
 Type=simple
 WorkingDirectory=${repository.replaceAll("%", "%%")}
 ExecStart=${quote(electron).replaceAll("$", () => "$$")} ${quote(repository).replaceAll("$", () => "$$")} --background
-Environment=${quote(`JOLT_USER_DATA=${resolve(userData)}`)}
+Environment=${quote(`MIMO_USER_DATA=${resolve(userData)}`)}
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -49,7 +49,7 @@ if (values["dry-run"]) {
 } else {
   await Promise.all([
     access(electron, constants.X_OK),
-    access(join(repository, "dist-engine/jolt-engine"), constants.X_OK),
+    access(join(repository, "dist-engine/mimo-engine"), constants.X_OK),
     ...["out/main/index.js", "out/renderer/index.html", "out/preload/index.cjs"].map((path) => access(join(repository, path), constants.R_OK)),
   ]).catch(() => { throw new Error("Build the current app with bun run build before installing its background service") })
 

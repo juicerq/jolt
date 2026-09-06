@@ -1,6 +1,7 @@
 import { parse } from "@src/shared/parse"
 import { providerConnectInput, providerDisconnectInput, type ProviderAvailability, type ProviderModels, type ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
+import { createPiAuthentication } from "./pi-authentication"
 import { detectOpencodeKey } from "./opencode-key"
 import { piProviders, type PiModels } from "./pi-models"
 import type { BotEffort } from "@src/shared/bots"
@@ -11,6 +12,7 @@ const providerNames = Object.keys(piProviders) as ProviderName[]
 interface Discovery { availability: ProviderAvailability; models: ProviderModels }
 
 export function createPiProvider(observability: Observability, models: PiModels) {
+  const authentication = createPiAuthentication(models)
   let providers: ProviderAvailability[] = []
   let catalogs: ProviderModels[] = []
   let pending: Promise<ProviderAvailability[]> | undefined
@@ -18,7 +20,8 @@ export function createPiProvider(observability: Observability, models: PiModels)
 
   async function discover(provider: ProviderName): Promise<Discovery> {
     const catalog = piProviders[provider]
-    const shared = { provider, name: catalog.name, connection: catalog.connection }
+    const connected = await models.connected(provider)
+    const shared = { provider, name: catalog.name, connection: catalog.connection, connected }
     const detectedKey = catalog.connection === "api-key" && !!await detectOpencodeKey()
     const available = await observability.span(
       { name: "provider.discovery", context: { provider } },
@@ -29,7 +32,8 @@ export function createPiProvider(observability: Observability, models: PiModels)
       return { availability: { ...shared, status: "incompatible", detectedKey }, models: { provider, name: catalog.name, default: catalog.defaultModelId, models: [] } }
     }
 
-    const status = available.some((model) => model.id === catalog.defaultModelId) ? "available" as const : "unauthenticated" as const
+    const unavailableStatus = connected ? "incompatible" as const : "unauthenticated" as const
+    const status = available.some((model) => model.id === catalog.defaultModelId) ? "available" as const : unavailableStatus
 
     return {
       availability: { ...shared, status, detectedKey },
@@ -78,6 +82,10 @@ export function createPiProvider(observability: Observability, models: PiModels)
   }
 
   return {
+    authentication,
+    async refreshModels() {
+      await observability.span({ name: "provider.catalogrefresh" }, () => models.refresh()).catch(() => {})
+    },
     list,
     async validateExecution(provider: ProviderName, modelId: string, effort: BotEffort) {
       const { model } = await models.resolve(provider, modelId)
@@ -107,9 +115,8 @@ export function createPiProvider(observability: Observability, models: PiModels)
     },
     async disconnect(rawInput: unknown) {
       const input = parse(providerDisconnectInput, rawInput)
-      keyProvider(input.provider)
 
-      await observability.span({ name: "provider.disconnect", context: { provider: input.provider } }, () => models.removeKey(input.provider))
+      await observability.span({ name: "provider.disconnect", context: { provider: input.provider } }, () => models.disconnect(input.provider))
 
       return rediscover()
     },

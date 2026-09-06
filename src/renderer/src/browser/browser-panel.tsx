@@ -43,8 +43,8 @@ export function BrowserPanel() {
     const userControl = focused.control === "user"
     const controlLabel = userControl ? `Devolver para ${focused.botName}` : "Assumir controle"
     const status = userControl
-      ? focused.reason ?? `Sem pressa. ${focused.botName} está esperando.`
-      : `Você está acompanhando. ${focused.botName} continua no controle.`
+      ? focused.reason ?? `${focused.botName} aguarda você devolver o controle.`
+      : `Assuma o controle se precisar interagir com a página.`
 
     return (
       <section ref={focusPanel} tabIndex={-1} className="fixed inset-0 z-40 flex flex-col bg-surface-raised p-4 text-primary max-md:pt-[calc(16px+var(--safe-top))] max-md:pb-[calc(16px+var(--safe-bottom))]" role="dialog" aria-modal="true" aria-label={`Navegador de ${focused.botName}`} onKeyDown={(event) => { if (event.key === "Escape") { void handleAction(() => window.desktop.minimizeBrowser()) } }}>

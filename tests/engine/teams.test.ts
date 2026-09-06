@@ -1,0 +1,388 @@
+import { afterEach, expect, test } from "bun:test"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { createBots } from "@src/engine/bots/bots"
+import { createConversations } from "@src/engine/conversations/conversations"
+import { createObservationSystem } from "@src/engine/observability/observability"
+import { openDatabase } from "@src/engine/persistence/database"
+import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory, type PiSessionInput } from "@src/engine/pi/pi-agent-runtime"
+import { createProjects } from "@src/engine/projects/projects"
+import { createQueue } from "@src/engine/queue"
+import { createTasks } from "@src/engine/tasks/tasks"
+import type { Bot } from "@src/shared/bots"
+import { sendMessageTool } from "@src/shared/conversations"
+
+const cleanups: (() => Promise<void>)[] = []
+
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) {
+    await cleanup()
+  }
+})
+
+function turnDriver(input: PiSessionInput, emit: (event: PiRuntimeEvent) => void) {
+  const cancellation = new AbortController()
+  const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+
+  async function tool(name: string, params: Record<string, string>) {
+    const selected = input.customTools?.find((candidate) => candidate.name === name)
+
+    if (!selected) {
+      throw new Error(`Tool ${name} not found`)
+    }
+
+    return selected.execute(params, cancellation.signal)
+  }
+
+  return {
+    settled,
+    tool,
+    async finish(content = "Trabalho entregue") {
+      await tool(sendMessageTool, { content })
+      emit({ type: "finished", reason: "stop" })
+      settle()
+    },
+    abort() {
+      cancellation.abort()
+      emit({ type: "finished", reason: "aborted" })
+      settle()
+    },
+  }
+}
+
+async function teamApp() {
+  const directory = await mkdtemp(join(tmpdir(), "mimo-teams-"))
+  const { observability } = createObservationSystem({ appSessionId: "teams", logDirectory: join(directory, "logs"), development: false })
+  const database = openDatabase(join(directory, "mimo.sqlite"), observability)
+  const started = new Map<string, ReturnType<typeof createQueue<ReturnType<typeof turnDriver>>>>()
+
+  function turns(botId: string) {
+    const existing = started.get(botId)
+
+    if (existing) {
+      return existing
+    }
+
+    const queue = createQueue<ReturnType<typeof turnDriver>>({ onClose() {} })
+    started.set(botId, queue)
+
+    return queue
+  }
+
+  const factory: PiSessionFactory = {
+    async open(input) {
+      const listeners = new Set<(event: PiRuntimeEvent) => void>()
+      const emit = (event: PiRuntimeEvent) => {
+        for (const listener of listeners) {
+          listener(event)
+        }
+      }
+      let current: ReturnType<typeof turnDriver> | undefined
+
+      return {
+        async prompt() {
+          current = turnDriver(input, emit)
+          emit({ type: "started" })
+          turns(input.botId).push(current)
+          await current.settled
+        },
+        async steer() {},
+        async compact() { return { tokensBefore: 0 } },
+        async abort() { current?.abort() },
+        subscribe(listener) {
+          listeners.add(listener)
+
+          return () => listeners.delete(listener)
+        },
+        dispose() { listeners.clear() },
+      }
+    },
+  }
+  const runtime = createPiAgentRuntime(factory, observability)
+  const tasks = createTasks({ database, observability })
+  const bots = createBots({
+    database,
+    observability,
+    privateBotsDirectory: join(directory, "bots"),
+    providers: { async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] }, async validateExecution() {} },
+    conversations: { close: async (id) => conversations.close(id), isActive: (id) => !!conversations.active(id) },
+  })
+  const conversations = createConversations({ database, bots, tasks, runtime, observability, extensions: [] })
+  const projects = createProjects({ database, observability, bots })
+  cleanups.push(async () => {
+    await conversations.dispose()
+    await observability.flush()
+    database.close()
+
+    for (const queue of started.values()) {
+      queue.close()
+    }
+
+    await rm(directory, { recursive: true, force: true })
+  })
+
+  async function next(bot: Pick<Bot, "id">) {
+    const result = await turns(bot.id)[Symbol.asyncIterator]().next()
+
+    if (!result.value) {
+      throw new Error("No turn started")
+    }
+
+    return result.value
+  }
+
+  return {
+    directory,
+    database,
+    bots,
+    tasks,
+    conversations,
+    projects,
+    next,
+    async start(bot: Pick<Bot, "id">) {
+      await conversations.send({ botId: bot.id, content: "Prepare o trabalho", images: [] })
+
+      return next(bot)
+    },
+  }
+}
+
+test("desvincular preserva o Bot e seus dados, permite novo vínculo e protege da exclusão do antigo Líder", async () => {
+  const app = await teamApp()
+  const project = await app.projects.create({ name: "Editorial", defaultWorkingDirectory: app.directory })
+  const leader = await app.bots.create({ name: "Editora", projectId: project.id })
+  const member = await app.bots.create({ name: "Pesquisador", leaderBotId: leader.id, function: { outcome: "Reunir fontes" } })
+  const colleague = await app.bots.create({ name: "Revisor" })
+  app.bots.addColleague(member.id, colleague.id)
+  const before = app.bots.get({ id: member.id })
+
+  if (!before) {
+    throw new Error("Integrante não foi criado")
+  }
+
+  const memory = { id: "memory", botId: member.id, content: "Prefere fontes primárias", origin: "person", noteId: null, createdAt: new Date().toISOString() } as const
+  app.database.memories.create(memory)
+  app.database.accounts.create({ id: "account", pluginId: "gmail", label: "Editorial", state: "connected", secret: null, tools: [], checkedAt: new Date().toISOString() })
+  app.database.accesses.set({ botId: member.id, accountId: "account" })
+  const file = join(await app.bots.directory({ id: member.id }), "fontes.txt")
+  await writeFile(file, "Fontes preservadas")
+  const turn = await app.start(member)
+  await turn.finish()
+  const history = app.conversations.history({ botId: member.id, limit: 100 })
+
+  expect(app.bots.detachMember({ id: member.id })).toEqual({ ...before, leaderBotId: null })
+  expect(app.bots.detachMember({ id: member.id }).leaderBotId).toBeNull()
+  expect(app.projects.list().projects[0]?.bots.map((bot) => bot.id)).toEqual([leader.id, member.id])
+  expect(app.database.memories.get(memory.id)).toEqual(memory)
+  expect(app.database.accesses.listForBot(member.id)).toEqual([{ botId: member.id, accountId: "account" }])
+  expect(app.conversations.history({ botId: member.id, limit: 100 })).toEqual(history)
+  expect(await Bun.file(file).text()).toBe("Fontes preservadas")
+
+  app.bots.addMember({ leaderBotId: leader.id, botId: member.id })
+  expect(app.bots.get({ id: member.id })?.leaderBotId).toBe(leader.id)
+  app.bots.detachMember({ id: member.id })
+  await app.bots.remove({ id: leader.id })
+  expect(app.bots.get({ id: member.id })?.leaderBotId).toBeNull()
+  expect(await Bun.file(file).text()).toBe("Fontes preservadas")
+})
+
+test.each(["member", "leader", "task", "temporary"])("não desvincula com impedimento %s e preserva o vínculo", async (blocked) => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = blocked === "temporary"
+    ? await app.bots.hire(leader, { name: "Temporário", permanent: false, function: { outcome: "Pesquisar" } })
+    : await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+
+  if (blocked === "member" || blocked === "leader") {
+    await app.start(blocked === "member" ? member : leader)
+  }
+
+  if (blocked === "task") {
+    app.tasks.create({ callerBotId: leader.id, assigneeBotId: member.id })
+  }
+
+  expect(() => app.bots.detachMember({ id: member.id })).toThrow(blocked === "temporary" ? "temporários" : "Aguarde")
+  expect(app.bots.get({ id: member.id })?.leaderBotId).toBe(leader.id)
+})
+
+test("interromper o time com Líder livre cancela integrantes e Colegas relacionados, preserva a Fila e outros trabalhos", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const colleague = await app.bots.create({ name: "Colega" })
+  const unrelated = await app.bots.create({ name: "Outro trabalho" })
+  app.bots.addColleague(member.id, colleague.id)
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "no" })
+  const memberTurn = await app.next(member)
+  await memberTurn.tool("delegate", { bot: colleague.id, instructions: "Revisar", wait: "no" })
+  await app.next(colleague)
+  await leaderTurn.finish("O time está trabalhando")
+  await app.start(unrelated)
+  await app.conversations.send({ botId: member.id, content: "Próximo trabalho", images: [] })
+
+  await app.conversations.abortTeam({ botId: leader.id })
+
+  for (const bot of [leader, member, colleague]) {
+    expect(app.conversations.active(bot.id)).toBeUndefined()
+  }
+
+  expect(app.conversations.active(unrelated.id)?.author).toBe("person")
+  expect(app.tasks.listForBot({ botId: member.id }).map((task) => task.status)).toEqual(["interrupted", "interrupted"])
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === member.id)).toEqual([])
+  const events = app.conversations.events()[Symbol.asyncIterator]()
+  await events.next()
+  expect((await events.next()).value).toMatchObject({ botId: member.id, event: { type: "queue-changed", queued: [{ content: "Próximo trabalho" }] } })
+  await events.return?.()
+  await app.conversations.abortTeam({ botId: leader.id })
+  const resumed = await app.start(leader)
+  await resumed.finish("Novo trabalho permitido")
+})
+
+test("cancelar uma delegação que aguarda um Colega ocupado não interrompe o trabalho independente dele", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const colleague = await app.bots.create({ name: "Colega ocupado" })
+  app.bots.addColleague(leader.id, colleague.id)
+  const colleagueTurn = await app.start(colleague)
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: colleague.id, instructions: "Aguardar", wait: "no" })
+
+  await app.conversations.abortTeam({ botId: leader.id })
+  expect(app.tasks.listForBot({ botId: leader.id })[0]?.status).toBe("interrupted")
+  expect(app.conversations.active(colleague.id)?.author).toBe("person")
+  await colleagueTurn.finish("Pedido independente entregue")
+  expect(app.conversations.history({ botId: colleague.id, limit: 100 }).messages.some((message) => message.authorBotId === leader.id)).toBe(false)
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+})
+
+test("interromper o time descarta um retorno concluído que ainda espera o Líder", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "no" })
+  const memberTurn = await app.next(member)
+  await memberTurn.finish("Fontes reunidas")
+
+  await app.conversations.abortTeam({ botId: leader.id })
+
+  expect(app.tasks.listForBot({ botId: leader.id })[0]?.status).toBe("done")
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.some((message) => message.authorBotId === member.id)).toBe(false)
+})
+
+test("interromper somente o Líder preserva sua delegação sem espera", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "no" })
+  const memberTurn = await app.next(member)
+  await app.conversations.abort({ botId: leader.id })
+  expect(app.conversations.active(member.id)).toBeDefined()
+  await memberTurn.finish("Resultado recebido")
+  const result = await app.next(leader)
+  await result.finish("Entrega consolidada")
+  expect(app.tasks.listForBot({ botId: leader.id })[0]?.status).toBe("done")
+})
+
+test("cancelamento alcança trabalho descendente mesmo depois que o Colega já entregou seu retorno", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const colleague = await app.bots.create({ name: "Colega" })
+  app.bots.addColleague(leader.id, colleague.id)
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: colleague.id, instructions: "Pesquisar", wait: "no" })
+  const colleagueTurn = await app.next(colleague)
+  await colleagueTurn.tool("hire", { name: "Fontes", role: "Pesquisar", permanent: "no", instructions: "Pesquisar", wait: "no" })
+  const temporary = app.bots.list().find((bot) => bot.temporary)
+
+  if (!temporary) {
+    throw new Error("Temporário não foi contratado")
+  }
+
+  await app.next(temporary)
+  await leaderTurn.finish()
+  await colleagueTurn.finish("Entreguei a primeira parte")
+  const returned = await app.next(leader)
+  await returned.finish()
+  expect(app.conversations.teamWorking({ botId: leader.id })).toBe(true)
+  await app.start(leader)
+
+  await app.conversations.abortTeam({ botId: leader.id })
+
+  expect(app.conversations.active(temporary.id)).toBeUndefined()
+  expect(app.tasks.listForBot({ botId: temporary.id })[0]?.status).toBe("interrupted")
+  expect(app.bots.get({ id: temporary.id })?.closed).toBe(true)
+  expect(app.conversations.active(colleague.id)).toBeUndefined()
+  expect(app.conversations.teamWorking({ botId: leader.id })).toBe(false)
+})
+
+test("transferência respeita trabalho ativo e cancelamento alcança o novo responsável", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const recipient = await app.bots.create({ name: "Revisor", leaderBotId: leader.id })
+  const otherLeader = await app.bots.create({ name: "Outro Líder" })
+  const leaderTurn = await app.start(leader)
+  const delegated = leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "yes" })
+  const memberTurn = await app.next(member)
+  expect(() => app.bots.addMember({ leaderBotId: otherLeader.id, botId: member.id })).toThrow("Aguarde")
+  const transferred = memberTurn.tool("transfer", { bot: recipient.id, instructions: "Revisar" })
+  await app.next(recipient)
+
+  await app.conversations.abortTeam({ botId: leader.id })
+  await Promise.all([delegated, transferred])
+
+  expect(app.tasks.listForBot({ botId: leader.id })[0]).toMatchObject({ assigneeBotId: recipient.id, status: "interrupted" })
+  expect(app.conversations.active(recipient.id)).toBeUndefined()
+  expect(app.conversations.active(member.id)).toBeUndefined()
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+})
+
+test("excluir Líder apaga permanentes e temporários encerrados, seus históricos e Diretórios privados", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const permanent = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("hire", { name: "Pesquisa pontual", role: "Pesquisar", permanent: "no", instructions: "Pesquisar", wait: "no" })
+  const temporary = app.bots.list().find((bot) => bot.temporary)
+
+  if (!temporary) {
+    throw new Error("Temporário não foi contratado")
+  }
+
+  const memberTurn = await app.next(temporary)
+  await leaderTurn.finish()
+  await memberTurn.finish()
+  const returned = await app.next(leader)
+  await returned.finish()
+  expect(app.bots.get({ id: temporary.id })?.closed).toBe(true)
+  expect(app.projects.list().unassignedBots[0]?.members.map((bot) => bot.id)).toEqual([permanent.id, temporary.id])
+  const file = join(await app.bots.directory({ id: temporary.id }), "resultado.txt")
+  await writeFile(file, "Resultado")
+
+  await app.bots.remove({ id: leader.id })
+
+  expect(app.bots.list()).toEqual([])
+  expect(app.database.conversations.history(temporary.id, { limit: 100 }).messages).toEqual([])
+  expect(await Bun.file(file).exists()).toBe(false)
+})
+
+test("excluir um Líder com delegação sem espera não reabre sua conversa nem deixa Turnos órfãos", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "no" })
+  await app.next(member)
+  await leaderTurn.finish()
+
+  await app.bots.remove({ id: leader.id })
+
+  expect(app.bots.list()).toEqual([])
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+  expect(app.conversations.active(member.id)).toBeUndefined()
+})

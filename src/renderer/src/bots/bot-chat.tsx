@@ -11,6 +11,7 @@ import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
 import { BrainIcon } from "../ui/brain-icon"
 import { InlineAction } from "../ui/inline-action"
+import { ProviderWelcome } from "../settings/provider-welcome"
 import { BotMemory } from "./bot-memory"
 import { BotMembers } from "./bot-members"
 import { BotRoutineEditor } from "./bot-routine-editor"
@@ -36,16 +37,20 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   const { data: groups, error, isPending } = useQuery(client.query.projects.list.queryOptions())
   const bot = botId ? findTeamBot(groups, botId) : undefined
 
-  if (!botId) {
-    return <EmptyState title="Escolha um Bot" description={<>Abra um da lista ou <InlineAction type="button" onClick={openCreateBot}>crie um novo</InlineAction>.</>} />
-  }
-
   if (error) {
-    return <p className="p-7 text-support text-status-error">Falha ao abrir o Bot: {error.message}</p>
+    return <p className="p-7 text-support text-status-error">Falha ao carregar os Bots: {error.message}</p>
   }
 
   if (isPending) {
-    return <p className="p-7 text-muted">Abrindo Bot...</p>
+    return <p className="p-7 text-muted">{botId ? "Abrindo Bot..." : "Carregando Bots..."}</p>
+  }
+
+  if (!botId) {
+    if (groups && (groups.unassignedBots.length > 0 || groups.projects.some((project) => project.bots.length > 0))) {
+      return <EmptyState title="Escolha um Bot" description={<>Abra um da lista ou <InlineAction type="button" onClick={openCreateBot}>crie um novo</InlineAction>.</>} />
+    }
+
+    return <ProviderWelcome client={client} />
   }
 
   if (!bot) {

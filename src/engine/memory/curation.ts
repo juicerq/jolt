@@ -78,7 +78,7 @@ export function createCuration(input: { database: AppDatabase; observability: Ob
           completion.reject(new Error(event.error ?? `A Curadoria terminou com ${event.reason}.`))
         })
         const timeout = setTimeout(() => completion.reject(new Error("A Curadoria excedeu o tempo de execução. As Notas continuam pendentes.")), 120_000)
-        const cancel = () => completion.reject(new Error("A Curadoria foi interrompida ao fechar o Jolt."))
+        const cancel = () => completion.reject(new Error("A Curadoria foi interrompida ao fechar o Mimo."))
         shutdown.signal.addEventListener("abort", cancel, { once: true })
 
         try {

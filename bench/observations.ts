@@ -1,9 +1,9 @@
-import { join } from "node:path"
+import { resolve } from "node:path"
 import { observation, type Observation } from "../src/shared/observability/observation"
 import { parse } from "../src/shared/parse"
 
 export function observationLog(userData: string) {
-  return join(process.cwd(), userData, "logs", "observations.jsonl")
+  return resolve(userData, "logs", "observations.jsonl")
 }
 
 export async function observations(logPath: string, offset = 0) {

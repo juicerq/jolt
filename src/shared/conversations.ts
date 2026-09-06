@@ -7,6 +7,8 @@ import type { TaskStatus } from "./tasks"
 import type { ExternalEvent } from "./triggers"
 
 export const askTool = "ask"
+export const sendMessageTool = "send_message"
+export const messageContentLimit = 800
 
 const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine", "trigger"])
@@ -20,8 +22,9 @@ const messageQuestionOption = z.strictObject({
 const messageQuestion = z.strictObject({
   options: z.array(messageQuestionOption).min(2).max(12),
   allowOther: z.boolean(),
+  multiple: z.boolean(),
 })
-const messageReply = z.strictObject({ messageId: id, optionValue: id.max(100) })
+const messageReply = z.strictObject({ messageId: id, optionValues: z.array(id.max(100)).min(1) })
 const queuedMessage = z.strictObject({
   id,
   content: z.string(),
@@ -70,8 +73,8 @@ const message = z.strictObject({
 })
 const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, triggerRunId: true, content: true, images: true, replyTo: true })
 const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
+const sendMessageToolInput = z.strictObject({ content: z.string().trim().min(1).max(messageContentLimit, "This message is too long. Send one idea at a time in separate send_message calls; preserve the remaining details in subsequent messages.") })
 const startedEvent = z.strictObject({ type: z.literal("started"), messageId: id, message: incomingMessage })
-const textEvent = z.strictObject({ type: z.literal("text"), text: z.string() })
 const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
 const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
 const thinkingStartedEvent = z.strictObject({ type: z.literal("thinking-started") })
@@ -103,7 +106,6 @@ const queueChangedEvent = z.strictObject({ type: z.literal("queue-changed"), que
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
   startedEvent,
-  textEvent,
   messageFinishedEvent,
   thinkingStartedEvent,
   thinkingEvent,
@@ -137,6 +139,7 @@ export const conversationSchemas = {
   queueInput: z.strictObject({ botId: id, id }),
   queuedMessage,
   askToolInput,
+  sendMessageToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),
@@ -161,6 +164,6 @@ export type TurnContext = { startedAt: string; timeZone: string } & (
   | { cause: "person" }
   | { cause: "routine"; routineId: string; frequency: Frequency; scheduledFor: string }
   | { cause: "trigger"; triggerId: string; triggerRunId: string; event: ExternalEvent }
-  | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string }; outcome: string }
-  | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; outcome: string; status: TaskStatus }
+  | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string } }
+  | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; status: TaskStatus }
 )

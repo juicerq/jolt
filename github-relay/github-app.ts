@@ -89,7 +89,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
         accept: "application/vnd.github+json",
         authorization: `Bearer ${jwt()}`,
         "content-type": "application/json",
-        "user-agent": "Jolt GitHub Relay",
+        "user-agent": "Mimo GitHub Relay",
         "x-github-api-version": githubApiVersion,
       },
     })
@@ -104,7 +104,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
 
   async function userRequest(userToken: string, path: string) {
     return await fetch(new URL(path, "https://api.github.com"), {
-      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Jolt GitHub Relay", "x-github-api-version": githubApiVersion },
+      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Mimo GitHub Relay", "x-github-api-version": githubApiVersion },
       signal: AbortSignal.timeout(15_000),
     })
   }

@@ -93,7 +93,11 @@ export function deferPiSessionFactory(load: () => Promise<PiSessionFactory>): Pi
   let loading: Promise<PiSessionFactory> | undefined
 
   function warm() {
-    loading ??= load()
+    loading ??= load().catch((error: unknown) => {
+      loading = undefined
+
+      throw error
+    })
 
     return loading
   }
@@ -113,6 +117,16 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
   const sessions = new Map<string, { session: PiSession; provider: ProviderName; policy: PiPermissionPolicy; unsubscribe: () => void; listeners: Set<(event: PiRuntimeEvent) => void> }>()
   const pending = new Map<string, { botId: string; request: PermissionRequest; resolve(decision: PermissionDecision): void }>()
   const denied = new Set<string>()
+
+  function existing(botId: string) {
+    const entry = sessions.get(botId)
+
+    if (!entry) {
+      throw new Error("Pi session not found")
+    }
+
+    return entry
+  }
 
   function pendingKey(botId: string, requestId: string) {
     return `${botId}:${requestId}`
@@ -164,6 +178,12 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
     entry.unsubscribe()
     entry.session.dispose()
     sessions.delete(botId)
+
+    for (const key of denied) {
+      if (key.startsWith(`${botId}:`)) {
+        denied.delete(key)
+      }
+    }
   }
 
   return {
@@ -211,8 +231,10 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
           observability.event({ name: "pi.compactionstarted", attributes: { reason: event.reason }, context: { botId: input.botId, provider: input.provider } })
         }
 
+        const annotated = annotate(input.botId, policy, event)
+
         for (const listener of listeners) {
-          listener(annotate(input.botId, policy, event))
+          listener(annotated)
         }
       })
       sessions.set(input.botId, { session, provider: input.provider, policy, unsubscribe, listeners })
@@ -220,49 +242,29 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       return { sessionFile: session.sessionFile }
     },
     subscribe(botId: string, listener: (event: PiRuntimeEvent) => void) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       entry.listeners.add(listener)
 
       return () => entry.listeners.delete(listener)
     },
     async prompt(botId: string, prompt: PiPrompt) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       return observability.span({ name: "pi.turn", context: { botId, provider: entry.provider } }, () => entry.session.prompt(prompt))
     },
     async steer(botId: string, input: Pick<PiPrompt, "content" | "images">) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       return observability.span({ name: "pi.steer", context: { botId, provider: entry.provider } }, () => entry.session.steer(input))
     },
     async compact(botId: string, customInstructions?: string) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       return observability.span({ name: "pi.compact", context: { botId, provider: entry.provider } }, () => entry.session.compact(customInstructions))
     },
     addTools(botId: string, tools: PiTool[]) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       if (!entry.session.addTools) {
         throw new Error("Pi session cannot add tools")
@@ -272,11 +274,7 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       entry.session.addTools(tools)
     },
     async abort(botId: string) {
-      const entry = sessions.get(botId)
-
-      if (!entry) {
-        throw new Error("Pi session not found")
-      }
+      const entry = existing(botId)
 
       denyPending(botId)
 

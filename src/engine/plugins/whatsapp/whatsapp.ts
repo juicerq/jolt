@@ -1,4 +1,4 @@
-import { Browsers, DisconnectReason, jidNormalizedUser, makeWASocket, type WASocket } from "baileys"
+import { Browsers, type ConnectionState, DisconnectReason, jidNormalizedUser, makeWASocket, type WASocket } from "baileys"
 import { z } from "zod"
 import { parse } from "@src/shared/parse"
 import type { PluginStep, ToolDescriptor } from "@src/shared/plugins"
@@ -24,7 +24,7 @@ const whatsappTools: ToolDescriptor[] = [
   {
     name: "whatsapp_chats",
     label: "Lista de conversas do WhatsApp",
-    description: "List the person's WhatsApp chats, most recent first. Each chat shows its id, its name, what kind of chat it is, when the last message arrived, how many messages Jolt has stored, and the last message itself with its sender. Use this first: it is cheap, and it gives you the chat ids that whatsapp_read and whatsapp_send need. Jolt only stores what arrived while it was open.",
+    description: "List the person's WhatsApp chats, most recent first. Each chat shows its id, its name, what kind of chat it is, when the last message arrived, how many messages Mimo has stored, and the last message itself with its sender. Use this first: it is cheap, and it gives you the chat ids that whatsapp_read and whatsapp_send need. Mimo only stores what arrived while it was open.",
     inputSchema: {
       type: "object",
       properties: {
@@ -36,7 +36,7 @@ const whatsappTools: ToolDescriptor[] = [
   {
     name: "whatsapp_read",
     label: "Leitura de conversa do WhatsApp",
-    description: "Read the stored messages of one or more WhatsApp chats, oldest first, with sender, time and text. Pass every chat you need in one call. Non-text messages read as a marker such as [image]. The stored history has gaps: Jolt loses what arrived while it was closed and never recovers it. Do not assume you read the whole conversation.",
+    description: "Read the stored messages of one or more WhatsApp chats, oldest first, with sender, time and text. Pass every chat you need in one call. Non-text messages read as a marker such as [image]. The stored history has gaps: Mimo loses what arrived while it was closed and never recovers it. Do not assume you read the whole conversation.",
     inputSchema: {
       type: "object",
       properties: {
@@ -133,6 +133,21 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
       }
     }
 
+    function handleClose(lastDisconnect: Partial<ConnectionState>["lastDisconnect"]) {
+      const status = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output?.statusCode
+
+      if (closed || status === DisconnectReason.loggedOut) {
+        loggedOut = status === DisconnectReason.loggedOut
+        rejectOpened(new Error("The WhatsApp session was closed"))
+        current = undefined
+
+        return
+      }
+
+      input.observability.event({ name: "plugin.whatsappreconnecting", context: { pluginId: "whatsapp" }, attributes: { reason: lastDisconnect?.error?.message ?? "closed", ...(status ? { status: String(status) } : {}) } })
+      setTimeout(start, reconnectDelayMs)
+    }
+
     function start() {
       const socket = makeWASocket({
         auth: auth.state,
@@ -190,22 +205,9 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
           resolveOpened(jidNormalizedUser(socket.user?.id ?? "").split("@")[0] ?? "WhatsApp")
         }
 
-        if (update.connection !== "close") {
-          return
+        if (update.connection === "close") {
+          handleClose(update.lastDisconnect)
         }
-
-        const status = (update.lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output?.statusCode
-
-        if (closed || status === DisconnectReason.loggedOut) {
-          loggedOut = status === DisconnectReason.loggedOut
-          rejectOpened(new Error("The WhatsApp session was closed"))
-          current = undefined
-
-          return
-        }
-
-        input.observability.event({ name: "plugin.whatsappreconnecting", context: { pluginId: "whatsapp" }, attributes: { reason: update.lastDisconnect?.error?.message ?? "closed", ...(status ? { status: String(status) } : {}) } })
-        setTimeout(start, reconnectDelayMs)
       })
     }
 
@@ -315,7 +317,7 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
         .slice(0, details.limit)
 
       if (chats.length === 0) {
-        return "No stored chats match. Jolt stores WhatsApp messages only while it is open."
+        return "No stored chats match. Mimo stores WhatsApp messages only while it is open."
       }
 
       return chats.map((entry) => describeChat(entry.chat, entry.kind)).join("\n\n")

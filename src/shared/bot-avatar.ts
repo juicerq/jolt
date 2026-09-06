@@ -1,5 +1,5 @@
 export function defaultBotAvatarSeed(name: string) {
-  return `jolt:new:${name}`
+  return `mimo:new:${name}`
 }
 
 export function randomBotAvatarSeed() {

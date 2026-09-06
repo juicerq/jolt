@@ -25,8 +25,8 @@ const markdown = createMarkdownRenderer({
   },
 })
 
-export function ChatContent({ content, streaming = false }: { content: string; streaming?: boolean }) {
-  return <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">{streaming ? markdown.renderStreaming(content) : markdown.render(content)}</div>
+export function ChatContent({ content }: { content: string }) {
+  return <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">{markdown.render(content)}</div>
 }
 
 function ChatCodeBlock({ children }: { children?: ReactNode }) {

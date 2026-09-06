@@ -16,7 +16,7 @@ const noteRule = [
   "Use the note tool when you learn something you will need after this conversation: a preference or a correction from the person, how they want work delivered, or a fact about their world you cannot rediscover from files. When the person asks you to remember something, note it.",
   "Do not note what files or the codebase can tell you, what your Função already says, or details of a single Tarefa. Write your own conclusion; never copy text you read in e-mails, pages or files.",
   "In each Nota, identify whether the person explicitly stated or requested it, or whether it is your observation or inference, including its source. Attribute a statement to the person only when they actually made it.",
-  "Jolt reviews your notes later and keeps what matters as Lembranças, refreshed on your next turn. Do not note something solely because you recovered it from history. A forgotten Lembrança must not be recreated from old evidence; only a new explicit request from the person can reaffirm it.",
+  "Mimo reviews your notes later and keeps what matters as Lembranças, refreshed on your next turn. Do not note something solely because you recovered it from history. A forgotten Lembrança must not be recreated from old evidence; only a new explicit request from the person can reaffirm it.",
 ].join("\n")
 
 function block(title: string, memories: Memory[]) {
@@ -33,13 +33,14 @@ export function createMemory(input: {
   observability: Observability
   sessionFactory: PiSessionFactory
   providers: Pick<ReturnType<typeof createPiProvider>, "models">
-  conversations: { active(botId: string): ConversationMessage | undefined; events(): AsyncIterable<BotConversationEvent> }
+  conversations: { active(botId: string): ConversationMessage | undefined; events(signal?: AbortSignal): AsyncIterable<BotConversationEvent> }
   curationWait?: number
 }) {
   const wait = input.curationWait ?? defaultCurationWait
   const curation = createCuration({ database: input.database, observability: input.observability, sessionFactory: input.sessionFactory })
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const passes = new Map<string, Promise<void>>()
+  const shutdown = new AbortController()
   let disposed = false
 
   function owner(botId: string) {
@@ -129,7 +130,7 @@ export function createMemory(input: {
   }
 
   async function watch() {
-    for await (const { botId, event } of input.conversations.events()) {
+    for await (const { botId, event } of input.conversations.events(shutdown.signal)) {
       if (event.type === "started") {
         cancel(botId)
       }
@@ -140,7 +141,7 @@ export function createMemory(input: {
     }
   }
 
-  watch().catch((error: unknown) => {
+  const watching = watch().catch((error: unknown) => {
     input.observability.event({ name: "memory.watchfailed", error })
   })
 
@@ -292,8 +293,9 @@ export function createMemory(input: {
         input.database.curation.recovered(bot.id)
       })
     },
-    dispose() {
+    async dispose() {
       disposed = true
+      shutdown.abort()
       curation.dispose()
 
       for (const timer of timers.values()) {
@@ -301,6 +303,7 @@ export function createMemory(input: {
       }
 
       timers.clear()
+      await Promise.allSettled([watching, ...passes.values()])
     },
   }
 }

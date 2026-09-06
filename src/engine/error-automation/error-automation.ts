@@ -138,24 +138,20 @@ export function createErrorAutomation(input: {
   async function runBot(run: ErrorRun, bot: Bot, content: string) {
     const controller = running.get(run.id) ?? new AbortController()
     const timeout = setTimeout(() => controller.abort(), leaseMs - 10_000)
-    const task = input.tasks.create({ callerBotId: run.kind === "correction" ? configured().config.correctionLeaderId! : configured().config.analysisLeaderId!, assigneeBotId: bot.id, outcome: `Dogama error ${run.caseId}: ${run.kind}` })
+    const task = input.tasks.create({ callerBotId: run.kind === "correction" ? configured().config.correctionLeaderId! : configured().config.analysisLeaderId!, assigneeBotId: bot.id })
     cases.bindRun(run.id, bot.id, task.id)
     const before = input.runtime.usage(bot.id)
     let response = ""
     let reason = "error"
 
     try {
-      for await (const event of input.conversations.runTask(bot.id, {
+      const turn = await input.conversations.runTask(bot.id, {
         author: "bot", authorBotId: task.callerBotId, taskId: task.id, triggerRunId: null,
         content, images: [], replyTo: null,
-      }, { signal: controller.signal })) {
-        if (event.type === "text") {
-          response += event.text
-        }
-        if (event.type === "finished") {
-          reason = event.reason
-        }
-      }
+      }, { signal: controller.signal })
+      const outcome = await turn.finished
+      response = outcome.response
+      reason = outcome.reason
 
       if (reason !== "stop") {
         throw new Error(`The ${run.kind} turn ${reason === "aborted" ? "was interrupted" : "failed"}`)

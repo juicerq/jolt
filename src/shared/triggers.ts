@@ -57,7 +57,6 @@ export const triggerSchemas = {
   trigger,
   triggerList: z.array(trigger),
   triggerRun,
-  triggerRunList: z.array(triggerRun),
   externalEvent,
   createInput,
   updateInput: trigger.pick({ id: true, name: true, event: true, actions: true, repositories: true, labels: true, instruction: true, includeOwnEvents: true, status: true }),

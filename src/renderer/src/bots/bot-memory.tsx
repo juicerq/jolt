@@ -6,12 +6,12 @@ import type { Memory } from "@src/shared/memory"
 import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
+import { ConfirmationDialog } from "../ui/dialog"
 import { fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
 import { SettingsSection } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
-import { revealClassName } from "./bot-form"
 import { BotPage, BotPageIdentity } from "./bot-page"
 
 const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", trigger: "Aprendeu em um Gatilho", bot: "Aprendeu com outro Bot" }
@@ -75,7 +75,7 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
           : <p className="m-0 text-control font-medium text-primary">{memory.content}</p>}
         <p className="m-0 text-support text-muted">{describeOrigin(memory)}</p>
         {memory.source && <details className="mt-2 text-support text-secondary">
-          <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">O que motivou esta Lembrança</summary>
+          <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Origem da Lembrança</summary>
           <p className="m-0 mt-2 whitespace-pre-wrap">{memory.source.content}</p>
           <p className="m-0 mt-1 text-muted">Nota de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(memory.source.createdAt))}</p>
         </details>}
@@ -95,7 +95,7 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
 function clearNote(bot: Bot, count: number) {
   const memories = count === 1 ? "1 Lembrança" : `${count} Lembranças`
 
-  return `Limpar a Memória de ${bot.name} apaga ${memories} e as Notas que ainda não viraram Lembrança. Não é possível desfazer.`
+  return `Limpar a Memória de ${bot.name} apaga ${memories} e as Notas pendentes. Não é possível desfazer.`
 }
 
 function TeamMemory({ leader, client }: { leader: Pick<Bot, "id" | "name">; client: EngineClient }) {
@@ -139,15 +139,34 @@ function TemporaryMemory({ client, leader }: { client: EngineClient; leader?: Pi
   )
 }
 
-function MemoryClearConfirmation({ note, clearing, onCancel, onConfirm }: { note: string; clearing: boolean; onCancel: () => void; onConfirm: () => void }) {
+function MemoryForm({ adding, disabled, draft, onChange, onSubmit }: { adding: boolean; disabled: boolean; draft: string; onChange: (draft: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   return (
-    <div className={`${revealClassName} flex flex-col items-start gap-4`}>
-      <p className="m-0 text-control font-medium text-secondary">{note}</p>
-      <div className="flex gap-2">
-        <Button variant="text" type="button" autoFocus disabled={clearing} onClick={onCancel}>Cancelar</Button>
-        <Button variant="danger" type="button" disabled={clearing} onClick={onConfirm}>{clearing ? "Limpando..." : "Limpar a Memória"}</Button>
-      </div>
-    </div>
+    <form className="flex items-start gap-2" onSubmit={onSubmit}>
+      <label className="min-w-0 flex-1">
+        <span className="sr-only">Nova Lembrança</span>
+        <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} placeholder="Ex.: prefiro relatórios em PDF" value={draft} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+      </label>
+      <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={disabled || !draft.trim()}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
+    </form>
+  )
+}
+
+function MemoryClearDialog({ bot, clearing, count, error, onClear, onClose }: { bot: Bot; clearing: boolean; count: number; error: Error | null; onClear: () => void; onClose: () => void }) {
+  return (
+    <ConfirmationDialog
+      icon={<TrashIcon />}
+      title="Limpar a Memória"
+      onClose={() => !clearing && onClose()}
+      actions={(
+        <>
+          <Button variant="text" type="button" autoFocus disabled={clearing} onClick={onClose}>Cancelar</Button>
+          <Button variant="danger" type="button" disabled={clearing} onClick={onClear}>{clearing ? "Limpando..." : "Limpar a Memória"}</Button>
+        </>
+      )}
+    >
+      <p className="m-0 text-control text-secondary">{clearNote(bot, count)}</p>
+      {error && <p className="m-0 text-support text-status-error">Falha ao limpar a Memória: {error.message}</p>}
+    </ConfirmationDialog>
   )
 }
 
@@ -173,8 +192,8 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
   } }))
   const content = draft.trim()
   const busy = [adding, updating, forgetting, clearing, toggling].some(Boolean)
-  const failure = [listError, addError, updateError, forgetError, clearError, toggleError].find(Boolean)?.message
-  const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não lê nem anota, nem o que o Líder sabe. Nada foi apagado.`
+  const failure = [listError, addError, updateError, forgetError, toggleError].find(Boolean)?.message
+  const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não usa nem registra Memórias enquanto esta opção estiver desativada. As Lembranças ficam salvas.`
 
   function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -202,17 +221,11 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
       <p className="m-0 text-support text-muted">{state}</p>
       {memories && <MemoryList memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
       {memories && memories.length > 0 && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
-      <form className="flex items-start gap-2" onSubmit={handleAdd}>
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">Nova Lembrança</span>
-          <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} placeholder="Entrego relatórios em PDF, nunca em planilha" value={draft} disabled={busy || confirmingClear} onChange={(event) => setDraft(event.target.value)} />
-        </label>
-        <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={busy || confirmingClear || !content}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
-      </form>
-      {memories && memories.length > 0 && !confirmingClear && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
-      {memories && confirmingClear && <MemoryClearConfirmation note={clearNote(bot, memories.length)} clearing={clearing} onCancel={() => setConfirmingClear(false)} onConfirm={() => clear({ botId: bot.id })} />}
+      <MemoryForm draft={draft} adding={adding} disabled={busy} onChange={setDraft} onSubmit={handleAdd} />
+      {memories && memories.length > 0 && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
       {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
       {leader && <TeamMemory leader={leader} client={client} />}
+      {memories && confirmingClear && <MemoryClearDialog bot={bot} count={memories.length} clearing={clearing} error={clearError} onClear={() => clear({ botId: bot.id })} onClose={() => setConfirmingClear(false)} />}
     </SettingsSection>
   )
 }

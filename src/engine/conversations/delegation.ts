@@ -1,13 +1,11 @@
 import type { Bot } from "@src/shared/bots"
-import type { ConversationEvent, IncomingMessage } from "@src/shared/conversations"
+import type { IncomingMessage } from "@src/shared/conversations"
 import { delegateTool, transferTool, type Task } from "@src/shared/tasks"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { PiCustomTool } from "../pi/pi-agent-runtime"
-import type { BotInheritance } from "./conversations"
+import type { BotInheritance, TurnResult } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
-
-interface Outcome { reason: "stop" | "aborted" | "error"; response: string }
 
 const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
 const calledRule = "Other Bots can send you a Tarefa. Reply directly to whoever sent it. A direct order from the person prevails over any Tarefa; if the person changes or interrupts your work, say so in your reply."
@@ -16,11 +14,13 @@ export function createDelegation(input: {
   bots: ReturnType<typeof createBots>
   tasks: ReturnType<typeof createTasks>
   observability: Observability
-  runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): AsyncGenerator<ConversationEvent>
+  runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): Promise<{ finished: Promise<TurnResult> }>
   active(botId: string): { taskId: string | null } | undefined
   assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">): void
   inheritance(leader: Bot, references: string | undefined): BotInheritance[]
 }) {
+  const running = new Map<string, { task: Task; botIds: Set<string>; cancellation: AbortController; signal: AbortSignal; settled: Promise<void> }>()
+
   function members(leader: Pick<Bot, "id">) {
     return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
   }
@@ -43,25 +43,15 @@ export function createDelegation(input: {
     return target
   }
 
-  async function handoff(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal): Promise<Outcome> {
+  async function handoff(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal): Promise<TurnResult> {
     return input.observability.span({ name: "delegation.turn", context: { botId: to.id, callerBotId: task.callerBotId, taskId: task.id } }, async () => {
-      const outcome: Outcome = { reason: "error", response: "" }
+      const turn = await input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, triggerRunId: null, content, images: [], replyTo: null }, signal ? { signal } : undefined)
 
-      for await (const event of input.runTurn(to.id, { author: "bot", authorBotId: from.id, taskId: task.id, triggerRunId: null, content, images: [], replyTo: null }, { signal })) {
-        if (event.type === "text") {
-          outcome.response += event.text
-        }
-
-        if (event.type === "finished") {
-          outcome.reason = event.reason
-        }
-      }
-
-      return outcome
+      return turn.finished
     })
   }
 
-  function summarize(to: Bot, outcome: Outcome) {
+  function summarize(to: Bot, outcome: TurnResult) {
     if (outcome.reason === "stop") {
       return outcome.response || `${to.name} finished without a reply.`
     }
@@ -73,7 +63,7 @@ export function createDelegation(input: {
     return `${to.name} failed before finishing.`
   }
 
-  function describe(to: Bot, outcome: Outcome) {
+  function describe(to: Bot, outcome: TurnResult) {
     const summary = summarize(to, outcome)
 
     if (outcome.reason === "error") {
@@ -87,7 +77,7 @@ export function createDelegation(input: {
 
   async function delegate(from: Bot, to: Bot, task: Task, content: string, signal?: AbortSignal) {
     const outcome = await handoff(from, to, task, content, signal).catch((error: unknown) => {
-      input.tasks.finish(task.id, "interrupted")
+      input.tasks.finish(task.id, signal?.aborted ? "interrupted" : "failed")
 
       throw error
     })
@@ -96,25 +86,47 @@ export function createDelegation(input: {
     return outcome
   }
 
-  async function deliverLater(from: Bot, to: Bot, task: Task, content: string) {
-    const outcome = await delegate(from, to, task, content)
-
-    await Array.fromAsync(input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null }))
-  }
-
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
-    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id, outcome: params.outcome ?? "" })
-    const content = [params.outcome, params.instructions].filter(Boolean).join("\n\n")
+    signal?.throwIfAborted()
+
+    const parentId = input.active(from.id)?.taskId
+    const parent = parentId ? running.get(parentId) : undefined
+    const cancellation = new AbortController()
+    const workSignal = AbortSignal.any([cancellation.signal, ...(parent ? [parent.signal] : []), ...(params.wait !== "no" && signal ? [signal] : [])])
+    workSignal.throwIfAborted()
+
+    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id })
+    const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+    running.set(task.id, { task, botIds: new Set([from.id, to.id, ...parent?.botIds ?? []]), cancellation, signal: workSignal, settled })
+
+    const finished = executeAssignment().finally(() => {
+      running.delete(task.id)
+      settle()
+    })
+
+    async function executeAssignment() {
+      const outcome = await delegate(from, to, task, params.instructions ?? "", workSignal)
+
+      if (params.wait === "no" && !workSignal.aborted) {
+        const turn = await input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, outcome), images: [], replyTo: null }, { signal: workSignal })
+
+        await turn.finished
+      }
+
+      return outcome
+    }
 
     if (params.wait === "no") {
-      void deliverLater(from, to, task, content).catch((error) => {
-        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
+      void finished.catch((error: unknown) => {
+        if (!workSignal.aborted) {
+          input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
+        }
       })
 
       return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
     }
 
-    return describe(to, await delegate(from, to, task, content, signal))
+    return describe(to, await finished)
   }
 
   function delegateTo(bot: Bot): PiCustomTool {
@@ -123,8 +135,7 @@ export function createDelegation(input: {
       description: "Create a Tarefa and delegate it to a member of your team or to a Colega. You remain responsible for the overall result. Wait when your next step depends on the reply; do not wait when you can keep working or will delegate more Tarefas.",
       parameters: {
         bot: "Name or id of the member or Colega",
-        outcome: "Expected result of the Tarefa",
-        instructions: "Instructions for the Bot",
+        instructions: "What the Bot must do and the result you expect",
         wait: waitParameter,
       },
       async execute(params, signal) {
@@ -133,7 +144,27 @@ export function createDelegation(input: {
     }
   }
 
+  function workFor(botIds: Set<string>) {
+    return [...running.values()].filter((work) => {
+      const task = input.tasks.get(work.task.id) ?? work.task
+
+      return botIds.has(task.assigneeBotId) || [...work.botIds].some((id) => botIds.has(id))
+    })
+  }
+
   return {
+    hasWork(botIds: Set<string>) {
+      return workFor(botIds).length > 0
+    },
+    async abortFor(botIds: Set<string>) {
+      const pending = workFor(botIds)
+
+      for (const work of pending) {
+        work.cancellation.abort()
+      }
+
+      await Promise.all(pending.map((work) => work.settled))
+    },
     tools(bot: Bot): PiCustomTool[] {
       if (bot.leaderBotId) {
         const transfer: PiCustomTool = {
@@ -160,8 +191,8 @@ export function createDelegation(input: {
               throw new Error("You already own this Tarefa")
             }
 
-            input.tasks.transfer(task.id, to.id)
-            const outcome = await handoff(bot, to, { ...task, assigneeBotId: to.id }, params.instructions ?? "", signal)
+            const transferred = input.tasks.transfer(task.id, to.id)
+            const outcome = await handoff(bot, to, transferred, params.instructions ?? "", signal)
 
             return describe(to, outcome)
           },
@@ -183,8 +214,7 @@ export function createDelegation(input: {
           role: "The member's Função: what it delivers, in one line",
           "description?": "Responsibilities, limits and how the member presents its work",
           permanent: "\"yes\" to keep the member on your team for future Tarefas. \"no\" for a temporary member that closes when this Tarefa ends.",
-          outcome: "Expected result of the Tarefa",
-          instructions: "Instructions for the member",
+          instructions: "What the member must do and the result you expect",
           wait: waitParameter,
           "plugins?": "Contas the member may use, by label, separated by commas. Only Contas you use yourself. Leave empty for none.",
           "profile?": "Managed execution profile: error-analyst (Luna max), error-reviewer (Sol max), or error-fixer (Sol max). Requires an isolated directory; no plugin inheritance.",
@@ -195,8 +225,14 @@ export function createDelegation(input: {
             throw new Error("Managed error workers cannot inherit Plugins")
           }
 
+          signal?.throwIfAborted()
           const inherited = input.inheritance(bot, params.plugins)
           const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) }, ...(params.profile ? { executionProfile: params.profile, workingDirectoryOverride: params.directory } : {}) })
+
+          if (signal?.aborted) {
+            await input.bots.remove({ id: to.id })
+            signal.throwIfAborted()
+          }
 
           for (const inheritance of inherited) {
             inheritance.apply(to)

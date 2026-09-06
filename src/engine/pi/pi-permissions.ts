@@ -3,7 +3,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path"
 import type { ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent"
 import type { BotPermissionMode } from "@src/shared/bot-permissions"
 import type { PermissionDecision, PermissionRequest } from "@src/shared/permissions"
-import { askTool } from "@src/shared/conversations"
+import { askTool, sendMessageTool } from "@src/shared/conversations"
 import { connectPluginTool } from "@src/shared/plugins"
 import { delegateTool, transferTool } from "@src/shared/tasks"
 import { webFetchTool, webSearchTool } from "../web/web-search"
@@ -24,10 +24,10 @@ export type PiPermissionPolicy =
   | (PiPermissionPolicyBase & { mode: Extract<BotPermissionMode, "full"> })
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
-const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, askTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
-const readOnlyTools = new Set([...observationTools, askTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
+const exemptTools = new Set([connectPluginTool, delegateTool, transferTool, askTool, sendMessageTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
+const readOnlyTools = new Set([...observationTools, askTool, sendMessageTool, webSearchTool, webFetchTool, ...Object.values(historyTools)])
 const detailFields: Record<string, string> = { bash: "command", hire: "name", note: "content", remove_routine: "id", routine: "content" }
-const briefFields: Record<string, string> = { hire: "outcome", routine: "frequency" }
+const briefFields: Record<string, string> = { hire: "instructions", routine: "frequency" }
 
 export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[]) {
   if (mode !== "read-only") {
@@ -89,8 +89,19 @@ function describeToolCall(id: string, tool: string, input: unknown, label?: stri
 
   const detail = readDetail(input, detailFields[tool] ?? "path")
   const brief = readDetail(input, briefFields[tool])
+  const edit = tool === "edit" ? { oldText: readDetail(input, "oldText"), newText: readDetail(input, "newText") } : undefined
 
-  return { id, tool, ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
+  return { id, tool, ...(edit ? { arguments: edit } : {}), ...(detail ? { detail } : {}), ...(brief ? { brief } : {}), ...(tool === "bash" && cwd ? { cwd } : {}) }
+}
+
+async function observesInside(policy: Pick<PiPermissionPolicy, "allowedRoot" | "botDirectory">, input: unknown) {
+  const path = typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
+
+  if (await pathIsInside(policy.allowedRoot, path)) {
+    return true
+  }
+
+  return !!policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))
 }
 
 async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input: unknown, callId: string) {
@@ -125,8 +136,7 @@ async function authorizeToolCall(policy: PiPermissionPolicy, tool: string, input
   }
 
   const observes = observationTools.has(tool)
-  const path = observes && typeof input === "object" && input !== null ? Reflect.get(input, "path") ?? "." : undefined
-  const inside = observes && (await pathIsInside(policy.allowedRoot, path) || (policy.botDirectory && typeof path === "string" && await pathIsInside(policy.botDirectory, resolve(policy.allowedRoot, path))))
+  const inside = observes && await observesInside(policy, input)
 
   if (inside) {
     return { allowed: true as const }

@@ -14,11 +14,13 @@ import type { TSchema } from "@earendil-works/pi-ai"
 import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
+import { createMessagingExtension } from "./pi-messaging"
+import { sendMessageTool } from "@src/shared/conversations"
 import type { PiModels } from "./pi-models"
 import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content" }
-const briefFields: Record<string, string> = { delegate: "outcome", hire: "outcome", transfer: "instructions", routine: "content" }
+const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
 
 function toolSchema(tool: PiTool): TSchema {
   if ("inputSchema" in tool) {
@@ -135,17 +137,7 @@ function createEventNormalizer() {
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
-      const reason = event.message.stopReason
-      const terminalReason = terminalMessageReason(reason)
-
-      lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
-      lastError = event.message.errorMessage?.trim().slice(0, 500) || undefined
-
-      if (!terminalReason) {
-        return
-      }
-
-      return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
+      return finishMessage(event.message)
     }
 
     if (event.type === "agent_settled") {
@@ -155,6 +147,20 @@ function createEventNormalizer() {
     }
 
     return normalizeStateless(event)
+  }
+
+  function finishMessage(message: Extract<Extract<AgentSessionEvent, { type: "message_end" }>["message"], { role: "assistant" }>): PiRuntimeEvent | undefined {
+    const reason = message.stopReason
+    const terminalReason = terminalMessageReason(reason)
+
+    lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
+    lastError = message.errorMessage?.trim().slice(0, 500) || undefined
+
+    if (!terminalReason) {
+      return
+    }
+
+    return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
   }
 
   return {
@@ -248,7 +254,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy), registrar.extension],
+        extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension()] : [])],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,
@@ -283,7 +289,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         },
         async prompt({ content, images = [], context }) {
           if (context) {
-            await result.session.sendCustomMessage({ customType: "jolt.turn-context", content: `Jolt context for the next message:\n${JSON.stringify(context)}`, display: false })
+            await result.session.sendCustomMessage({ customType: "mimo.turn-context", content: `Mimo context for the next message:\n${JSON.stringify(context)}`, display: false })
           }
 
           return result.session.prompt(content, { images: images.map((image) => ({ type: "image", ...image })) })

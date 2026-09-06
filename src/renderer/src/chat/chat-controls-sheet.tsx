@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "@heroicons/react/24/outline"
-import { useId } from "react"
+import { useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import { effortLabels } from "../bots/bot-effort"
 import { useUpdateBotExecution } from "../bots/bot-update"
@@ -12,6 +12,7 @@ import { ChatPermissionOptions, permissionModeLabels } from "./chat-permission"
 /** Mobile: one chip summarizing Modelo, Esforço and Permissões; the sheet holds the three lists. */
 export function ChatControlsSheet({ bot, client, disabled }: { bot: Bot; client: EngineClient; disabled: boolean }) {
   const popoverId = `controls-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
+  const [opening, setOpening] = useState(0)
   const execution = useUpdateBotExecution(bot, client)
   const { currentModel, currentModelId } = useBotModel(bot, client)
   const summary = [currentModel?.name ?? currentModelId ?? "Modelo", effortLabels[bot.effort], permissionModeLabels[bot.permissionMode]].join(" · ")
@@ -22,8 +23,8 @@ export function ChatControlsSheet({ bot, client, disabled }: { bot: Bot; client:
         <span className="min-w-0 truncate">{summary}</span>
         <ChevronDownIcon aria-hidden="true" />
       </button>
-      <div className={chatControlPopoverClassName} id={popoverId} popover="auto" aria-label="Modelo, Esforço e Permissões">
-        <ChatModelOptions bot={bot} client={client} execution={execution} />
+      <div className={chatControlPopoverClassName} id={popoverId} popover="auto" aria-label="Modelo, Esforço e Permissões" onToggle={() => setOpening((count) => count + 1)}>
+        <ChatModelOptions key={opening} bot={bot} client={client} execution={execution} />
         <hr className="my-2 h-px border-0 bg-outline" />
         <ChatEffortOptions bot={bot} execution={execution} />
         <hr className="my-2 h-px border-0 bg-outline" />

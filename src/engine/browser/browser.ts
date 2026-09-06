@@ -17,7 +17,7 @@ export function createBrowser() {
     signal?.throwIfAborted()
 
     if (!process.send) {
-      throw new Error("The browser requires the Jolt desktop app")
+      throw new Error("The browser requires the Mimo desktop app")
     }
 
     const id = crypto.randomUUID()

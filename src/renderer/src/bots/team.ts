@@ -28,7 +28,7 @@ export function teamAvatarIdentities(groups: ProjectGroups | undefined) {
 export function teamOf(groups: ProjectGroups | undefined, bot: Pick<Bot, "id" | "leaderBotId">) {
   const leaders = teamLeaders(groups)
   const leader = bot.leaderBotId ? leaders.find((candidate) => candidate.id === bot.leaderBotId) : undefined
-  const members = leaders.find((candidate) => candidate.id === bot.id)?.members.filter((member) => !member.closed) ?? []
+  const members = leaders.find((candidate) => candidate.id === bot.id)?.members ?? []
 
   return { leader, members }
 }

@@ -28,6 +28,14 @@ _Evitar_: Convidar, duplicar Bot
 O estado de um Integrante temporário cuja Tarefa terminou.
 _Evitar_: Removido, arquivado, deletado
 
+**Desvincular do time**:
+Tornar um Integrante permanente um Bot independente, quando ele e o Líder estiverem livres e não houver Tarefa em andamento do Integrante. Preserva Projeto, pasta, Conversa, Função, Memória própria, Colegas e Acessos; ele deixa de ler a Memória do Líder e pode entrar em um time novamente.
+_Evitar_: Excluir, encerrar
+
+**Interromper trabalho do time**:
+Parar os Turnos do Líder e dos seus Integrantes e cancelar as delegações relacionadas, incluindo as que aguardam outro Bot e as que chamaram Colegas, sem interromper trabalhos independentes desses Colegas. Os retornos cancelados não reativam o trabalho, as mensagens da Fila permanecem e as Rotinas e os Gatilhos futuros continuam configurados.
+_Evitar_: Excluir time, pausar Rotinas
+
 **Excluir**:
 Apagar um Bot de forma definitiva, junto com sua Conversa, sua Memória e seu Diretório. Excluir um Líder exclui também seus Integrantes. Um Bot que está trabalhando é interrompido antes de ser excluído. Difere de Encerrado, que preserva o histórico.
 _Evitar_: Remover, deletar, encerrar, arquivar
@@ -89,7 +97,7 @@ Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar.
 _Evitar_: Memória, log, diário, rascunho
 
 **Curadoria**:
-A passagem separada em que o Jolt avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
+A passagem separada em que o Mimo avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Modelo da Curadoria**:
@@ -97,7 +105,7 @@ A escolha geral de qual Modelo executa a Curadoria de todos os Bots, usando um F
 _Evitar_: Modelo do Time, Modelo do Líder
 
 **Origem**:
-De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Jolt inclui a Origem no Contexto e a registra; o Bot não a escreve.
+De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Mimo inclui a Origem no Contexto e a registra; o Bot não a escreve.
 _Evitar_: Fonte, autor, proveniência
 
 **Limite da Memória**:
@@ -129,15 +137,15 @@ A capacidade do Bot de pesquisar e ler mensagens antigas da sua Conversa, com da
 _Evitar_: Memória, Curadoria, histórico compartilhado
 
 **Mensagem**:
-Um envio deliberado e persistido na Conversa do Bot, materializado exclusivamente a partir do conteúdo passado a `send_message`. Um Turno pode produzir várias Mensagens; texto comum do Fornecedor não aparece na Conversa.
+Um envio deliberado e persistido na Conversa do Bot que desenvolve uma ideia completa. Um Turno pode produzir várias Mensagens sucessivas, sem esperar uma Resposta entre elas; explicações detalhadas preservam esse ritmo de conversa.
 _Evitar_: Turno, Atividade, fragmento de streaming
 
 **Pergunta**:
-Uma Mensagem final em que o Bot apresenta opções conhecidas e espera a escolha da pessoa antes de continuar. A Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
+Uma Mensagem final em que o Bot apresenta Opções conhecidas e espera a escolha da pessoa antes de continuar. Ela aceita uma única Opção ou, quando o Bot permite, várias; a Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
 _Evitar_: Formulário, Pedido de permissão, interrupção
 
 **Resposta**:
-Uma Mensagem da pessoa que escolhe uma Opção de uma Pergunta e inicia um novo Turno. Ela preserva o vínculo com a Pergunta mesmo depois que a Conversa é reaberta.
+Uma Mensagem da pessoa que escolhe uma ou mais Opções de uma Pergunta e inicia um novo Turno. Ela preserva o vínculo com a Pergunta mesmo depois que a Conversa é reaberta.
 _Evitar_: Decisão, retorno da ferramenta
 
 **Opção**:
@@ -153,7 +161,7 @@ O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
 
 **Detalhes do trabalho**:
-A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Jolt, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
 _Evitar_: Passos do agente, apagar Atividade, Mensagem
 
 **Duração do pensamento**:
@@ -189,7 +197,7 @@ O nome de um Bot que a pessoa escolhe com `@` ao escrever uma Mensagem, e que o 
 _Evitar_: Marcação, tag, Comando
 
 **Tarefa**:
-Um trabalho com resultado esperado e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
+Um trabalho com instruções e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
 _Evitar_: Mensagem, atividade
 
 **Resultado da Tarefa**:
@@ -205,7 +213,7 @@ O trabalho de um Bot realizado na máquina da pessoa.
 _Evitar_: Execução remota, execução em VPS
 
 **Rotina**:
-Um pedido fixo que o Jolt entrega a um Bot na Frequência escolhida. Pertence a um único Bot, que pode ter várias. A pessoa ou o próprio Bot cria, altera, pausa e remove uma Rotina. Um Integrante temporário não tem Rotina.
+Um pedido fixo que o Mimo entrega a um Bot na Frequência escolhida. Pertence a um único Bot, que pode ter várias. A pessoa ou o próprio Bot cria, altera, pausa e remove uma Rotina. Um Integrante temporário não tem Rotina.
 _Evitar_: Cron, agendamento, gatilho, job, timer
 
 **Frequência**:
@@ -213,11 +221,11 @@ Quando uma Rotina chama o Bot. Ela tem três formas: Intervalo, a cada tantos mi
 _Evitar_: Cron, expressão, agenda, schedule
 
 **Chamada**:
-Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Jolt estava fechado acontece uma única vez ao abrir.
+Cada mensagem que uma Rotina entrega ao seu Bot. Ela entra na Conversa do Bot com autor próprio. Um Bot que já está trabalhando não recebe a Chamada; ela fica para a próxima Frequência. Uma Chamada perdida enquanto o Mimo estava fechado acontece uma única vez ao abrir.
 _Evitar_: Tick, execução, disparo, mensagem da pessoa
 
 **Evento externo**:
-Um fato que um Plugin entrega ao Jolt, como a abertura de uma issue no GitHub. Receber um Evento externo não chama um Bot por si só.
+Um fato que um Plugin entrega ao Mimo, como a abertura de uma issue no GitHub. Receber um Evento externo não chama um Bot por si só.
 _Evitar_: Gatilho, Disparo, mensagem
 
 **Gatilho**:
@@ -229,7 +237,7 @@ Uma ocorrência persistida em que um Evento externo combinou com um Gatilho. O D
 _Evitar_: Chamada, Evento externo, execução, webhook
 
 **Plugin**:
-Um serviço externo que o Jolt sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.
+Um serviço externo que o Mimo sabe usar, como o Gmail, já embutido, ou um servidor MCP que a pessoa adiciona com um comando. Um Plugin define as ferramentas; as credenciais ficam na Conta.
 _Evitar_: Integração, conector, extensão, MCP como sinônimo de Plugin
 
 **Conta**:
@@ -253,7 +261,7 @@ A capacidade de todo Bot de procurar informação na internet e ler uma página,
 _Evitar_: Busca, navegação, Plugin de pesquisa
 
 **Navegador do Bot**:
-A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Jolt.
+A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:

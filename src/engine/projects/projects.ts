@@ -12,12 +12,6 @@ interface ProjectsDependencies {
 }
 
 export function createProjects({ database, observability, bots }: ProjectsDependencies) {
-  function nestMembers(groupBots: ReturnType<typeof bots.list>) {
-    return groupBots
-      .filter((bot) => bot.leaderBotId === null)
-      .map((bot) => ({ ...bot, members: groupBots.filter((member) => member.leaderBotId === bot.id) }))
-  }
-
   return {
     async create(rawInput: unknown) {
       const input = parse(projectSchemas.createInput, rawInput)
@@ -33,17 +27,15 @@ export function createProjects({ database, observability, bots }: ProjectsDepend
       )
     },
     list() {
-      const projects = parse(projectSchemas.projectList, database.projects.list())
       const allBots = bots.list()
-      const output = {
-        projects: projects.map((project) => ({
-          ...project,
-          bots: nestMembers(allBots.filter((bot) => bot.projectId === project.id)),
-        })),
-        unassignedBots: nestMembers(allBots.filter((bot) => bot.projectId === null)),
-      }
+      const membersByLeader = Map.groupBy(allBots.filter((bot) => bot.leaderBotId !== null), (bot) => bot.leaderBotId)
+      const roots = allBots.filter((bot) => bot.leaderBotId === null).map((bot) => ({ ...bot, members: membersByLeader.get(bot.id) ?? [] }))
+      const botsByProject = Map.groupBy(roots, (bot) => bot.projectId)
 
-      return parse(projectSchemas.groupedList, output)
+      return {
+        projects: database.projects.list().map((project) => ({ ...project, bots: botsByProject.get(project.id) ?? [] })),
+        unassignedBots: botsByProject.get(null) ?? [],
+      }
     },
   }
 }

@@ -182,6 +182,11 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     bots: {
+      detachMember(id: string) {
+        const row = database.update(bots).set({ leaderBotId: null }).where(eq(bots.id, id)).returning().get()
+
+        return parseOptional(botSchemas.storedBot, row)
+      },
       addMember(bot: Pick<StoredBot, "id" | "leaderBotId" | "projectId" | "workingDirectoryOverride">) {
         return observability.span({ name: "database.botmemberadd", context: { botId: bot.id } }, () => database.transaction((transaction) => {
           const updated = transaction.update(bots).set({ leaderBotId: bot.leaderBotId, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride }).where(eq(bots.id, bot.id)).returning().get()
@@ -417,8 +422,11 @@ export function openDatabase(path: string, observability: Observability) {
           return parseOptional(triggerSchemas.triggerRun, created)
         })
       },
-      listQueued() {
-        return observability.span({ name: "database.triggerrunqueued" }, () => parse(triggerSchemas.triggerRunList, database.select().from(triggerRuns).where(eq(triggerRuns.status, "queued")).orderBy(asc(triggerRuns.createdAt), asc(insertion(triggerRuns))).all()))
+      queuedBotIds() {
+        return observability.span({ name: "database.triggerrunbots" }, () => database.selectDistinct({ botId: triggerRuns.botId }).from(triggerRuns).where(eq(triggerRuns.status, "queued")).all().map((run) => run.botId))
+      },
+      nextQueued(botId: string) {
+        return observability.span({ name: "database.triggerrunqueued", context: { botId } }, () => parseOptional(triggerSchemas.triggerRun, database.select().from(triggerRuns).where(and(eq(triggerRuns.status, "queued"), eq(triggerRuns.botId, botId))).orderBy(asc(triggerRuns.createdAt), asc(insertion(triggerRuns))).limit(1).get()))
       },
       update(id: string, changes: Partial<Pick<TriggerRun, "status" | "error" | "startedAt" | "finishedAt">>) {
         return observability.span({ name: "database.triggerrunupdate" }, () => parseOptional(triggerSchemas.triggerRun, database.update(triggerRuns).set(changes).where(eq(triggerRuns.id, id)).returning().get()))
@@ -427,7 +435,7 @@ export function openDatabase(path: string, observability: Observability) {
         return observability.span({ name: "database.triggerrunrecover" }, () => database.transaction((transaction) => {
           const turnStarted = transaction.select({ value: sql`1` }).from(messages).where(eq(messages.triggerRunId, triggerRuns.id))
           const requeued = transaction.update(triggerRuns).set({ status: "queued", startedAt: null }).where(and(eq(triggerRuns.status, "running"), notExists(turnStarted))).run().changes
-          const interrupted = transaction.update(triggerRuns).set({ status: "failed", error: "Jolt stopped during this Disparo", finishedAt }).where(eq(triggerRuns.status, "running")).run().changes
+          const interrupted = transaction.update(triggerRuns).set({ status: "failed", error: "Mimo stopped during this Disparo", finishedAt }).where(eq(triggerRuns.status, "running")).run().changes
 
           return { requeued, interrupted }
         }))

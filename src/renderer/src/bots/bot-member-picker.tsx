@@ -49,7 +49,7 @@ export function BotMemberPicker({ bot, client, groups, onCancel, onAdded }: { bo
         <p className="m-0 mt-1 text-support text-secondary">Escolha um Bot permanente que ainda não tenha Integrantes.</p>
       </div>
       <Field label="Buscar Bots"><input className={fieldControlClassName} type="search" autoFocus autoComplete="off" placeholder="Nome ou Função" value={search} disabled={adding} onChange={(event) => setSearch(event.target.value)} /></Field>
-      {candidates.length === 0 && <p className="m-0 text-support text-secondary">Nenhum Bot disponível. Você pode cancelar e criar um integrante do zero.</p>}
+      {candidates.length === 0 && <p className="m-0 text-support text-secondary">Nenhum Bot disponível. Volte para criar um novo Integrante.</p>}
       {candidates.length > 0 && visible.length === 0 && <p className="m-0 text-support text-secondary">Nenhum Bot encontrado. Tente outro nome ou Função.</p>}
       {visible.length > 0 && (
         <fieldset className="m-0 flex max-h-64 min-w-0 flex-col gap-1 overflow-y-auto border-0 p-0" disabled={adding}>
@@ -69,7 +69,7 @@ export function BotMemberPicker({ bot, client, groups, onCancel, onAdded }: { bo
           <p className="m-0"><strong className="font-semibold text-primary">{selected.name}</strong> entrará no time de {bot.name}.</p>
           {previousLeader && <p className="m-0">Sairá do time de {previousLeader.name}.</p>}
           {selected.projectId !== bot.projectId && <p className="m-0">Passará para {projectName}.</p>}
-          <p className="m-0">Conversa, Memória, Função, Pasta de trabalho e Acessos serão mantidos.</p>
+          <p className="m-0">Mantém a conversa, a Memória, a Função, a pasta e os acessos.</p>
           {incomingColleagues.length > 0 && <p className="m-0">Deixará de ser Colega de {incomingColleagues.map((colleague) => colleague.name).join(", ")}. Integrantes não podem ser Colegas.</p>}
         </div>
       )}

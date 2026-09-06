@@ -3,7 +3,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseArgs } from "node:util"
 import type { Bot } from "@src/shared/bots"
-import { askTool, type TurnContext } from "@src/shared/conversations"
+import { askTool, sendMessageTool, type TurnContext } from "@src/shared/conversations"
+import { createConversationTools } from "@src/engine/conversations/conversation-tools"
 import { botInstructions } from "@src/engine/conversations/bot-instructions"
 import type { PiRuntimeEvent, PiTool } from "@src/engine/pi/pi-agent-runtime"
 import { createPiModels } from "@src/engine/pi/pi-models"
@@ -30,13 +31,14 @@ const routineInstructions = [
 
 const bot: Bot = {
   id: "protocol-check",
-  avatarSeed: "jolt:new:Teste",
+  avatarSeed: "mimo:new:Teste",
   leaderBotId: null,
   projectId: null,
   name: "Teste",
   provider,
   function: { outcome: "Ajudar no que você precisar" },
   workingDirectoryOverride: null,
+  executionProfile: null,
   temporary: false,
   memoryEnabled: true,
   effort: "xhigh",
@@ -68,6 +70,8 @@ const routineContent = "Verifique a caixa de entrada do Gmail e resuma as mensag
 const scenarios: Scenario[] = [
   { name: "person-tool", content: "Rode ls -la na sua pasta e depois me diga o que apareceu", context: { cause: "person", ...moment } },
   { name: "person-plain", content: "o que voce consegue fazer por mim?", context: { cause: "person", ...moment } },
+  { name: "person-detail", content: "Me explica com bastante detalhe como uma automação que recebe erros, evita duplicatas, investiga o código com IA, revisa evidências e propõe correções em PRs deveria funcionar. Quero entender as etapas, os riscos e por que cada cuidado importa.", context: { cause: "person", ...moment } },
+  { name: "person-question", content: "Quero um relatório, mas ainda não escolhi se deve ser PDF ou Markdown.", context: { cause: "person", ...moment } },
   { name: "routine-first", content: routineContent, context: routineContext, gmail: "full" },
   { name: "routine-empty", content: routineContent, context: routineContext, gmail: "empty" },
 ]
@@ -75,10 +79,12 @@ const scenarios: Scenario[] = [
 interface Turn {
   scenario: string
   messages: string[]
+  undeliveredText: string
   toolsBeforeFirstMessage: string[]
   sequence: string[]
   asked: number
   durationMs: number
+  deliveries: { elapsedMs: number; characters: number }[]
   error?: string
 }
 
@@ -87,18 +93,10 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
   const toolsBeforeFirstMessage: string[] = []
   const sequence: string[] = []
   let asked = 0
-  let text = ""
+  const deliveries: { elapsedMs: number; characters: number }[] = []
+  const started = Bun.nanoseconds()
   let failure: string | undefined
-
-  function speak() {
-    const content = text.trim()
-
-    text = ""
-
-    if (content) {
-      messages.push(content)
-    }
-  }
+  let undeliveredText = ""
 
   const factory = createPiSessionFactory({ agentDirectory, sessionsDirectory, models })
   const gmailTool: PiTool = {
@@ -114,27 +112,12 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
       return inbox.map((line) => `- ${line}`).join("\n")
     },
   }
-  const askToolDefinition: PiTool = {
-    name: askTool,
-    description: "Ask the person to choose between options. This ends your turn: say what you need in content, list the options, then stop.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        content: { type: "string", description: "The question the person will read" },
-        options: { type: "array", minItems: 2, maxItems: 12, items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"], additionalProperties: false } },
-        allowOther: { type: "boolean", description: "Whether the person may write a different answer" },
-      },
-      required: ["content", "options", "allowOther"],
-      additionalProperties: false,
-    },
-    async execute(params: Record<string, unknown>) {
-      asked++
-      messages.push(typeof params.content === "string" ? params.content : "")
-
-      return "Question sent. Stop now and wait for the person to answer in a new turn."
-    },
-  }
-  const customTools = scenario.gmail ? [askToolDefinition, gmailTool] : [askToolDefinition]
+  const messagingTools = createConversationTools((content, question) => {
+    messages.push(content)
+    deliveries.push({ elapsedMs: Math.round((Bun.nanoseconds() - started) / 1e6), characters: content.length })
+    asked += Number(!!question)
+  })
+  const customTools = scenario.gmail ? [...messagingTools, gmailTool] : messagingTools
   const tools = ["read", "grep", "find", "ls", "bash", "edit", "write", ...customTools.map((tool) => tool.name)]
   const session = await factory.open({
     botId: bot.id,
@@ -143,23 +126,20 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
     provider,
     effort: bot.effort,
     model: values.model,
-    permissionMode: "full",
     policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },
     customTools,
     ephemeral: true,
-    instructions: botInstructions({ bot, extensions: [routineInstructions] }),
+    instructions: botInstructions({ bot, directory: cwd, extensions: [routineInstructions] }),
   })
-  const started = Bun.nanoseconds()
   const unsubscribe = session.subscribe((event: PiRuntimeEvent) => {
     if (event.type === "text") {
-      text += event.text
+      undeliveredText += event.text
     }
 
     if (event.type === "tool-started") {
-      speak()
       sequence.push(`+${event.tool}`)
 
-      if (event.tool !== askTool && messages.length === 0) {
+      if (event.tool !== askTool && event.tool !== sendMessageTool && messages.length === 0) {
         toolsBeforeFirstMessage.push(event.tool)
       }
     }
@@ -174,13 +154,14 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
   })
   await session.prompt({ content: scenario.content, context: scenario.context }).catch((error: unknown) => { failure = String(error) })
 
-  speak()
   unsubscribe()
   session.dispose()
 
   return {
     scenario: scenario.name,
     messages,
+    undeliveredText,
+    deliveries,
     sequence,
     toolsBeforeFirstMessage,
     asked,
@@ -190,7 +171,7 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
 }
 
 const models = createPiModels()
-const root = await mkdtemp(join(tmpdir(), "jolt-protocol-"))
+const root = await mkdtemp(join(tmpdir(), "mimo-protocol-"))
 const cwd = join(root, "bot")
 const sessionsDirectory = join(root, "sessions")
 const agentDirectory = join(root, "agent")
@@ -202,7 +183,7 @@ const turns: Turn[] = []
 
 for (const scenario of selected) {
   for (let run = 0; run < runs; run++) {
-    const turn = await runTurn(scenario, cwd, sessionsDirectory, agentDirectory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], sequence: [], toolsBeforeFirstMessage: [], asked: 0, durationMs: 0, error: String(error) }))
+    const turn = await runTurn(scenario, cwd, sessionsDirectory, agentDirectory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], undeliveredText: "", sequence: [], toolsBeforeFirstMessage: [], asked: 0, durationMs: 0, deliveries: [], error: String(error) }))
 
     turns.push(turn)
     console.log(JSON.stringify(turn))
@@ -223,3 +204,7 @@ for (const scenario of selected) {
 }
 
 await rm(root, { recursive: true, force: true })
+
+if (turns.some((turn) => turn.error || turn.messages.length === 0)) {
+  process.exitCode = 1
+}

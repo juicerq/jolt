@@ -23,14 +23,14 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
         <div className={`${botPageColumnClassName} flex flex-1 flex-col gap-8 pt-12 pb-12 max-md:pt-6 max-md:pb-8`}>
           <header>
             <h2 className="m-0 text-title font-semibold text-primary max-md:hidden">Configurações</h2>
-            <p className="m-0 mt-1 text-support font-normal text-muted">Preferências do Jolt neste computador</p>
+            <p className="m-0 mt-1 text-support font-normal text-muted">Preferências do Mimo neste computador</p>
           </header>
           {import.meta.env.DEV && (
             <SettingsSection title="Conversa">
               <div className={`${settingsPanelClassName} flex items-center justify-between gap-6`}>
                 <div className="min-w-0 flex-1">
                   <p className="m-0 text-control font-medium text-primary">Mostrar detalhes do trabalho</p>
-                  <p className="m-0 mt-1 max-w-[46ch] text-support font-normal text-muted">Mostra pensamentos, arquivos e ações dos Bots. Ocultar não apaga o histórico.</p>
+                  <p className="m-0 mt-1 max-w-[46ch] text-support font-normal text-muted">Veja o raciocínio e as ações dos Bots durante o trabalho.</p>
                 </div>
                 <Switch checked={activityDetailsVisible} aria-label="Mostrar detalhes do trabalho" onChange={setActivityDetailsVisible} />
               </div>

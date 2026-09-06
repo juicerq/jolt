@@ -11,7 +11,7 @@ dist-relay/
 logs/
 *.log
 .DS_Store
-.jolt-load/
-.jolt-dev/
+.mimo-load/
+.mimo-dev/
 .env
 release/

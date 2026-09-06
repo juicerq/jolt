@@ -9,7 +9,6 @@ import { openDatabase, type AppDatabase } from "@src/engine/persistence/database
 import { createPermissionExtension, type PiPermissionPolicy } from "@src/engine/pi/pi-permissions"
 import { createTasks } from "@src/engine/tasks/tasks"
 import { toolsForExecutionProfile } from "@src/shared/bot-profiles"
-import type { ConversationEvent } from "@src/shared/conversations"
 import { testDirectory } from "./support/test-directory"
 
 const directory = testDirectory("jolt-error-profiles-")
@@ -20,7 +19,7 @@ async function withBots(check: (input: { bots: ReturnType<typeof createBots>; da
   const workspace = join(directory, "error-automation", "workspaces", "analysis")
   await mkdir(workspace, { recursive: true })
   const validateExecution = mock<Parameters<typeof createBots>[0]["providers"]["validateExecution"]>(async () => {})
-  const bots = createBots({ database, observability, privateBotsDirectory: join(directory, "bots"), providers: { async list() { return [{ provider: "codex", name: "Codex", status: "available", connection: "subscription", detectedKey: false }] }, validateExecution }, conversations: { async close() {}, isActive() { return false } } })
+  const bots = createBots({ database, observability, privateBotsDirectory: join(directory, "bots"), providers: { async list() { return [{ provider: "codex", name: "Codex", status: "available", connection: "subscription", connected: true, detectedKey: false }] }, validateExecution }, conversations: { async close() {}, isActive() { return false } } })
 
   try {
     await check({ bots, database, tasks: createTasks({ database, observability }), observability, workspace, validateExecution })
@@ -62,12 +61,12 @@ test("hiring persists ordinary defaults or the managed Luna profile before the f
   await withBots(async ({ bots, database, tasks, observability, workspace, validateExecution }) => {
     const leader = await bots.create({ name: "Leader" })
     const observed: unknown[] = []
-    const delegation = createDelegation({ bots, tasks, observability, active() { return undefined }, assertCallable() {}, inheritance() { return [] }, async *runTurn(botId): AsyncGenerator<ConversationEvent> {
+    const delegation = createDelegation({ bots, tasks, observability, active() { return undefined }, assertCallable() {}, inheritance() { return [] }, async runTurn(botId) {
       const worker = database.bots.get(botId)!
       const task = database.tasks.listForBot(botId)[0]!
       observed.push({ model: worker.model, effort: worker.effort, permissionMode: worker.permissionMode, memoryEnabled: worker.memoryEnabled, executionProfile: worker.executionProfile, directory: worker.workingDirectoryOverride, taskStatus: task.status })
 
-      yield { type: "finished", reason: "stop" }
+      return { finished: Promise.resolve({ reason: "stop" as const, response: "" }) }
     } })
     const hire = delegation.tools(leader).find((tool) => tool.name === "hire")!
     await hire.execute({ name: "General", role: "Help", outcome: "Read the task", wait: "yes", permanent: "no" })

@@ -20,7 +20,7 @@ export function createTasks({ database, observability }: { database: AppDatabase
   observability.event({ name: "tasks.interruptorphans", attributes: { count: interruptedCount } })
 
   return {
-    create(input: Pick<Task, "callerBotId" | "assigneeBotId" | "outcome">) {
+    create(input: Pick<Task, "callerBotId" | "assigneeBotId">) {
       const task: Task = { id: crypto.randomUUID(), ...input, status: "working", createdAt: new Date().toISOString(), finishedAt: null }
 
       return observability.span({ name: "tasks.create", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
