@@ -1,4 +1,4 @@
-import { ChevronDoubleRightIcon, ChevronLeftIcon } from "@heroicons/react/24/outline"
+import { Bars3Icon, ChevronLeftIcon, ComputerDesktopIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { ReactNode } from "react"
@@ -8,7 +8,7 @@ import { chatStore } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { BotFace } from "./bot-face"
-import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, showRail } from "./bots-store"
+import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, openMobileMenu, toggleBrowserSidebar } from "./bots-store"
 import { findTeamBot } from "./team"
 
 const routeTitles: Record<BotRoute["name"], string> = {
@@ -61,13 +61,15 @@ export function WorkspaceTopBar({ client }: { client: EngineClient }) {
 }
 
 function TopBar({ back, children }: { back?: { label: string; onBack: () => void }; children: ReactNode }) {
-  const railHidden = useSelector(botsStore, (state) => state.railHidden)
+  const menuOpen = useSelector(botsStore, (state) => state.mobileMenuOpen)
+  const browserOpen = useSelector(botsStore, (state) => state.browserSidebarOpen)
 
   return (
-    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden ${back || railHidden ? "pl-1.5" : "pl-3.5"}`}>
-      {railHidden && <IconButton size={34} type="button" label="Mostrar a barra lateral" onClick={showRail}><ChevronDoubleRightIcon aria-hidden="true" /></IconButton>}
+    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden pl-1.5`}>
+      <div className="mr-1 flex self-stretch items-center border-r border-outline pr-1"><IconButton size={34} type="button" label="Abrir menu" aria-expanded={menuOpen} aria-controls="mobile-menu" onClick={openMobileMenu}><Bars3Icon aria-hidden="true" /></IconButton></div>
       {back && <IconButton size={34} type="button" label={back.label} onClick={back.onBack}><ChevronLeftIcon aria-hidden="true" /></IconButton>}
       <div className="min-w-0 flex-1">{children}</div>
+      <IconButton id="browser-sidebar-toggle-mobile" size={34} label="Mostrar navegadores" aria-expanded={browserOpen} aria-controls="browser-sidebar" onClick={toggleBrowserSidebar}><ComputerDesktopIcon aria-hidden="true" /></IconButton>
     </header>
   )
 }

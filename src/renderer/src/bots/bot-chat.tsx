@@ -1,9 +1,10 @@
-import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, UserGroupIcon } from "@heroicons/react/24/outline"
+import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, ComputerDesktopIcon, UserGroupIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
+import { browserStore } from "../browser/browser-store"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
 import { ChatWorkspace } from "../chat/chat-workspace"
 import type { EngineClient } from "../engine-client"
@@ -11,6 +12,7 @@ import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
 import { BrainIcon } from "../ui/brain-icon"
 import { InlineAction } from "../ui/inline-action"
+import { useIsMobile } from "../ui/use-is-mobile"
 import { ProviderWelcome } from "../settings/provider-welcome"
 import { BotMemory } from "./bot-memory"
 import { BotMembers } from "./bot-members"
@@ -19,7 +21,7 @@ import { BotRoutines } from "./bot-routines"
 import { BotSettings } from "./bot-settings"
 import { BotTriggerEditor } from "./bot-trigger-editor"
 import { BotTriggers } from "./bot-triggers"
-import { type BotRoute, botsStore, openBotRoute, openCreateBot } from "./bots-store"
+import { type BotRoute, botsStore, openBotRoute, openCreateBot, toggleBrowserSidebar } from "./bots-store"
 import { findTeamBot, teamOf } from "./team"
 
 type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory"
@@ -129,12 +131,33 @@ function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, route: Bot
   ]
 }
 
+function browserSidebarLabel(hasBrowserPages: boolean, open: boolean) {
+  if (!hasBrowserPages) {
+    return "Nenhum navegador ativo"
+  }
+
+  if (open) {
+    return "Recolher navegadores"
+  }
+
+  return "Mostrar navegadores"
+}
+
 function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {
+  const mobile = useIsMobile()
+  const browserSidebarOpen = useSelector(botsStore, (state) => state.browserSidebarOpen)
+  const hasBrowserPages = useSelector(browserStore, (state) => state.pages.length > 0)
+  const browserNeedsHelp = useSelector(browserStore, (state) => state.pages.some((page) => page.control === "user" || !!page.error))
+
   return (
     <ChatEdgeTab>
       {botRouteActions(bot, route).map((action) => (
         <IconButton key={action.name} iconSize={16} current={action.current} type="button" label={`${action.label} de ${bot.name}`} tooltipPlacement="left" onClick={action.select}>{action.icon}</IconButton>
       ))}
+      {mobile && <IconButton id="browser-sidebar-toggle-mobile" iconSize={16} current={browserSidebarOpen} type="button" disabled={!hasBrowserPages} label={browserSidebarLabel(hasBrowserPages, browserSidebarOpen)} aria-expanded={browserSidebarOpen} aria-controls="browser-sidebar" tooltipPlacement="left" onClick={toggleBrowserSidebar}>
+        <ComputerDesktopIcon aria-hidden="true" />
+        {browserNeedsHelp && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-status-warning" aria-hidden="true" />}
+      </IconButton>}
     </ChatEdgeTab>
   )
 }
