@@ -4,6 +4,9 @@ import ReactDOM from "react-dom/client"
 import { App } from "./app"
 import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
+import { createDesktopBrowser } from "./browser/browser-desktop"
+import { subscribeBrowserPages } from "./browser/browser-pages"
+import { createRemoteBrowser } from "./browser/browser-remote"
 import { browserStore } from "./browser/browser-store"
 import { markUpdateReady } from "./settings/app-update-store"
 import { MobilePairingRequired } from "./settings/mobile-pairing"
@@ -34,12 +37,18 @@ if (!connection) {
   subscribeChatEvents({ client: engineClient, queryClient })
   window.desktop.onTurnNotificationOpened(selectBot)
   window.desktop.onUpdateReady(markUpdateReady)
-  window.desktop.onBrowserState((state) => browserStore.setState(() => state))
-  void window.desktop.getBrowserState().then((state) => browserStore.setState(() => state))
+  const browser = window.desktop.remote ? createRemoteBrowser(engineClient) : createDesktopBrowser()
+
+  if (window.desktop.remote) {
+    subscribeBrowserPages(engineClient)
+  } else {
+    window.desktop.onBrowserState((state) => browserStore.setState(() => state))
+    void window.desktop.getBrowserState().then((state) => browserStore.setState(() => state))
+  }
 
   render(
     <QueryClientProvider client={queryClient}>
-      <App client={engineClient} />
+      <App browser={browser} client={engineClient} />
     </QueryClientProvider>,
   )
 

@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import type { BotConversationEvent, FinishReason } from "@src/shared/conversations"
 import { findTeamBot } from "../bots/team"
 import type { EngineClient } from "../engine-client"
+import { listenEngineStream } from "../engine-stream"
 import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
   appendChatThinking,
@@ -23,12 +24,10 @@ import {
 } from "./chat-store"
 import { alertTurnFinished } from "./turn-alert"
 
-const reconnectDelayMs = 1_000
 const chunkFlushDelayMs = 100
 const settledStatuses: Record<FinishReason, "available" | "completed" | "error"> = { stop: "completed", aborted: "available", error: "error" }
 
 export function subscribeChatEvents({ client, queryClient }: { client: Pick<EngineClient, "query" | "raw">; queryClient: QueryClient }) {
-  const controller = new AbortController()
   const chunks = createChatStreamBuffer({
     delayMs: chunkFlushDelayMs,
     flush: appendChatThinking,
@@ -151,53 +150,21 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     ])
   }
 
-  async function consume(events: AsyncIterable<BotConversationEvent>) {
-    try {
-      for await (const entry of events) {
-        handle(entry)
-      }
-    } finally {
-      chunks.drainAll()
-    }
-  }
-
-  async function listen() {
-    while (!controller.signal.aborted) {
-      try {
-        const events = await client.raw.conversations.events(undefined, { signal: controller.signal })
-        resetChatConnection()
-        void queryClient.invalidateQueries().catch((error: unknown) => {
-          console.error("Não foi possível atualizar o estado das conversas", error)
-        })
-        await consume(events)
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return
-        }
-
-        console.error("A conexão com as conversas foi interrompida", error)
-      }
-
-      if (controller.signal.aborted) {
-        return
-      }
-
-      await new Promise<void>((resolve) => {
-        const resume = () => {
-          clearTimeout(timer)
-          controller.signal.removeEventListener("abort", resume)
-          resolve()
-        }
-        const timer = setTimeout(resume, reconnectDelayMs)
-        controller.signal.addEventListener("abort", resume, { once: true })
+  const stop = listenEngineStream({
+    label: "as conversas",
+    open: (signal) => client.raw.conversations.events(undefined, { signal }),
+    connected() {
+      resetChatConnection()
+      void queryClient.invalidateQueries().catch((error: unknown) => {
+        console.error("Não foi possível atualizar o estado das conversas", error)
       })
-    }
-  }
-
-  void listen()
+    },
+    handle,
+    closed: () => chunks.drainAll(),
+  })
 
   return () => {
-    controller.abort()
+    stop()
     chunks.drainAll()
   }
 }

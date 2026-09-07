@@ -4,6 +4,7 @@ import { diagnosticExportResult, diagnosticsReport } from "./observability/diagn
 import { externalObservationSpan } from "./observability/observation"
 import { providerLogin, providerLoginInput, providerLoginReply, providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
 import { botSchemas } from "./bots"
+import { browserFrame, browserFrameInput, browserPages } from "./browser"
 import { conversationSchemas } from "./conversations"
 import { memorySchemas } from "./memory"
 import { projectSchemas } from "./projects"
@@ -62,6 +63,10 @@ export const engineContract = {
     promote: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/promote" }),
     unqueue: oc.input(conversationSchemas.queueInput).route({ method: "POST", path: "/bots/{botId}/queue/{id}/remove" }),
     related: oc.input(conversationSchemas.taskInput).output(conversationSchemas.messageList).route({ method: "GET", path: "/tasks/{taskId}/messages" }),
+  },
+  browser: {
+    pages: oc.output(eventIterator(z.object({ pages: browserPages }))).route({ method: "GET", path: "/browser/pages" }),
+    frame: oc.input(browserFrameInput).output(browserFrame.nullable()).route({ method: "GET", path: "/browser/{botId}/frame" }),
   },
   permissions: {
     decide: oc.input(permissionSchemas.decideInput).route({ method: "POST", path: "/bots/{botId}/permission-requests/{requestId}" }),

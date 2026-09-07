@@ -1,14 +1,20 @@
 import { WebContentsView, type BrowserWindow, type BrowserWindowConstructorOptions, type View, type WebContents } from "electron"
-import type { BrowserAction, BrowserBounds, BrowserPreview } from "@src/shared/browser"
+import type { BrowserAction, BrowserBounds, BrowserFrame, BrowserPreview } from "@src/shared/browser"
 import { BrowserDriver } from "./browser-driver"
 
 const webPreferences = { partition: "persist:mimo-browser", sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false }
 const pageSize = { width: 1280, height: 800 }
+const frameWaitMs = 700
+const frameRetryMs = 150
+const frameQuality = 75
+const watchFrameWidth = 1280
 const parkedBounds = { x: 1 - pageSize.width, y: 1 - pageSize.height, ...pageSize }
 
 export class BrowserPage {
   private readonly driver: BrowserDriver
   private shown = false
+  private frame?: BrowserFrame
+  private capturing?: Promise<Omit<BrowserFrame, "seq"> | null>
   readonly view: WebContentsView
   readonly preview: BrowserPreview
   private waiters = new Set<() => void>()
@@ -216,6 +222,54 @@ export class BrowserPage {
     }
 
     this.changed()
+  }
+
+  async nextFrame(after: number) {
+    const deadline = performance.now() + frameWaitMs
+
+    while (!this.closed) {
+      if (this.frame && this.frame.seq > after) {
+        return this.frame
+      }
+
+      this.capturing ??= this.captureFrame().finally(() => {
+        this.capturing = undefined
+      })
+      const captured = await this.capturing
+
+      if (captured && captured.image !== this.frame?.image) {
+        this.frame = { seq: (this.frame?.seq ?? 0) + 1, ...captured }
+      }
+
+      if (this.frame && this.frame.seq > after) {
+        return this.frame
+      }
+
+      if (performance.now() >= deadline) {
+        return null
+      }
+    }
+
+    return null
+  }
+
+  private async captureFrame(): Promise<Omit<BrowserFrame, "seq"> | null> {
+    await new Promise((resolve) => setTimeout(resolve, frameRetryMs))
+
+    if (this.closed) {
+      return null
+    }
+
+    const view = this.activeView
+    const image = await view.webContents.capturePage(undefined, { stayHidden: true })
+
+    if (this.closed || view !== this.activeView || image.isEmpty()) {
+      return null
+    }
+
+    const { width, height } = view.getBounds()
+
+    return { width, height, image: image.resize({ width: Math.min(width, watchFrameWidth) }).toJPEG(frameQuality).toString("base64") }
   }
 
   private async waitForControl(signal: AbortSignal) {

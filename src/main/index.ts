@@ -74,13 +74,7 @@ const rendererUrl = !app.isPackaged && process.env.ELECTRON_RENDERER_URL ? parse
 let browser: Browser | undefined
 
 const engine = new EngineProcess({
-  browser: (request, signal) => {
-    if (!browser) {
-      return Promise.reject(new Error("Browser is not ready"))
-    }
-
-    return browser.execute(request, signal)
-  },
+  browser: () => browser,
   executable,
   ...(app.isPackaged ? { rendererDirectory: join(process.resourcesPath, "renderer") } : {}),
   databasePath: join(app.getPath("userData"), "mimo.sqlite"),
@@ -136,7 +130,7 @@ void app.whenReady().then(async () => {
       window.hide()
     }
   })
-  browser = new Browser(window)
+  browser = new Browser(window, { publish: (pages) => engine.publishBrowserPages(pages) })
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
   const notifications = createTurnNotifications({

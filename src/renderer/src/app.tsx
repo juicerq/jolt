@@ -2,11 +2,11 @@ import { useStore } from "@tanstack/react-store"
 import { browserStore } from "./browser/browser-store"
 import { MinusIcon, Square2StackIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import type { EngineClient } from "./engine-client"
-import { BrowserPanel } from "./browser/browser-panel"
+import { type BrowserActions, BrowserPanel } from "./browser/browser-panel"
 import { BotsWorkspace } from "./bots/bots-workspace"
 import { IconButton } from "./ui/icon-button"
 
-export function App({ client }: { client: EngineClient }) {
+export function App({ browser, client }: { browser: BrowserActions; client: EngineClient }) {
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
   const frameless = !window.desktop.remote
   const clearance = frameless ? "[--window-controls-clearance:140px] max-md:[--window-controls-clearance:120px]" : "[--window-controls-clearance:0px]"
@@ -17,7 +17,7 @@ export function App({ client }: { client: EngineClient }) {
         {frameless && <WindowControls />}
         <BotsWorkspace client={client} />
       </div>
-      <BrowserPanel />
+      <BrowserPanel browser={browser} />
     </main>
   )
 }

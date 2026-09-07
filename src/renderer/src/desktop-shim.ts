@@ -1,7 +1,5 @@
 import type { EngineConnection } from "@src/shared/engine-ipc"
 
-// Fora do Electron (navegador do celular) não existe preload.
-// ponytail: só o que o boot e o chat usam; navegador embutido, janela e pareamento viram no-op.
 if (!window.desktop) {
   const tokenKey = "mimo.engine-token"
   const noop = async () => {}
@@ -42,7 +40,7 @@ if (!window.desktop) {
     getMobileAccess: unavailable,
     configureMobileAccess: unavailable,
     unpairMobileAccess: unavailable,
-    getBrowserState: async () => ({ pages: [], focusedBotId: null }),
+    getBrowserState: unavailable,
     onBrowserState: () => {},
     onTurnNotificationOpened: () => {},
     onUpdateReady: () => {},
@@ -50,13 +48,13 @@ if (!window.desktop) {
       window.open(url, "_blank", "noopener")
     },
     chooseWorkingDirectory: async () => window.prompt("Caminho da pasta de trabalho"),
-    watchBrowser: noop,
-    takeBrowserControl: noop,
-    setBrowserBounds: noop,
-    resumeBrowser: noop,
-    minimizeBrowser: noop,
-    closeBrowser: noop,
-    closeBrowserPopup: noop,
+    watchBrowser: unavailable,
+    takeBrowserControl: unavailable,
+    setBrowserBounds: unavailable,
+    resumeBrowser: unavailable,
+    minimizeBrowser: unavailable,
+    closeBrowser: unavailable,
+    closeBrowserPopup: unavailable,
     minimizeWindow: noop,
     toggleMaximizeWindow: noop,
     closeWindow: noop,
