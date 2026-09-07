@@ -1,10 +1,12 @@
 import type { BrowserState, BrowserBounds } from "@src/shared/browser"
 import type { EngineConnection } from "@src/shared/engine-ipc"
+import type { MobileAccess, MobileAccessUpdate } from "@src/shared/mobile-access"
 import type { TurnNotification } from "@src/shared/turn-notification"
 
 declare global {
   interface Window {
     desktop: {
+      remote: boolean
       getBrowserState(): Promise<BrowserState>
       watchBrowser(botId: string): Promise<void>
       takeBrowserControl(botId: string): Promise<void>
@@ -14,7 +16,11 @@ declare global {
       closeBrowser(botId: string): Promise<void>
       closeBrowserPopup(botId: string): Promise<void>
       onBrowserState(listener: (state: BrowserState) => void): void
-      getEngineConnection(): Promise<EngineConnection>
+      getEngineConnection(): Promise<EngineConnection | null>
+      renewEngineConnection(): Promise<EngineConnection | null>
+      getMobileAccess(): Promise<MobileAccess>
+      configureMobileAccess(update: MobileAccessUpdate): Promise<MobileAccess>
+      unpairMobileAccess(): Promise<MobileAccess>
       chooseWorkingDirectory(): Promise<string | null>
       minimizeWindow(): Promise<void>
       toggleMaximizeWindow(): Promise<void>

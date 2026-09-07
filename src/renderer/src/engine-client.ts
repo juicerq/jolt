@@ -6,19 +6,45 @@ import type { engineContract } from "@src/shared/engine-contract"
 import type { EngineConnection } from "@src/shared/engine-ipc"
 
 export function createEngineClient(connection: EngineConnection) {
-  const senderLink = new RPCLink({
-    url: connection.url,
-    headers: { authorization: `Bearer ${connection.token}` },
-  })
+  let { token } = connection
+  let renewal: Promise<boolean> | undefined
+  const headers = () => ({ authorization: `Bearer ${token}` })
+
+  function renew() {
+    renewal ??= window.desktop.renewEngineConnection().then((renewed) => {
+      token = renewed?.token ?? token
+
+      return !!renewed
+    }).finally(() => {
+      renewal = undefined
+    })
+
+    return renewal
+  }
+
+  async function authorizedFetch(request: Request, init: RequestInit) {
+    const retry = request.clone()
+    const response = await fetch(request, init)
+
+    if (response.status !== 401 || !(await renew())) {
+      return response
+    }
+
+    retry.headers.set("authorization", headers().authorization)
+
+    return fetch(retry, init)
+  }
+
+  const senderLink = new RPCLink({ url: connection.url, headers })
   const sender: ContractRouterClient<typeof engineContract> = createORPCClient(senderLink)
   const link = new RPCLink({
     url: connection.url,
-    headers: { authorization: `Bearer ${connection.token}` },
+    headers,
     async fetch(request, init, _options, path) {
       const operation = path.join(".")
 
       if (operation === "diagnostics.get" || operation === "observations.rendererSpan") {
-        return fetch(request, init)
+        return authorizedFetch(request, init)
       }
 
       const traceId = crypto.randomUUID()
@@ -28,7 +54,7 @@ export function createEngineClient(connection: EngineConnection) {
       request.headers.set("x-parent-span-id", spanId)
 
       try {
-        const response = await fetch(request, init)
+        const response = await authorizedFetch(request, init)
         void sender.observations.rendererSpan({
           name: "renderer.rpc",
           timestamp: new Date().toISOString(),

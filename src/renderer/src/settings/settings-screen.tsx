@@ -11,6 +11,7 @@ import { botPageColumnClassName } from "../bots/bot-page"
 import { appSettingsStore, setActivityDetailsVisible } from "./app-settings-store"
 import { ProviderConnections } from "./provider-connections"
 import { MemorySettings } from "./memory-settings"
+import { MobileAccessSettings } from "./mobile-access"
 
 export function SettingsScreen({ client }: { client: EngineClient }) {
   const activityDetailsVisible = useSelector(appSettingsStore, (state) => state.activityDetailsVisible)
@@ -37,6 +38,7 @@ export function SettingsScreen({ client }: { client: EngineClient }) {
           )}
           <ProviderConnections client={client} />
           <MemorySettings client={client} />
+          <MobileAccessSettings />
         </div>
       </section>
       <ChatEdgeTab>

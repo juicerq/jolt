@@ -20,7 +20,7 @@ import { sendMessageTool } from "@src/shared/conversations"
 import type { PiModels } from "./pi-models"
 import type { PiMeasurement, PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
 
-const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content" }
+const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content", browser: "action" }
 const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
 
 function toolSchema(tool: PiTool): TSchema {

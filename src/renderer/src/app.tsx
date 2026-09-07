@@ -8,7 +8,7 @@ import { IconButton } from "./ui/icon-button"
 
 export function App({ client }: { client: EngineClient }) {
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
-  const frameless = "desktop" in window
+  const frameless = !window.desktop.remote
   const clearance = frameless ? "[--window-controls-clearance:140px] max-md:[--window-controls-clearance:120px]" : "[--window-controls-clearance:0px]"
 
   return (

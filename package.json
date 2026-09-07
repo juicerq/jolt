@@ -14,7 +14,6 @@
     "dev": "bun run dev:run",
     "dev:load": "MIMO_USER_DATA=$PWD/.mimo-load MIMO_LOAD_PROVIDER=true bun run dev:run",
     "dev:github-relay": "bun github-relay/index.ts",
-    "dev:mobile": "bun scripts/mobile.ts",
     "dev:run": "bun run build:engine && electron-vite dev",
     "seed:load": "bun src/engine/persistence/load-seed.ts",
     "bench:open": "bun bench/conversation-open.ts",

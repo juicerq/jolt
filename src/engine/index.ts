@@ -4,10 +4,11 @@ import { RPCHandler } from "@orpc/server/fetch"
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
 import { z } from "zod"
 import { dirname, join } from "node:path"
-import { forwardedObservation } from "../shared/engine-ipc"
+import { engineAccessMessage, forwardedObservation } from "../shared/engine-ipc"
 import type { ProcessState } from "../shared/observability/diagnostics"
 import { parse } from "../shared/parse"
 import { createEngineRouter } from "./app/engine-app"
+import { createEngineServer } from "./app/engine-server"
 import { createDiagnostics } from "./observability/diagnostics"
 import { createObservationSystem } from "./observability/observability"
 import { openDatabase } from "./persistence/database"
@@ -34,6 +35,9 @@ registerBunOAuthFlows()
 
 const environmentSchema = z.object({
   BOT_TEAMS_ENGINE_TOKEN: z.string().min(1),
+  BOT_TEAMS_ENGINE_PORT: z.coerce.number().int().min(0).max(65535).default(0),
+  BOT_TEAMS_ALLOWED_ORIGIN: z.url({ protocol: /^https$/ }).optional(),
+  BOT_TEAMS_RENDERER_DIRECTORY: z.string().min(1).optional(),
   BOT_TEAMS_DATABASE_PATH: z.string().min(1),
   BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: z.string().min(1),
   BOT_TEAMS_DEVELOPMENT: z.enum(["true", "false"]).optional(),
@@ -61,6 +65,14 @@ process.on("message", (message) => {
     return
   }
 
+  const access = engineAccessMessage.safeParse(message)
+
+  if (access.success) {
+    server.grant(access.data)
+
+    return
+  }
+
   try {
     const input = parse(forwardedObservation, message)
 
@@ -84,39 +96,6 @@ process.on("message", (message) => {
     process.stderr.write("Rejected invalid Main observation\n")
   }
 })
-
-function allowedOrigin(request: Request) {
-  const origin = request.headers.get("origin")
-
-  if (!origin || origin === "null") {
-    return origin
-  }
-
-  try {
-    const url = new URL(origin)
-    const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost"
-
-    if (url.protocol !== "http:" || !loopback) {
-      return
-    }
-
-    return origin
-  } catch {
-    return
-  }
-}
-
-function withCors(response: Response, origin: string | null | undefined) {
-  if (!origin) {
-    return response
-  }
-
-  const headers = new Headers(response.headers)
-  headers.set("access-control-allow-origin", origin)
-  headers.set("vary", "Origin")
-
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
-}
 
 const piWarmDelayMs = 1_000
 const startupTimestamp = new Date().toISOString()
@@ -235,46 +214,11 @@ const handler = new RPCHandler(
     plugins,
   }),
 )
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port: 0,
-  async fetch(request) {
-    const origin = allowedOrigin(request)
-
-    if (request.headers.has("origin") && !origin) {
-      return new Response("Forbidden", { status: 403 })
-    }
-
-    if (request.method === "OPTIONS") {
-      const headers = new Headers({
-        "access-control-allow-headers": "authorization, content-type, x-trace-id, x-parent-span-id",
-        "access-control-allow-methods": "GET, POST, OPTIONS",
-        "access-control-max-age": "600",
-      })
-
-      return withCors(new Response(null, { status: 204, headers }), origin)
-    }
-
-    if (request.headers.get("authorization") !== `Bearer ${environment.BOT_TEAMS_ENGINE_TOKEN}`) {
-      return withCors(new Response("Unauthorized", { status: 401 }), origin)
-    }
-
-    const traceId = request.headers.get("x-trace-id")
-    const parentSpanId = request.headers.get("x-parent-span-id")
-    const result = await handler.handle(request, {
-      prefix: "/rpc",
-      context: {
-        ...(traceId ? { traceId } : {}),
-        ...(parentSpanId ? { spanId: parentSpanId } : {}),
-      },
-    })
-
-    if (!result.matched) {
-      return withCors(new Response("Not found", { status: 404 }), origin)
-    }
-
-    return withCors(result.response, origin)
-  },
+const server = createEngineServer({
+  port: environment.BOT_TEAMS_ENGINE_PORT,
+  access: { token: environment.BOT_TEAMS_ENGINE_TOKEN, ...(environment.BOT_TEAMS_ALLOWED_ORIGIN ? { origin: environment.BOT_TEAMS_ALLOWED_ORIGIN } : {}) },
+  ...(environment.BOT_TEAMS_RENDERER_DIRECTORY ? { rendererDirectory: environment.BOT_TEAMS_RENDERER_DIRECTORY } : {}),
+  handler,
 })
 engineState = "ready"
 plugins.resume()

@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron"
 import type { BrowserState, BrowserBounds } from "../shared/browser"
 import type { EngineConnection } from "../shared/engine-ipc"
+import type { MobileAccess, MobileAccessUpdate } from "../shared/mobile-access"
 import type { TurnNotification } from "../shared/turn-notification"
 
 contextBridge.exposeInMainWorld("desktop", {
+  remote: false,
   getBrowserState: (): Promise<BrowserState> => ipcRenderer.invoke("agent-browser:state"),
   watchBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:watch", botId),
   takeBrowserControl: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:take-control", botId),
@@ -16,6 +18,10 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("agent-browser:state", (_event, state: BrowserState) => listener(state))
   },
   getEngineConnection: (): Promise<EngineConnection> => ipcRenderer.invoke("engine:get-connection"),
+  renewEngineConnection: (): Promise<EngineConnection> => ipcRenderer.invoke("engine:get-connection"),
+  getMobileAccess: (): Promise<MobileAccess> => ipcRenderer.invoke("mobile-access:get"),
+  configureMobileAccess: (update: MobileAccessUpdate): Promise<MobileAccess> => ipcRenderer.invoke("mobile-access:configure", update),
+  unpairMobileAccess: (): Promise<MobileAccess> => ipcRenderer.invoke("mobile-access:unpair"),
   chooseWorkingDirectory: (): Promise<string | null> => ipcRenderer.invoke("working-directory:choose"),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke("window:toggle-maximize"),

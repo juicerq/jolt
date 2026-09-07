@@ -1,4 +1,4 @@
-import { access, stat, writeFile } from "node:fs/promises"
+import { access, stat } from "node:fs/promises"
 import { constants } from "node:fs"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
@@ -10,8 +10,10 @@ import { startAppUpdates } from "./app-update"
 import { EngineProcess } from "./engine-process/engine-process"
 import { Browser } from "./browser/browser"
 import { browserDebuggingPort } from "./browser/browser-debugging"
+import { createKeepAwake } from "./keep-awake"
+import { createMobileAccess } from "./mobile-access"
 import { productServices } from "./product-services"
-import { loadSecretKey } from "./secret-key"
+import { loadSecret } from "./secret-file"
 import { createTurnNotifications } from "./turn-notification"
 
 // Uma única pasta de dados por máquina no dev, fora do checkout: worktrees e `bun run dev` abrem o mesmo banco do serviço.
@@ -68,6 +70,7 @@ const engineName = process.platform === "win32" ? "mimo-engine.exe" : "mimo-engi
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", engineName)
   : join(app.getAppPath(), "dist-engine", engineName)
+const rendererUrl = !app.isPackaged && process.env.ELECTRON_RENDERER_URL ? parse(loopbackHttpUrl, process.env.ELECTRON_RENDERER_URL) : undefined
 let browser: Browser | undefined
 
 const engine = new EngineProcess({
@@ -79,9 +82,10 @@ const engine = new EngineProcess({
     return browser.execute(request, signal)
   },
   executable,
+  ...(app.isPackaged ? { rendererDirectory: join(process.resourcesPath, "renderer") } : {}),
   databasePath: join(app.getPath("userData"), "mimo.sqlite"),
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
-  secretKey: () => loadSecretKey(join(app.getPath("userData"), "secret.key")),
+  secretKey: () => loadSecret(join(app.getPath("userData"), "secret.key")),
   ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID ? { googleClient: { id: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID, ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET ? { secret: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
   githubRelayUrl: process.env.MIMO_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
   appVersion: app.getVersion(),
@@ -98,14 +102,14 @@ app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1")
 app.commandLine.appendSwitch("remote-debugging-port", await browserDebuggingPort())
 
 void app.whenReady().then(async () => {
-  const starting = engine.start()
+  const mobileAccess = createMobileAccess({ directory: app.getPath("userData"), engine, keepAwake: createKeepAwake(), ...(rendererUrl ? { rendererPort: Number(new URL(rendererUrl).port) } : {}) })
+  const starting = mobileAccess.load().then((credentials) => engine.start(credentials))
 
-  ipcMain.handle("engine:get-connection", () => starting)
-
-  if (!app.isPackaged) {
-    // Lido pelo Vite (/engine-connection.json) e por scripts/mobile.ts para abrir o Mimo no celular.
-    void starting.then((connection) => writeFile(join(app.getPath("userData"), "engine-connection.json"), JSON.stringify({ ...connection, rendererUrl: process.env.ELECTRON_RENDERER_URL })))
-  }
+  ipcMain.handle("engine:get-connection", () => starting.then(() => engine.connection))
+  ipcMain.handle("mobile-access:get", () => mobileAccess.get())
+  ipcMain.handle("mobile-access:configure", (_event, raw: unknown) => mobileAccess.configure(raw))
+  ipcMain.handle("mobile-access:unpair", () => mobileAccess.unpair())
+  void starting.then(() => mobileAccess.restore(), () => {})
 
   const window = new BrowserWindow({
     width: 960,
@@ -171,9 +175,7 @@ void app.whenReady().then(async () => {
     return path
   })
 
-  const loading = !app.isPackaged && process.env.ELECTRON_RENDERER_URL
-    ? window.loadURL(parse(loopbackHttpUrl, process.env.ELECTRON_RENDERER_URL))
-    : window.loadFile(join(__dirname, "../renderer/index.html"))
+  const loading = rendererUrl ? window.loadURL(rendererUrl) : window.loadFile(join(process.resourcesPath, "renderer", "index.html"))
 
   await starting
   await engine.event({ name: "main.started", attributes: { process: "main", status: "ready", version: app.getVersion() } })

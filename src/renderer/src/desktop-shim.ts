@@ -1,13 +1,47 @@
-import { engineConnection } from "@src/shared/engine-ipc"
-import { parse } from "@src/shared/parse"
+import type { EngineConnection } from "@src/shared/engine-ipc"
 
-// Fora do Electron (navegador do celular via `bun run dev:mobile`) não existe preload.
-// ponytail: só o que o boot e o chat usam; navegador embutido e janela viram no-op.
+// Fora do Electron (navegador do celular) não existe preload.
+// ponytail: só o que o boot e o chat usam; navegador embutido, janela e pareamento viram no-op.
 if (!window.desktop) {
+  const tokenKey = "mimo.engine-token"
   const noop = async () => {}
+  const unavailable = () => Promise.reject(new Error("Disponível só no notebook."))
+
+  function pairedToken() {
+    const token = new URLSearchParams(location.hash.slice(1)).get("token")
+
+    if (token) {
+      localStorage.setItem(tokenKey, token)
+      history.replaceState(null, "", location.pathname + location.search)
+    }
+
+    return localStorage.getItem(tokenKey)
+  }
+
+  window.addEventListener("hashchange", () => location.reload())
+
+  async function connection(): Promise<EngineConnection | null> {
+    const token = pairedToken()
+
+    if (!token) {
+      return null
+    }
+
+    return { url: `${location.origin}/rpc`, token }
+  }
 
   window.desktop = {
-    getEngineConnection: async () => parse(engineConnection, await fetch("/engine-connection.json").then((response) => response.json())),
+    remote: true,
+    getEngineConnection: connection,
+    renewEngineConnection: async () => {
+      localStorage.removeItem(tokenKey)
+      location.reload()
+
+      return null
+    },
+    getMobileAccess: unavailable,
+    configureMobileAccess: unavailable,
+    unpairMobileAccess: unavailable,
     getBrowserState: async () => ({ pages: [], focusedBotId: null }),
     onBrowserState: () => {},
     onTurnNotificationOpened: () => {},

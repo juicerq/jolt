@@ -3,7 +3,8 @@ productName: Mimo
 directories:
   output: release
 files:
-  - out/**
+  - out/main/**
+  - out/preload/**
   - resources/icon.png
   - package.json
   - "!node_modules/**"
@@ -27,6 +28,8 @@ files:
 extraResources:
   - from: dist-engine
     to: engine
+  - from: out/renderer
+    to: renderer
 npmRebuild: false
 afterPack: ./scripts/after-pack.ts
 publish:

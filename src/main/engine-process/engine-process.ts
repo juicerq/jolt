@@ -1,12 +1,12 @@
 import { browserRequest, browserCancel, type BrowserRequest } from "@src/shared/browser"
-import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcess } from "node:child_process"
-import { type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
+import { type EngineAccessMessage, type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineAccessMessage, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
 import { parse } from "@src/shared/parse"
 
 interface EngineProcessOptions {
   browser?: (request: BrowserRequest, signal: AbortSignal) => Promise<string>
   executable: string
+  rendererDirectory?: string
   databasePath: string
   privateBotsDirectory: string
   secretKey(): Promise<string>
@@ -17,6 +17,13 @@ interface EngineProcessOptions {
   development?: boolean
   loadProvider?: boolean
   onUnexpectedExit?: (error: Error) => void
+}
+
+type EngineAccess = Omit<EngineAccessMessage, "type">
+
+interface EngineListener {
+  token: string
+  port: number
 }
 
 interface ChildExit {
@@ -37,6 +44,7 @@ export class EngineProcess {
   private exit?: Promise<ChildExit>
   private stopping = false
   private ready = false
+  private listening?: EngineListener
 
   constructor(private readonly options: EngineProcessOptions) {}
 
@@ -44,19 +52,33 @@ export class EngineProcess {
     return this.child?.pid
   }
 
-  async start() {
+  get port() {
+    return this.listening?.port
+  }
+
+  get connection() {
+    if (!this.listening) {
+      throw new Error("Bun Engine is not running")
+    }
+
+    return parse(engineConnection, { url: `http://127.0.0.1:${this.listening.port}/rpc`, token: this.listening.token })
+  }
+
+  async start(access: EngineAccess & { port: number }) {
     if (this.child) {
       throw new Error("Bun Engine is already running")
     }
 
     const startedAt = new Date().toISOString()
     const started = performance.now()
-    const token = randomBytes(32).toString("hex")
     const secretKey = await this.options.secretKey()
     const child = spawn(this.options.executable, [], {
       env: {
         ...inheritedEnvironment(),
-        BOT_TEAMS_ENGINE_TOKEN: token,
+        BOT_TEAMS_ENGINE_TOKEN: access.token,
+        BOT_TEAMS_ENGINE_PORT: String(access.port),
+        ...(access.origin ? { BOT_TEAMS_ALLOWED_ORIGIN: access.origin } : {}),
+        ...(this.options.rendererDirectory ? { BOT_TEAMS_RENDERER_DIRECTORY: this.options.rendererDirectory } : {}),
         BOT_TEAMS_DATABASE_PATH: this.options.databasePath,
         BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: this.options.privateBotsDirectory,
         BOT_TEAMS_SECRET_KEY: secretKey,
@@ -77,6 +99,7 @@ export class EngineProcess {
         if (this.child === child) {
           this.child = undefined
           this.exit = undefined
+          this.listening = undefined
         }
 
         if (this.ready && !this.stopping) {
@@ -172,6 +195,7 @@ export class EngineProcess {
       }
     })
     this.ready = true
+    this.listening = { token: access.token, port: ready.port }
     await this.send(parse(forwardedObservation, {
       type: "span",
       span: {
@@ -185,7 +209,7 @@ export class EngineProcess {
       },
     }))
 
-    return parse(engineConnection, { url: `http://127.0.0.1:${ready.port}/rpc`, token })
+    return this.connection
   }
 
   async stop() {
@@ -205,7 +229,15 @@ export class EngineProcess {
     return this.send(parse(forwardedObservationEvent, { type: "observation", ...input }))
   }
 
-  private send(message: ForwardedObservation) {
+  grant(access: EngineAccess) {
+    if (this.listening) {
+      this.listening = { ...this.listening, token: access.token }
+    }
+
+    return this.send(parse(engineAccessMessage, { type: "access", ...access }))
+  }
+
+  private send(message: ForwardedObservation | EngineAccessMessage) {
     const child = this.child
 
     if (!child?.connected) {

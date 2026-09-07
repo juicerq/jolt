@@ -11,7 +11,7 @@ bun run build:electron
 
 `bun run dev` compila o Bun Engine e abre o Electron em modo de desenvolvimento. Ele guarda os dados em `~/.config/mimo-dev` (`MIMO_USER_DATA` troca a pasta), separado do aplicativo instalado. `bun run dev:load` usa `.mimo-load` e o Fornecedor de carga.
 
-`bun run dev:mobile`, com o `bun run dev` aberto e um Android autorizado no `adb`, espelha as portas do Vite e do Engine no celular (`adb reverse`) e abre o Mimo no navegador dele em `http://localhost`. Assim as checagens de loopback e CORS continuam iguais às do Electron.
+Para abrir o Mimo dev no celular, ligue "Acesso pelo celular" em Configurações → Celular e leia o QR com o celular na mesma rede Tailscale. O Mimo configura o `tailscale serve` sozinho: no dev aponta para o Vite, que serve o Renderer e repassa `/rpc` ao Engine em `127.0.0.1:4141`; no aplicativo instalado aponta direto para o Engine. A checagem de origem do Engine é a mesma nos dois casos.
 
 Imports que cruzam pastas usam o alias `@src/...`. `bun run check` roda oxlint, o typecheck e o knip.
 

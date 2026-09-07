@@ -72,6 +72,7 @@ export function createConversations(input: {
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
   const compactions = new Map<string, Promise<void>>()
+  const answering = new Set<string>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const waitingOn = new Set<{ callerId: string; targetId: string }>()
   const messageQueue = createMessageQueue()
@@ -607,6 +608,10 @@ export function createConversations(input: {
       throw new Error("Question option is no longer available")
     }
 
+    if (answering.has(replyTo.messageId) || input.database.conversations.replied(replyTo.messageId)) {
+      throw new Error("Esta Pergunta já foi respondida.")
+    }
+
     const { question } = questionMessage
     const values = new Set(replyTo.optionValues)
     const chosen = question.options.filter((option) => values.has(option.value))
@@ -619,7 +624,37 @@ export function createConversations(input: {
       throw new Error("Question accepts a single option")
     }
 
+    answering.add(replyTo.messageId)
+
     return chosen.map((option) => option.label).join(", ")
+  }
+
+  async function accept(botId: string, message: IncomingMessage, delivery: "queue" | "now") {
+    const { content, images, replyTo } = message
+
+    if (!active.has(botId)) {
+      await runTurn(botId, message)
+
+      return
+    }
+
+    const sender = active.get(botId)?.sender
+    const immediate = delivery === "now" || !!replyTo
+
+    if (immediate && sender) {
+      await input.runtime.steer(botId, { content, images })
+      sender.person(message)
+
+      return
+    }
+
+    const queued = messageQueue.add(botId, { content, images })
+
+    if (immediate) {
+      messageQueue.promote(botId, queued.id)
+    }
+
+    publishQueue(botId)
   }
 
   function teamBotIds(rawInput: unknown) {
@@ -721,31 +756,13 @@ export function createConversations(input: {
         input.bots.addColleague(botId, mentionedBotId)
       }
 
-      const message: IncomingMessage = { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: resolvedContent, images, replyTo }
-
-      if (!active.has(botId)) {
-        await runTurn(botId, message)
-
-        return
+      try {
+        await accept(botId, { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: resolvedContent, images, replyTo }, delivery)
+      } finally {
+        if (replyTo) {
+          answering.delete(replyTo.messageId)
+        }
       }
-
-      const sender = active.get(botId)?.sender
-      const immediate = delivery === "now" || !!replyTo
-
-      if (immediate && sender) {
-        await input.runtime.steer(botId, { content: resolvedContent, images })
-        sender.person(message)
-
-        return
-      }
-
-      const queued = messageQueue.add(botId, { content: resolvedContent, images })
-
-      if (immediate) {
-        messageQueue.promote(botId, queued.id)
-      }
-
-      publishQueue(botId)
     },
     async promote(rawInput: unknown) {
       const { botId, id } = parse(conversationSchemas.queueInput, rawInput)

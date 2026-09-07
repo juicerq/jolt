@@ -1,0 +1,10 @@
+{
+  "name": "Mimo",
+  "short_name": "Mimo",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "icons": [{ "src": "./icon.png", "sizes": "512x512", "type": "image/png" }]
+}

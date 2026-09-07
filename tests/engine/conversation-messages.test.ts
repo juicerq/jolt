@@ -10,6 +10,7 @@ import { createTasks } from "@src/engine/tasks/tasks"
 import { askTool, messageContentLimit, sendMessageTool } from "@src/shared/conversations"
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { must, rejects } from "../support/expect"
 
 const directory = mkdtempSync(join(tmpdir(), "mimo-messages-"))
 
@@ -146,6 +147,24 @@ test("pergunta chega uma vez com opções e envios inválidos ou tardios não al
   expect(c.history().filter((message) => message.author === "bot")).toMatchObject([{ content: question.content, question: { options: question.options, allowOther: true, multiple: false } }])
   expect(await c.tool(sendMessageTool).execute({ content: "Envio tardio" }).catch((error: unknown) => error)).toMatchObject({ message: "No active conversation turn" })
   expect(c.history()).toHaveLength(2)
+})
+
+test("só a primeira Resposta a uma Pergunta entra na conversa, mesmo vinda de duas telas", async () => {
+  const c = await conversation()
+  expect((await c.events.next()).value?.event.type).toBe("started")
+  const question = { content: "Qual formato?", options: [{ value: "pdf", label: "PDF" }, { value: "md", label: "Markdown" }], allowOther: false, multiple: false }
+  await c.tool(askTool).execute(question)
+  c.emit({ type: "text", text: question.content })
+  c.finish()
+  const questionId = must(c.history().find((message) => message.question)).id
+  const answer = (value: string) => c.conversations.send({ botId: c.bot.id, content: "", images: [], replyTo: { messageId: questionId, optionValues: [value] } })
+
+  const first = answer("pdf")
+  await rejects(answer("md"), "Esta Pergunta já foi respondida.")
+  await first
+  c.finish()
+  await rejects(answer("md"), "Esta Pergunta já foi respondida.")
+  expect(c.history().filter((message) => message.replyTo).map((message) => message.content)).toEqual(["PDF"])
 })
 
 test("interromper preserva as mensagens enviadas e impede envios posteriores", async () => {

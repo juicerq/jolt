@@ -265,6 +265,9 @@ export function openDatabase(path: string, observability: Observability) {
           return parse(conversationSchemas.history, { messages: rows.map(({ position: _position, ...row }) => row), earlier })
         })
       },
+      replied(questionId: string) {
+        return observability.span({ name: "database.conversationreplied" }, () => !!database.select({ id: messages.id }).from(messages).where(sql`json_extract(${messages.replyTo}, '$.messageId') = ${questionId}`).get())
+      },
       related(taskId: string) {
         return observability.span({ name: "database.conversationrelated", context: { taskId } }, () => parse(conversationSchemas.messageList, 
           database.select(messageColumns).from(messages).where(eq(messages.taskId, taskId)).orderBy(asc(insertion(messages))).all(),
