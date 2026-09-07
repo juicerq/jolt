@@ -49,7 +49,7 @@ export function ProjectsSidebar({ client, mobile = false }: { client: EngineClie
   )
 }
 
-export function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -116,7 +116,7 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
 const createPopoverClassName = `${menuCardClassName} chat-control-popover inset-auto mt-1 [position-area:bottom_span-left] [position-try-fallbacks:flip-block,flip-inline]`
 
 /** A "+" that opens Novo Bot / Novo Projeto: a dropdown on desktop, a sheet on mobile. */
-export function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
+function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
   const popoverId = `create-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const anchor = chatControlAnchor(popoverId)
 
@@ -195,7 +195,7 @@ function ProjectHeading({ children, id }: { children: string; id: string }) {
   )
 }
 
-export function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
+function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
   return (
     <label className="relative flex min-w-0 flex-1 items-center">
       <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />

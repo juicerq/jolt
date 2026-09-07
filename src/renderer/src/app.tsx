@@ -2,12 +2,12 @@ import { useStore } from "@tanstack/react-store"
 import { browserStore } from "./browser/browser-store"
 import { ComputerDesktopIcon, MinusIcon, Square2StackIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import type { EngineClient } from "./engine-client"
-import { BrowserPanel } from "./browser/browser-panel"
+import { type BrowserActions, BrowserPanel } from "./browser/browser-panel"
 import { botsStore, closeBrowserSidebar, toggleBrowserSidebar } from "./bots/bots-store"
 import { BotsWorkspace } from "./bots/bots-workspace"
 import { IconButton } from "./ui/icon-button"
 
-export function App({ client }: { client: EngineClient }) {
+export function App({ browser, client }: { browser: BrowserActions; client: EngineClient }) {
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
   const browserNeedsHelp = useStore(browserStore, (state) => state.pages.some((page) => page.control === "user" || !!page.error))
   const sidebarOpen = useStore(botsStore, (state) => state.browserSidebarOpen)
@@ -35,7 +35,7 @@ export function App({ client }: { client: EngineClient }) {
         </div>
         <BotsWorkspace client={client} />
       </div>
-      <BrowserPanel sidebarOpen={sidebarOpen} onCloseSidebar={closeSidebar} />
+      <BrowserPanel browser={browser} sidebarOpen={sidebarOpen} onCloseSidebar={closeSidebar} />
     </main>
   )
 }

@@ -32,3 +32,7 @@ Um `className` longo repetido em centenas de elementos custa na abertura da conv
 ## Mobile
 
 O breakpoint é o `md` do Tailwind, 48rem. Estilo que muda no celular usa `max-md:`. Estrutura que muda, como a lista ou o plano da conversa e os chips ou a sheet do composer, lê `useIsMobile()` de `ui/use-is-mobile.ts`, uma assinatura em `matchMedia` via `useSyncExternalStore`. O bloco `@media (width < 48rem)` no fim de `styles.css` fica fora de `@layer` de propósito: ele reestiliza primitivos que já carregam utilities, como `.chat-control-popover`, `.mobile-sheet` e `.mobile-screen`, e utilities vencem qualquer layer.
+
+## Navegador do Bot
+
+`BrowserPanel` recebe um `BrowserActions`: `control` existe apenas no Electron, onde `browser-desktop.tsx` posiciona a `WebContentsView` nativa. No celular, `browser-remote.tsx` permite apenas acompanhar e ampliar a imagem; sair da visualização preserva a página e o controle no computador. A lista de páginas chega por `browser.pages`, assinado uma vez em `main.tsx` por `browser-pages.ts`, e os quadros por `browser.frame`. O Engine não expõe comandos remotos de controle do navegador.

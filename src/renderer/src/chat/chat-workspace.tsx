@@ -5,6 +5,8 @@ import type { Bot } from "@src/shared/bots"
 import type { ConversationMessage, MessageImage, MessageReply } from "@src/shared/conversations"
 import type { Task } from "@src/shared/tasks"
 import { BotFace } from "../bots/bot-face"
+import { Button } from "../ui/button"
+import { focusBrowser } from "../browser/browser-store"
 import type { EngineClient } from "../engine-client"
 import { appSettingsStore } from "../settings/app-settings-store"
 import { teamAvatarIdentities, teamNames, teamOf } from "../bots/team"
@@ -274,7 +276,7 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
   const pluginRequest = run.pluginRequests[0]
   const awaitingDecision = !!permissionRequest || !!pluginRequest
   const workingSilently = !activityDetailsVisible && run.status === "running" && !awaitingDecision
-  const awaitingNotebook = window.desktop.remote && awaitingHandoff(run)
+  const handedOff = window.desktop.remote && awaitingHandoff(run)
 
   return (
     <>
@@ -285,7 +287,7 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
         {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} step={run.pluginSteps[pluginRequest.id]} /></ChatStamped>}
         {workingSilently && <ChatWorkingIndicator botName={bot.name} />}
-        {awaitingNotebook && <p className="m-0 text-support text-secondary" role="status">Aguardando você no notebook. O Bot entregou o navegador para você assumir lá.</p>}
+        {handedOff && <div className="flex flex-wrap items-center gap-3"><p className="m-0 text-support text-secondary" role="status">{bot.name} aguarda sua ajuda no computador.</p><Button variant="secondary" onClick={() => focusBrowser(bot.id)}>Acompanhar página</Button></div>}
         {run.error && <div className="mt-3.5 flex items-start gap-3 max-[700px]:flex-wrap"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
       </article>
     </>

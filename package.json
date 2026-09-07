@@ -1,6 +1,6 @@
 {
   "name": "mimo",
-  "version": "0.1.22",
+  "version": "0.1.25",
   "private": true,
   "description": "Times de Bots que trabalham no seu computador",
   "author": "Mimo",
@@ -57,6 +57,7 @@
     "elysia": "^1.4.30",
     "hast-util-to-jsx-runtime": "2.3.6",
     "highlight.js": "10.7.3",
+    "jsqr": "^1.4.0",
     "qrcode.react": "^4.2.0",
     "react": "19.2.5",
     "react-dom": "19.2.5",

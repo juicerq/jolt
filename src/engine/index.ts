@@ -1,4 +1,4 @@
-import { browserReply } from "../shared/browser"
+import { browserMainMessage } from "../shared/browser"
 import { createBrowser } from "./browser/browser"
 import { RPCHandler } from "@orpc/server/fetch"
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
@@ -61,7 +61,7 @@ let mainState: ProcessState = "unknown"
 let mainShutdown: { timestamp: string; startedAt: number } | undefined
 
 process.on("message", (message) => {
-  if (browserReply.safeParse(message).success) {
+  if (browserMainMessage.safeParse(message).success) {
     return
   }
 
@@ -204,6 +204,7 @@ const handler = new RPCHandler(
     receiver: observationSystem.receiver,
     providers,
     bots,
+    browser,
     projects,
     conversations,
     tasks,

@@ -43,7 +43,7 @@ export function createEngineClient(connection: EngineConnection) {
     async fetch(request, init, _options, path) {
       const operation = path.join(".")
 
-      if (operation === "diagnostics.get" || operation === "observations.rendererSpan") {
+      if (operation === "diagnostics.get" || operation === "observations.rendererSpan" || operation === "browser.frame") {
         return authorizedFetch(request, init)
       }
 

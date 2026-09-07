@@ -4,6 +4,7 @@ import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
 import type { createPiProvider } from "../pi/pi-provider"
 import type { createBots } from "../bots/bots"
+import type { createBrowser } from "../browser/browser"
 import type { createConversations } from "../conversations/conversations"
 import type { createMemory } from "../memory/memory"
 import type { createPlugins } from "../plugins/plugins"
@@ -31,13 +32,14 @@ async function* surfacedStream<T>(stream: AsyncIterable<T>) {
   }
 }
 
-export function createEngineRouter({ startedAt, observability, diagnostics, receiver, providers, bots, projects, conversations, tasks, routines, triggers, memory, permissions, plugins }: {
+export function createEngineRouter({ startedAt, observability, diagnostics, receiver, providers, bots, browser, projects, conversations, tasks, routines, triggers, memory, permissions, plugins }: {
   startedAt: string
   observability: Observability
   diagnostics: ReturnType<typeof createDiagnostics>
   receiver: ObservationReceiver
   providers: ReturnType<typeof createPiProvider>
   bots: ReturnType<typeof createBots>
+  browser: Pick<ReturnType<typeof createBrowser>, "pages" | "frame">
   projects: ReturnType<typeof createProjects>
   conversations: ReturnType<typeof createConversations>
   tasks: ReturnType<typeof createTasks>
@@ -51,7 +53,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
     try {
       const operation = path.join(".").toLowerCase()
 
-      if (operation === "diagnostics.get" || operation.startsWith("observations.")) {
+      if (operation === "diagnostics.get" || operation === "browser.frame" || operation.startsWith("observations.")) {
         return await next()
       }
 
@@ -112,6 +114,10 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       promote: operations.conversations.promote.handler(({ input }) => conversations.promote(input)),
       unqueue: operations.conversations.unqueue.handler(({ input }) => conversations.unqueue(input)),
       related: operations.conversations.related.handler(({ input }) => conversations.related(input)),
+    },
+    browser: {
+      pages: operations.browser.pages.handler(({ signal }) => surfacedStream(browser.pages(signal))),
+      frame: operations.browser.frame.handler(({ input, signal }) => browser.frame(input, signal)),
     },
     permissions: {
       decide: operations.permissions.decide.handler(({ input }) => permissions.decide(input)),

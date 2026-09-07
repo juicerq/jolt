@@ -1,10 +1,10 @@
-import { browserRequest, browserCancel, type BrowserRequest } from "@src/shared/browser"
+import { browserCancel, browserFrameRequest, browserPagesMessage, browserRequest, type BrowserFrameInput, type BrowserFrameReply, type BrowserFrame, type BrowserPagesMessage, type BrowserPreview, type BrowserReply, type BrowserRequest } from "@src/shared/browser"
 import { spawn, type ChildProcess } from "node:child_process"
 import { type EngineAccessMessage, type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineAccessMessage, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
 import { parse } from "@src/shared/parse"
 
 interface EngineProcessOptions {
-  browser?: (request: BrowserRequest, signal: AbortSignal) => Promise<string>
+  browser: () => { execute(request: BrowserRequest, signal: AbortSignal): Promise<string>; frame(input: BrowserFrameInput): Promise<BrowserFrame | null> } | undefined
   executable: string
   rendererDirectory?: string
   databasePath: string
@@ -154,11 +154,34 @@ export class EngineProcess {
 
     const browserActions = new Map<string, AbortController>()
 
+    const reply = (message: BrowserFrameReply | BrowserReply) => {
+      if (child.connected) {
+        child.send(message, (error) => {
+          if (error) {
+            console.error("Browser reply failed", error.message)
+          }
+        })
+      }
+    }
+
     child.on("message", (raw: unknown) => {
       const cancellation = browserCancel.safeParse(raw)
 
       if (cancellation.success) {
         browserActions.get(cancellation.data.id)?.abort()
+        return
+      }
+
+      const frameRequest = browserFrameRequest.safeParse(raw)
+
+      if (frameRequest.success) {
+        const browser = this.options.browser()
+        const execution = browser ? browser.frame(frameRequest.data.input) : Promise.reject(new Error("Browser is unavailable"))
+
+        void execution.then(
+          (frame): BrowserFrameReply => ({ type: "browser-frame-reply", id: frameRequest.data.id, frame, error: null }),
+          (error: unknown): BrowserFrameReply => ({ type: "browser-frame-reply", id: frameRequest.data.id, frame: null, error: error instanceof Error ? error.message : "Browser frame failed" }),
+        ).then(reply)
         return
       }
 
@@ -170,23 +193,15 @@ export class EngineProcess {
 
       const controller = new AbortController()
       browserActions.set(request.data.id, controller)
-      const execution = this.options.browser
-        ? this.options.browser(request.data, controller.signal)
-        : Promise.reject(new Error("Browser is unavailable"))
+      const browser = this.options.browser()
+      const execution = browser ? browser.execute(request.data, controller.signal) : Promise.reject(new Error("Browser is unavailable"))
 
       void execution.then(
-        (result) => ({ type: "browser-reply", id: request.data.id, result, error: false }),
-        (error: unknown) => ({ type: "browser-reply", id: request.data.id, result: error instanceof Error ? error.message : "Browser action failed", error: true }),
-      ).then((reply) => {
+        (result): BrowserReply => ({ type: "browser-reply", id: request.data.id, result, error: false }),
+        (error: unknown): BrowserReply => ({ type: "browser-reply", id: request.data.id, result: error instanceof Error ? error.message : "Browser action failed", error: true }),
+      ).then((message) => {
         browserActions.delete(request.data.id)
-
-        if (child.connected) {
-          child.send(reply, (error) => {
-            if (error) {
-              console.error("Browser reply failed", error.message)
-            }
-          })
-        }
+        reply(message)
       })
     })
     child.once("exit", () => {
@@ -229,6 +244,10 @@ export class EngineProcess {
     return this.send(parse(forwardedObservationEvent, { type: "observation", ...input }))
   }
 
+  publishBrowserPages(pages: BrowserPreview[]) {
+    void this.send(parse(browserPagesMessage, { type: "browser-pages", pages }))
+  }
+
   grant(access: EngineAccess) {
     if (this.listening) {
       this.listening = { ...this.listening, token: access.token }
@@ -237,7 +256,7 @@ export class EngineProcess {
     return this.send(parse(engineAccessMessage, { type: "access", ...access }))
   }
 
-  private send(message: ForwardedObservation | EngineAccessMessage) {
+  private send(message: ForwardedObservation | EngineAccessMessage | BrowserPagesMessage) {
     const child = this.child
 
     if (!child?.connected) {

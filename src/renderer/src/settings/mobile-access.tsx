@@ -143,15 +143,3 @@ function Row({ label, description, children }: { label: string; description: str
     </div>
   )
 }
-
-export function MobilePairingRequired() {
-  return (
-    <main className="flex h-dvh items-center justify-center bg-canvas p-6 text-center font-sans">
-      <div className="flex max-w-[40ch] flex-col items-center gap-3">
-        <DevicePhoneMobileIcon className="size-8 text-muted" aria-hidden="true" />
-        <h1 className="m-0 text-title font-semibold text-primary">Pareie este celular</h1>
-        <p className="m-0 text-support text-secondary">No notebook, abra Configurações → Celular e leia o QR com a câmera. O link abre o Mimo aqui.</p>
-      </div>
-    </main>
-  )
-}

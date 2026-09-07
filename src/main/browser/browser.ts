@@ -1,6 +1,6 @@
 import { ipcMain, View, WebContentsView, type BrowserWindow } from "electron"
 import { z } from "zod"
-import { browserBounds, type BrowserRequest, type BrowserState } from "@src/shared/browser"
+import { browserBounds, type BrowserFrameInput, type BrowserPreview, type BrowserRequest, type BrowserState } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
 import { BrowserPage } from "./browser-page"
 
@@ -12,7 +12,7 @@ export class Browser {
   private readonly cover = new View()
   private readonly inputShield = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
 
-  constructor(private readonly window: BrowserWindow) {
+  constructor(private readonly window: BrowserWindow, private readonly remote: { publish(pages: BrowserPreview[]): void }) {
     this.cover.setBounds({ x: 0, y: 0, width: 1, height: 1 })
     this.cover.setBackgroundBlur(1)
     this.cover.setBackgroundColor("#0c0a09")
@@ -124,6 +124,10 @@ export class Browser {
     return { pages: [...this.pages.values()].map((page) => ({ ...page.preview })), focusedBotId: this.focusedBotId }
   }
 
+  async frame(input: BrowserFrameInput) {
+    return this.page(input.botId).nextFrame(input.after)
+  }
+
   private focus(botId: string) {
     this.page(botId)
 
@@ -140,9 +144,13 @@ export class Browser {
   private publish() {
     const destroyed = this.window.isDestroyed()
 
-    if (!destroyed) {
-      this.window.webContents.send("agent-browser:state", this.state())
+    if (destroyed) {
+      return
     }
+
+    const state = this.state()
+    this.window.webContents.send("agent-browser:state", state)
+    this.remote.publish(state.pages)
   }
 
   private async capture() {
