@@ -26,15 +26,14 @@ const teamAvatarHoverClassNames = [
   "group-hover/stack:translate-x-0.75 group-hover/stack:translate-y-0.25",
 ]
 
-/** Desktop only. Below `md` the BotsRail takes over. */
-export function ProjectsSidebar({ client }: { client: EngineClient }) {
+export function ProjectsSidebar({ client, mobile = false }: { client: EngineClient; mobile?: boolean }) {
   const draft = useSelector(botsStore, (state) => state.draft)
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
   const settingsOpen = useSelector(botsStore, (state) => state.screen === "settings")
   const [search, setSearch] = useState("")
 
   return (
-    <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-md:hidden">
+    <aside className={`flex min-h-0 min-w-0 flex-col bg-sidebar pt-3 pb-2.5 pl-3 ${mobile ? "flex-1 pr-3" : "pr-0 max-md:hidden"}`}>
       <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
         <BotSearch value={search} onChange={setSearch} />
         <CreateMenu draftOpen={!!draft} />
@@ -50,7 +49,7 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   )
 }
 
-export function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
@@ -102,7 +101,7 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
     <section className="[&+&]:mt-5" aria-labelledby={`project-${project.id}`}>
       <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
       {project.bots.length === 0 ? (
-        <p className="m-0 px-2.5 pt-[7px] pb-[9px] text-support text-muted max-[720px]:hidden">Nenhum Bot</p>
+        <p className="m-0 px-2.5 pt-[7px] pb-[9px] text-support text-muted">Nenhum Bot</p>
       ) : (
         <ul className="m-0 list-none p-0 max-[720px]:block">
           {project.bots.map((bot) => (
@@ -117,7 +116,7 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
 const createPopoverClassName = `${menuCardClassName} chat-control-popover inset-auto mt-1 [position-area:bottom_span-left] [position-try-fallbacks:flip-block,flip-inline]`
 
 /** A "+" that opens Novo Bot / Novo Projeto: a dropdown on desktop, a sheet on mobile. */
-export function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
+function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
   const popoverId = `create-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const anchor = chatControlAnchor(popoverId)
 
@@ -196,7 +195,7 @@ function ProjectHeading({ children, id }: { children: string; id: string }) {
   )
 }
 
-export function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
+function BotSearch({ value, onChange, ref }: { value: string; onChange: (value: string) => void; ref?: Ref<HTMLInputElement> }) {
   return (
     <label className="relative flex min-w-0 flex-1 items-center">
       <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 size-[15px] text-muted" aria-hidden="true" />

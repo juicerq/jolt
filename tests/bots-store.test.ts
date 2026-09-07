@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openCreateBot, openPlugins, openSettings, selectBot } from "@src/renderer/src/bots/bots-store"
+import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openCreateBot, openPlugins, openSettings, selectBot, toggleBrowserSidebar, openMobileMenu } from "@src/renderer/src/bots/bots-store"
 
 const initialState = { ...botsStore.state }
 
@@ -23,6 +23,26 @@ describe("navigation between Bots, screens and the draft", () => {
 
     closeWorkspaceScreen()
     expect(botsStore.state).toMatchObject({ screen: null, selectedBotId: "bot-1" })
+  })
+
+  test("leaving a screen closes the browser sidebar", () => {
+    openSettings()
+    toggleBrowserSidebar()
+    expect(botsStore.state.browserSidebarOpen).toBeTrue()
+
+    closeWorkspaceScreen()
+    expect(botsStore.state.browserSidebarOpen).toBeFalse()
+  })
+
+  test("mobile menu and browser panel close each other and navigation closes the menu", () => {
+    toggleBrowserSidebar()
+    openMobileMenu()
+    expect(botsStore.state).toMatchObject({ mobileMenuOpen: true, browserSidebarOpen: false })
+    toggleBrowserSidebar()
+    expect(botsStore.state).toMatchObject({ mobileMenuOpen: false, browserSidebarOpen: true })
+    openMobileMenu()
+    selectBot("bot-1")
+    expect(botsStore.state).toMatchObject({ mobileMenuOpen: false, browserSidebarOpen: false, selectedBotId: "bot-1" })
   })
 
   test("discarding the draft keeps the selected Bot", () => {

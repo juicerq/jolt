@@ -1,23 +1,41 @@
 import { useStore } from "@tanstack/react-store"
 import { browserStore } from "./browser/browser-store"
-import { MinusIcon, Square2StackIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ComputerDesktopIcon, MinusIcon, Square2StackIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import type { EngineClient } from "./engine-client"
 import { type BrowserActions, BrowserPanel } from "./browser/browser-panel"
+import { botsStore, closeBrowserSidebar, toggleBrowserSidebar } from "./bots/bots-store"
 import { BotsWorkspace } from "./bots/bots-workspace"
 import { IconButton } from "./ui/icon-button"
 
 export function App({ browser, client }: { browser: BrowserActions; client: EngineClient }) {
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
+  const browserNeedsHelp = useStore(browserStore, (state) => state.pages.some((page) => page.control === "user" || !!page.error))
+  const sidebarOpen = useStore(botsStore, (state) => state.browserSidebarOpen)
   const frameless = !window.desktop.remote
   const clearance = frameless ? "[--window-controls-clearance:140px] max-md:[--window-controls-clearance:120px]" : "[--window-controls-clearance:0px]"
 
+  function closeSidebar() {
+    closeBrowserSidebar()
+    const mobileToggle = document.getElementById("browser-sidebar-toggle-mobile")
+    const toggle = mobileToggle?.getClientRects().length ? mobileToggle : document.getElementById("browser-sidebar-toggle")
+
+    toggle?.focus()
+  }
+
   return (
-    <main className={`relative m-0 grid h-dvh min-h-0 w-full max-w-none grid-rows-[minmax(0,1fr)] overflow-hidden bg-canvas p-0 font-sans text-control font-medium text-primary [color-scheme:dark] ${clearance}`}>
-      <div className="contents" inert={browserFocused}>
+    <main className={`relative m-0 flex h-dvh min-h-0 w-full max-w-none overflow-hidden bg-canvas p-0 font-sans text-control font-medium text-primary [color-scheme:dark] ${clearance} md:max-[96rem]:[--window-controls-clearance:180px]`}>
+      <div className="min-h-0 min-w-0 flex-1" inert={browserFocused}>
         {frameless && <WindowControls />}
+        <div className={`absolute top-6 z-30 [-webkit-app-region:no-drag] min-[96rem]:hidden max-md:hidden ${frameless ? "right-32" : "right-6"}`}>
+          <IconButton id="browser-sidebar-toggle" type="button" label={sidebarOpen ? "Recolher navegadores" : "Mostrar navegadores"} tone={sidebarOpen ? "raised" : "ghost"} tooltipPlacement="bottom" aria-expanded={sidebarOpen} aria-controls="browser-sidebar" onClick={toggleBrowserSidebar}>
+            <ComputerDesktopIcon aria-hidden="true" />
+            {browserNeedsHelp && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-status-warning" aria-hidden="true" />}
+          </IconButton>
+          {browserNeedsHelp && <span className="sr-only" role="status">Um navegador precisa da sua atenção.</span>}
+        </div>
         <BotsWorkspace client={client} />
       </div>
-      <BrowserPanel browser={browser} />
+      <BrowserPanel browser={browser} sidebarOpen={sidebarOpen} onCloseSidebar={closeSidebar} />
     </main>
   )
 }

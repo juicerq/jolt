@@ -32,11 +32,11 @@ function useBrowserAction() {
   return { error, pending, run }
 }
 
-export function BrowserPanel({ browser }: { browser: BrowserActions }) {
+export function BrowserPanel({ browser, sidebarOpen, onCloseSidebar }: { browser: BrowserActions; sidebarOpen: boolean; onCloseSidebar: () => void }) {
   const state = useStore(browserStore, (value) => value)
   const focused = state.pages.find((page) => page.botId === state.focusedBotId)
 
-  if (!state.pages.length) {
+  if (!state.pages.length && !sidebarOpen) {
     return null
   }
 
@@ -44,7 +44,7 @@ export function BrowserPanel({ browser }: { browser: BrowserActions }) {
     return <BrowserViewer key={focused.botId} browser={browser} page={focused} />
   }
 
-  return <BrowserCards browser={browser} pages={state.pages} />
+  return <BrowserCards browser={browser} pages={state.pages} sidebarOpen={sidebarOpen} onCloseSidebar={onCloseSidebar} />
 }
 
 function browserStatus(page: BrowserPreview, canControl: boolean) {
@@ -100,14 +100,26 @@ function BrowserViewer({ browser, page }: { browser: BrowserActions; page: Brows
   )
 }
 
-function BrowserCards({ browser, pages }: { browser: BrowserActions; pages: BrowserPreview[] }) {
+function BrowserCards({ browser, pages, sidebarOpen, onCloseSidebar }: { browser: BrowserActions; pages: BrowserPreview[]; sidebarOpen: boolean; onCloseSidebar: () => void }) {
   const { error, pending, run } = useBrowserAction()
   const control = browser.control
+  const focusPanel = useCallback((element: HTMLElement | null) => element?.focus(), [])
 
   return (
-    <aside className="absolute top-16 right-6 z-30 flex max-h-[calc(100vh-96px)] w-64 flex-col gap-3 overflow-y-auto max-md:top-[calc(64px+var(--safe-top))] max-md:right-3 max-md:w-44" aria-label="Navegadores dos Bots">
+    <aside id="browser-sidebar" ref={sidebarOpen ? focusPanel : undefined} tabIndex={-1} data-open={sidebarOpen} className="z-30 mr-3 mt-16 mb-3 hidden w-80 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-outline bg-surface data-[open=true]:flex min-[96rem]:absolute min-[96rem]:top-16 min-[96rem]:right-3 min-[96rem]:m-0 min-[96rem]:flex min-[96rem]:max-h-[calc(100dvh-76px)] min-[96rem]:w-72 max-md:fixed max-md:top-[calc(60px+var(--safe-top))] max-md:right-2 max-md:bottom-[calc(8px+var(--safe-bottom))] max-md:left-2 max-md:z-40 max-md:m-0 max-md:flex max-md:w-auto max-md:rounded-t-none max-md:rounded-b-shell max-md:border-t-0 max-md:transition-[translate,visibility] max-md:duration-300 max-md:ease-[cubic-bezier(0.2,0,0,1)] max-md:data-[open=false]:pointer-events-none max-md:data-[open=false]:invisible max-md:data-[open=false]:translate-x-[calc(100%+8px)] motion-reduce:max-md:transition-none" aria-label="Navegadores dos Bots" onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation()
+        onCloseSidebar()
+      }
+    }}>
+      <header className="flex min-h-12 shrink-0 items-center justify-between gap-3 px-4">
+        <h2 className="m-0 text-control font-semibold text-primary">Navegadores</h2>
+        <IconButton className="min-[96rem]:hidden" label="Fechar painel de navegadores" tooltipPlacement="left" onClick={onCloseSidebar}><XMarkIcon aria-hidden="true" /></IconButton>
+      </header>
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-3 pb-3">
+      {pages.length === 0 && <p className="p-3 text-support text-secondary">Nenhum navegador aberto.</p>}
       {pages.map((page) => (
-        <div key={page.botId} className="overflow-hidden rounded-xl border border-outline bg-surface-raised shadow-[0_2px_8px_rgb(0_0_0/45%)]">
+        <div key={page.botId} className="shrink-0 overflow-hidden rounded-lg bg-surface-raised">
           <button className="group block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:opacity-60" disabled={pending} onClick={() => void run(() => browser.watch(page.botId))} aria-label={control && page.control === "user" ? `Abrir navegador de ${page.botName}` : `Assistir ao navegador de ${page.botName}`}>
             <div className="relative aspect-[8/5] overflow-hidden bg-canvas">
               {page.image ? <img src={page.image} alt="" className="size-full object-contain" /> : <div className="grid size-full place-items-center text-secondary"><GlobeAltIcon className="size-8" aria-hidden="true" /></div>}
@@ -116,13 +128,15 @@ function BrowserCards({ browser, pages }: { browser: BrowserActions; pages: Brow
           </button>
           <div className="flex flex-col gap-1 p-3">
             <span className="truncate text-control font-semibold text-primary">{page.botName}</span>
-            <span className="text-support text-secondary">{page.control === "user" ? browserStatus(page, !!control) : page.title}</span>
-            {page.error && <span className="text-support text-status-error">{page.error}</span>}
+            <span className="truncate text-support text-secondary" title={page.url}>{page.title}</span>
+            {page.control === "user" && <span className="text-support text-secondary [overflow-wrap:anywhere]">{browserStatus(page, !!control)}</span>}
+            {page.error && <span className="text-support text-status-error [overflow-wrap:anywhere]" role="alert">{page.error}</span>}
           </div>
           {control && page.control === "user" && !page.popup && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void run(() => control.resume(page.botId))}>Devolver para {page.botName}</Button></div>}
         </div>
       ))}
       {error && <p className="rounded-lg bg-surface-raised p-3 text-support text-status-error" role="alert">{error}</p>}
+      </div>
     </aside>
   )
 }

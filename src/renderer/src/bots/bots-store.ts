@@ -23,7 +23,8 @@ interface BotsState {
   draft: BotDraft | null
   dialog: "create-project" | null
   screen: "plugins" | "settings" | null
-  railHidden: boolean
+  browserSidebarOpen: boolean
+  mobileMenuOpen: boolean
 }
 
 export const botsStore = new Store<BotsState>({
@@ -32,47 +33,52 @@ export const botsStore = new Store<BotsState>({
   draft: null,
   dialog: null,
   screen: null,
-  railHidden: false,
+  browserSidebarOpen: false,
+  mobileMenuOpen: false,
 })
+
+function navigate(update: (state: BotsState) => BotsState) {
+  botsStore.setState((state) => ({ ...update(state), browserSidebarOpen: false, mobileMenuOpen: false }))
+}
 
 export function selectBot(botId: string) {
   if (botsStore.state.selectedBotId !== botId) {
     beginConversationOpen(botId)
   }
 
-  botsStore.setState((state) => ({ ...state, selectedBotId: botId, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
+  navigate((state) => ({ ...state, selectedBotId: botId, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
 }
 
 export function openBotRoute(route: BotRoute) {
-  botsStore.setState((state) => ({ ...state, botRoute: route }))
+  navigate((state) => ({ ...state, botRoute: route }))
 }
 
 export function openPlugins() {
-  botsStore.setState((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
+  navigate((state) => ({ ...state, screen: "plugins", draft: null, dialog: null }))
 }
 
 export function openSettings() {
-  botsStore.setState((state) => ({ ...state, screen: "settings", dialog: null }))
+  navigate((state) => ({ ...state, screen: "settings", dialog: null }))
 }
 
 export function closeWorkspaceScreen() {
-  botsStore.setState((state) => ({ ...state, screen: null }))
+  navigate((state) => ({ ...state, screen: null }))
 }
 
-export function hideRail() {
-  botsStore.setState((state) => ({ ...state, railHidden: true }))
+export function closeMobileMenu() {
+  botsStore.setState((state) => ({ ...state, mobileMenuOpen: false }))
 }
 
-export function showRail() {
-  botsStore.setState((state) => ({ ...state, railHidden: false }))
+export function openMobileMenu() {
+  botsStore.setState((state) => ({ ...state, mobileMenuOpen: true, browserSidebarOpen: false }))
 }
 
 export function forgetBot(botId: string) {
-  botsStore.setState((state) => (state.selectedBotId === botId ? { ...state, selectedBotId: null } : state))
+  botsStore.setState((state) => (state.selectedBotId === botId ? { ...state, selectedBotId: null, browserSidebarOpen: false } : state))
 }
 
 export function openCreateBot() {
-  botsStore.setState((state) => ({ ...state, draft: state.draft ?? { avatarSeed: null, name: "" }, screen: null }))
+  navigate((state) => ({ ...state, draft: state.draft ?? { avatarSeed: null, name: "" }, screen: null }))
 }
 
 export function nameDraft(name: string) {
@@ -89,11 +95,19 @@ export function botDraftAvatarSeed(draft: BotDraft) {
 }
 
 export function discardDraft() {
-  botsStore.setState((state) => ({ ...state, draft: null }))
+  navigate((state) => ({ ...state, draft: null }))
+}
+
+export function toggleBrowserSidebar() {
+  botsStore.setState((state) => ({ ...state, browserSidebarOpen: !state.browserSidebarOpen, mobileMenuOpen: false }))
+}
+
+export function closeBrowserSidebar() {
+  botsStore.setState((state) => ({ ...state, browserSidebarOpen: false }))
 }
 
 export function openCreateProject() {
-  botsStore.setState((state) => ({ ...state, dialog: "create-project" }))
+  navigate((state) => ({ ...state, dialog: "create-project" }))
 }
 
 export function closeDialog() {
