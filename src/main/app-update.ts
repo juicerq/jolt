@@ -2,7 +2,7 @@ import { app, ipcMain, type BrowserWindow } from "electron"
 import electronUpdater from "electron-updater"
 import type { EngineProcess } from "./engine-process/engine-process"
 
-type UpdateWindow = Pick<BrowserWindow, "webContents" | "on" | "off">
+type UpdateWindow = Pick<BrowserWindow, "webContents" | "on">
 type UpdateReporter = Pick<EngineProcess, "event">
 
 const checkIntervalMs = 10 * 60_000
@@ -15,11 +15,17 @@ export async function startAppUpdates({ window, engine }: { window: UpdateWindow
 
   const { autoUpdater } = electronUpdater
   let lastCheckAt = 0
+  let activity: Promise<unknown> = Promise.resolve()
+  let readyVersion: string | null = null
 
   function check() {
     lastCheckAt = Date.now()
+    activity = autoUpdater
+      .checkForUpdates()
+      .then((result) => result?.downloadPromise)
+      .catch(() => null)
 
-    return autoUpdater.checkForUpdates().catch(() => {})
+    return activity
   }
 
   function checkOnFocus() {
@@ -30,14 +36,30 @@ export async function startAppUpdates({ window, engine }: { window: UpdateWindow
     void check()
   }
 
-  ipcMain.handle("update:install", () => autoUpdater.quitAndInstall())
+  ipcMain.handle("update:install", async () => {
+    await activity
 
-  const checks = setInterval(() => void check(), checkIntervalMs)
+    if (readyVersion) {
+      autoUpdater.quitAndInstall()
+    }
+  })
+
+  setInterval(() => void check(), checkIntervalMs)
   window.on("focus", checkOnFocus)
 
+  autoUpdater.on("update-available", ({ version }) => {
+    if (version !== readyVersion) {
+      readyVersion = null
+      autoUpdater.autoInstallOnAppQuit = false
+    }
+  })
   autoUpdater.on("update-downloaded", ({ version }) => {
-    clearInterval(checks)
-    window.off("focus", checkOnFocus)
+    if (version === readyVersion) {
+      return
+    }
+
+    readyVersion = version
+    autoUpdater.autoInstallOnAppQuit = true
     window.webContents.send("update:ready")
     void engine.event({ name: "main.updatedownloaded", attributes: { process: "main", status: "ready", version } })
   })
