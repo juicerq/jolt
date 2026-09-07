@@ -1,10 +1,10 @@
-import { ArrowPathIcon, Cog6ToothIcon, MagnifyingGlassIcon, PuzzlePieceIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, ChevronDoubleLeftIcon, Cog6ToothIcon, MagnifyingGlassIcon, PuzzlePieceIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type MouseEvent, useId, useRef, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import { BotFace } from "../bots/bot-face"
-import { botsStore, openPlugins, openSettings, selectBot } from "../bots/bots-store"
+import { botsStore, hideRail, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { teamLeaders } from "../bots/team"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -27,6 +27,7 @@ export function BotsRail({ client }: { client: EngineClient }) {
 
   return (
     <aside className="flex min-h-0 flex-col items-center gap-1 bg-sidebar py-2 md:hidden" aria-label="Bots">
+      <IconButton size={34} type="button" label="Esconder a barra lateral" tooltipPlacement="right" onClick={hideRail}><ChevronDoubleLeftIcon aria-hidden="true" /></IconButton>
       <RailSearch client={client} draftOpen={draftOpen} />
       <ul className="m-0 flex min-h-0 flex-1 list-none flex-col items-center gap-1 overflow-y-auto p-0 py-1" aria-label="Bots">
         {teamLeaders(data).map((bot) => (

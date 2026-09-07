@@ -1,4 +1,4 @@
-import { ChevronLeftIcon } from "@heroicons/react/24/outline"
+import { ChevronDoubleRightIcon, ChevronLeftIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { ReactNode } from "react"
@@ -8,7 +8,7 @@ import { chatStore } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { BotFace } from "./bot-face"
-import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute } from "./bots-store"
+import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, showRail } from "./bots-store"
 import { findTeamBot } from "./team"
 
 const routeTitles: Record<BotRoute["name"], string> = {
@@ -61,8 +61,11 @@ export function WorkspaceTopBar({ client }: { client: EngineClient }) {
 }
 
 function TopBar({ back, children }: { back?: { label: string; onBack: () => void }; children: ReactNode }) {
+  const railHidden = useSelector(botsStore, (state) => state.railHidden)
+
   return (
-    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden ${back ? "pl-1.5" : "pl-3.5"}`}>
+    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden ${back || railHidden ? "pl-1.5" : "pl-3.5"}`}>
+      {railHidden && <IconButton size={34} type="button" label="Mostrar a barra lateral" onClick={showRail}><ChevronDoubleRightIcon aria-hidden="true" /></IconButton>}
       {back && <IconButton size={34} type="button" label={back.label} onClick={back.onBack}><ChevronLeftIcon aria-hidden="true" /></IconButton>}
       <div className="min-w-0 flex-1">{children}</div>
     </header>

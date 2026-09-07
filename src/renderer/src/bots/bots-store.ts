@@ -23,6 +23,7 @@ interface BotsState {
   draft: BotDraft | null
   dialog: "create-project" | null
   screen: "plugins" | "settings" | null
+  railHidden: boolean
 }
 
 export const botsStore = new Store<BotsState>({
@@ -31,6 +32,7 @@ export const botsStore = new Store<BotsState>({
   draft: null,
   dialog: null,
   screen: null,
+  railHidden: false,
 })
 
 export function selectBot(botId: string) {
@@ -55,6 +57,14 @@ export function openSettings() {
 
 export function closeWorkspaceScreen() {
   botsStore.setState((state) => ({ ...state, screen: null }))
+}
+
+export function hideRail() {
+  botsStore.setState((state) => ({ ...state, railHidden: true }))
+}
+
+export function showRail() {
+  botsStore.setState((state) => ({ ...state, railHidden: false }))
 }
 
 export function forgetBot(botId: string) {
