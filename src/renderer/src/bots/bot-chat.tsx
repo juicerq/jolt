@@ -83,7 +83,7 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   }
 
   if (route.name === "memory") {
-    return <BotMemory bot={bot} client={client} {...(leader ? { leader } : {})} onClose={close} />
+    return <BotMemory bot={bot} client={client} leader={leader} onClose={close} />
   }
 
   if (route.name === "triggers") {

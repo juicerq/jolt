@@ -8,7 +8,7 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { useEscape } from "../ui/use-escape"
-import { botPageColumnClassName } from "../bots/bot-page"
+import { BotPage } from "../bots/bot-page"
 import { AddPluginDialog } from "./add-plugin-dialog"
 import { PluginAccountRow } from "./plugin-account-row"
 import { useConnectPlugin } from "./plugin-connection"
@@ -21,20 +21,18 @@ export function PluginsScreen({ client }: { client: EngineClient }) {
 
   return (
     <>
-      <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-surface" aria-label="Plugins">
-        <div className={`${botPageColumnClassName} flex flex-1 flex-col gap-8 pt-12 pb-12 max-md:pt-6 max-md:pb-8`}>
-          <header className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
-            <div className="min-w-0">
-              <h2 className="m-0 text-title font-semibold text-primary max-md:hidden">Plugins</h2>
-              <p className="m-0 mt-1 text-support text-muted">Conecte suas contas e escolha quem pode usá-las nas configurações de cada Bot.</p>
-            </div>
-            <Button className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => setAdding(true)}><PlusIcon className="size-4" aria-hidden="true" />Adicionar Plugin</Button>
-          </header>
-          {error && <p className="m-0 text-support text-status-error">Falha ao carregar Plugins: {error.message}</p>}
-          {isPending && <p className="m-0 text-support text-muted">Carregando Plugins...</p>}
-          {data && data.plugins.map((plugin) => <PluginCard key={plugin.id} plugin={plugin} client={client} />)}
-        </div>
-      </section>
+      <BotPage label="Plugins">
+        <header className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <div className="min-w-0">
+            <h2 className="m-0 text-title font-semibold text-primary max-md:hidden">Plugins</h2>
+            <p className="m-0 mt-1 text-support text-muted">Conecte suas contas e escolha quem pode usá-las nas configurações de cada Bot.</p>
+          </div>
+          <Button className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => setAdding(true)}><PlusIcon className="size-4" aria-hidden="true" />Adicionar Plugin</Button>
+        </header>
+        {error && <p className="m-0 text-support text-status-error">Falha ao carregar Plugins: {error.message}</p>}
+        {isPending && <p className="m-0 text-support text-muted">Carregando Plugins...</p>}
+        {data && data.plugins.map((plugin) => <PluginCard key={plugin.id} plugin={plugin} client={client} />)}
+      </BotPage>
       <ChatEdgeTab>
         <IconButton iconSize={16} type="button" label="Fechar Plugins" tooltipPlacement="left" onClick={closeWorkspaceScreen}><XMarkIcon aria-hidden="true" /></IconButton>
       </ChatEdgeTab>
@@ -48,7 +46,7 @@ type PluginConnection = ReturnType<typeof useConnectPlugin>
 function PluginCard({ plugin, client }: { plugin: Plugin; client: EngineClient }) {
   const queryClient = useQueryClient()
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
   const connection = useConnectPlugin(client)
   const { mutate: disconnect, isPending: disconnecting, error: disconnectError } = useMutation(client.query.plugins.disconnect.mutationOptions({ onSuccess: refresh }))
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.plugins.remove.mutationOptions({ onSuccess: refresh }))
@@ -106,13 +104,13 @@ function PluginRemoval({ onCancel, onConfirm, pluginName, removing }: { onCancel
   )
 }
 
-function describePlugin(plugin: Pick<Plugin, "kind" | "available" | "unavailableReason" | "config" | "accounts">) {
+function describePlugin(plugin: Pick<Plugin, "available" | "unavailableReason" | "config" | "accounts">) {
   if (!plugin.available) {
     return plugin.unavailableReason ?? "Indisponível"
   }
 
-  if (plugin.kind === "mcp") {
-    return `Servidor MCP · ${plugin.config?.command ?? ""}`
+  if (plugin.config) {
+    return `Servidor MCP · ${plugin.config.command}`
   }
 
   if (plugin.accounts.length === 0) {

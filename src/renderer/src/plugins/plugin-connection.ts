@@ -3,7 +3,7 @@ import { useState } from "react"
 import type { PluginConnectInput, PluginStep } from "@src/shared/plugins"
 import type { EngineClient } from "../engine-client"
 
-export function useConnectPlugin(client: EngineClient, onConnected?: () => void) {
+export function useConnectPlugin(client: EngineClient) {
   const queryClient = useQueryClient()
   const [step, setStep] = useState<PluginStep>()
 
@@ -40,8 +40,7 @@ export function useConnectPlugin(client: EngineClient, onConnected?: () => void)
       setStep(undefined)
     },
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
-      onConnected?.()
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
     },
   })
 

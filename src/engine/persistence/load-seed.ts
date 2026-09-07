@@ -1,10 +1,10 @@
 import { mkdir } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { parseArgs } from "node:util"
-import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
 import type { StoredBot } from "@src/shared/bots"
 import type { ConversationActivity, ConversationMessage } from "@src/shared/conversations"
 import type { Task } from "@src/shared/tasks"
+import { newBot } from "../bots/bots"
 import { createObservationSystem } from "../observability/observability"
 import { openDatabase } from "./database"
 
@@ -153,22 +153,15 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
   const created: { name: string; messages: number }[] = []
 
   async function createBot(name: string, leaderBotId: string | null): Promise<StoredBot> {
-    const bot: StoredBot = {
-      id: crypto.randomUUID(),
+    const bot = newBot({
       leaderBotId,
       projectId: null,
       name,
-      avatarSeed: defaultBotAvatarSeed(name),
       provider: "codex",
       function: { outcome: `Entregar o trabalho de ${name} com histórico de carga para medir a interface.` },
       workingDirectoryOverride: null,
-      temporary: false,
-      memoryEnabled: true,
-      effort: "medium",
-      model: null,
-      permissionMode: "ask",
       createdAt: nextTimestamp(),
-    }
+    })
 
     await mkdir(join(botsDirectory, bot.id), { recursive: true })
     database.bots.create(bot)

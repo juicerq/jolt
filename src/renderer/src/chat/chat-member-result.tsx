@@ -31,7 +31,7 @@ function label(kind: Kind, status: TaskStatus, name: string) {
   return resultLabels[status](name)
 }
 
-export function ChatMemberResult({ kind = "result", name, status = "done", time, content, open = false }: { kind?: Kind; name: string; status?: TaskStatus; time: string; content: string; open?: boolean }) {
+export function ChatMemberResult({ kind, name, status = "done", time, content, open }: { kind: Kind; name: string; status?: TaskStatus; time: string; content: string; open: boolean }) {
   const Icon = icons[kind]
 
   return (

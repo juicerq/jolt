@@ -7,13 +7,8 @@ const closeDelayMs = 50
 
 const gmailScopes = ["https://www.googleapis.com/auth/gmail.modify"]
 
-export interface GmailEndpoints { authorization: string; token: string; api: string }
-
-export const googleEndpoints: GmailEndpoints = {
-  authorization: "https://accounts.google.com/o/oauth2/v2/auth",
-  token: "https://oauth2.googleapis.com/token",
-  api: "https://gmail.googleapis.com/gmail/v1",
-}
+const authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
+const tokenEndpoint = "https://oauth2.googleapis.com/token"
 
 export interface GmailClient { id: string; secret?: string }
 
@@ -70,8 +65,8 @@ function challenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url")
 }
 
-async function exchange(endpoint: string, client: GmailClient, body: Record<string, string>, previousRefreshToken?: string): Promise<GmailCredentials> {
-  const response = await fetch(endpoint, {
+async function exchange(client: GmailClient, body: Record<string, string>, previousRefreshToken?: string): Promise<GmailCredentials> {
+  const response = await fetch(tokenEndpoint, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: client.id, ...(client.secret ? { client_secret: client.secret } : {}), ...body }),
@@ -99,17 +94,14 @@ async function exchange(endpoint: string, client: GmailClient, body: Record<stri
   return { accessToken: token.access_token, refreshToken, expiresAt: new Date(Date.now() + token.expires_in * 1000).toISOString() }
 }
 
-export function refreshCredentials(endpoints: GmailEndpoints, client: GmailClient, credentials: GmailCredentials) {
-  return exchange(endpoints.token, client, { grant_type: "refresh_token", refresh_token: credentials.refreshToken }, credentials.refreshToken)
+export function refreshCredentials(client: GmailClient, credentials: GmailCredentials) {
+  return exchange(client, { grant_type: "refresh_token", refresh_token: credentials.refreshToken }, credentials.refreshToken)
 }
 
-export function startAuthorization(endpoints: GmailEndpoints, client: GmailClient) {
+export function startAuthorization(client: GmailClient) {
   const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)))
   const state = crypto.randomUUID()
-  let settle: { resolve(credentials: GmailCredentials): void; reject(error: Error): void } | undefined
-  const credentials = new Promise<GmailCredentials>((resolve, reject) => {
-    settle = { resolve, reject }
-  })
+  const settle = Promise.withResolvers<GmailCredentials>()
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -131,7 +123,7 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
       }
 
       try {
-        const exchanged = await exchange(endpoints.token, client, { grant_type: "authorization_code", code, code_verifier: verifier, redirect_uri: redirectUri })
+        const exchanged = await exchange(client, { grant_type: "authorization_code", code, code_verifier: verifier, redirect_uri: redirectUri })
 
         return finish({ credentials: exchanged }, page(pages.connected, 200))
       } catch (error) {
@@ -145,18 +137,18 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
       void server.stop(true)
 
       if ("error" in outcome) {
-        settle?.reject(outcome.error)
+        settle.reject(outcome.error)
 
         return
       }
 
-      settle?.resolve(outcome.credentials)
+      settle.resolve(outcome.credentials)
     }, closeDelayMs)
 
     return response
   }
   const redirectUri = `http://127.0.0.1:${server.port}/callback`
-  const authorizationUrl = new URL(endpoints.authorization)
+  const authorizationUrl = new URL(authorizationEndpoint)
   authorizationUrl.search = new URLSearchParams({
     client_id: client.id,
     redirect_uri: redirectUri,
@@ -171,10 +163,10 @@ export function startAuthorization(endpoints: GmailEndpoints, client: GmailClien
 
   return {
     authorizationUrl: authorizationUrl.toString(),
-    credentials,
+    credentials: settle.promise,
     cancel: () => {
       void server.stop(true)
-      settle?.reject(new Error("Connection cancelled"))
+      settle.reject(new Error("Connection cancelled"))
     },
   }
 }

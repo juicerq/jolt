@@ -10,11 +10,10 @@ import { IconButton } from "../ui/icon-button"
 import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
-
 import { triggerActionLabels, triggerEvents } from "./trigger-options"
 
 function describe(trigger: Trigger) {
-  const event = `${triggerEvents.find((option) => option.value === trigger.event)?.label} · ${trigger.actions.map((action) => triggerActionLabels[action] ?? action).join(", ")}`
+  const event = `${triggerEvents[trigger.event].label} · ${trigger.actions.map((action) => triggerActionLabels[action] ?? action).join(", ")}`
   const repositories = trigger.repositories.map((repository) => repository.fullName).join(", ")
 
   return `${event} em ${repositories}`

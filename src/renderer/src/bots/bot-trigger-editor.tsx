@@ -12,7 +12,7 @@ import { Switch } from "../ui/switch"
 import { ToggleChip } from "../ui/toggle-chip"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
-import { triggerActionLabels, triggerEvents } from "./trigger-options"
+import { isTriggerEvent, triggerActionLabels, triggerEvents } from "./trigger-options"
 
 export function BotTriggerEditor({ bot, client, triggerId, onClose }: { bot: Bot; client: EngineClient; triggerId: string; onClose: () => void }) {
   const { data: triggers, error, isPending } = useQuery(client.query.triggers.list.queryOptions({ input: { botId: bot.id } }))
@@ -40,13 +40,12 @@ function BotTriggerForm({ bot, client, trigger, onClose }: { bot: Bot; client: E
   const [draft, setDraft] = useState(initial)
   const queryClient = useQueryClient()
   const { mutate: update, isPending: saving, error, reset } = useMutation(client.query.triggers.update.mutationOptions({ async onSuccess() {
-    await queryClient.invalidateQueries({ queryKey: client.query.triggers.list.queryOptions({ input: { botId: bot.id } }).queryKey })
+    await queryClient.invalidateQueries({ queryKey: client.query.triggers.key() })
     onClose()
   } }))
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
   const complete = !!draft.name.trim() && !!draft.instruction.trim() && draft.actions.length > 0
-  const eventOptions = triggerEvents.find((option) => option.value === draft.event)
-  const actions = [...new Set([...(eventOptions?.actions ?? []), ...draft.actions])]
+  const actions = [...new Set([...triggerEvents[draft.event].actions, ...draft.actions])]
   const primaryActions = actions.slice(0, 6)
   const moreActions = actions.slice(6)
   useEscape(() => !saving && onClose())
@@ -85,12 +84,12 @@ function BotTriggerForm({ bot, client, trigger, onClose }: { bot: Bot; client: E
           <SettingsSection title="Quando chamar o Bot">
             <Field label="Repositórios" as="div"><p className="m-0 break-words font-normal">{trigger.repositories.map((repository) => repository.fullName).join(", ")}</p><span className="text-support font-normal text-muted">Repositórios conectados a este Gatilho.</span></Field>
             <Field label="Evento"><Select value={draft.event} onChange={(event) => {
-              const option = triggerEvents.find((candidate) => candidate.value === event.target.value)
+              const { value } = event.target
 
-              if (option) {
-                setDraft({ ...draft, event: option.value, actions: [] })
+              if (isTriggerEvent(value)) {
+                setDraft({ ...draft, event: value, actions: [] })
               }
-            }}>{triggerEvents.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
+            }}>{Object.entries(triggerEvents).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</Select></Field>
             <Field label="Disparar quando" as="div">
               <div className="flex flex-wrap gap-2" role="group" aria-label="Ações do evento" aria-describedby="trigger-actions-help">{primaryActions.map((action) => <ToggleChip key={action} pressed={draft.actions.includes(action)} onClick={() => toggleAction(action)}>{triggerActionLabels[action] ?? action}</ToggleChip>)}</div>
               {moreActions.length > 0 && <details><summary className="cursor-pointer text-support font-normal text-muted hover:text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Mais ações{moreActions.some((action) => draft.actions.includes(action)) ? " · com seleção" : ""}</summary><div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mais ações do evento">{moreActions.map((action) => <ToggleChip key={action} pressed={draft.actions.includes(action)} onClick={() => toggleAction(action)}>{triggerActionLabels[action] ?? action}</ToggleChip>)}</div></details>}

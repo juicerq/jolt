@@ -1,19 +1,11 @@
 import { Store } from "@tanstack/react-store"
-import type { ConversationActivity, ConversationMessage, IncomingMessage, QueuedMessage } from "@src/shared/conversations"
+import type { ConversationEvent, ConversationMessage, IncomingMessage, QueuedMessage } from "@src/shared/conversations"
 import type { PermissionRequest } from "@src/shared/permissions"
 import type { PluginRequest, PluginStep } from "@src/shared/plugins"
+import type { ChatActivityStep } from "./chat-activity-summary"
 import type { ChatCommandName } from "./chat-commands"
 import type { ChatMention } from "./chat-mentions"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
-
-type ConversationStep = ConversationActivity["steps"][number]
-type ThinkingStep = Extract<ConversationStep, { type: "thinking" }>
-type ToolStep = Extract<ConversationStep, { type: "tool" }>
-type ToolActivity = Omit<ToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
-
-type ChatActivityStep =
-  | (ThinkingStep & { status: "running" | "done" })
-  | (Omit<ToolStep, "tools"> & { tools: ToolActivity[] })
 
 export interface ChatRun {
   messageId: string
@@ -56,8 +48,12 @@ export function setChatDraftContent(botId: string, content: string) {
   updateDraft(botId, (draft) => ({ ...draft, content }))
 }
 
-export function setChatDraftCommand(botId: string, command: ChatCommandName | undefined, content: string) {
-  updateDraft(botId, (draft) => ({ images: draft.images, mentions: draft.mentions, content, ...(command ? { command } : {}) }))
+export function setChatDraftCommand(botId: string, command: ChatCommandName, content: string) {
+  updateDraft(botId, (draft) => ({ ...draft, command, content }))
+}
+
+export function clearChatDraftCommand(botId: string, content: string) {
+  updateDraft(botId, (draft) => ({ images: draft.images, mentions: draft.mentions, content }))
 }
 
 export function addChatDraftMention(botId: string, content: string, mention: ChatMention) {
@@ -145,7 +141,7 @@ function finishedToolStatus(failed: boolean, denied?: boolean) {
   return "done" as const
 }
 
-export function finishChatTool(botId: string, callId: string, failed: boolean, error?: string, denied?: boolean) {
+export function finishChatTool(botId: string, { callId, failed, error, denied }: Pick<Extract<ConversationEvent, { type: "tool-finished" }>, "callId" | "failed" | "error" | "denied">) {
   updateRun(botId, (run) => ({
     ...run,
     steps: run.steps.map((step) => step.type === "tool"
@@ -169,9 +165,7 @@ export function requestChatPermission(botId: string, request: PermissionRequest)
 }
 
 export function resolveChatPermission(botId: string, requestId: string) {
-  const permissionRequests = chatStore.state.runs[botId]?.permissionRequests.filter((request) => request.id !== requestId) ?? []
-
-  updateRun(botId, (run) => ({ ...run, permissionRequests }))
+  updateRun(botId, (run) => ({ ...run, permissionRequests: run.permissionRequests.filter((request) => request.id !== requestId) }))
   settleDecision(botId)
 }
 
@@ -208,10 +202,6 @@ export function markChatAborting(botId: string) {
 export function failChatRun(botId: string, error: string) {
   updateRun(botId, (run) => ({ ...run, status: "failed", error }))
   setChatStatus(botId, "error")
-}
-
-export function dismissChatRun(botId: string) {
-  settleChatRun(botId, "available")
 }
 
 export function settleChatRun(botId: string, status: "available" | "completed" | "error") {

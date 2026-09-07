@@ -1,7 +1,6 @@
 import { parseArgs } from "node:util"
-import type { Observation } from "../src/shared/observability/observation"
 import { browser, connectBrowser } from "./browser"
-import { observationLog, observations, waitForObservations } from "./observations"
+import { isFinishedTurn, observationLog, observations, waitForObservations } from "./observations"
 import { type Probe, startProbe, stopProbe, summarizeFrames, summarizeKeys } from "./page-probe"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "3" } } })
@@ -12,20 +11,6 @@ const streamingBot = "Leve"
 const typingBot = "Média"
 
 interface Sample { typed: number; elapsedMs: number; probe: Probe }
-
-function isFinishedTurn(item: Observation) {
-  return item.kind === "event" && item.name === "conversation.finished"
-}
-
-async function logSize() {
-  return (await Bun.file(logPath).text()).length
-}
-
-async function turnFinishedAfter(offset: number) {
-  const finished = (await observations(logPath, offset)).some(isFinishedTurn)
-
-  return finished
-}
 
 function focusComposer(name: string) {
   browser("find", "role", "button", "click", "--name", `de ${name} com`)
@@ -75,14 +60,14 @@ async function typeIdle() {
 async function typeDuringTurn() {
   focusComposer(streamingBot)
 
-  const offset = await logSize()
+  const offset = (await Bun.file(logPath).text()).length
   const before = (await observations(logPath)).filter(isFinishedTurn).length
 
   browser("find", "role", "combobox", "fill", "Revise o módulo de cobrança e liste o que precisa mudar.")
   browser("press", "Enter")
   focusComposer(typingBot)
 
-  const sample = await typeWhile(async () => !(await turnFinishedAfter(offset)))
+  const sample = await typeWhile(async () => !(await observations(logPath, offset)).some(isFinishedTurn))
 
   await waitForObservations(logPath, isFinishedTurn, before, 60_000)
   clearComposer()

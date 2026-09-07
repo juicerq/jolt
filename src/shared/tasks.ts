@@ -1,6 +1,6 @@
 import { z } from "zod"
+import { id } from "./ids"
 
-const id = z.string().min(1)
 const taskStatus = z.enum(["working", "done", "interrupted", "failed"])
 const task = z.strictObject({
   id,
@@ -15,7 +15,6 @@ export const delegateTool = "delegate"
 export const transferTool = "transfer"
 
 export const taskSchemas = {
-  botInput: z.strictObject({ botId: id }),
   task,
   taskList: z.array(task),
 }

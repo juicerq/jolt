@@ -5,8 +5,8 @@ import { type ReactNode, type Ref, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { BotFace } from "../bots/bot-face"
+import { groupMembers } from "../bots/bot-members"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
-import { describeMember, groupMembers, highlightedBotId } from "../bots/member-groups"
 import { chatControlAnchor } from "../chat/chat-control-menu"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -37,10 +37,10 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
     <aside className="flex min-w-0 flex-col bg-sidebar pt-3 pr-0 pb-2.5 pl-3 max-md:hidden">
       <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
         <BotSearch value={search} onChange={setSearch} />
-        <CreateMenu draftOpen={!!draft} />
+        <CreateMenu />
       </div>
       {draft && <DraftRow draft={draft} />}
-      <SidebarProjects client={client} search={search} draftOpen={!!draft} />
+      <SidebarProjects client={client} search={search} />
       <div className="mt-auto flex flex-col gap-1 pt-2">
         <SidebarUpdateButton />
         <SidebarNavButton active={pluginsOpen} icon={<PuzzlePieceIcon className="size-4 shrink-0" aria-hidden="true" />} label="Plugins" onClick={openPlugins} />
@@ -50,8 +50,9 @@ export function ProjectsSidebar({ client }: { client: EngineClient }) {
   )
 }
 
-export function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
+export function SidebarProjects({ client, search }: { client: EngineClient; search: string }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
+  const draftOpen = useSelector(botsStore, (state) => state.draft !== null)
   const statuses = useSelector(chatStore, (state) => state.statuses)
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
 
@@ -117,7 +118,8 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
 const createPopoverClassName = `${menuCardClassName} chat-control-popover inset-auto mt-1 [position-area:bottom_span-left] [position-try-fallbacks:flip-block,flip-inline]`
 
 /** A "+" that opens Novo Bot / Novo Projeto: a dropdown on desktop, a sheet on mobile. */
-export function CreateMenu({ draftOpen, size = 28 }: { draftOpen: boolean; size?: 28 | 34 }) {
+export function CreateMenu({ size = 28 }: { size?: 28 | 34 }) {
+  const draftOpen = useSelector(botsStore, (state) => state.draft !== null)
   const popoverId = `create-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const anchor = chatControlAnchor(popoverId)
 
@@ -245,7 +247,8 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   const closedListId = `team-closed-${bot.id}`
   const groups = groupMembers(bot.members)
   const openMembers = [...groups.permanent, ...groups.active]
-  const highlighted = highlightedBotId(bot, selectedBotId, expanded)
+  const memberSelected = bot.members.some((member) => member.id === selectedBotId)
+  const highlighted = !expanded && memberSelected ? bot.id : selectedBotId
 
   if (!hasTeam) {
     return <li className="block border-0 p-0"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} /></li>
@@ -303,16 +306,16 @@ function MemberItem({ member, selected, status }: { member: Bot; selected: boole
   )
 }
 
-function avatarSize(members: Bot[] | undefined) {
-  if (members?.length) {
-    return "h-[41px] w-[51px] min-w-[51px]"
+function describeMember(bot: Bot) {
+  if (bot.temporary && !bot.closed) {
+    return `Temporário · ${bot.function.outcome}`
   }
 
-  return "size-[38px] min-w-[38px]"
+  return bot.function.outcome
 }
 
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
-  const avatarSizeClassName = avatarSize(members)
+  const avatarSizeClassName = members?.length ? "h-[41px] w-[51px] min-w-[51px]" : "size-[38px] min-w-[38px]"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
 
@@ -324,18 +327,12 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       onClick={() => selectBot(bot.id)}
       {...tooltip.focusProps}
     >
-      {status ? (
-        <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
-          <span className="relative flex shrink-0">
-            <BotAvatar bot={bot} members={members} />
-            <span className={`absolute right-0.5 bottom-0.5 z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
-          </span>
-        </span>
-      ) : (
-        <span className={`relative z-10 flex shrink-0 ${avatarSizeClassName}`}>
+      <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role={status && "img"} aria-label={status && `Status: ${chatStatusLabels[status]}`}>
+        <span className="relative flex shrink-0">
           <BotAvatar bot={bot} members={members} />
+          {status && <span className={`absolute right-0.5 bottom-0.5 z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />}
         </span>
-      )}
+      </span>
       {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
       <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{bot.name}</strong>

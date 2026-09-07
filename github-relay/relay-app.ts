@@ -18,6 +18,26 @@ function bearer(request: Request) {
   return authorization.slice("Bearer ".length)
 }
 
+function ownsTarget(accountLogin: string, target: string) {
+  return accountLogin.toLowerCase() === target.split("/")[0]?.toLowerCase()
+}
+
+function failureOf(code: string | number, error: unknown) {
+  if (error instanceof Error && error.message === "Unauthorized") {
+    return { status: 401, message: "Unauthorized" }
+  }
+
+  if (code === "VALIDATION") {
+    return { status: 400, message: "Invalid request" }
+  }
+
+  if (code === "NOT_FOUND") {
+    return { status: 404, message: "Not found" }
+  }
+
+  return { status: 500, message: "Request failed" }
+}
+
 function html(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;")
 }
@@ -81,7 +101,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
     const target = input.database.target(state)
 
     if (target) {
-      const matching = installation.accountLogin.toLowerCase() === target.split("/")[0]?.toLowerCase()
+      const matching = ownsTarget(installation.accountLogin, target)
       const accessible = matching && await input.github.hasRepository(installation.id, target)
 
       if (!accessible) {
@@ -110,49 +130,28 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       set.headers["referrer-policy"] = "no-referrer"
     })
     .onError(({ code, error, set, request }) => {
-      const unauthorized = error instanceof Error && error.message === "Unauthorized"
-      const validation = code === "VALIDATION"
+      const failure = failureOf(code, error)
+      const url = new URL(request.url)
+      set.status = failure.status
       set.headers["cache-control"] = "no-store"
 
-      if (new URL(request.url).pathname.startsWith("/github/")) {
-        set.status = 500
-
-        if (unauthorized || validation) {
-          set.status = unauthorized ? 401 : 400
-        }
-
-        const state = new URL(request.url).searchParams.get("state")
-
-        if (state) {
-          input.database.cancel(state)
-        }
-        set.headers["content-type"] = "text/html; charset=utf-8"
-
-        if (!unauthorized && !validation) {
-          console.error(error)
-        }
-
-        return page("Não foi possível conectar o GitHub", "<p>Esta tentativa expirou ou não pôde ser autorizada. Volte ao Mimo e clique em Conectar para tentar novamente.</p>")
+      if (failure.status === 500) {
+        console.error(error)
       }
 
-      if (unauthorized) {
-        set.status = 401
-        return "Unauthorized"
+      if (!url.pathname.startsWith("/github/")) {
+        return failure.message
       }
 
-      if (validation) {
-        set.status = 400
-        return "Invalid request"
+      const state = url.searchParams.get("state")
+
+      if (state) {
+        input.database.cancel(state)
       }
 
-      if (code === "NOT_FOUND") {
-        set.status = 404
-        return "Not found"
-      }
+      set.headers["content-type"] = "text/html; charset=utf-8"
 
-      set.status = 500
-      console.error(error)
-      return "Request failed"
+      return page("Não foi possível conectar o GitHub", "<p>Esta tentativa expirou ou não pôde ser autorizada. Volte ao Mimo e clique em Conectar para tentar novamente.</p>")
     })
     .get("/health", () => ({ status: input.github.authorizationConfigured ? "ready" : "needs-configuration" }))
     .post("/v1/connections", ({ request, set, body }) => {
@@ -242,7 +241,7 @@ export function createRelayApp(input: { database: RelayDatabase; github: GithubA
       const target = input.database.target(query.state)
 
       if (target) {
-        const matching = installations.find((installation) => installation.accountLogin.toLowerCase() === target.split("/")[0]?.toLowerCase())
+        const matching = installations.find((installation) => ownsTarget(installation.accountLogin, target))
 
         if (matching) {
           return await complete(query.state, matching.id)

@@ -1,5 +1,6 @@
 import { createHash, createHmac, createPrivateKey, sign, timingSafeEqual } from "node:crypto"
 import { z } from "zod"
+import { githubSchemas } from "@src/shared/github"
 import { parse } from "@src/shared/parse"
 import { triggerSchemas } from "@src/shared/triggers"
 
@@ -81,18 +82,22 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
     return `${content}.${signature}`
   }
 
-  async function appJson<Schema extends z.ZodType>(schema: Schema, path: string, init?: RequestInit): Promise<z.output<Schema>> {
-    const response = await fetch(new URL(path, "https://api.github.com"), {
+  function githubFetch(bearer: string, path: string, init?: RequestInit) {
+    return fetch(new URL(path, "https://api.github.com"), {
       ...init,
       signal: AbortSignal.timeout(15_000),
       headers: {
         accept: "application/vnd.github+json",
-        authorization: `Bearer ${jwt()}`,
+        authorization: `Bearer ${bearer}`,
         "content-type": "application/json",
         "user-agent": "Mimo GitHub Relay",
         "x-github-api-version": githubApiVersion,
       },
     })
+  }
+
+  async function appJson<Schema extends z.ZodType>(schema: Schema, path: string, init?: RequestInit): Promise<z.output<Schema>> {
+    const response = await githubFetch(jwt(), path, init)
     const body: unknown = await response.json().catch(() => undefined)
 
     if (!response.ok) {
@@ -102,15 +107,12 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
     return parse(schema, body)
   }
 
-  async function userRequest(userToken: string, path: string) {
-    return await fetch(new URL(path, "https://api.github.com"), {
-      headers: { accept: "application/vnd.github+json", authorization: `Bearer ${userToken}`, "user-agent": "Mimo GitHub Relay", "x-github-api-version": githubApiVersion },
-      signal: AbortSignal.timeout(15_000),
-    })
+  function issueToken(installationId: string) {
+    return appJson(installationToken, `/app/installations/${encodeURIComponent(installationId)}/access_tokens`, { method: "POST", body: "{}" })
   }
 
   async function userJson<Schema extends z.ZodType>(schema: Schema, userToken: string, path: string) {
-    const response = await userRequest(userToken, path)
+    const response = await githubFetch(userToken, path)
 
     if (!response.ok) {
       throw new Error("Unauthorized")
@@ -128,7 +130,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
       return current.account.id === userId
     }
 
-    const response = await userRequest(userToken, `/user/memberships/orgs/${encodeURIComponent(current.account.login)}`)
+    const response = await githubFetch(userToken, `/user/memberships/orgs/${encodeURIComponent(current.account.login)}`)
 
     if (response.status === 404) {
       return false
@@ -210,21 +212,22 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
       return { id: current.id, accountLogin: current.account.login, settingsUrl: current.html_url }
     },
     async hasRepository(installationId: string, target: string) {
-      const issued = await appJson(installationToken, `/app/installations/${encodeURIComponent(installationId)}/access_tokens`, { method: "POST", body: "{}" })
+      const issued = await issueToken(installationId)
+
       for (let page = 1; ; page += 1) {
-        const response = await userRequest(issued.token, `/installation/repositories?per_page=100&page=${page}`)
+        const response = await githubFetch(issued.token, `/installation/repositories?per_page=100&page=${page}`)
 
         if (!response.ok) {
           throw new Error(`GitHub returned ${response.status}`)
         }
 
-        const result = parse(z.looseObject({ repositories: z.array(z.looseObject({ full_name: z.string() })) }), await response.json())
+        const repositories = parse(githubSchemas.repositories, await response.json())
 
-        if (result.repositories.some((repository) => repository.full_name.toLowerCase() === target.toLowerCase())) {
+        if (repositories.some((repository) => repository.fullName.toLowerCase() === target.toLowerCase())) {
           return true
         }
 
-        if (result.repositories.length < 100) {
+        if (repositories.length < 100) {
           return false
         }
       }
@@ -235,9 +238,7 @@ export function createGithubApp(input: { appId: string; appSlug: string; private
 
       return url.toString()
     },
-    token(installationId: string) {
-      return appJson(installationToken, `/app/installations/${encodeURIComponent(installationId)}/access_tokens`, { method: "POST", body: "{}" })
-    },
+    token: issueToken,
     verify(body: string, signature: string | null) {
       if (!signature?.startsWith("sha256=")) {
         return false

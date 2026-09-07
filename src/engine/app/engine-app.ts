@@ -3,6 +3,7 @@ import { engineContract } from "@src/shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
 import type { ObservationReceiver, Observability } from "../observability/observability"
 import type { createPiProvider } from "../pi/pi-provider"
+import type { createPiAgentRuntime } from "../pi/pi-agent-runtime"
 import type { createBots } from "../bots/bots"
 import type { createConversations } from "../conversations/conversations"
 import type { createMemory } from "../memory/memory"
@@ -11,9 +12,8 @@ import type { createProjects } from "../projects/projects"
 import type { createRoutines } from "../routines/routines"
 import type { createTasks } from "../tasks/tasks"
 import type { createTriggers } from "../triggers/triggers"
-import type { PermissionDecisionInput } from "@src/shared/permissions"
 
-interface EngineContext { traceId?: string; spanId?: string }
+export interface EngineContext { traceId?: string; spanId?: string }
 
 function surfaced(error: unknown) {
   if (error instanceof ORPCError) {
@@ -44,7 +44,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
   routines: ReturnType<typeof createRoutines>
   triggers: ReturnType<typeof createTriggers>
   memory: ReturnType<typeof createMemory>
-  permissions: { decide(input: PermissionDecisionInput): void }
+  permissions: Pick<ReturnType<typeof createPiAgentRuntime>, "resolvePermission">
   plugins: ReturnType<typeof createPlugins>
 }) {
   const operations = implement(engineContract).$context<EngineContext>().use(async ({ next, context, path }) => {
@@ -69,14 +69,14 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
     },
     providers: {
       login: operations.providers.login.handler(() => providers.authentication.start()),
-      loginStatus: operations.providers.loginStatus.handler(({ input }) => providers.authentication.status(input)),
+      loginStatus: operations.providers.loginStatus.handler(({ input }) => providers.authentication.status(input.id)),
       loginReply: operations.providers.loginReply.handler(({ input }) => providers.authentication.reply(input)),
-      cancelLogin: operations.providers.cancelLogin.handler(({ input }) => providers.authentication.cancel(input)),
+      cancelLogin: operations.providers.cancelLogin.handler(({ input }) => providers.authentication.cancel(input.id)),
       list: operations.providers.list.handler(() => providers.list()),
       models: operations.providers.models.handler(() => providers.models()),
       refreshModels: operations.providers.refreshModels.handler(() => providers.refreshModels()),
       connect: operations.providers.connect.handler(({ input }) => providers.connect(input)),
-      disconnect: operations.providers.disconnect.handler(({ input }) => providers.disconnect(input)),
+      disconnect: operations.providers.disconnect.handler(({ input }) => providers.disconnect(input.provider)),
     },
     projects: {
       create: operations.projects.create.handler(({ input }) => projects.create(input)),
@@ -84,11 +84,11 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
     },
     bots: {
       addMember: operations.bots.addMember.handler(({ input }) => bots.addMember(input)),
-      detachMember: operations.bots.detachMember.handler(({ input }) => bots.detachMember(input)),
+      detachMember: operations.bots.detachMember.handler(({ input }) => bots.detachMember(input.id)),
       create: operations.bots.create.handler(({ input }) => bots.create(input)),
       list: operations.bots.list.handler(() => bots.list()),
       get: operations.bots.get.handler(({ input }) => {
-        const bot = bots.get(input)
+        const bot = bots.get(input.id)
 
         if (!bot) {
           throw new ORPCError("NOT_FOUND", { message: "Bot not found" })
@@ -98,7 +98,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       }),
       update: operations.bots.update.handler(({ input }) => bots.update(input)),
       updateExecution: operations.bots.updateExecution.handler(({ input }) => bots.updateExecution(input)),
-      remove: operations.bots.remove.handler(({ input }) => bots.remove(input)),
+      remove: operations.bots.remove.handler(({ input }) => bots.remove(input.id)),
       removeColleague: operations.bots.removeColleague.handler(({ input }) => bots.removeColleague(input)),
     },
     conversations: {
@@ -106,50 +106,50 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       events: operations.conversations.events.handler(({ signal }) => surfacedStream(conversations.events(signal))),
       send: operations.conversations.send.handler(({ input }) => conversations.send(input)),
       compact: operations.conversations.compact.handler(({ input }) => conversations.compact(input)),
-      abort: operations.conversations.abort.handler(({ input }) => conversations.abort(input)),
-      abortTeam: operations.conversations.abortTeam.handler(({ input }) => conversations.abortTeam(input)),
-      teamWorking: operations.conversations.teamWorking.handler(({ input }) => conversations.teamWorking(input)),
+      abort: operations.conversations.abort.handler(({ input }) => conversations.abort(input.botId)),
+      abortTeam: operations.conversations.abortTeam.handler(({ input }) => conversations.abortTeam(input.botId)),
+      teamWorking: operations.conversations.teamWorking.handler(({ input }) => conversations.teamWorking(input.botId)),
       promote: operations.conversations.promote.handler(({ input }) => conversations.promote(input)),
       unqueue: operations.conversations.unqueue.handler(({ input }) => conversations.unqueue(input)),
-      related: operations.conversations.related.handler(({ input }) => conversations.related(input)),
+      related: operations.conversations.related.handler(({ input }) => conversations.related(input.taskId)),
     },
     permissions: {
-      decide: operations.permissions.decide.handler(({ input }) => permissions.decide(input)),
+      decide: operations.permissions.decide.handler(({ input }) => permissions.resolvePermission(input)),
     },
     tasks: {
-      listForBot: operations.tasks.listForBot.handler(({ input }) => tasks.listForBot(input)),
+      listForBot: operations.tasks.listForBot.handler(({ input }) => tasks.listForBot(input.botId)),
     },
     routines: {
       create: operations.routines.create.handler(({ input }) => routines.create(input)),
-      list: operations.routines.list.handler(({ input }) => routines.list(input)),
+      list: operations.routines.list.handler(({ input }) => routines.list(input.botId)),
       update: operations.routines.update.handler(({ input }) => routines.update(input)),
-      remove: operations.routines.remove.handler(({ input }) => routines.remove(input)),
+      remove: operations.routines.remove.handler(({ input }) => routines.remove(input.id)),
     },
     triggers: {
       create: operations.triggers.create.handler(({ input }) => triggers.create(input)),
-      list: operations.triggers.list.handler(({ input }) => triggers.list(input)),
+      list: operations.triggers.list.handler(({ input }) => triggers.list(input.botId)),
       update: operations.triggers.update.handler(({ input }) => triggers.update(input)),
-      remove: operations.triggers.remove.handler(({ input }) => triggers.remove(input)),
+      remove: operations.triggers.remove.handler(({ input }) => triggers.remove(input.id)),
     },
     memory: {
       settings: operations.memory.settings.handler(() => memory.settings()),
       configure: operations.memory.configure.handler(({ input }) => memory.configure(input)),
       status: operations.memory.status.handler(() => memory.status()),
-      retry: operations.memory.retry.handler(({ input }) => memory.retry(input)),
-      list: operations.memory.list.handler(({ input }) => memory.list(input)),
+      retry: operations.memory.retry.handler(({ input }) => memory.retry(input.botId)),
+      list: operations.memory.list.handler(({ input }) => memory.list(input.botId)),
       add: operations.memory.add.handler(({ input }) => memory.add(input)),
       update: operations.memory.update.handler(({ input }) => memory.update(input)),
-      forget: operations.memory.forget.handler(({ input }) => memory.forget(input)),
-      clear: operations.memory.clear.handler(({ input }) => memory.clear(input)),
+      forget: operations.memory.forget.handler(({ input }) => memory.forget(input.id)),
+      clear: operations.memory.clear.handler(({ input }) => memory.clear(input.botId)),
     },
     plugins: {
       list: operations.plugins.list.handler(() => plugins.list()),
       addCustom: operations.plugins.addCustom.handler(({ input }) => plugins.addCustom(input)),
-      remove: operations.plugins.remove.handler(({ input }) => plugins.remove(input)),
+      remove: operations.plugins.remove.handler(({ input }) => plugins.remove(input.id)),
       connect: operations.plugins.connect.handler(({ input }) => plugins.connect(input)),
-      connectionSteps: operations.plugins.connectionSteps.handler(({ input, signal }) => surfacedStream(plugins.connectionSteps(input, signal))),
-      awaitConnection: operations.plugins.awaitConnection.handler(({ input }) => plugins.awaitConnection(input)),
-      disconnect: operations.plugins.disconnect.handler(({ input }) => plugins.disconnect(input)),
+      connectionSteps: operations.plugins.connectionSteps.handler(({ input, signal }) => surfacedStream(plugins.connectionSteps(input.connectionId, signal))),
+      awaitConnection: operations.plugins.awaitConnection.handler(({ input }) => plugins.awaitConnection(input.connectionId)),
+      disconnect: operations.plugins.disconnect.handler(({ input }) => plugins.disconnect(input.accountId)),
       grant: operations.plugins.grant.handler(({ input }) => plugins.grant(input)),
       decide: operations.plugins.decide.handler(({ input }) => plugins.decide(input)),
     },

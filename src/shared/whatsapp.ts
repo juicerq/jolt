@@ -1,6 +1,6 @@
 import { z } from "zod"
+import { id } from "./ids"
 
-const id = z.string().min(1)
 const storedMessage = z.strictObject({
   id,
   accountId: id,
@@ -27,12 +27,8 @@ export const whatsappChatKinds = ["contact", "group", "newsletter", "self"] as c
 const chatKind = z.enum(whatsappChatKinds)
 
 export const whatsappSchemas = {
-  storedMessage,
-  savedMessage,
   storedMessageList: z.array(storedMessage),
   chatList: z.array(chat),
-  contact,
-  chatKinds: z.array(chatKind),
 }
 
 export type WhatsappMessage = z.infer<typeof storedMessage>

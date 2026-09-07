@@ -1,20 +1,18 @@
-import { projectSchemas, type Project } from "@src/shared/projects"
+import type { CreateProjectInput, Project } from "@src/shared/projects"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { createBots } from "../bots/bots"
 import { assertAccessibleWorkingDirectory } from "./working-directory"
-import { parse } from "@src/shared/parse"
 
 interface ProjectsDependencies {
   database: AppDatabase
   observability: Observability
-  bots: ReturnType<typeof createBots>
+  bots: Pick<ReturnType<typeof createBots>, "list">
 }
 
 export function createProjects({ database, observability, bots }: ProjectsDependencies) {
   return {
-    async create(rawInput: unknown) {
-      const input = parse(projectSchemas.createInput, rawInput)
+    async create(input: CreateProjectInput) {
       if (input.defaultWorkingDirectory) {
         await assertAccessibleWorkingDirectory(input.defaultWorkingDirectory)
       }

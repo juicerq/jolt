@@ -2,10 +2,8 @@ import { createServer } from "node:net"
 import { app } from "electron"
 
 export async function browserDebuggingPort() {
-  const configured = process.env.MIMO_DEBUG_PORT ?? (app.isPackaged ? "0" : "9222")
-
-  if (configured !== "0") {
-    return configured
+  if (!app.isPackaged) {
+    return "9222"
   }
 
   await using server = createServer()

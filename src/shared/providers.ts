@@ -1,6 +1,5 @@
 import { z } from "zod"
-
-const id = z.string().min(1)
+import { id } from "./ids"
 
 export const providerName = z.enum(["codex", "opencode"])
 const providerStatus = z.enum(["available", "unauthenticated", "incompatible"])
@@ -37,3 +36,5 @@ export const providerLogin = z.strictObject({
   message: id.optional(),
 })
 export type ProviderLogin = z.infer<typeof providerLogin>
+export type ProviderConnectInput = z.infer<typeof providerConnectInput>
+export type ProviderLoginReply = z.infer<typeof providerLoginReply>

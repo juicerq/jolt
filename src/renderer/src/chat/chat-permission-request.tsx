@@ -1,6 +1,6 @@
 import { ArrowTurnDownLeftIcon } from "@heroicons/react/24/outline"
 import { useMutation } from "@tanstack/react-query"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import type { PermissionRequest } from "@src/shared/permissions"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
@@ -8,19 +8,18 @@ import { permissionPresentation } from "./permission-presentation"
 
 const typingTags = new Set(["INPUT", "TEXTAREA", "SELECT", "BUTTON"])
 
+function focusSection(section: HTMLElement | null) {
+  section?.scrollIntoView({ block: "nearest" })
+  section?.focus({ preventScroll: true })
+}
+
 export function ChatPermissionRequest({ botId, client, request, remaining }: { botId: string; client: EngineClient; request: PermissionRequest; remaining: number }) {
-  const sectionRef = useRef<HTMLElement | null>(null)
   const { mutate, isPending, error } = useMutation(client.query.permissions.decide.mutationOptions())
   const presentation = permissionPresentation(request)
 
   function decide(decision: "allowed" | "denied") {
     mutate({ botId, requestId: request.id, decision })
   }
-
-  useEffect(() => {
-    sectionRef.current?.scrollIntoView({ block: "nearest" })
-    sectionRef.current?.focus({ preventScroll: true })
-  }, [request.id])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -40,7 +39,7 @@ export function ChatPermissionRequest({ botId, client, request, remaining }: { b
   })
 
   return (
-    <section ref={sectionRef} className="grid min-w-0 gap-3 outline-none" aria-label="Pedido de permissão" tabIndex={-1}>
+    <section ref={focusSection} className="grid min-w-0 gap-3 outline-none" aria-label="Pedido de permissão" tabIndex={-1}>
       <div className="grid min-w-0 gap-1.5">
         <strong className="text-control font-semibold text-primary">{presentation.title}</strong>
         {presentation.description && <p className="m-0 max-h-40 overflow-auto whitespace-pre-wrap break-words text-support text-secondary">{presentation.description}</p>}

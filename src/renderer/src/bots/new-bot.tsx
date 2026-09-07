@@ -7,17 +7,18 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { IconButton } from "../ui/icon-button"
 import { useEscape } from "../ui/use-escape"
-import { revealClassName } from "./bot-form"
+import { providerAvailable } from "../settings/provider-mutations"
+import { revealClassName } from "./bot-page"
 import { botDraftAvatarSeed, type BotDraft, discardDraft, nameDraft, openSettings, regenerateDraftAvatar, selectBot } from "./bots-store"
 
 export function NewBot({ client, draft }: { client: EngineClient; draft: BotDraft }) {
   const queryClient = useQueryClient()
   const [avatarRevision, setAvatarRevision] = useState(0)
   const { data: providers, error: providersError, isPending: providersPending } = useQuery(client.query.providers.list.queryOptions())
-  const executorAvailable = providers?.some((candidate) => candidate.status === "available") ?? false
+  const executorAvailable = providerAvailable(providers)
   const { mutate, isPending, error } = useMutation(client.query.bots.create.mutationOptions({
     onSuccess(bot) {
-      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       selectBot(bot.id)
     },
   }))

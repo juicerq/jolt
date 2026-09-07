@@ -1,15 +1,14 @@
 import type { RPCHandler } from "@orpc/server/fetch"
 import { timingSafeEqual } from "node:crypto"
 import { join, resolve, sep } from "node:path"
-import type { EngineAccessMessage } from "@src/shared/engine-ipc"
-
-type EngineAccess = Omit<EngineAccessMessage, "type">
+import type { EngineAccess } from "@src/shared/engine-ipc"
+import type { EngineContext } from "./engine-app"
 
 interface EngineServerOptions {
   port: number
   access: EngineAccess
   rendererDirectory?: string
-  handler: Pick<RPCHandler<{ traceId?: string; spanId?: string }>, "handle">
+  handler: Pick<RPCHandler<EngineContext>, "handle">
 }
 
 const rpcPrefix = "/rpc"

@@ -3,7 +3,7 @@ import { memorySchemas, type Memory, type Note, type StoredMemory } from "@src/s
 import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
-import { recordMeasurement, type PiCustomTool, type PiSessionFactory } from "../pi/pi-agent-runtime"
+import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
 import { parse } from "@src/shared/parse"
 
 const rules = [
@@ -37,71 +37,66 @@ function describe(bot: Pick<Bot, "name" | "function">, memories: Memory[], notes
   ].filter(Boolean).join("\n")
 }
 
-export function createCuration(input: { database: AppDatabase; observability: Observability; sessionFactory: PiSessionFactory }) {
-  const shutdown = new AbortController()
+export async function curate(input: {
+  database: AppDatabase
+  observability: Observability
+  sessionFactory: PiSessionFactory
+  bot: Pick<Bot, "id" | "name" | "function" | "provider" | "effort" | "model">
+  cwd: string
+  notes: Note[]
+  signal: AbortSignal
+}) {
+  const { bot, cwd, notes, signal } = input
 
-  return {
-    dispose() {
-      shutdown.abort()
-    },
-    async run(bot: Pick<Bot, "id" | "name" | "function" | "provider" | "effort" | "model">, cwd: string, notes: Note[]) {
-      shutdown.signal.throwIfAborted()
+  signal.throwIfAborted()
 
-      return input.observability.span({ name: "memory.curate", context: { botId: bot.id }, attributes: { count: notes.length } }, async () => {
-        const original = input.database.memories.snapshot(bot.id)
-        const draft = new Map(original.map((memory) => [memory.id, memory]))
-        const customTools = curationTools(bot.id, notes, draft)
-        const selected = input.database.curation.model()
-        const provider = selected?.provider ?? bot.provider
-        const session = await input.sessionFactory.open({
-          botId: bot.id,
-          cwd,
-          tools: customTools.map((tool) => tool.name),
-          provider,
-          effort: selected ? "medium" : bot.effort,
-          model: selected?.model ?? bot.model,
-          policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },
-          customTools,
-          instructions: rules,
-          ephemeral: true,
-        })
-        const completion = Promise.withResolvers<void>()
-        const unsubscribe = session.subscribe((event) => {
-          if (event.type === "measurement") {
-            recordMeasurement(input.observability, { botId: bot.id, provider }, event)
+  return input.observability.span({ name: "memory.curate", context: { botId: bot.id }, attributes: { count: notes.length } }, async () => {
+    const original = input.database.memories.snapshot(bot.id)
+    const draft = new Map(original.map((memory) => [memory.id, memory]))
+    const customTools = curationTools(bot.id, notes, draft)
+    const selected = input.database.curation.model()
+    const session = await input.sessionFactory.open({
+      botId: bot.id,
+      cwd,
+      tools: customTools.map((tool) => tool.name),
+      provider: selected?.provider ?? bot.provider,
+      effort: selected ? "medium" : bot.effort,
+      model: selected?.model ?? bot.model,
+      policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },
+      customTools,
+      instructions: rules,
+      ephemeral: true,
+    })
+    const completion = Promise.withResolvers<void>()
+    const unsubscribe = session.subscribe((event) => {
+      if (event.type !== "finished") {
+        return
+      }
 
-            return
-          }
+      if (event.reason === "stop") {
+        completion.resolve()
 
-          if (event.type !== "finished") {
-            return
-          }
+        return
+      }
 
-          if (event.reason === "stop") {
-            completion.resolve()
-            return
-          }
+      completion.reject(new Error(event.error ?? `A Curadoria terminou com ${event.reason}.`))
+    })
+    const timeout = setTimeout(() => completion.reject(new Error("A Curadoria excedeu o tempo de execução. As Notas continuam pendentes.")), 120_000)
+    const cancel = () => completion.reject(new Error("A Curadoria foi interrompida ao fechar o Mimo."))
+    signal.addEventListener("abort", cancel, { once: true })
 
-          completion.reject(new Error(event.error ?? `A Curadoria terminou com ${event.reason}.`))
-        })
-        const timeout = setTimeout(() => completion.reject(new Error("A Curadoria excedeu o tempo de execução. As Notas continuam pendentes.")), 120_000)
-        const cancel = () => completion.reject(new Error("A Curadoria foi interrompida ao fechar o Mimo."))
-        shutdown.signal.addEventListener("abort", cancel, { once: true })
-
-        try {
-          shutdown.signal.throwIfAborted()
-          await Promise.all([session.prompt({ content: describe(bot, input.database.memories.listForBot(bot.id), notes) }), completion.promise])
-          shutdown.signal.throwIfAborted()
-          input.database.curation.commit(bot.id, original, [...draft.values()], notes)
-        } finally {
-          clearTimeout(timeout)
-          shutdown.signal.removeEventListener("abort", cancel)
-          unsubscribe()
-          session.dispose()
-        }
-      })
-    },
-  }
+    try {
+      signal.throwIfAborted()
+      await Promise.all([session.prompt({ content: describe(bot, input.database.memories.listForBot(bot.id), notes) }), completion.promise])
+      signal.throwIfAborted()
+      input.database.curation.commit(bot.id, original, [...draft.values()], notes)
+    } finally {
+      clearTimeout(timeout)
+      signal.removeEventListener("abort", cancel)
+      unsubscribe()
+      session.dispose()
+    }
+  })
 }
 
 function curationTools(botId: string, notes: Note[], draft: Map<string, StoredMemory>): PiCustomTool[] {

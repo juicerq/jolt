@@ -1,6 +1,6 @@
 import { z } from "zod"
+import { id } from "./ids"
 
-const id = z.string().min(1)
 const request = z.strictObject({
   id,
   tool: id,
@@ -18,4 +18,3 @@ export const permissionSchemas = {
 
 export type PermissionRequest = z.infer<typeof request>
 export type PermissionDecision = z.infer<typeof permissionSchemas.decideInput>["decision"]
-export type PermissionDecisionInput = z.infer<typeof permissionSchemas.decideInput>

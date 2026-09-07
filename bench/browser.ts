@@ -29,9 +29,3 @@ export function evaluate<T>(script: string): T {
 
   return JSON.parse(JSON.parse(output.trim()))
 }
-
-export function percentile(values: number[], ratio: number) {
-  const sorted = values.toSorted((left, right) => left - right)
-
-  return sorted[Math.max(0, Math.ceil(sorted.length * ratio) - 1)] ?? 0
-}

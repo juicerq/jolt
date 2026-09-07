@@ -1,22 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import { appendFile, mkdir, rename, stat, unlink } from "node:fs/promises"
 import { join } from "node:path"
-import {
-  normalizedObservationError,
-  observation,
-  observationAttributes,
-  observationContext,
-  type NormalizedObservationError,
-  type ExternalObservationSpan,
-  type Observation,
-  type ObservationContext,
-} from "@src/shared/observability/observation"
-import { parse } from "@src/shared/parse"
-import type { ZodType } from "zod"
+import type { ExternalObservationSpan, NormalizedObservationError, Observation, ObservationAttributes, ObservationContext } from "@src/shared/observability/observation"
 
 interface EventInput {
   name: string
-  attributes?: Record<string, unknown>
+  attributes?: ObservationAttributes
   context?: ObservationContext
   error?: unknown
 }
@@ -39,7 +28,7 @@ export interface ObservationReceiver {
 }
 
 interface ObservationOutput {
-  write(item: Observation): void | Promise<void>
+  write(item: Observation): Promise<void>
   flush(): Promise<void>
 }
 
@@ -47,48 +36,11 @@ interface ObservationSystemOptions {
   appSessionId: string
   logDirectory: string
   development: boolean
-  maxFileBytes?: number
-  maxFiles?: number
-  recentLimit?: number
-  outputs?: ObservationOutput[]
 }
 
-const attributeSchemas: Partial<Record<string, ZodType>> = observationAttributes.shape
-
-function sanitizeAttributes(input?: Record<string, unknown>) {
-  if (!input) {
-    return
-  }
-
-  try {
-    const entries = Object.entries(input).flatMap(([key, value]) => {
-      const schema = attributeSchemas[key]
-
-      if (!schema || value === undefined) {
-        return []
-      }
-
-      if (!schema.safeParse(value).success) {
-        process.stderr.write(`Invalid observation attribute dropped: ${key}\n`)
-
-        return []
-      }
-
-      return [[key, value]]
-    })
-    const candidate = Object.fromEntries(entries)
-
-    if (Object.keys(candidate).length === 0) {
-      return
-    }
-
-    return parse(observationAttributes, candidate)
-  } catch {
-    process.stderr.write("Observation attributes could not be sanitized\n")
-
-    return
-  }
-}
+const recentLimit = 500
+const maxFileBytes = 5_000_000
+const maxFiles = 5
 
 function safeString(value: unknown) {
   try {
@@ -99,23 +51,17 @@ function safeString(value: unknown) {
 }
 
 function normalizeError(error: unknown): NormalizedObservationError {
-  try {
-    if (error instanceof Error) {
-      const code = Reflect.get(error, "code")
-      const stack = Reflect.get(error, "stack")
-      const candidate = {
-        type: redactText(safeString(Reflect.get(error, "name"))),
-        message: redactText(safeString(Reflect.get(error, "message"))),
-        ...(typeof code === "string" ? { code: redactText(code) } : {}),
-        ...(typeof stack === "string" ? { stack: redactText(stack) } : {}),
-      }
+  if (!(error instanceof Error)) {
+    return { type: "UnknownError", message: redactText(safeString(error)) }
+  }
 
-      return parse(normalizedObservationError, candidate)
-    }
+  const code = Reflect.get(error, "code")
 
-    return parse(normalizedObservationError, { type: "UnknownError", message: redactText(safeString(error)) })
-  } catch {
-    return parse(normalizedObservationError, { type: "UnknownError", message: "Unrepresentable error" })
+  return {
+    type: redactText(safeString(error.name)),
+    message: redactText(safeString(error.message)),
+    ...(typeof code === "string" ? { code: redactText(code) } : {}),
+    ...(typeof error.stack === "string" ? { stack: redactText(error.stack) } : {}),
   }
 }
 
@@ -126,16 +72,16 @@ function redactText(value: string) {
     .replace(/\b(api[_ -]?key|token|cookie|password)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
 }
 
-function createBufferOutput(limit: number) {
+function createBufferOutput() {
   const items: Observation[] = []
 
   return {
     output: {
-      write(item: Observation) {
+      async write(item: Observation) {
         items.push(item)
 
-        if (items.length > limit) {
-          items.splice(0, items.length - limit)
+        if (items.length > recentLimit) {
+          items.splice(0, items.length - recentLimit)
         }
       },
       async flush() {},
@@ -146,14 +92,14 @@ function createBufferOutput(limit: number) {
 
 function createConsoleOutput(): ObservationOutput {
   return {
-    write(item) {
+    async write(item) {
       process.stdout.write(`${JSON.stringify(item)}\n`)
     },
     async flush() {},
   }
 }
 
-function createJsonlOutput(directory: string, maxFileBytes: number, maxFiles: number): ObservationOutput & { path: string } {
+function createJsonlOutput(directory: string): ObservationOutput & { path: string } {
   const path = join(directory, "observations.jsonl")
   let pending = Promise.resolve()
 
@@ -207,58 +153,48 @@ function createJsonlOutput(directory: string, maxFileBytes: number, maxFiles: nu
 
 export function createObservationSystem(options: ObservationSystemOptions) {
   const storage = new AsyncLocalStorage<ObservationContext>()
-  const buffer = createBufferOutput(options.recentLimit ?? 500)
-  const jsonl = createJsonlOutput(options.logDirectory, options.maxFileBytes ?? 5_000_000, options.maxFiles ?? 5)
-  const outputs = options.outputs ?? [jsonl, buffer.output, ...(options.development ? [createConsoleOutput()] : [])]
-  const writes = new Set<Promise<void>>()
+  const buffer = createBufferOutput()
+  const jsonl = createJsonlOutput(options.logDirectory)
+  const outputs: ObservationOutput[] = [jsonl, buffer.output, ...(options.development ? [createConsoleOutput()] : [])]
 
   function write(item: Observation) {
     for (const output of outputs) {
-      const pending = Promise.resolve()
-        .then(() => output.write(item))
-        .catch((error) => {
-          process.stderr.write(`Observability output failed: ${normalizeError(error).message}\n`)
-        })
-        .finally(() => writes.delete(pending))
-      writes.add(pending)
+      output.write(item).catch((error) => {
+        process.stderr.write(`Observability output failed: ${normalizeError(error).message}\n`)
+      })
     }
   }
 
-  function contextFor(input?: ObservationContext) {
-    const current = storage.getStore()
-
-    return parse(observationContext, { appSessionId: options.appSessionId, ...current, ...input })
+  function contextFor(input?: ObservationContext): ObservationContext {
+    return { appSessionId: options.appSessionId, ...storage.getStore(), ...input }
   }
 
   function event(input: EventInput) {
-    const context = contextFor(input.context)
-    const attributes = sanitizeAttributes(input.attributes)
-    const item = parse(observation, {
+    const failed = Object.hasOwn(input, "error")
+
+    write({
       kind: "event",
       name: input.name,
       timestamp: new Date().toISOString(),
-      level: Object.hasOwn(input, "error") ? "error" : "info",
-      ...context,
-      ...(attributes ? { attributes } : {}),
-      ...(Object.hasOwn(input, "error") ? { error: normalizeError(input.error) } : {}),
+      level: failed ? "error" : "info",
+      ...contextFor(input.context),
+      ...(input.attributes ? { attributes: input.attributes } : {}),
+      ...(failed ? { error: normalizeError(input.error) } : {}),
     })
-    write(item)
   }
 
   function span<T>(input: SpanInput, operation: () => T): T {
     const parent = contextFor(input.context)
-    const attributes = sanitizeAttributes(input.attributes)
-    const spanId = crypto.randomUUID()
-    const spanContext = parse(observationContext, {
+    const spanContext: ObservationContext = {
       ...parent,
       traceId: parent.traceId ?? crypto.randomUUID(),
-      spanId,
+      spanId: crypto.randomUUID(),
       ...(parent.spanId ? { parentSpanId: parent.spanId } : {}),
-    })
+    }
     const startedAt = performance.now()
 
     const finish = (failed: boolean, error?: unknown) => {
-      const item = parse(observation, {
+      write({
         kind: "span",
         name: input.name,
         timestamp: new Date().toISOString(),
@@ -266,10 +202,9 @@ export function createObservationSystem(options: ObservationSystemOptions) {
         durationMs: performance.now() - startedAt,
         outcome: failed ? "error" : "ok",
         ...spanContext,
-        ...(attributes ? { attributes } : {}),
+        ...(input.attributes ? { attributes: input.attributes } : {}),
         ...(failed ? { error: normalizeError(error) } : {}),
       })
-      write(item)
     }
 
     return storage.run(spanContext, () => {
@@ -306,19 +241,20 @@ export function createObservationSystem(options: ObservationSystemOptions) {
     event,
     span,
     async flush() {
-      await Promise.all(writes)
-      await Promise.all(outputs.map((output) => output.flush().catch((error) => process.stderr.write(`Observability flush failed: ${normalizeError(error).message}\n`))))
+      await Promise.all(outputs.map((output) => output.flush().catch((error) => {
+        process.stderr.write(`Observability flush failed: ${normalizeError(error).message}\n`)
+      })))
     },
   }
 
   const receiver: ObservationReceiver = {
     span(input) {
-      write(parse(observation, {
+      write({
         kind: "span",
         level: input.outcome === "error" ? "error" : "info",
         appSessionId: options.appSessionId,
         ...input,
-      }))
+      })
     },
   }
 

@@ -13,11 +13,10 @@ interface ChatQuestionProps {
   messageId: string
   question: MessageQuestion
   answerValues?: string[]
-  interactive: boolean
-  onAnswer: QuestionAnswer
+  onAnswer?: QuestionAnswer
 }
 
-export function ChatQuestion({ botId, messageId, question, answerValues, interactive, onAnswer }: ChatQuestionProps) {
+export function ChatQuestion({ botId, messageId, question, answerValues, onAnswer }: ChatQuestionProps) {
   const busy = useSelector(chatStore, (state) => !!state.runs[botId])
   const activeAnswerValues = useSelector(chatStore, (state) => {
     const reply = state.runs[botId]?.message.replyTo
@@ -31,10 +30,10 @@ export function ChatQuestion({ botId, messageId, question, answerValues, interac
   const [pendingValues, setPendingValues] = useState<string[]>()
   const [marked, setMarked] = useState<string[]>([])
   const answered = answerValues ?? activeAnswerValues ?? pendingValues
-  const disabled = busy || !interactive
+  const disabled = busy || !onAnswer
 
   async function answer(values: string[]) {
-    if (answered || disabled) {
+    if (answered || busy || !onAnswer) {
       return
     }
 

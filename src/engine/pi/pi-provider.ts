@@ -1,5 +1,4 @@
-import { parse } from "@src/shared/parse"
-import { providerConnectInput, providerDisconnectInput, type ProviderAvailability, type ProviderModels, type ProviderName } from "@src/shared/providers"
+import type { ProviderAvailability, ProviderConnectInput, ProviderModels, ProviderName } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import { createPiAuthentication } from "./pi-authentication"
 import { detectOpencodeKey } from "./opencode-key"
@@ -53,20 +52,16 @@ export function createPiProvider(observability: Observability, models: PiModels)
     return providers
   }
 
-  function list() {
-    pending ??= refresh().finally(() => {
-      pending = undefined
-    })
-
-    return pending
-  }
-
   function rediscover() {
     pending = refresh().finally(() => {
       pending = undefined
     })
 
     return pending
+  }
+
+  function list() {
+    return pending ?? rediscover()
   }
 
   function keyProvider(provider: ProviderName) {
@@ -91,8 +86,7 @@ export function createPiProvider(observability: Observability, models: PiModels)
       return structuredClone(catalogs)
     },
     current: () => structuredClone(providers),
-    async connect(rawInput: unknown) {
-      const input = parse(providerConnectInput, rawInput)
+    async connect(input: ProviderConnectInput) {
       const catalog = keyProvider(input.provider)
       const key = input.key ?? await detectOpencodeKey()
 
@@ -104,10 +98,8 @@ export function createPiProvider(observability: Observability, models: PiModels)
 
       return rediscover()
     },
-    async disconnect(rawInput: unknown) {
-      const input = parse(providerDisconnectInput, rawInput)
-
-      await observability.span({ name: "provider.disconnect", context: { provider: input.provider } }, () => models.disconnect(input.provider))
+    async disconnect(provider: ProviderName) {
+      await observability.span({ name: "provider.disconnect", context: { provider } }, () => models.disconnect(provider))
 
       return rediscover()
     },

@@ -1,7 +1,7 @@
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
-import { botSchemas, type Bot, type BotExecutionSettingInput, type CreateBotInput, type StoredBot } from "@src/shared/bots"
+import { botSchemas, type AddMemberInput, type Bot, type BotExecutionSettingInput, type Colleague, type CreateBotInput, type StoredBot, type UpdateBotInput } from "@src/shared/bots"
 import type { ProviderAvailability } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
@@ -26,6 +26,20 @@ function executionChange(input: BotExecutionSettingInput) {
   }
 
   return { permissionMode: input.value }
+}
+
+export function newBot(bot: Pick<StoredBot, "name" | "provider" | "function" | "leaderBotId" | "projectId" | "workingDirectoryOverride"> & Partial<Pick<StoredBot, "avatarSeed" | "temporary" | "createdAt">>): StoredBot {
+  return {
+    ...bot,
+    id: crypto.randomUUID(),
+    avatarSeed: bot.avatarSeed ?? defaultBotAvatarSeed(bot.name),
+    temporary: bot.temporary ?? false,
+    memoryEnabled: true,
+    effort: "medium",
+    model: null,
+    permissionMode: "ask",
+    createdAt: bot.createdAt ?? new Date().toISOString(),
+  }
 }
 
 export function createBots({ database, observability, privateBotsDirectory, providers, conversations }: BotsDependencies) {
@@ -113,8 +127,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
   }
 
   return {
-    addMember(rawInput: unknown) {
-      const input = parse(botSchemas.addMemberInput, rawInput)
+    addMember(input: AddMemberInput) {
       const leader = database.bots.get(input.leaderBotId)
       const bot = database.bots.get(input.botId)
 
@@ -146,8 +159,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         return present(updated)
       })
     },
-    detachMember(rawInput: unknown) {
-      const { id } = parse(botSchemas.idInput, rawInput)
+    detachMember(id: string) {
       const bot = database.bots.get(id)
 
       if (!bot) {
@@ -174,8 +186,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         return present(updated)
       })
     },
-    async create(rawInput: unknown) {
-      const input = parse(botSchemas.createInput, rawInput)
+    async create(input: CreateBotInput) {
       const availableProviders = await providers.list()
       const selectedProvider = availableProviders.find((provider) => provider.status === "available")
 
@@ -189,45 +200,30 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
       }
 
-      return store({
-        id: crypto.randomUUID(),
+      return store(newBot({
         ...workspace,
         name: input.name,
-        avatarSeed: input.avatarSeed ?? defaultBotAvatarSeed(input.name),
+        avatarSeed: input.avatarSeed,
         provider: selectedProvider.provider,
         function: input.function ?? { outcome: "Ajudar no que você precisar" },
-        temporary: false,
-        memoryEnabled: true,
-        effort: "medium",
-        model: null,
-        permissionMode: "ask",
-        createdAt: new Date().toISOString(),
-      })
+      }))
     },
     hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
       const details = parse(botSchemas.hireInput, rawDetails)
 
-      return store({
-        id: crypto.randomUUID(),
+      return store(newBot({
         leaderBotId: leader.id,
         projectId: leader.projectId,
         name: details.name,
-        avatarSeed: defaultBotAvatarSeed(details.name),
         provider: leader.provider,
         function: details.function,
         workingDirectoryOverride: leader.workingDirectoryOverride,
         temporary: !details.permanent,
-        memoryEnabled: true,
-        effort: "medium",
-        model: null,
-        permissionMode: "ask",
-        createdAt: new Date().toISOString(),
-      })
+      }))
     },
     list,
-    get(rawInput: unknown) {
-      const input = parse(botSchemas.idInput, rawInput)
-      const storedBot = database.bots.get(input.id)
+    get(id: string) {
+      const storedBot = database.bots.get(id)
 
       if (!storedBot) {
         return
@@ -265,51 +261,41 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         () => database.colleagues.set({ botId: caller.id, colleagueBotId: target.id }),
       )
     },
-    removeColleague(rawInput: unknown) {
-      const input = parse(botSchemas.colleagueInput, rawInput)
+    removeColleague(input: Colleague) {
       const removed = observability.span({ name: "bots.colleagueremove", context: { botId: input.botId } }, () => database.colleagues.remove(input.botId, input.colleagueBotId))
 
       if (removed === 0) {
         throw new Error("Colega not found")
       }
     },
-    async update(rawInput: unknown) {
-      const input = parse(botSchemas.updateInput, rawInput)
-      const storedBot = database.bots.get(input.id)
+    async update(input: UpdateBotInput) {
+      const { id, ...changes } = input
+      const storedBot = database.bots.get(id)
 
       if (!storedBot) {
         throw new Error("Bot not found")
       }
 
-      if (input.projectId) {
-        projectWorkingDirectory(input.projectId)
+      if (changes.projectId) {
+        projectWorkingDirectory(changes.projectId)
       }
 
-      if (input.workingDirectoryOverride) {
-        await assertAccessibleWorkingDirectory(input.workingDirectoryOverride)
+      if (changes.workingDirectoryOverride) {
+        await assertAccessibleWorkingDirectory(changes.workingDirectoryOverride)
       }
 
       if (storedBot.leaderBotId) {
         const leader = database.bots.get(storedBot.leaderBotId)
 
-        if (!leader || leader.projectId !== input.projectId) {
+        if (!leader || leader.projectId !== changes.projectId) {
           throw new Error("A member must remain in the Leader Project")
         }
       }
 
       return observability.span(
-        { name: "bots.update", context: { botId: storedBot.id, ...(input.projectId ? { projectId: input.projectId } : {}) } },
+        { name: "bots.update", context: { botId: storedBot.id, ...(changes.projectId ? { projectId: changes.projectId } : {}) } },
         () => {
-          const updated = database.bots.update(storedBot.id, {
-            name: input.name,
-            function: input.function,
-            projectId: input.projectId,
-            workingDirectoryOverride: input.workingDirectoryOverride,
-            memoryEnabled: input.memoryEnabled,
-            effort: input.effort,
-            model: input.model,
-            permissionMode: input.permissionMode,
-          })
+          const updated = database.bots.update(storedBot.id, changes)
 
           if (!updated) {
             throw new Error("Bot not found")
@@ -319,8 +305,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         },
       )
     },
-    updateExecution(rawInput: unknown) {
-      const input = parse(botSchemas.updateExecutionInput, rawInput)
+    updateExecution(input: BotExecutionSettingInput) {
       const updated = database.bots.updateExecution(input.id, executionChange(input))
 
       if (!updated) {
@@ -329,9 +314,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
 
       return present(updated)
     },
-    async remove(rawInput: unknown) {
-      const input = parse(botSchemas.idInput, rawInput)
-      const storedBot = database.bots.get(input.id)
+    async remove(id: string) {
+      const storedBot = database.bots.get(id)
 
       if (!storedBot) {
         throw new Error("Bot not found")
@@ -352,18 +336,15 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         },
       )
     },
-    async directory(rawInput: unknown) {
-      const input = parse(botSchemas.idInput, rawInput)
-
-      if (!database.bots.get(input.id)) {
+    async directory(botId: string) {
+      if (!database.bots.get(botId)) {
         throw new Error("Bot not found")
       }
 
-      return privateDirectory(input.id)
+      return privateDirectory(botId)
     },
-    async resolveWorkingDirectory(rawInput: unknown) {
-      const input = parse(botSchemas.idInput, rawInput)
-      const storedBot = database.bots.get(input.id)
+    async resolveWorkingDirectory(botId: string) {
+      const storedBot = database.bots.get(botId)
 
       if (!storedBot) {
         throw new Error("Bot not found")

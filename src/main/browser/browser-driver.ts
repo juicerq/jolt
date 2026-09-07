@@ -6,6 +6,7 @@ import { app, type WebContents } from "electron"
 import { z } from "zod"
 import type { BrowserAction } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
+import { inheritedEnvironment } from "../child-environment"
 
 const runFile = promisify(execFile)
 const response = z.discriminatedUnion("success", [
@@ -28,7 +29,7 @@ export class BrowserDriver {
       timeout: 35_000,
       maxBuffer: 1_000_000,
       ...(signal ? { signal } : {}),
-      env: { PATH: process.env.PATH, HOME: app.getPath("home"), SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, AGENT_BROWSER_DEFAULT_TIMEOUT: "20000", AGENT_BROWSER_MAX_OUTPUT: "30000", AGENT_BROWSER_CONTENT_BOUNDARIES: "1", AGENT_BROWSER_IDLE_TIMEOUT_MS: "300000" },
+      env: { ...inheritedEnvironment(), HOME: app.getPath("home"), AGENT_BROWSER_DEFAULT_TIMEOUT: "20000", AGENT_BROWSER_MAX_OUTPUT: "30000", AGENT_BROWSER_CONTENT_BOUNDARIES: "1", AGENT_BROWSER_IDLE_TIMEOUT_MS: "300000" },
     })
     this.active = running.catch(() => {})
     const result = await running.catch((error: NodeJS.ErrnoException) => {

@@ -6,12 +6,8 @@ import { PluginAccountRow } from "../plugins/plugin-account-row"
 import { Switch } from "../ui/switch"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 
-function pluginsWithAccounts(plugins: Plugin[]) {
-  return plugins.filter((plugin) => plugin.accounts.length > 0)
-}
-
 function BotPluginList({ bot, plugins, busy, onGrant }: { bot: Pick<Bot, "id" | "name" | "temporary">; plugins: Plugin[]; busy: boolean; onGrant: (accountId: string, granted: boolean) => void }) {
-  const listed = pluginsWithAccounts(plugins)
+  const listed = plugins.filter((plugin) => plugin.accounts.length > 0)
 
   if (listed.length === 0) {
     return <p className="m-0 text-support font-normal text-muted">{bot.temporary ? "Nenhuma conta disponível para este Integrante temporário." : "Conecte uma conta na tela de Plugins ou peça ao Bot na conversa."}</p>
@@ -41,7 +37,7 @@ export function BotPlugins({ bot, client }: { bot: Bot; client: EngineClient }) 
   const { data, error: listError } = useQuery(client.query.plugins.list.queryOptions())
   const { mutate: grant, isPending, error: grantError } = useMutation(client.query.plugins.grant.mutationOptions({
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
     },
   }))
   const failure = listError?.message ?? grantError?.message

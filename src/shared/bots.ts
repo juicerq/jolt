@@ -1,15 +1,14 @@
 import { z } from "zod"
+import { id, optionalId } from "./ids"
 import { botEfforts } from "./bot-efforts"
 import { botPermissionModes } from "./bot-permissions"
 import { providerName } from "./providers"
 
-const id = z.string().min(1)
 const avatarSeed = z.string().min(1).max(256)
 const botFunction = z.strictObject({ outcome: id, description: id.optional() })
 const botEffort = z.enum(botEfforts)
 const botPermissionMode = z.enum(botPermissionModes)
 export const workingDirectory = z.string().min(1)
-const optionalId = id.nullable()
 const storedBot = z.strictObject({
   id,
   avatarSeed,
@@ -43,9 +42,7 @@ export const botSchemas = {
   createInput,
   addMemberInput: z.strictObject({ leaderBotId: id, botId: id }),
   hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean() }),
-  idInput: z.strictObject({ id }),
   colleagueInput: colleague,
-  colleague,
   colleagueList: z.array(colleague),
   updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId, permissionMode: botPermissionMode }),
   updateExecutionInput,
@@ -64,3 +61,5 @@ export type BotExecutionSettingInput = z.infer<typeof updateExecutionInput>
 export type BotExecutionSettingChange = BotExecutionSettingInput extends infer Change
   ? Change extends { id: string } ? Omit<Change, "id"> : never
   : never
+export type AddMemberInput = z.infer<typeof botSchemas.addMemberInput>
+export type UpdateBotInput = z.infer<typeof botSchemas.updateInput>

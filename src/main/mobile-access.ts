@@ -1,12 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import type { EngineAccessMessage } from "../shared/engine-ipc"
+import type { EngineAccess } from "../shared/engine-ipc"
 import { type MobileAccess, type MobileAccessSettings, defaultEnginePort, mobileAccessSettings, mobileAccessUpdate } from "../shared/mobile-access"
 import { parse } from "../shared/parse"
 import { loadSecret, renewSecret } from "./secret-file"
 import { issueCertificate, readTailscale, serve, unserve } from "./tailscale"
-
-type EngineAccess = Omit<EngineAccessMessage, "type">
 
 interface MobileAccessOptions {
   directory: string

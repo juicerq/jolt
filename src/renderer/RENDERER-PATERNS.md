@@ -31,4 +31,4 @@ Um `className` longo repetido em centenas de elementos custa na abertura da conv
 
 ## Mobile
 
-O breakpoint é o `md` do Tailwind, 48rem. Estilo que muda no celular usa `max-md:`. Estrutura que muda, como a lista ou o plano da conversa e os chips ou a sheet do composer, lê `useIsMobile()` de `ui/use-is-mobile.ts`, uma assinatura em `matchMedia` via `useSyncExternalStore`. O bloco `@media (width < 48rem)` no fim de `styles.css` fica fora de `@layer` de propósito: ele reestiliza primitivos que já carregam utilities, como `.chat-control-popover`, `.mobile-sheet` e `.mobile-screen`, e utilities vencem qualquer layer.
+O breakpoint é o `md` do Tailwind, 48rem. Estilo que muda no celular usa `max-md:`. Estrutura que muda, como a lista ou o plano da conversa e os chips ou a sheet do composer, lê `useIsMobile()` de `ui/use-is-mobile.ts`, uma assinatura em `matchMedia` via `useSyncExternalStore`. O bloco `@media (width < 48rem)` no fim de `styles.css` fica fora de `@layer` de propósito: ele reestiliza primitivos que já carregam utilities, como `.chat-control-popover` e `.mobile-sheet`, e utilities vencem qualquer layer.

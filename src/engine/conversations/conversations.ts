@@ -7,12 +7,11 @@ import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
-import { conversationSchemas, askTool, sendMessageTool, type BotConversationEvent, type ConversationEvent, type ConversationMessage, type FinishReason, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { askTool, sendMessageTool, type BotConversationEvent, type CompactInput, type ConversationEvent, type ConversationMessage, type FinishReason, type HistoryInput, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type QueueInput, type SendInput, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationTools } from "./conversation-tools"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
 import { botInstructions } from "./bot-instructions"
-import { parse } from "@src/shared/parse"
 import { createQueue } from "../queue"
 import { createMessageQueue } from "./message-queue"
 import { createHistory } from "./history"
@@ -101,7 +100,7 @@ export function createConversations(input: {
   }
 
   async function open(botId: string) {
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     if (!bot) {
       throw new Error("Bot not found")
@@ -111,8 +110,8 @@ export function createConversations(input: {
       throw new Error(`${bot.name} was closed with its Tarefa`)
     }
 
-    const cwd = await input.bots.resolveWorkingDirectory({ id: botId })
-    const botDirectory = await input.bots.directory({ id: botId })
+    const cwd = await input.bots.resolveWorkingDirectory(botId)
+    const botDirectory = await input.bots.directory(botId)
     const customTools = [
       ...createConversationTools((content, question) => {
         const turn = active.get(botId)
@@ -186,7 +185,7 @@ export function createConversations(input: {
     }
 
     if (message.author === "bot") {
-      const sender = message.authorBotId ? input.bots.get({ id: message.authorBotId }) : undefined
+      const sender = message.authorBotId ? input.bots.get(message.authorBotId) : undefined
       const task = message.taskId ? input.tasks.get(message.taskId) : undefined
 
       if (!sender || !task) {
@@ -271,7 +270,7 @@ export function createConversations(input: {
       throw new Error("Tarefa sender is missing")
     }
 
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     assertCallable({ id: callerId }, { id: botId, name: bot?.name ?? botId })
 
@@ -391,7 +390,7 @@ export function createConversations(input: {
       return
     }
 
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     if (!bot || bot.closed) {
       messageQueue.clear(botId)
@@ -451,16 +450,14 @@ export function createConversations(input: {
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
-    turn.sender = { bot: (content, question) => publishMessage(content, null, undefined, question), person: publishIncoming }
+    turn.sender = { bot: (content, question) => publishMessage({ content, question }), person: publishIncoming }
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
-      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && (runtimeEvent.tool === askTool || runtimeEvent.tool === sendMessageTool)) {
-        eventCount++
+      eventCount++
 
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && (runtimeEvent.tool === askTool || runtimeEvent.tool === sendMessageTool)) {
         return
       }
-
-      eventCount++
 
       if (!receivedFirstEvent) {
         receivedFirstEvent = true
@@ -474,19 +471,19 @@ export function createConversations(input: {
         return
       }
 
-      const deliveredEvent = activity.record(runtimeEvent)
-
-      if (deliveredEvent.type === "message-finished") {
-        const ending = runtimeEvent.type === "message-finished" && runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
-        const error = runtimeEvent.type === "message-finished" ? runtimeEvent.error : undefined
+      if (runtimeEvent.type === "message-finished") {
+        const ending = runtimeEvent.reason ? turnEndings[runtimeEvent.reason] : null
 
         if (ending) {
-          publishMessage("", ending, error)
+          publishMessage({ ending, error: runtimeEvent.error })
         }
+
         terminalMessageFinished = ending !== null
 
         return
       }
+
+      const deliveredEvent = activity.record(runtimeEvent)
 
       if (deliveredEvent.type === "finished") {
         if (deliveredEvent.reason === "stop" && responses.length === 0) {
@@ -523,7 +520,7 @@ export function createConversations(input: {
       const errorMessage = reason === "error" ? describeError(error) : undefined
 
       if (!terminalMessageFinished && ending) {
-        publishMessage("", ending, errorMessage)
+        publishMessage({ ending, error: errorMessage })
       }
 
       finished = true
@@ -549,7 +546,7 @@ export function createConversations(input: {
       deliver(botId, event)
     }
 
-    function publishMessage(content: string, ending: TurnEnding | null, error?: string, question: MessageQuestion | null = null) {
+    function publishMessage({ content = "", ending = null, error, question = null }: { content?: string; ending?: TurnEnding | null; error?: string; question?: MessageQuestion | null }) {
       const message: ConversationMessage = {
         id: crypto.randomUUID(),
         botId,
@@ -586,8 +583,6 @@ export function createConversations(input: {
       const event: ConversationEvent = { type: "message-finished", message }
 
       deliver(botId, event)
-
-      return message
     }
 
     void completion.promise.then(async (result) => {
@@ -631,19 +626,19 @@ export function createConversations(input: {
 
   async function accept(botId: string, message: IncomingMessage, delivery: "queue" | "now") {
     const { content, images, replyTo } = message
+    const turn = active.get(botId)
 
-    if (!active.has(botId)) {
+    if (!turn) {
       await runTurn(botId, message)
 
       return
     }
 
-    const sender = active.get(botId)?.sender
     const immediate = delivery === "now" || !!replyTo
 
-    if (immediate && sender) {
+    if (immediate && turn.sender) {
       await input.runtime.steer(botId, { content, images })
-      sender.person(message)
+      turn.sender.person(message)
 
       return
     }
@@ -657,9 +652,8 @@ export function createConversations(input: {
     publishQueue(botId)
   }
 
-  function teamBotIds(rawInput: unknown) {
-    const { botId } = parse(conversationSchemas.botInput, rawInput)
-    const leader = input.bots.get({ id: botId })
+  function teamBotIds(botId: string) {
+    const leader = input.bots.get(botId)
 
     if (!leader || leader.leaderBotId) {
       throw new Error("Escolha o Líder para acompanhar o trabalho do time.")
@@ -669,23 +663,19 @@ export function createConversations(input: {
   }
 
   return {
-    teamWorking(rawInput: unknown) {
-      const botIds = teamBotIds(rawInput)
+    teamWorking(botId: string) {
+      const botIds = teamBotIds(botId)
 
       return [...botIds].some((id) => active.has(id)) || delegation.hasWork(botIds)
     },
-    history(rawInput: unknown) {
-      const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
-
-      if (!input.bots.get({ id: botId })) {
+    history({ botId, ...page }: HistoryInput) {
+      if (!input.bots.get(botId)) {
         throw new Error("Bot not found")
       }
 
       return input.database.conversations.history(botId, page)
     },
-    related(rawInput: unknown) {
-      const { taskId } = parse(conversationSchemas.taskInput, rawInput)
-
+    related(taskId: string) {
       if (!input.tasks.get(taskId)) {
         throw new Error("Tarefa not found")
       }
@@ -715,12 +705,8 @@ export function createConversations(input: {
     notify(botId: string, event: ConversationEvent) {
       deliver(botId, event)
     },
-    addTools(botId: string, tools: PiTool[]) {
-      input.runtime.addTools(botId, tools)
-    },
-    async compact(rawInput: unknown) {
+    async compact({ botId, instructions }: CompactInput) {
       shutdown.signal.throwIfAborted()
-      const { botId, instructions } = parse(conversationSchemas.compactInput, rawInput)
 
       if (active.has(botId)) {
         throw new Error("Bot is already working")
@@ -742,8 +728,7 @@ export function createConversations(input: {
         settle()
       }
     },
-    async send(rawInput: unknown) {
-      const { botId, content, images, replyTo, mentionedBotIds, deliver: delivery } = parse(conversationSchemas.sendInput, rawInput)
+    async send({ botId, content, images, replyTo, mentionedBotIds, deliver: delivery }: SendInput) {
       const empty = content.length === 0 && images.length === 0 && !replyTo
 
       if (empty) {
@@ -764,9 +749,7 @@ export function createConversations(input: {
         }
       }
     },
-    async promote(rawInput: unknown) {
-      const { botId, id } = parse(conversationSchemas.queueInput, rawInput)
-
+    async promote({ botId, id }: QueueInput) {
       if (!messageQueue.promote(botId, id)) {
         throw new Error("Message is not in the Fila")
       }
@@ -781,9 +764,7 @@ export function createConversations(input: {
 
       await flushQueue(botId)
     },
-    async unqueue(rawInput: unknown) {
-      const { botId, id } = parse(conversationSchemas.queueInput, rawInput)
-
+    async unqueue({ botId, id }: QueueInput) {
       if (!messageQueue.take(botId, id)) {
         throw new Error("Message is not in the Fila")
       }
@@ -802,9 +783,7 @@ export function createConversations(input: {
         throw new Error(finished.error ?? "Gatilho turn did not finish")
       }
     },
-    async abort(rawInput: unknown) {
-      const { botId } = parse(conversationSchemas.botInput, rawInput)
-
+    async abort(botId: string) {
       const turn = active.get(botId)
 
       if (!turn) {
@@ -813,8 +792,8 @@ export function createConversations(input: {
 
       await turn.abort()
     },
-    async abortTeam(rawInput: unknown) {
-      const botIds = teamBotIds(rawInput)
+    async abortTeam(botId: string) {
+      const botIds = teamBotIds(botId)
 
       if ([...botIds].some((id) => stopping.has(id))) {
         throw new Error("O trabalho do time já está sendo interrompido.")

@@ -12,7 +12,6 @@ import { Browser } from "./browser/browser"
 import { browserDebuggingPort } from "./browser/browser-debugging"
 import { createKeepAwake } from "./keep-awake"
 import { createMobileAccess } from "./mobile-access"
-import { productServices } from "./product-services"
 import { loadSecret } from "./secret-file"
 import { createTurnNotifications } from "./turn-notification"
 
@@ -87,7 +86,7 @@ const engine = new EngineProcess({
   privateBotsDirectory: join(app.getPath("userData"), "bots"),
   secretKey: () => loadSecret(join(app.getPath("userData"), "secret.key")),
   ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID ? { googleClient: { id: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_ID, ...(import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET ? { secret: import.meta.env.MAIN_VITE_GOOGLE_CLIENT_SECRET } : {}) } } : {}),
-  githubRelayUrl: process.env.MIMO_GITHUB_RELAY_URL ?? productServices.githubRelayUrl,
+  githubRelayUrl: process.env.MIMO_GITHUB_RELAY_URL ?? "https://joltgithub.duckdns.org",
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
@@ -155,18 +154,16 @@ void app.whenReady().then(async () => {
     await shell.openExternal(url)
   })
   ipcMain.handle("working-directory:choose", async () => {
-    const selection = parse(z.object({ canceled: z.boolean(), filePaths: z.array(z.string()) }), await dialog.showOpenDialog(window, {
-      properties: ["openDirectory", "createDirectory"],
-    }))
+    const selection = await dialog.showOpenDialog(window, { properties: ["openDirectory", "createDirectory"] })
+    const path = selection.filePaths.at(0)
 
-    if (selection.canceled) {
+    if (selection.canceled || !path) {
       return null
     }
 
-    const path = selection.filePaths.at(0)
-    const directory = path ? await stat(path).catch(() => {}) : undefined
+    const info = await stat(path).catch(() => null)
 
-    if (!path || !directory?.isDirectory()) {
+    if (!info?.isDirectory()) {
       throw new Error("The selected working directory is invalid")
     }
 

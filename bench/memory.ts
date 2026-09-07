@@ -1,8 +1,7 @@
 import { parseArgs } from "node:util"
 import { z } from "zod"
-import type { Observation } from "../src/shared/observability/observation"
 import { connectCdp } from "./cdp"
-import { observationLog, observations, waitForObservations } from "./observations"
+import { isFinishedTurn, isOpenSpan, observationLog, observations, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "10" } } })
 const logPath = observationLog(values["user-data"])
@@ -12,14 +11,6 @@ const heapUsage = z.object({ usedSize: z.number(), totalSize: z.number() })
 const domCounters = z.object({ documents: z.number(), nodes: z.number(), jsEventListeners: z.number() })
 
 interface Sample { round: number; heapMb: number; nodes: number; listeners: number; rendererMb: number; gpuMb: number; mainMb: number; engineMb: number }
-
-function isFinishedTurn(item: Observation) {
-  return item.kind === "event" && item.name === "conversation.finished"
-}
-
-function isOpenSpan(item: Observation) {
-  return item.kind === "span" && item.name === "renderer.conversationopen"
-}
 
 function processTree() {
   const rows = Bun.spawnSync(["ps", "-eo", "pid=,ppid=,rss=,args="]).stdout.toString().split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {

@@ -1,11 +1,11 @@
 import { z } from "zod"
+import { id } from "../ids"
 import { providerName } from "../providers"
-
-const id = z.string().min(1)
 
 export const observationName = z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/)
 const outcome = z.enum(["ok", "error"])
 const level = z.enum(["info", "error"])
+const trace = z.strictObject({ traceId: id, spanId: id, parentSpanId: id.optional() })
 
 export const observationAttributes = z.strictObject({
   bytes: z.number().optional(),
@@ -33,9 +33,7 @@ export const observationAttributes = z.strictObject({
 
 export const observationContext = z.strictObject({
   appSessionId: id.optional(),
-  traceId: id.optional(),
-  spanId: id.optional(),
-  parentSpanId: id.optional(),
+  ...trace.partial().shape,
   leaderBotId: id.optional(),
   callerBotId: id.optional(),
   botId: id.optional(),
@@ -45,7 +43,7 @@ export const observationContext = z.strictObject({
   provider: providerName.optional(),
 })
 
-export const normalizedObservationError = z.strictObject({
+const normalizedObservationError = z.strictObject({
   type: z.string(),
   message: z.string(),
   code: z.string().optional(),
@@ -53,22 +51,12 @@ export const normalizedObservationError = z.strictObject({
 })
 
 const baseObservation = {
+  ...observationContext.shape,
   name: observationName,
   timestamp: z.string(),
   level,
   attributes: observationAttributes.optional(),
   error: normalizedObservationError.optional(),
-  appSessionId: id.optional(),
-  traceId: id.optional(),
-  spanId: id.optional(),
-  parentSpanId: id.optional(),
-  leaderBotId: id.optional(),
-  callerBotId: id.optional(),
-  botId: id.optional(),
-  projectId: id.optional(),
-  taskId: id.optional(),
-  pluginId: id.optional(),
-  provider: providerName.optional(),
 }
 
 const eventObservation = z.strictObject({
@@ -85,13 +73,11 @@ const spanObservation = z.strictObject({
 export const observation = z.discriminatedUnion("kind", [eventObservation, spanObservation])
 
 export const externalObservationSpan = z.strictObject({
+  ...trace.shape,
   name: observationName,
   timestamp: z.string(),
   durationMs: z.number(),
   outcome,
-  traceId: id,
-  spanId: id,
-  parentSpanId: id.optional(),
   attributes: observationAttributes.optional(),
   error: normalizedObservationError.optional(),
 })

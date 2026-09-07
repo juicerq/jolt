@@ -26,7 +26,7 @@ export function BotMemberPicker({ bot, client, groups, onCancel, onAdded }: { bo
   const queryClient = useQueryClient()
   const { mutate: add, isPending: adding, error } = useMutation(client.query.bots.addMember.mutationOptions({
     async onSuccess(member) {
-      await queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      await queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       onAdded(member)
     },
   }))

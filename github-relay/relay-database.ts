@@ -87,7 +87,7 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     deleteExpiredConnectionsStatement.run()
   }
 
-  function authorizedConnection(installationId: string, token: string) {
+  function authorize(installationId: string, token: string) {
     const connection = authorizeInstallationStatement.get(installationId, secrets.hash(token))
 
     if (!connection) {
@@ -213,14 +213,12 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
       const relayToken = secrets.issue()
       completeConnectionStatement.run(installationId, accountLogin, secrets.hash(relayToken), secrets.seal(relayToken), connection.id)
     },
-    authorize(installationId: string, token: string) {
-      return authorizedConnection(installationId, token)
-    },
+    authorize,
     revoke(installationId: string, token: string) {
       revokeConnectionStatement.run(installationId, secrets.hash(token))
     },
     events(installationId: string, token: string, after: number) {
-      const connection = authorizedConnection(installationId, token)
+      const connection = authorize(installationId, token)
       const rows = deliveriesStatement.all(installationId, after, connection.created_at)
 
       return {
@@ -231,9 +229,7 @@ export function openRelayDatabase(path: string, secrets: RelaySecrets) {
     save(event: ExternalEvent) {
       saveDeliveryStatement.run(event.deliveryId, event.installationId, JSON.stringify(event), new Date().toISOString())
     },
-    clean() {
-      clean()
-    },
+    clean,
     close() {
       database.close()
     },

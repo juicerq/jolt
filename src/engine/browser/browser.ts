@@ -49,6 +49,9 @@ export function createBrowser() {
   }
 
   return {
+    instructions() {
+      return "Use browser for interactive websites and authenticated work. It shares a persistent site session with the person. Use handoff for login or human intervention and wait for control to return. Close your browser page when done."
+    },
     tools(bot: { id: string; name: string }): PiSchemaTool[] {
       return [{
         name: "browser",

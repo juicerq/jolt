@@ -5,7 +5,7 @@ import { App } from "./app"
 import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
 import { browserStore } from "./browser/browser-store"
-import { markUpdateReady } from "./settings/app-update-store"
+import { appUpdateStore } from "./settings/app-update-store"
 import { MobilePairingRequired } from "./settings/mobile-pairing"
 import { refreshProviders } from "./settings/provider-mutations"
 import { subscribeChatEvents } from "./chat/chat-events"
@@ -33,7 +33,7 @@ if (!connection) {
   const engineClient = createEngineClient(connection)
   subscribeChatEvents({ client: engineClient, queryClient })
   window.desktop.onTurnNotificationOpened(selectBot)
-  window.desktop.onUpdateReady(markUpdateReady)
+  window.desktop.onUpdateReady(() => appUpdateStore.setState(() => ({ updateReady: true })))
   window.desktop.onBrowserState((state) => browserStore.setState(() => state))
   void window.desktop.getBrowserState().then((state) => browserStore.setState(() => state))
 

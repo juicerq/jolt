@@ -1,7 +1,6 @@
 import { parseArgs } from "node:util"
-import type { Observation } from "../src/shared/observability/observation"
-import { browser, connectBrowser, percentile } from "./browser"
-import { observationLog, observations, waitForObservations } from "./observations"
+import { browser, connectBrowser } from "./browser"
+import { isOpenSpan, observationLog, observations, percentile, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, rounds: { type: "string", default: "3" }, port: { type: "string", default: "9222" } } })
 const logPath = observationLog(values["user-data"])
@@ -9,10 +8,6 @@ const route = ["Leve", "Média", "Pesada", "Enorme", "Coordenador", "Pesquisador
 const rounds = Number(values.rounds)
 
 interface OpenSpan { name: string; durationMs: number; count: number; state: string }
-
-function isOpenSpan(item: Observation) {
-  return item.kind === "span" && item.name === "renderer.conversationopen"
-}
 
 connectBrowser(values.port)
 
@@ -26,10 +21,9 @@ for (let round = 0; round < rounds; round += 1) {
   for (const name of route) {
     const seen = before + collected.length
     browser("find", "role", "button", "click", "--name", `de ${name} com`)
-    const spans = await waitForObservations(logPath, isOpenSpan, seen, 30_000)
-    const span = spans.at(-1)
+    const span = (await waitForObservations(logPath, isOpenSpan, seen, 30_000)).at(-1)
 
-    if (span?.kind !== "span") {
+    if (!span) {
       throw new Error("Missing span")
     }
 

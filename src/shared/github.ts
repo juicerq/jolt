@@ -1,7 +1,7 @@
 import { z } from "zod"
+import { id } from "./ids"
 import { triggerSchemas } from "./triggers"
 
-const id = z.string().min(1)
 const relayUrl = z.url().refine((value) => {
   const url = new URL(value)
 

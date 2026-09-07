@@ -1,13 +1,17 @@
 import type { Trigger } from "@src/shared/triggers"
 
-export const triggerEvents: { value: Trigger["event"]; label: string; actions: string[] }[] = [
-  { value: "issues", label: "Issue", actions: ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "assigned", "unassigned", "locked", "unlocked", "deleted", "transferred", "milestoned", "demilestoned", "pinned", "unpinned"] },
-  { value: "issue_comment", label: "Comentário em issue ou PR", actions: ["created", "edited", "deleted"] },
-  { value: "pull_request", label: "Pull request", actions: ["opened", "edited", "closed", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "labeled", "unlabeled", "assigned", "unassigned", "review_requested", "review_request_removed", "locked", "unlocked", "auto_merge_enabled", "auto_merge_disabled", "milestoned", "demilestoned", "enqueued", "dequeued"] },
-  { value: "pull_request_review", label: "Revisão de pull request", actions: ["submitted", "edited", "dismissed"] },
-  { value: "pull_request_review_comment", label: "Comentário em revisão", actions: ["created", "edited", "deleted"] },
-  { value: "check_run", label: "Check", actions: ["created", "completed", "rerequested", "requested_action"] },
-]
+export const triggerEvents: Record<Trigger["event"], { label: string; actions: string[] }> = {
+  issues: { label: "Issue", actions: ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "assigned", "unassigned", "locked", "unlocked", "deleted", "transferred", "milestoned", "demilestoned", "pinned", "unpinned"] },
+  issue_comment: { label: "Comentário em issue ou PR", actions: ["created", "edited", "deleted"] },
+  pull_request: { label: "Pull request", actions: ["opened", "edited", "closed", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "labeled", "unlabeled", "assigned", "unassigned", "review_requested", "review_request_removed", "locked", "unlocked", "auto_merge_enabled", "auto_merge_disabled", "milestoned", "demilestoned", "enqueued", "dequeued"] },
+  pull_request_review: { label: "Revisão de pull request", actions: ["submitted", "edited", "dismissed"] },
+  pull_request_review_comment: { label: "Comentário em revisão", actions: ["created", "edited", "deleted"] },
+  check_run: { label: "Check", actions: ["created", "completed", "rerequested", "requested_action"] },
+}
+
+export function isTriggerEvent(value: string): value is Trigger["event"] {
+  return value in triggerEvents
+}
 
 export const triggerActionLabels: Record<string, string> = {
   opened: "Abertura",

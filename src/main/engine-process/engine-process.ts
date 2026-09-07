@@ -1,10 +1,11 @@
 import { browserRequest, browserCancel, type BrowserRequest } from "@src/shared/browser"
 import { spawn, type ChildProcess } from "node:child_process"
-import { type EngineAccessMessage, type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineAccessMessage, engineConnection, engineReadyMessage, forwardedObservation, forwardedObservationEvent } from "@src/shared/engine-ipc"
+import { type EngineAccess, type EngineAccessMessage, type EngineReadyMessage, type ForwardedObservation, type ForwardedObservationEvent, engineReadyMessage } from "@src/shared/engine-ipc"
 import { parse } from "@src/shared/parse"
+import { inheritedEnvironment } from "../child-environment"
 
 interface EngineProcessOptions {
-  browser?: (request: BrowserRequest, signal: AbortSignal) => Promise<string>
+  browser: (request: BrowserRequest, signal: AbortSignal) => Promise<string>
   executable: string
   rendererDirectory?: string
   databasePath: string
@@ -12,14 +13,12 @@ interface EngineProcessOptions {
   secretKey(): Promise<string>
   googleClient?: { id: string; secret?: string }
   githubRelayUrl?: string
-  appVersion?: string
-  electronVersion?: string
-  development?: boolean
-  loadProvider?: boolean
-  onUnexpectedExit?: (error: Error) => void
+  appVersion: string
+  electronVersion: string
+  development: boolean
+  loadProvider: boolean
+  onUnexpectedExit: (error: Error) => void
 }
-
-type EngineAccess = Omit<EngineAccessMessage, "type">
 
 interface EngineListener {
   token: string
@@ -32,11 +31,6 @@ interface ChildExit {
 }
 
 const readinessTimeoutMs = 10_000
-const inheritedNames = ["PATH", "HOME", "USER", "TMPDIR", "LANG", "SystemRoot", "ComSpec", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "ProgramData", "TEMP", "TMP"]
-
-function inheritedEnvironment() {
-  return Object.fromEntries(inheritedNames.flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
-}
 const shutdownTimeoutMs = 5_000
 
 export class EngineProcess {
@@ -48,10 +42,6 @@ export class EngineProcess {
 
   constructor(private readonly options: EngineProcessOptions) {}
 
-  get pid() {
-    return this.child?.pid
-  }
-
   get port() {
     return this.listening?.port
   }
@@ -61,7 +51,7 @@ export class EngineProcess {
       throw new Error("Bun Engine is not running")
     }
 
-    return parse(engineConnection, { url: `http://127.0.0.1:${this.listening.port}/rpc`, token: this.listening.token })
+    return { url: `http://127.0.0.1:${this.listening.port}/rpc`, token: this.listening.token }
   }
 
   async start(access: EngineAccess & { port: number }) {
@@ -85,8 +75,8 @@ export class EngineProcess {
         ...(this.options.googleClient ? { BOT_TEAMS_GOOGLE_CLIENT_ID: this.options.googleClient.id } : {}),
         ...(this.options.googleClient?.secret ? { BOT_TEAMS_GOOGLE_CLIENT_SECRET: this.options.googleClient.secret } : {}),
         ...(this.options.githubRelayUrl ? { BOT_TEAMS_GITHUB_RELAY_URL: this.options.githubRelayUrl } : {}),
-        BOT_TEAMS_APP_VERSION: this.options.appVersion ?? "0.0.0",
-        BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion ?? "unknown",
+        BOT_TEAMS_APP_VERSION: this.options.appVersion,
+        BOT_TEAMS_ELECTRON_VERSION: this.options.electronVersion,
         BOT_TEAMS_DEVELOPMENT: this.options.development ? "true" : "false",
         BOT_TEAMS_LOAD_PROVIDER: this.options.loadProvider ? "true" : "false",
       },
@@ -103,7 +93,7 @@ export class EngineProcess {
         }
 
         if (this.ready && !this.stopping) {
-          this.options.onUnexpectedExit?.(new Error(`Bun Engine exited unexpectedly with code ${code} and signal ${signal}`))
+          this.options.onUnexpectedExit(new Error(`Bun Engine exited unexpectedly with code ${code} and signal ${signal}`))
         }
       })
     })
@@ -170,11 +160,8 @@ export class EngineProcess {
 
       const controller = new AbortController()
       browserActions.set(request.data.id, controller)
-      const execution = this.options.browser
-        ? this.options.browser(request.data, controller.signal)
-        : Promise.reject(new Error("Browser is unavailable"))
 
-      void execution.then(
+      void this.options.browser(request.data, controller.signal).then(
         (result) => ({ type: "browser-reply", id: request.data.id, result, error: false }),
         (error: unknown) => ({ type: "browser-reply", id: request.data.id, result: error instanceof Error ? error.message : "Browser action failed", error: true }),
       ).then((reply) => {
@@ -196,7 +183,7 @@ export class EngineProcess {
     })
     this.ready = true
     this.listening = { token: access.token, port: ready.port }
-    await this.send(parse(forwardedObservation, {
+    await this.send({
       type: "span",
       span: {
         name: "main.startup",
@@ -205,11 +192,9 @@ export class EngineProcess {
         outcome: "ok",
         traceId: crypto.randomUUID(),
         spanId: crypto.randomUUID(),
-        attributes: { process: "main", status: "ready", version: this.options.appVersion ?? "0.0.0" },
+        attributes: { process: "main", status: "ready", version: this.options.appVersion },
       },
-    }))
-
-    return this.connection
+    })
   }
 
   async stop() {
@@ -226,7 +211,7 @@ export class EngineProcess {
   }
 
   event(input: Omit<ForwardedObservationEvent, "type">) {
-    return this.send(parse(forwardedObservationEvent, { type: "observation", ...input }))
+    return this.send({ type: "observation", ...input })
   }
 
   grant(access: EngineAccess) {
@@ -234,7 +219,7 @@ export class EngineProcess {
       this.listening = { ...this.listening, token: access.token }
     }
 
-    return this.send(parse(engineAccessMessage, { type: "access", ...access }))
+    return this.send({ type: "access", ...access })
   }
 
   private send(message: ForwardedObservation | EngineAccessMessage) {

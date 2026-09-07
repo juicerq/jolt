@@ -30,7 +30,7 @@ function MemoryList({ memories, busy, onEdit, onForget }: { memories: Memory[]; 
 
   return (
     <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
-      {memories.map((memory) => <MemoryRow key={memory.id} memory={memory} busy={busy} {...(onEdit ? { onEdit } : {})} {...(onForget ? { onForget } : {})} />)}
+      {memories.map((memory) => <MemoryRow key={memory.id} memory={memory} busy={busy} onEdit={onEdit} onForget={onForget} />)}
     </ul>
   )
 }
@@ -124,8 +124,8 @@ export function BotMemory({ bot, client, leader, onClose }: { bot: Bot; client: 
     <BotPage label={`Memórias de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       {bot.temporary
-        ? <TemporaryMemory client={client} {...(leader ? { leader } : {})} />
-        : <OwnMemory bot={bot} client={client} {...(leader ? { leader } : {})} />}
+        ? <TemporaryMemory client={client} leader={leader} />
+        : <OwnMemory bot={bot} client={client} leader={leader} />}
     </BotPage>
   )
 }
@@ -136,18 +136,6 @@ function TemporaryMemory({ client, leader }: { client: EngineClient; leader?: Pi
       <p className="m-0 text-support text-muted">Um Integrante temporário não tem Memória própria.{leader && ` Ele lê o que ${leader.name} sabe.`}</p>
       {leader && <TeamMemory leader={leader} client={client} />}
     </SettingsSection>
-  )
-}
-
-function MemoryForm({ adding, disabled, draft, onChange, onSubmit }: { adding: boolean; disabled: boolean; draft: string; onChange: (draft: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
-  return (
-    <form className="flex items-start gap-2" onSubmit={onSubmit}>
-      <label className="min-w-0 flex-1">
-        <span className="sr-only">Nova Lembrança</span>
-        <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} placeholder="Ex.: prefiro relatórios em PDF" value={draft} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
-      </label>
-      <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={disabled || !draft.trim()}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
-    </form>
   )
 }
 
@@ -188,11 +176,12 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
     setConfirmingClear(false)
   } }))
   const { mutate: updateBot, isPending: toggling, error: toggleError } = useMutation(client.query.bots.update.mutationOptions({ onSuccess() {
-    void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+    void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
   } }))
   const content = draft.trim()
+  const hasMemories = !!memories && memories.length > 0
   const busy = [adding, updating, forgetting, clearing, toggling].some(Boolean)
-  const failure = [listError, addError, updateError, forgetError, toggleError].find(Boolean)?.message
+  const failure = [listError, addError, updateError, forgetError, toggleError].find(Boolean)
   const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não usa nem registra Memórias enquanto esta opção estiver desativada. As Lembranças ficam salvas.`
 
   function handleAdd(event: FormEvent<HTMLFormElement>) {
@@ -207,25 +196,26 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
 
   const toggle = <Switch checked={bot.memoryEnabled} disabled={busy} aria-label="Memória ligada" onChange={(memoryEnabled) => updateBot({ id: bot.id, name: bot.name, function: bot.function, projectId: bot.projectId, workingDirectoryOverride: bot.workingDirectoryOverride, memoryEnabled, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })} />
 
-  if (!bot.memoryEnabled) {
-    return (
-      <SettingsSection title="Memória" action={toggle}>
-        <p className="m-0 text-support text-muted">{state}</p>
-        {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
-      </SettingsSection>
-    )
-  }
-
   return (
     <SettingsSection title="Memória" action={toggle}>
       <p className="m-0 text-support text-muted">{state}</p>
-      {memories && <MemoryList memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
-      {memories && memories.length > 0 && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
-      <MemoryForm draft={draft} adding={adding} disabled={busy} onChange={setDraft} onSubmit={handleAdd} />
-      {memories && memories.length > 0 && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
-      {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure}</p>}
-      {leader && <TeamMemory leader={leader} client={client} />}
-      {memories && confirmingClear && <MemoryClearDialog bot={bot} count={memories.length} clearing={clearing} error={clearError} onClear={() => clear({ botId: bot.id })} onClose={() => setConfirmingClear(false)} />}
+      {bot.memoryEnabled && (
+        <>
+          {memories && <MemoryList memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
+          {hasMemories && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
+          <form className="flex items-start gap-2" onSubmit={handleAdd}>
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Nova Lembrança</span>
+              <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} placeholder="Ex.: prefiro relatórios em PDF" value={draft} disabled={busy} onChange={(event) => setDraft(event.target.value)} />
+            </label>
+            <Button className="inline-flex items-center gap-2" variant="secondary" type="submit" disabled={busy || !content}><PlusIcon className="size-4" aria-hidden="true" />{adding ? "Adicionando..." : "Adicionar"}</Button>
+          </form>
+          {hasMemories && <Button className="self-start" variant="text" type="button" disabled={busy} onClick={() => setConfirmingClear(true)}>Limpar a Memória</Button>}
+        </>
+      )}
+      {failure && <p className="m-0 text-support text-status-error">Falha na Memória: {failure.message}</p>}
+      {bot.memoryEnabled && leader && <TeamMemory leader={leader} client={client} />}
+      {bot.memoryEnabled && memories && confirmingClear && <MemoryClearDialog bot={bot} count={memories.length} clearing={clearing} error={clearError} onClear={() => clear({ botId: bot.id })} onClose={() => setConfirmingClear(false)} />}
     </SettingsSection>
   )
 }

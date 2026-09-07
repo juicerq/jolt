@@ -2,9 +2,10 @@ import { z } from "zod"
 import { parse } from "@src/shared/parse"
 import type { ToolDescriptor } from "@src/shared/plugins"
 import type { Observability } from "@src/engine/observability/observability"
-import { PluginAuthError, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
-import { googleEndpoints, parseCredentials, refreshCredentials, startAuthorization, type GmailClient, type GmailCredentials, type GmailEndpoints } from "./gmail-oauth"
+import { PluginAuthError, toolInputSchema, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
+import { parseCredentials, refreshCredentials, startAuthorization, type GmailClient, type GmailCredentials } from "./gmail-oauth"
 
+const gmailApi = "https://gmail.googleapis.com/gmail/v1"
 const gmailSearchConcurrency = 5
 const rateLimitRetryDelayMs = 400
 
@@ -31,85 +32,77 @@ const schemas = {
   labelList: z.looseObject({ labels: z.array(z.looseObject({ id: z.string(), name: z.string() })).optional() }),
   failure: z.looseObject({ error: z.looseObject({ message: z.string().optional() }).optional() }),
 }
-const inputs = {
-  gmail_search: z.object({ query: z.string().min(1), limit: z.coerce.number().int().min(1).max(50).default(10) }),
-  gmail_read_thread: z.object({ threadId: z.string().min(1) }),
-  gmail_create_draft: z.object({ to: z.string().min(1), subject: z.string(), body: z.string(), cc: z.string().optional(), threadId: z.string().optional() }),
-  gmail_send_draft: z.object({ draftId: z.string().min(1) }),
-  gmail_send: z.object({ to: z.string().min(1), subject: z.string(), body: z.string(), cc: z.string().optional() }),
-  gmail_reply: z.object({ threadId: z.string().min(1), body: z.string(), cc: z.string().optional() }),
-  gmail_thread: z.object({ threadId: z.string().min(1) }),
-  gmail_mark_read: z.object({ threadId: z.string().min(1), read: z.coerce.boolean().default(true) }),
-  gmail_label: z.object({ threadId: z.string().min(1), add: z.array(z.string().min(1)).default([]), remove: z.array(z.string().min(1)).default([]) }),
+const threadId = z.string().min(1).describe("Thread id from gmail_search")
+const outgoing = {
+  to: z.string().min(1).describe("Recipients, comma separated"),
+  subject: z.string(),
+  body: z.string().describe("Plain-text body"),
+  cc: z.string().optional().describe("Copy recipients, comma separated"),
 }
-const threadInput = { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" } }, required: ["threadId"] } satisfies ToolDescriptor["inputSchema"]
+const inputs = {
+  gmail_search: z.object({ query: z.string().min(1).describe("Gmail search query"), limit: z.coerce.number().int().min(1).max(50).default(10).describe("Maximum messages, default 10, up to 50") }),
+  gmail_thread: z.object({ threadId }),
+  gmail_create_draft: z.object({ ...outgoing, threadId: z.string().optional().describe("Thread to reply in") }),
+  gmail_send_draft: z.object({ draftId: z.string().min(1).describe("Draft id from gmail_create_draft") }),
+  gmail_send: z.object(outgoing),
+  gmail_reply: z.object({ threadId, body: outgoing.body, cc: outgoing.cc }),
+  gmail_mark_read: z.object({ threadId, read: z.coerce.boolean().default(true).describe("true marks read, false marks unread. Default true") }),
+  gmail_label: z.object({ threadId, add: z.array(z.string().min(1)).default([]).describe("Label names to add"), remove: z.array(z.string().min(1)).default([]).describe("Label names to remove") }),
+  gmail_list_labels: z.object({}),
+}
 
 const gmailTools: ToolDescriptor[] = [
   {
     name: "gmail_search",
     label: "Pesquisa no Gmail",
     description: "Search the person's Gmail with Gmail search syntax (from:, subject:, newer_than:2d, is:unread). Returns id, threadId, date, sender, subject and a snippet per message.",
-    inputSchema: { type: "object", properties: { query: { type: "string", description: "Gmail search query" }, limit: { type: "number", description: "Maximum messages, default 10, up to 50" } }, required: ["query"] },
+    inputSchema: toolInputSchema(inputs.gmail_search),
   },
   {
     name: "gmail_read_thread",
     label: "Leitura de conversa do Gmail",
     description: "Read every message of a Gmail thread, with headers and plain-text body.",
-    inputSchema: { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" } }, required: ["threadId"] },
+    inputSchema: toolInputSchema(inputs.gmail_thread),
   },
   {
     name: "gmail_create_draft",
     label: "Rascunho no Gmail",
     description: "Create a draft in the person's Gmail. Nothing is sent. Pass threadId to draft a reply inside a thread.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: { type: "string", description: "Recipients, comma separated" },
-        subject: { type: "string" },
-        body: { type: "string", description: "Plain-text body" },
-        cc: { type: "string", description: "Copy recipients, comma separated" },
-        threadId: { type: "string", description: "Thread to reply in" },
-      },
-      required: ["to", "subject", "body"],
-    },
+    inputSchema: toolInputSchema(inputs.gmail_create_draft),
   },
   {
     name: "gmail_send_draft",
     label: "Envio de rascunho do Gmail",
     description: "Send a draft created with gmail_create_draft. The message leaves the person's Gmail.",
-    inputSchema: { type: "object", properties: { draftId: { type: "string", description: "Draft id from gmail_create_draft" } }, required: ["draftId"] },
+    inputSchema: toolInputSchema(inputs.gmail_send_draft),
   },
   {
     name: "gmail_send",
     label: "Envio de email pelo Gmail",
     description: "Send a new email from the person's Gmail right away, without a draft.",
-    inputSchema: {
-      type: "object",
-      properties: { to: { type: "string", description: "Recipients, comma separated" }, subject: { type: "string" }, body: { type: "string", description: "Plain-text body" }, cc: { type: "string", description: "Copy recipients, comma separated" } },
-      required: ["to", "subject", "body"],
-    },
+    inputSchema: toolInputSchema(inputs.gmail_send),
   },
   {
     name: "gmail_reply",
     label: "Resposta em conversa do Gmail",
     description: "Reply to the latest message of a thread and send it right away. Recipient and subject come from the thread.",
-    inputSchema: { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" }, body: { type: "string", description: "Plain-text body" }, cc: { type: "string", description: "Copy recipients, comma separated" } }, required: ["threadId", "body"] },
+    inputSchema: toolInputSchema(inputs.gmail_reply),
   },
-  { name: "gmail_archive", label: "Arquivamento de conversa do Gmail", description: "Remove a thread from the inbox. The messages stay in All Mail.", inputSchema: threadInput },
+  { name: "gmail_archive", label: "Arquivamento de conversa do Gmail", description: "Remove a thread from the inbox. The messages stay in All Mail.", inputSchema: toolInputSchema(inputs.gmail_thread) },
   {
     name: "gmail_mark_read",
     label: "Marcação de conversa do Gmail como lida",
     description: "Mark a thread as read, or as unread with read=false.",
-    inputSchema: { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" }, read: { type: "boolean", description: "true marks read, false marks unread. Default true" } }, required: ["threadId"] },
+    inputSchema: toolInputSchema(inputs.gmail_mark_read),
   },
   {
     name: "gmail_label",
     label: "Mudança de marcadores no Gmail",
     description: "Add or remove labels on a thread by label name. Use gmail_list_labels to see the names.",
-    inputSchema: { type: "object", properties: { threadId: { type: "string", description: "Thread id from gmail_search" }, add: { type: "array", items: { type: "string" }, description: "Label names to add" }, remove: { type: "array", items: { type: "string" }, description: "Label names to remove" } }, required: ["threadId"] },
+    inputSchema: toolInputSchema(inputs.gmail_label),
   },
-  { name: "gmail_trash", label: "Envio de conversa do Gmail para a lixeira", description: "Move a thread to the trash. Gmail keeps it there for 30 days.", inputSchema: threadInput },
-  { name: "gmail_list_labels", label: "Lista de marcadores do Gmail", description: "List the label names of the person's Gmail, system and custom.", inputSchema: { type: "object", properties: {} } },
+  { name: "gmail_trash", label: "Envio de conversa do Gmail para a lixeira", description: "Move a thread to the trash. Gmail keeps it there for 30 days.", inputSchema: toolInputSchema(inputs.gmail_thread) },
+  { name: "gmail_list_labels", label: "Lista de marcadores do Gmail", description: "List the label names of the person's Gmail, system and custom.", inputSchema: toolInputSchema(inputs.gmail_list_labels) },
 ]
 
 type Part = z.infer<typeof part>
@@ -159,10 +152,7 @@ function mime(details: { to: string; cc?: string; subject: string; body: string;
   return Buffer.from([...headers, "", details.body].join("\r\n")).toString("base64url")
 }
 
-export function createGmailAdapter(input: { observability: Observability; client?: GmailClient; endpoints?: GmailEndpoints }): PluginAdapter {
-  const endpoints = input.endpoints ?? googleEndpoints
-  const pending = new Map<string, () => void>()
-
+export function createGmailAdapter(input: { observability: Observability; client?: GmailClient }): PluginAdapter {
   function client() {
     if (!input.client) {
       throw new Error("Gmail needs a Google client id. Build Mimo with MAIN_VITE_GOOGLE_CLIENT_ID set.")
@@ -171,8 +161,8 @@ export function createGmailAdapter(input: { observability: Observability; client
     return input.client
   }
 
-  async function call<T>(credentials: GmailCredentials, schema: z.ZodType<T>, path: string, init: Omit<RequestInit, "headers"> = {}, retried = false): Promise<T> {
-    const response = await fetch(`${endpoints.api}${path}`, { ...init, headers: { authorization: `Bearer ${credentials.accessToken}`, "content-type": "application/json" } })
+  async function call<T>(credentials: GmailCredentials, schema: z.ZodType<T>, path: string, init?: Omit<RequestInit, "headers">, retried = false): Promise<T> {
+    const response = await fetch(`${gmailApi}${path}`, { ...init, headers: { authorization: `Bearer ${credentials.accessToken}`, "content-type": "application/json" } })
     const payload: unknown = await response.json().catch(() => ({}))
 
     if (response.status === 429 && !retried) {
@@ -192,6 +182,13 @@ export function createGmailAdapter(input: { observability: Observability; client
     return parse(schema, payload)
   }
 
+  async function refresh(account: PluginAccountSession, credentials: GmailCredentials) {
+    const refreshed = await refreshCredentials(client(), credentials)
+    account.saveSecret(JSON.stringify(refreshed))
+
+    return refreshed
+  }
+
   async function fresh(account: PluginAccountSession) {
     const credentials = parseCredentials(account.secret)
     const expiresSoon = new Date(credentials.expiresAt).getTime() - Date.now() < 60_000
@@ -200,10 +197,7 @@ export function createGmailAdapter(input: { observability: Observability; client
       return credentials
     }
 
-    const refreshed = await refreshCredentials(endpoints, client(), credentials)
-    account.saveSecret(JSON.stringify(refreshed))
-
-    return refreshed
+    return refresh(account, credentials)
   }
 
   async function withCredentials<T>(account: PluginAccountSession, operation: (credentials: GmailCredentials) => Promise<T>): Promise<T> {
@@ -216,10 +210,7 @@ export function createGmailAdapter(input: { observability: Observability; client
         throw error
       }
 
-      const refreshed = await refreshCredentials(endpoints, client(), credentials)
-      account.saveSecret(JSON.stringify(refreshed))
-
-      return operation(refreshed)
+      return operation(await refresh(account, credentials))
     }
   }
 
@@ -297,7 +288,7 @@ export function createGmailAdapter(input: { observability: Observability; client
       return messages.map(summarize).join("\n\n")
     },
     async gmail_read_thread(credentials, params, signal) {
-      const details = parse(inputs.gmail_read_thread, params)
+      const details = parse(inputs.gmail_thread, params)
       const thread = await call(credentials, schemas.thread, `/users/me/threads/${details.threadId}?format=full`, { signal })
 
       return (thread.messages ?? []).map((item) => `${summarize(item)}\nto: ${headerValue(item.payload?.headers, "To")}\n\n${plainText(item.payload) || "(no text body)"}`).join("\n\n---\n\n")
@@ -391,16 +382,12 @@ export function createGmailAdapter(input: { observability: Observability; client
       return gmailTools
     },
     connect(details) {
-      const authorization = startAuthorization(endpoints, client())
-      const key = crypto.randomUUID()
-      pending.set(key, authorization.cancel)
+      const authorization = startAuthorization(client())
       const connected = authorization.credentials.then(async (credentials) => {
         const profile = await call(credentials, schemas.profile, "/users/me/profile")
         input.observability.event({ name: "plugin.gmailconnected", context: { pluginId: details.pluginId } })
 
         return { label: profile.emailAddress, secret: JSON.stringify(credentials), tools: gmailTools }
-      }).finally(() => {
-        pending.delete(key)
       })
 
       details.step({ type: "browser", url: authorization.authorizationUrl })

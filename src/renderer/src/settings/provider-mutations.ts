@@ -1,5 +1,10 @@
 import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { ProviderAvailability } from "@src/shared/providers"
 import type { EngineClient } from "../engine-client"
+
+export function providerAvailable(providers: ProviderAvailability[] | undefined) {
+  return !!providers?.some((provider) => provider.status === "available")
+}
 
 export async function refreshProviders(client: EngineClient, queryClient: QueryClient) {
   await Promise.all([

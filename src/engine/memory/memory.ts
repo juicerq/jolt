@@ -1,16 +1,16 @@
 import type { Bot } from "@src/shared/bots"
 import type { BotConversationEvent, ConversationMessage } from "@src/shared/conversations"
-import { memorySchemas, type Memory } from "@src/shared/memory"
+import { memorySchemas, type AddMemoryInput, type ConfigureMemoryInput, type Memory, type UpdateMemoryInput } from "@src/shared/memory"
 import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
-import { createCuration } from "./curation"
+import { curate } from "./curation"
 import { parse } from "@src/shared/parse"
 import type { createPiProvider } from "../pi/pi-provider"
 
-const defaultCurationWait = 5 * 60_000
+const curationWait = 5 * 60_000
 
 const noteRule = [
   "Use the note tool when you learn something you will need after this conversation: a preference or a correction from the person, how they want work delivered, or a fact about their world you cannot rediscover from files. When the person asks you to remember something, note it.",
@@ -34,17 +34,13 @@ export function createMemory(input: {
   sessionFactory: PiSessionFactory
   providers: Pick<ReturnType<typeof createPiProvider>, "models">
   conversations: { active(botId: string): ConversationMessage | undefined; events(signal?: AbortSignal): AsyncIterable<BotConversationEvent> }
-  curationWait?: number
 }) {
-  const wait = input.curationWait ?? defaultCurationWait
-  const curation = createCuration({ database: input.database, observability: input.observability, sessionFactory: input.sessionFactory })
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const passes = new Map<string, Promise<void>>()
   const shutdown = new AbortController()
-  let disposed = false
 
   function owner(botId: string) {
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     if (!bot) {
       throw new Error("Bot not found")
@@ -58,7 +54,7 @@ export function createMemory(input: {
   }
 
   function remembering(botId: string) {
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     if (!bot || bot.temporary || !bot.memoryEnabled) {
       return
@@ -84,7 +80,7 @@ export function createMemory(input: {
   function schedule(botId: string) {
     cancel(botId)
 
-    if (disposed) {
+    if (shutdown.signal.aborted) {
       return
     }
 
@@ -96,11 +92,11 @@ export function createMemory(input: {
 
     timers.set(botId, setTimeout(() => {
       timers.delete(botId)
-      void curate(botId).catch(() => {})
-    }, wait))
+      void curatePending(botId).catch(() => {})
+    }, curationWait))
   }
 
-  async function curate(botId: string) {
+  async function curatePending(botId: string) {
     const running = passes.get(botId)
 
     if (running) {
@@ -115,10 +111,10 @@ export function createMemory(input: {
       return
     }
 
-    const pass = input.bots.directory({ id: botId }).then((cwd) => curation.run(bot, cwd, notes)).catch((error: unknown) => {
+    const pass = input.bots.directory(botId).then((cwd) => curate({ database: input.database, observability: input.observability, sessionFactory: input.sessionFactory, bot, cwd, notes, signal: shutdown.signal })).catch((error: unknown) => {
       input.observability.event({ name: "memory.curationfailed", context: { botId }, error })
 
-      if (!disposed && remembering(botId)) {
+      if (!shutdown.signal.aborted && remembering(botId)) {
         input.database.curation.failure(botId, error instanceof Error ? error.message : "Falha na Curadoria")
       }
 
@@ -153,9 +149,7 @@ export function createMemory(input: {
     async settings() {
       return { model: input.database.curation.model(), providers: await input.providers.models() }
     },
-    async configure(rawInput: unknown) {
-      const { model } = parse(memorySchemas.configure, rawInput)
-
+    async configure({ model }: ConfigureMemoryInput) {
       if (model) {
         const catalogs = await input.providers.models()
         const available = catalogs.some((catalog) => catalog.provider === model.provider && catalog.models.some((candidate) => candidate.id === model.model))
@@ -172,8 +166,7 @@ export function createMemory(input: {
       }
     },
     status: () => input.database.curation.status(),
-    async retry(rawInput: unknown) {
-      const { botId } = parse(memorySchemas.botInput, rawInput)
+    async retry(botId: string) {
       owner(botId)
 
       if (!remembering(botId)) {
@@ -185,7 +178,7 @@ export function createMemory(input: {
       }
 
       cancel(botId)
-      await curate(botId)
+      await curatePending(botId)
     },
     tools(bot: Pick<Bot, "id" | "temporary" | "memoryEnabled">): PiCustomTool[] {
       if (bot.temporary || !bot.memoryEnabled) {
@@ -228,30 +221,27 @@ export function createMemory(input: {
         bot.permissionMode !== "read-only" && noteRule,
       ].filter(Boolean).join("\n")
     },
-    list(rawInput: unknown) {
-      const { botId } = parse(memorySchemas.botInput, rawInput)
-
-      if (!input.bots.get({ id: botId })) {
+    list(botId: string) {
+      if (!input.bots.get(botId)) {
         throw new Error("Bot not found")
       }
 
       return input.database.memories.listForBot(botId)
     },
-    add(rawInput: unknown) {
-      const { botId, content } = parse(memorySchemas.addInput, rawInput)
+    add({ botId, content }: AddMemoryInput) {
       const bot = owner(botId)
 
       return input.observability.span({ name: "memory.add", context: { botId: bot.id } }, () => {
         assertFits(bot.id, content)
-        const id = crypto.randomUUID()
-        const createdAt = new Date().toISOString()
-        input.database.memories.create({ id, botId: bot.id, content, origin: "person", noteId: null, createdAt })
 
-        return { id, botId: bot.id, content, origin: "person" as const, source: null, createdAt }
+        const memory = { id: crypto.randomUUID(), botId: bot.id, content, origin: "person" as const, createdAt: new Date().toISOString() }
+
+        input.database.memories.create({ ...memory, noteId: null })
+
+        return { ...memory, source: null }
       })
     },
-    update(rawInput: unknown) {
-      const { id, content } = parse(memorySchemas.updateInput, rawInput)
+    update({ id, content }: UpdateMemoryInput) {
       const memory = input.database.memories.get(id)
 
       if (!memory) {
@@ -271,8 +261,7 @@ export function createMemory(input: {
         return { id: updated.id, botId: updated.botId, content: updated.content, origin: updated.origin, createdAt: updated.createdAt, source: null }
       })
     },
-    forget(rawInput: unknown) {
-      const { id } = parse(memorySchemas.idInput, rawInput)
+    forget(id: string) {
       const memory = input.database.memories.get(id)
 
       if (!memory) {
@@ -283,8 +272,7 @@ export function createMemory(input: {
         input.database.memories.remove(memory.id)
       })
     },
-    clear(rawInput: unknown) {
-      const { botId } = parse(memorySchemas.botInput, rawInput)
+    clear(botId: string) {
       const bot = owner(botId)
 
       input.observability.span({ name: "memory.clear", context: { botId: bot.id } }, () => {
@@ -294,9 +282,7 @@ export function createMemory(input: {
       })
     },
     async dispose() {
-      disposed = true
       shutdown.abort()
-      curation.dispose()
 
       for (const timer of timers.values()) {
         clearTimeout(timer)

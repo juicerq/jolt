@@ -1,4 +1,3 @@
-import { browserReply } from "../shared/browser"
 import { createBrowser } from "./browser/browser"
 import { RPCHandler } from "@orpc/server/fetch"
 import { registerBunOAuthFlows } from "@earendil-works/pi-ai/bun-oauth"
@@ -20,7 +19,7 @@ import { createGithubAdapter } from "./plugins/github/github"
 import { createMcpAdapter } from "./plugins/mcp/mcp"
 import { createWhatsappAdapter } from "./plugins/whatsapp/whatsapp"
 import { createPlugins } from "./plugins/plugins"
-import { createSecrets } from "./plugins/secrets"
+import { createSecrets } from "../shared/secrets"
 import { createPiAgentRuntime, deferPiSessionFactory } from "./pi/pi-agent-runtime"
 import { createPiLoadSessionFactory } from "./pi/pi-load-session"
 import { createPiModels } from "./pi/pi-models"
@@ -40,10 +39,10 @@ const environmentSchema = z.object({
   BOT_TEAMS_RENDERER_DIRECTORY: z.string().min(1).optional(),
   BOT_TEAMS_DATABASE_PATH: z.string().min(1),
   BOT_TEAMS_PRIVATE_BOTS_DIRECTORY: z.string().min(1),
-  BOT_TEAMS_DEVELOPMENT: z.enum(["true", "false"]).optional(),
-  BOT_TEAMS_LOAD_PROVIDER: z.enum(["true", "false"]).optional(),
-  BOT_TEAMS_APP_VERSION: z.string().min(1).optional(),
-  BOT_TEAMS_ELECTRON_VERSION: z.string().min(1).optional(),
+  BOT_TEAMS_DEVELOPMENT: z.enum(["true", "false"]),
+  BOT_TEAMS_LOAD_PROVIDER: z.enum(["true", "false"]),
+  BOT_TEAMS_APP_VERSION: z.string().min(1),
+  BOT_TEAMS_ELECTRON_VERSION: z.string().min(1),
   BOT_TEAMS_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/),
   BOT_TEAMS_GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   BOT_TEAMS_GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
@@ -61,10 +60,6 @@ let mainState: ProcessState = "unknown"
 let mainShutdown: { timestamp: string; startedAt: number } | undefined
 
 process.on("message", (message) => {
-  if (browserReply.safeParse(message).success) {
-    return
-  }
-
   const access = engineAccessMessage.safeParse(message)
 
   if (access.success) {
@@ -73,32 +68,33 @@ process.on("message", (message) => {
     return
   }
 
-  try {
-    const input = parse(forwardedObservation, message)
+  const forwarded = forwardedObservation.safeParse(message)
 
-    if (input.type === "observation") {
-      observationSystem.observability.event(input)
+  if (!forwarded.success) {
+    return
+  }
 
-      if (input.name === "main.started") {
-        mainState = "ready"
-      }
+  const input = forwarded.data
 
-      if (input.name === "main.stopped") {
-        mainState = "stopping"
-        mainShutdown = { timestamp: new Date().toISOString(), startedAt: performance.now() }
-      }
-
-      return
-    }
-
+  if (input.type === "span") {
     observationSystem.receiver.span(input.span)
-  } catch {
-    process.stderr.write("Rejected invalid Main observation\n")
+
+    return
+  }
+
+  observationSystem.observability.event(input)
+
+  if (input.name === "main.started") {
+    mainState = "ready"
+  }
+
+  if (input.name === "main.stopped") {
+    mainState = "stopping"
+    mainShutdown = { timestamp: new Date().toISOString(), startedAt: performance.now() }
   }
 })
 
 const piWarmDelayMs = 1_000
-const startupTimestamp = new Date().toISOString()
 const startupStartedAt = performance.now()
 const database = openDatabase(environment.BOT_TEAMS_DATABASE_PATH, observationSystem.observability)
 const piModels = createPiModels()
@@ -121,6 +117,7 @@ const deferredPiSessionFactory = deferPiSessionFactory(() =>
       agentDirectory: join(piDirectory, "agent"),
       sessionsDirectory: join(piDirectory, "sessions"),
       models: piModels,
+      observability: observationSystem.observability,
     })
   }))
 const piSessionFactory = loadProvider ? createPiLoadSessionFactory() : deferredPiSessionFactory
@@ -134,7 +131,7 @@ const conversations = createConversations({
   runtime: piRuntime,
   observability: observationSystem.observability,
   extensions: [
-    { tools: (bot) => browser.tools(bot), instructions: () => "Use browser for interactive websites and authenticated work. It shares a persistent site session with the person. Use handoff for login or human intervention and wait for control to return. Close your browser page when done." },
+    browser,
     { tools: (bot) => routines.tools(bot), instructions: (bot) => routines.instructions(bot) },
     { tools: (bot) => memory.tools(bot), instructions: (bot) => memory.instructions(bot) },
     { tools: (bot) => webSearch.tools(bot), instructions: () => webSearch.instructions() },
@@ -172,7 +169,7 @@ const plugins = createPlugins({
     github,
     mcp: createMcpAdapter({ observability: observationSystem.observability }),
   },
-  conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => conversations.addTools(botId, tools) },
+  conversations: { notify: (botId, event) => conversations.notify(botId, event), addTools: (botId, tools) => piRuntime.addTools(botId, tools) },
 })
 const webSearch = createWebSearch({ observability: observationSystem.observability })
 const routines = createRoutines({ database, bots, observability: observationSystem.observability, conversations: { call: (routine) => conversations.call(routine) } })
@@ -187,9 +184,9 @@ const memory = createMemory({
 const diagnostics = createDiagnostics({
   source: observationSystem.diagnostics,
   versions: {
-    app: environment.BOT_TEAMS_APP_VERSION ?? "0.0.0",
+    app: environment.BOT_TEAMS_APP_VERSION,
     bun: Bun.version,
-    electron: environment.BOT_TEAMS_ELECTRON_VERSION ?? "unknown",
+    electron: environment.BOT_TEAMS_ELECTRON_VERSION,
   },
   processState: () => ({ engine: engineState, main: mainState }),
   migrationState: database.migrationState,
@@ -210,7 +207,7 @@ const handler = new RPCHandler(
     routines,
     triggers,
     memory,
-    permissions: { decide: (decision) => piRuntime.resolvePermission(decision) },
+    permissions: piRuntime,
     plugins,
   }),
 )
@@ -224,7 +221,7 @@ engineState = "ready"
 plugins.resume()
 observationSystem.receiver.span({
   name: "engine.startup",
-  timestamp: startupTimestamp,
+  timestamp: startedAt,
   durationMs: performance.now() - startupStartedAt,
   outcome: "ok",
   traceId: crypto.randomUUID(),

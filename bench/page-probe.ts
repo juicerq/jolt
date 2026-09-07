@@ -1,4 +1,5 @@
-import { evaluate, percentile } from "./browser"
+import { evaluate } from "./browser"
+import { percentile } from "./observations"
 
 export interface Probe {
   keys: { delay: number; paint: number }[]
