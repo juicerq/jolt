@@ -1,5 +1,6 @@
-import { ArrowTopRightOnSquareIcon, ArchiveBoxIcon, ClipboardDocumentIcon, CodeBracketIcon, DocumentIcon, DocumentTextIcon, EllipsisHorizontalIcon, FolderOpenIcon, LinkIcon, MusicalNoteIcon, PhotoIcon, PresentationChartBarIcon, TableCellsIcon, VideoCameraIcon } from "@heroicons/react/24/outline"
+import { ArrowTopRightOnSquareIcon, ArchiveBoxIcon, ClipboardDocumentIcon, CodeBracketIcon, DocumentIcon, DocumentTextIcon, FolderOpenIcon, LinkIcon, MusicalNoteIcon, PhotoIcon, PresentationChartBarIcon, TableCellsIcon, VideoCameraIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { createContext, useContext, useState } from "react"
+import { createPortal } from "react-dom"
 import type { LocalFileRequest } from "@src/shared/local-files"
 import { ContextMenu } from "../ui/context-menu"
 import { splitFilePaths } from "./chat-file-paths"
@@ -41,7 +42,17 @@ export function ChatFile({ path }: { path: string }) {
         setFeedback({ text: action === "copy" ? "Arquivo copiado" : "Localização copiada", error: false })
       }
     }).catch((error: unknown) => {
-      setFeedback({ text: error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': Error: /, "") : "Não foi possível acessar o arquivo.", error: true })
+      if (!(error instanceof Error)) {
+        setFeedback({ text: "Não foi possível acessar o arquivo.", error: true })
+
+        return
+      }
+
+      const text = error.message.includes("reply was never sent")
+        ? "O aplicativo não respondeu. Tente novamente."
+        : error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "")
+
+      setFeedback({ text, error: true })
     })
     if (copying) {
       setPending(false)
@@ -66,17 +77,41 @@ export function ChatFile({ path }: { path: string }) {
   ]
 
   return (
-    <ContextMenu label={`Ações de ${name}`} actions={actions}>{(openMenu) => <span className="my-1 inline-flex max-w-full flex-col align-middle font-sans text-control font-medium text-primary">
-      <span className="inline-flex min-w-0 max-w-full items-stretch rounded-lg border border-outline bg-surface-raised transition-colors hover:border-outline-strong motion-reduce:transition-none" title={path}>
-        <button type="button" className="flex min-w-0 items-center gap-2.5 rounded-l-lg px-3 py-2 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60" aria-label={`Abrir ${name}`} disabled={pending} onClick={remote ? openMenu : () => void run("open")}>
-          <Icon className="size-6 shrink-0 text-secondary" aria-hidden="true" />
-          <span className="min-w-0"><span className="block truncate">{name}</span><span className="block text-metadata font-normal text-muted">{pending ? "Aguarde…" : extension.toUpperCase()}</span></span>
-        </button>
-        <button type="button" className="shrink-0 rounded-r-lg px-2 text-muted hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" aria-label={`Ações de ${name}`} aria-haspopup="menu" onClick={openMenu}><EllipsisHorizontalIcon className="size-4" aria-hidden="true" /></button>
-      </span>
-      {remote && <span className="text-metadata font-normal text-muted">Arquivo no computador</span>}
-      {feedback && <span className={`max-w-80 text-support font-normal ${feedback.error ? "text-status-error" : "text-secondary"}`} role={feedback.error ? "alert" : "status"}>{feedback.text}</span>}
-    </span>}</ContextMenu>
+    <>
+      <ContextMenu label={`Ações de ${name}`} actions={actions}>{(openMenu) => <button
+        type="button"
+        className="inline-flex max-w-[min(100%,16rem)] items-center gap-1 align-baseline rounded-sm font-sans font-normal text-secondary hover:text-primary active:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+        title={remote ? `${path} — Arquivo no computador` : path}
+        aria-label={remote ? `Ações de ${name}` : `Abrir ${name}`}
+        aria-haspopup={remote ? "menu" : undefined}
+        aria-busy={pending}
+        disabled={pending}
+        onClick={remote ? openMenu : () => void run("open")}
+      >
+        <Icon className="size-3.5 shrink-0 self-center" aria-hidden="true" />
+        <span className="truncate underline decoration-outline-strong underline-offset-3">{name}</span>
+      </button>}</ContextMenu>
+      {feedback && createPortal(<div
+        popover="auto"
+        ref={(element) => { element?.showPopover() }}
+        onToggle={(event) => {
+          if (event.newState === "closed") {
+            setFeedback(null)
+          }
+        }}
+        className="fixed inset-auto right-4 bottom-4 m-0 max-h-[calc(100dvh-2rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-outline bg-surface-raised p-3 font-sans text-support text-primary shadow-lg"
+      >
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1" role={feedback.error ? "alert" : "status"}>
+            <p className="truncate font-medium" title={path}>{name}</p>
+            <p className={`mt-1 wrap-anywhere ${feedback.error ? "text-status-error" : "text-secondary"}`}>{feedback.text}</p>
+          </div>
+          <button type="button" aria-label="Fechar aviso" className="shrink-0 rounded-sm p-1 text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" onClick={() => setFeedback(null)}>
+            <XMarkIcon className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>, document.body)}
+    </>
   )
 }
 

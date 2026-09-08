@@ -37,7 +37,8 @@ export function ContextMenu({ label, actions, children }: { label: string; actio
     const anchor = target ?? event.currentTarget
     const bounds = anchor.getBoundingClientRect()
 
-    show(anchor, event.clientX || bounds.left, event.clientY || bounds.bottom)
+    // Keep the pointer inside the rounded menu so pointerup does not light-dismiss it.
+    show(anchor, event.clientX ? event.clientX - 8 : bounds.left, event.clientY ? event.clientY - 8 : bounds.bottom)
   }
 
   function close() {
