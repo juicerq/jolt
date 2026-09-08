@@ -1,4 +1,4 @@
-import type { Bot } from "@src/shared/bots"
+import { botSchemas, type Bot } from "@src/shared/bots"
 import type { IncomingMessage } from "@src/shared/conversations"
 import { delegateTool, transferTool, type Task } from "@src/shared/tasks"
 import type { createBots } from "../bots/bots"
@@ -8,6 +8,22 @@ import type { BotInheritance, TurnResult } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
 
 const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
+const memberParameters = {
+  "provider?": "Provider id: codex or opencode. Defaults to the current provider.",
+  "model?": "Exact model id. Defaults to the Leader model when hiring. An unavailable model fails before starting.",
+  "effort?": "low, medium, high, xhigh or max. Defaults to the Leader effort when hiring.",
+  "cwd?": "Absolute path to an existing working directory, such as a prepared worktree. Defaults to the Leader effective folder when hiring. Instructions alone do not change cwd.",
+  "permissionMode?": "read-only, ask or full. Cannot exceed the Leader permission. When omitted on hire, follows the Leader's member permission setting.",
+}
+
+function memberSettings(params: Record<string, string>) {
+  return Object.fromEntries(Object.keys(botSchemas.memberSettings.shape).filter((key) => params[key] !== undefined).map((key) => [key, params[key]]))
+}
+
+function memberReceipt(bot: Bot) {
+  return `${bot.name} (${bot.id})\nModel: ${bot.provider} / ${bot.model ?? "provider default"}\nEffort: ${bot.effort}\nWorking directory: ${bot.effectiveWorkingDirectory}\nPermission: ${bot.permissionMode}\nLifetime: ${bot.temporary ? "this Tarefa" : "permanent"}`
+}
+
 const calledRule = "Other Bots can send you a Tarefa. Reply directly to whoever sent it. A direct order from the person prevails over any Tarefa; if the person changes or interrupts your work, say so in your reply."
 
 export function createDelegation(input: {
@@ -22,14 +38,14 @@ export function createDelegation(input: {
   const running = new Map<string, { task: Task; botIds: Set<string>; cancellation: AbortController; signal: AbortSignal; settled: Promise<void> }>()
 
   function members(leader: Pick<Bot, "id">) {
-    return input.bots.list().filter((bot) => bot.leaderBotId === leader.id && !bot.temporary)
+    return input.bots.list().filter((bot) => bot.leaderBotId === leader.id)
   }
 
   function targets(bot: Bot) {
     return [...members(bot), ...input.bots.colleagues(bot)]
   }
 
-  function pickTarget(caller: Bot, candidates: Bot[], reference: string) {
+  function pickTarget(candidates: Bot[], reference: string) {
     const target = candidates.find((candidate) => candidate.id === reference || candidate.name === reference)
 
     if (!target) {
@@ -37,8 +53,6 @@ export function createDelegation(input: {
 
       throw new Error(`${known?.name ?? (reference || "That Bot")} is not a member of your team nor a Colega of yours`)
     }
-
-    input.assertCallable(caller, target)
 
     return target
   }
@@ -57,7 +71,7 @@ export function createDelegation(input: {
     }
 
     if (outcome.reason === "aborted") {
-      return [`The person gave ${to.name} a direct order and interrupted this delegation. The person's order prevails.`, outcome.response].filter(Boolean).join("\n\nPartial reply:\n")
+      return [outcome.interruptedByPerson ? `The person gave ${to.name} a direct order and interrupted this delegation. The person's order prevails.` : `${to.name} was stopped. Its Tarefa can be resumed with delegate using the same Bot.`, outcome.response].filter(Boolean).join("\n\nPartial reply:\n")
     }
 
     return `${to.name} failed before finishing.`
@@ -88,6 +102,7 @@ export function createDelegation(input: {
 
   async function assign(from: Bot, to: Bot, params: Record<string, string>, signal?: AbortSignal) {
     signal?.throwIfAborted()
+    input.assertCallable(from, to)
 
     const parentId = input.active(from.id)?.taskId
     const parent = parentId ? running.get(parentId) : undefined
@@ -95,12 +110,16 @@ export function createDelegation(input: {
     const workSignal = AbortSignal.any([cancellation.signal, ...(parent ? [parent.signal] : []), ...(params.wait !== "no" && signal ? [signal] : [])])
     workSignal.throwIfAborted()
 
-    const task = input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id })
+    const previous = to.temporary ? input.tasks.listForBot(to.id).find((task) => task.assigneeBotId === to.id) : undefined
+    const task = previous ? input.tasks.resume(previous.id, from.id) : input.tasks.create({ callerBotId: from.id, assigneeBotId: to.id })
     const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
     running.set(task.id, { task, botIds: new Set([from.id, to.id, ...parent?.botIds ?? []]), cancellation, signal: workSignal, settled })
 
     const finished = executeAssignment().finally(() => {
-      running.delete(task.id)
+      if (running.get(task.id)?.settled === settled) {
+        running.delete(task.id)
+      }
+
       settle()
     })
 
@@ -139,7 +158,7 @@ export function createDelegation(input: {
         wait: waitParameter,
       },
       async execute(params, signal) {
-        return assign(bot, pickTarget(bot, targets(bot), params.bot ?? ""), params, signal)
+        return assign(bot, pickTarget(targets(bot), params.bot ?? ""), params, signal)
       },
     }
   }
@@ -189,12 +208,13 @@ export function createDelegation(input: {
               throw new Error("Leader not found")
             }
 
-            const to = pickTarget(bot, members(leader), params.bot ?? "")
+            const to = pickTarget(members(leader).filter((member) => !member.temporary), params.bot ?? "")
 
             if (to.id === bot.id) {
               throw new Error("You already own this Tarefa")
             }
 
+            input.assertCallable(bot, to)
             const transferred = input.tasks.transfer(task.id, to.id)
             const outcome = await handoff(bot, to, transferred, params.instructions ?? "", signal)
 
@@ -212,8 +232,9 @@ export function createDelegation(input: {
 
       const hire: PiCustomTool = {
         name: "hire",
-        description: "Add a member to your team and delegate its first Tarefa in the same call. The member inherits your folder and executor and cannot create Bots. A permanent member stays for future Tarefas; a temporary one closes when this Tarefa ends. Use it when no current member fits the Tarefa.",
+        description: "Add a member to your team and delegate its first Tarefa in the same call. Configure the member before its first action. It cannot create Bots. A permanent member stays for future Tarefas; a temporary one closes when this Tarefa ends. Use it when no current member fits the Tarefa.",
         parameters: {
+          ...memberParameters,
           name: "Name of the member",
           role: "The member's Função: what it delivers, in one line",
           "description?": "Responsibilities, limits and how the member presents its work",
@@ -225,7 +246,7 @@ export function createDelegation(input: {
         async execute(params, signal) {
           signal?.throwIfAborted()
           const inherited = input.inheritance(bot, params.plugins)
-          const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
+          const to = await input.bots.hire(bot, { ...memberSettings(params), name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
 
           if (signal?.aborted) {
             await input.bots.remove(to.id)
@@ -236,11 +257,32 @@ export function createDelegation(input: {
             inheritance.apply(to)
           }
 
-          return assign(bot, to, params, signal)
+          return `${memberReceipt(to)}\n\n${await assign(bot, to, params, signal)}`
+        },
+      }
+      const configure: PiCustomTool = {
+        name: "configure_member",
+        description: "Change your own member's execution settings. Permission applies immediately, including pending approvals. Model, effort and cwd apply on the next turn. Omitted fields stay unchanged. Use delegate to resume an interrupted temporary member.",
+        parameters: { bot: "Name or id of your member", ...memberParameters },
+        async execute(params, signal) {
+          signal?.throwIfAborted()
+          const to = pickTarget(members(bot), params.bot ?? "")
+          const updated = await input.bots.configureMember(bot.id, to.id, memberSettings(params))
+
+          return `${memberReceipt(updated)}\nPermission applied now. Model, effort and working directory apply on the next turn.`
         },
       }
 
-      return [hire, delegateTo(bot)]
+      const models: PiCustomTool = {
+        name: "list_models",
+        description: "List available providers and exact model ids before choosing a member's model.",
+        parameters: {},
+        async execute() {
+          return JSON.stringify(await input.bots.models())
+        },
+      }
+
+      return [hire, configure, models, delegateTo(bot)]
     },
     instructions(bot: Bot) {
       const colleagues = input.bots.colleagues(bot)
@@ -272,7 +314,7 @@ export function createDelegation(input: {
       const teamLines = team.length > 0
         ? [
           "You lead a team. Each member and the outcome their Function delivers:",
-          ...team.map((member) => `- ${member.name}: ${member.function.outcome}`),
+          ...team.filter((member) => !member.closed || input.tasks.listForBot(member.id).some((task) => task.status === "interrupted" || task.status === "failed")).map((member) => `- ${member.name} (${member.id}): ${member.function.outcome}${member.closed ? " [stopped; resume with delegate]" : ""}`),
           "Use the delegate tool to assign a Tarefa to the member whose Function fits it.",
         ]
         : []
@@ -281,6 +323,7 @@ export function createDelegation(input: {
         calledRule,
         ...teamLines,
         hiring,
+        `New members inherit your model, effort and effective working directory. Their default permission is ${bot.inheritMemberPermissions ? bot.permissionMode : "ask"}. Supply execution fields in hire; putting them in instructions does not configure the member. Use configure_member to change your own members. Interrupted or failed temporary members can resume the same Tarefa with delegate; do not hire replacements. Completed temporary members remain closed.`,
         ...colleagueLines,
         "You remain responsible for the overall result. Orders from the person prevail over yours.",
       ].join("\n")

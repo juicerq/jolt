@@ -109,7 +109,7 @@ const bots = createBots({
   observability: observationSystem.observability,
   privateBotsDirectory: environment.BOT_TEAMS_PRIVATE_BOTS_DIRECTORY,
   providers,
-  conversations: { close: (botId) => conversations.close(botId), isActive: (botId) => !!conversations.active(botId) },
+  conversations: { close: (botId) => conversations.close(botId), isActive: (botId) => !!conversations.active(botId), setPermissionMode: (botId, mode) => conversations.setPermissionMode(botId, mode) },
 })
 const projects = createProjects({ database, observability: observationSystem.observability, bots })
 const piDirectory = join(dirname(environment.BOT_TEAMS_DATABASE_PATH), "pi")

@@ -30,6 +30,7 @@ export const bots = snakeCase.table("bots", {
   memoryEnabled: integer({ mode: "boolean" }).notNull().default(true),
   effort: text().$type<StoredBot["effort"]>().notNull().default("medium"),
   model: text(),
+  inheritMemberPermissions: integer({ mode: "boolean" }).notNull().default(false),
   permissionMode: text().$type<StoredBot["permissionMode"]>().notNull().default("ask"),
   createdAt: text().notNull(),
 }, (table) => [

@@ -9,8 +9,9 @@ import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
 import { ConfirmationDialog } from "../ui/dialog"
 import { Field, fieldControlClassName } from "../ui/field"
+import { Switch } from "../ui/switch"
 import { Select } from "../ui/select"
-import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
+import { SettingsRow, SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
@@ -19,12 +20,12 @@ import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { BotDetachMember } from "./bot-detach-member"
 
-interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
+interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string; inheritMemberPermissions: boolean }
 
 const headerLineClassName = "border-0 bg-transparent placeholder:text-muted focus-visible:outline-none -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent"
 
 function draftOf(bot: Bot): SettingsDraft {
-  return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "" }
+  return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "", inheritMemberPermissions: bot.inheritMemberPermissions }
 }
 
 function settingsChange(bot: Bot, draft: SettingsDraft) {
@@ -34,6 +35,7 @@ function settingsChange(bot: Bot, draft: SettingsDraft) {
   const unchanged = name === bot.name
     && outcome === bot.function.outcome
     && description === (bot.function.description ?? "")
+    && draft.inheritMemberPermissions === bot.inheritMemberPermissions
     && draft.projectId === (bot.projectId ?? "")
     && draft.workingDirectoryOverride === (bot.workingDirectoryOverride ?? "")
 
@@ -53,6 +55,7 @@ function settingsChange(bot: Bot, draft: SettingsDraft) {
       effort: bot.effort,
       model: bot.model,
       permissionMode: bot.permissionMode,
+      inheritMemberPermissions: draft.inheritMemberPermissions,
     },
   }
 }
@@ -136,6 +139,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
             </Field>
           </div>
         </SettingsSection>
+        {!bot.leaderBotId && <MemberPermissionDefault checked={draft.inheritMemberPermissions} disabled={confirmingRemoval} onChange={(inheritMemberPermissions) => patch({ inheritMemberPermissions })} />}
         {failure && <p className="m-0 text-support text-status-error">Falha nas configurações: {failure}</p>}
       </form>
       <BotPlugins bot={bot} client={client} />
@@ -186,4 +190,14 @@ function BotRemovalDetails({ bot, members }: { bot: Pick<Bot, "name">; members: 
       </ul>
     </>}
   </>
+}
+
+function MemberPermissionDefault({ checked, disabled, onChange }: { checked: boolean; disabled: boolean; onChange: (checked: boolean) => void }) {
+  return <SettingsSection title="Novos integrantes">
+    <div className={settingsPanelClassName}>
+      <SettingsRow label="Herdar permissão" description={checked ? "Contratações começam com a permissão deste Líder." : "Contratações começam em Perguntar. O Líder pode escolher uma permissão até o próprio limite."}>
+        <Switch checked={checked} disabled={disabled} aria-label="Herdar permissão" onChange={onChange} />
+      </SettingsRow>
+    </div>
+  </SettingsSection>
 }

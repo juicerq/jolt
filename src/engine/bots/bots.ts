@@ -2,7 +2,8 @@ import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { defaultBotAvatarSeed } from "@src/shared/bot-avatar"
 import { botSchemas, type AddMemberInput, type Bot, type BotExecutionSettingInput, type Colleague, type CreateBotInput, type StoredBot, type UpdateBotInput } from "@src/shared/bots"
-import type { ProviderAvailability } from "@src/shared/providers"
+import { botPermissionModes } from "@src/shared/bot-permissions"
+import type { ProviderAvailability, ProviderModels } from "@src/shared/providers"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
@@ -12,8 +13,8 @@ interface BotsDependencies {
   database: AppDatabase
   observability: Observability
   privateBotsDirectory: string
-  providers: { list(): Promise<ProviderAvailability[]> }
-  conversations: { close(botId: string): Promise<void>; isActive(botId: string): boolean }
+  providers: { list(): Promise<ProviderAvailability[]>; models(): Promise<ProviderModels[]> }
+  conversations: { close(botId: string): Promise<void>; isActive(botId: string): boolean; setPermissionMode(botId: string, mode: StoredBot["permissionMode"]): void }
 }
 
 function executionChange(input: BotExecutionSettingInput) {
@@ -39,6 +40,7 @@ export function newBot(bot: Pick<StoredBot, "name" | "provider" | "function" | "
     effort: "medium",
     model: null,
     permissionMode: "ask",
+    inheritMemberPermissions: false,
     createdAt: bot.createdAt ?? new Date().toISOString(),
   }
 }
@@ -121,6 +123,38 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     )
   }
 
+  async function memberModel(provider: StoredBot["provider"], modelId: string | null) {
+    const catalog = (await providers.models()).find((entry) => entry.provider === provider)
+    const model = modelId ?? catalog?.default
+
+    if (!model || !catalog || !catalog.models.some((entry) => entry.id === model)) {
+      throw new Error(`Model ${model ?? "default"} is unavailable for ${provider}. Available models: ${catalog?.models.map((entry) => entry.id).join(", ") || "none"}`)
+    }
+
+    return model
+  }
+
+  async function memberExecution(leader: Bot, current: Bot, rawSettings: unknown) {
+    const settings = parse(botSchemas.memberSettings, rawSettings)
+    const provider = settings.provider ?? current.provider
+    const modelId = settings.model ?? (provider === current.provider ? current.model : null)
+    const model = settings.provider || settings.model ? await memberModel(provider, modelId) : current.model
+
+    const permissionMode = settings.permissionMode ?? current.permissionMode
+    const workingDirectoryOverride = settings.cwd ?? current.workingDirectoryOverride
+
+    if (settings.cwd) {
+      await assertAccessibleWorkingDirectory(settings.cwd)
+    }
+    const latestLeader = database.bots.get(leader.id)
+
+    if (!latestLeader || botPermissionModes.indexOf(permissionMode) > botPermissionModes.indexOf(latestLeader.permissionMode)) {
+      throw new Error("A member cannot receive more permission than its Leader. Ask the person to change the Leader permission first.")
+    }
+
+    return { provider, model, effort: settings.effort ?? current.effort, permissionMode, workingDirectoryOverride }
+  }
+
   function assertTeamIdle(bot: Pick<StoredBot, "id" | "leaderBotId">, leaderId?: string) {
     if ([bot.id, bot.leaderBotId, leaderId].some((id) => id && conversations.isActive(id)) || database.tasks.listForBot(bot.id).some((task) => task.status === "working")) {
       throw new Error("Aguarde o Bot e os Líderes terminarem o trabalho antes de mudar o time.")
@@ -128,6 +162,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
   }
 
   return {
+    models: () => providers.models(),
     addMember(input: AddMemberInput) {
       const leader = database.bots.get(input.leaderBotId)
       const bot = database.bots.get(input.botId)
@@ -209,18 +244,51 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         function: input.function ?? { outcome: "Ajudar no que você precisar" },
       }))
     },
-    hire(leader: Pick<StoredBot, "id" | "projectId" | "provider" | "workingDirectoryOverride">, rawDetails: unknown) {
-      const details = parse(botSchemas.hireInput, rawDetails)
+    async hire(leader: Pick<StoredBot, "id">, rawDetails: unknown) {
+      const { name, function: botFunction, permanent, ...settings } = parse(botSchemas.hireInput, rawDetails)
+      const storedLeader = database.bots.get(leader.id)
 
-      return store(newBot({
-        leaderBotId: leader.id,
-        projectId: leader.projectId,
-        name: details.name,
-        provider: leader.provider,
-        function: details.function,
-        workingDirectoryOverride: leader.workingDirectoryOverride,
-        temporary: !details.permanent,
-      }))
+      if (!storedLeader || storedLeader.leaderBotId) {
+        throw new Error("Only a Leader can hire members")
+      }
+
+      const current = present(storedLeader)
+      await privateDirectory(current.id)
+      const execution = await memberExecution(current, { ...current, permissionMode: current.inheritMemberPermissions ? current.permissionMode : "ask" }, { provider: current.provider, cwd: current.effectiveWorkingDirectory, ...settings })
+
+      return store({ ...newBot({
+        leaderBotId: current.id,
+        projectId: current.projectId,
+        name,
+        provider: execution.provider,
+        function: botFunction,
+        workingDirectoryOverride: execution.workingDirectoryOverride,
+        temporary: !permanent,
+      }), ...execution })
+    },
+    async configureMember(leaderId: string, memberId: string, rawSettings: unknown) {
+      const leader = database.bots.get(leaderId)
+      const member = database.bots.get(memberId)
+
+      if (!leader || leader.leaderBotId || !member || member.leaderBotId !== leader.id) {
+        throw new Error("You can only configure members of your own team")
+      }
+
+      const execution = await memberExecution(present(leader), present(member), rawSettings)
+
+      if (database.bots.get(member.id)?.leaderBotId !== leader.id) {
+        throw new Error("The member left your team while configuring it")
+      }
+
+      const updated = database.bots.updateExecution(member.id, execution)
+
+      if (!updated) {
+        throw new Error("Bot not found")
+      }
+
+      conversations.setPermissionMode(member.id, updated.permissionMode)
+
+      return present(updated)
     },
     list,
     get(id: string) {
@@ -302,6 +370,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
             throw new Error("Bot not found")
           }
 
+          conversations.setPermissionMode(updated.id, updated.permissionMode)
+
           return present(updated)
         },
       )
@@ -312,6 +382,8 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       if (!updated) {
         throw new Error("Bot not found")
       }
+
+      conversations.setPermissionMode(updated.id, updated.permissionMode)
 
       return present(updated)
     },

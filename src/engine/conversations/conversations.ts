@@ -46,13 +46,13 @@ export interface BotExtension {
   inheritance?(leader: Bot, references: string | undefined): BotInheritance
 }
 
-export interface TurnResult { reason: FinishReason; response: string; error?: string }
+export interface TurnResult { reason: FinishReason; response: string; error?: string; interruptedByPerson?: boolean }
 interface ActiveTurn {
   message: ConversationMessage
   settled: Promise<void>
   signal: AbortSignal
   sender?: TurnSender
-  abort(): Promise<void>
+  abort(reason?: "person"): Promise<void>
   release(): void
 }
 interface TurnSender { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
@@ -312,7 +312,7 @@ export function createConversations(input: {
     }
 
     if (current) {
-      await current.abort()
+      await current.abort("person")
 
       return claim(botId, { ...message, taskId: message.taskId ?? current.message.taskId }, signal)
     }
@@ -324,8 +324,8 @@ export function createConversations(input: {
       message: opened,
       settled,
       signal: AbortSignal.any([cancellation.signal, ...(signal ? [signal] : [])]),
-      async abort() {
-        cancellation.abort()
+      async abort(reason) {
+        cancellation.abort(reason)
         await settled
       },
       release() {
@@ -533,7 +533,7 @@ export function createConversations(input: {
       turn.release()
       unsubscribe()
       signal.removeEventListener("abort", interrupt)
-      completion.resolve({ reason, response: responses.join("\n\n"), ...(errorMessage ? { error: errorMessage } : {}) })
+      completion.resolve({ reason, ...(signal.reason === "person" ? { interruptedByPerson: true } : {}), response: responses.join("\n\n"), ...(errorMessage ? { error: errorMessage } : {}) })
     }
 
     function publishIncoming(incoming: IncomingMessage) {
@@ -786,6 +786,9 @@ export function createConversations(input: {
         throw new Error(finished.error ?? "Gatilho turn did not finish")
       }
     },
+    setPermissionMode(botId: string, mode: Bot["permissionMode"]) {
+      input.runtime.setPermissionMode(botId, mode)
+    },
     async abort(botId: string) {
       const turn = active.get(botId)
 
@@ -830,6 +833,7 @@ export function createConversations(input: {
     },
     async dispose() {
       shutdown.abort()
+      await delegation.abortFor(new Set(input.bots.list().map((bot) => bot.id)))
       await Promise.allSettled([...active.values()].map((turn) => turn.settled).concat([...compactions.values()]))
       input.runtime.dispose()
       sessions.clear()

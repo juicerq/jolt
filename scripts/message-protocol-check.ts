@@ -44,6 +44,7 @@ const bot: Bot = {
   memoryEnabled: true,
   effort: "xhigh",
   model: values.model,
+  inheritMemberPermissions: false,
   permissionMode: "full",
   createdAt: new Date().toISOString(),
   effectiveWorkingDirectory: ".",

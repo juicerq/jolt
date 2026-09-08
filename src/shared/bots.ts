@@ -24,6 +24,7 @@ const storedBot = z.strictObject({
   effort: botEffort,
   model: optionalId,
   permissionMode: botPermissionMode,
+  inheritMemberPermissions: z.boolean(),
   createdAt: id,
 })
 const bot = storedBot.extend({ effectiveWorkingDirectory: workingDirectory, closed: z.boolean(), colleagueIds: z.array(id) })
@@ -40,13 +41,22 @@ const updateExecutionInput = z.discriminatedUnion("setting", [
 ])
 const updatePinnedInput = z.strictObject({ id, pinned: z.boolean() })
 
+const memberSettings = z.strictObject({
+  provider: providerName.optional(),
+  model: id.optional(),
+  effort: botEffort.optional(),
+  cwd: workingDirectory.optional(),
+  permissionMode: botPermissionMode.optional(),
+})
+
 export const botSchemas = {
+  memberSettings,
   createInput,
   addMemberInput: z.strictObject({ leaderBotId: id, botId: id }),
-  hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean() }),
+  hireInput: z.strictObject({ name: id, function: botFunction, permanent: z.boolean(), ...memberSettings.shape }),
   colleagueInput: colleague,
   colleagueList: z.array(colleague),
-  updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId, permissionMode: botPermissionMode }),
+  updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId, permissionMode: botPermissionMode, inheritMemberPermissions: z.boolean().optional() }),
   updateExecutionInput,
   updatePinnedInput,
   storedBot,

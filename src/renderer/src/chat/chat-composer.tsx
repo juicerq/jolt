@@ -75,6 +75,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const empty = composerEmpty(command, draft)
   const commandBlocked = !!draft.command && !!run
   const busy = commandPending
+  const permissionDisabled = busy || !connected
   const settingsDisabled = [!!run, commandPending, !connected].some(Boolean)
   const editor = editorText(draft, bot.name)
 
@@ -251,8 +252,8 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
-      {mobile ? <ChatMobileOptions bot={bot} client={client} disabled={settingsDisabled} /> : <>
-        <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
+      {mobile ? <ChatMobileOptions bot={bot} client={client} disabled={settingsDisabled} permissionDisabled={permissionDisabled} /> : <>
+        <ChatPermission bot={bot} client={client} disabled={permissionDisabled} />
         <div className="col-start-4 flex min-w-0"><ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} /></div>
       </>}
       <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={() => mobile ? setConfirmStop(true) : onAbort()} onSend={handleSend} />

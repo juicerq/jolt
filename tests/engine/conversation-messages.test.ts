@@ -67,8 +67,8 @@ async function conversation() {
     database,
     observability,
     privateBotsDirectory: join(directory, "bots"),
-    providers: { async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] } },
-    conversations: { close: async (botId) => conversations.close(botId), isActive: (botId) => !!conversations.active(botId) },
+    providers: { async models() { return [{ provider: "codex", name: "Codex", default: "gpt-5.6-luna", models: [{ id: "gpt-5.6-luna", name: "Luna" }, { id: "gpt-5.6-sol", name: "Sol" }] }] }, async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] } },
+    conversations: { close: async (botId) => conversations.close(botId), isActive: (botId) => !!conversations.active(botId), setPermissionMode: (id, mode) => conversations.setPermissionMode(id, mode) },
   })
   const conversations = createConversations({ database, bots, tasks, runtime, observability, extensions: [] })
   cleanups.push(async () => {

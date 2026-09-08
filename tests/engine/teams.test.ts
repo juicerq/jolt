@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { createBots } from "@src/engine/bots/bots"
@@ -12,6 +12,8 @@ import { createQueue } from "@src/engine/queue"
 import { createTasks } from "@src/engine/tasks/tasks"
 import type { Bot } from "@src/shared/bots"
 import { sendMessageTool } from "@src/shared/conversations"
+
+import { must, rejects } from "../support/expect"
 
 const cleanups: (() => Promise<void>)[] = []
 
@@ -37,6 +39,7 @@ function turnDriver(input: PiSessionInput, emit: (event: PiRuntimeEvent) => void
 
   return {
     settled,
+    input,
     tool,
     async finish(content = "Trabalho entregue") {
       await tool(sendMessageTool, { content })
@@ -105,8 +108,8 @@ async function teamApp() {
     database,
     observability,
     privateBotsDirectory: join(directory, "bots"),
-    providers: { async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] } },
-    conversations: { close: async (id) => conversations.close(id), isActive: (id) => !!conversations.active(id) },
+    providers: { async models() { return [{ provider: "codex", name: "Codex", default: "gpt-5.6-luna", models: [{ id: "gpt-5.6-luna", name: "Luna" }, { id: "gpt-5.6-sol", name: "Sol" }] }] }, async list() { return [{ provider: "codex", name: "Codex", connection: "subscription", status: "available", connected: true, detectedKey: false }] } },
+    conversations: { close: async (id) => conversations.close(id), isActive: (id) => !!conversations.active(id), setPermissionMode: (id, mode) => conversations.setPermissionMode(id, mode) },
   })
   const conversations = createConversations({ database, bots, tasks, runtime, observability, extensions: [] })
   const projects = createProjects({ database, observability, bots })
@@ -385,4 +388,91 @@ test("excluir um Líder com delegação sem espera não reabre sua conversa nem 
   expect(app.bots.list()).toEqual([])
   expect(app.conversations.active(leader.id)).toBeUndefined()
   expect(app.conversations.active(member.id)).toBeUndefined()
+})
+
+
+test.each([false, true])("contratação aplica modelo, esforço e pasta antes de iniciar e respeita herança de permissão %s", async (inheritMemberPermissions) => {
+  const app = await teamApp()
+  const created = await app.bots.create({ name: "Projects Manager" })
+  const leader = await app.bots.update({ ...created, model: "gpt-5.6-sol", effort: "high", permissionMode: "full", inheritMemberPermissions })
+  const turn = await app.start(leader)
+  const cwd = join(app.directory, "worktree")
+  await mkdir(cwd)
+  const result = await turn.tool("hire", { name: "Investigação", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no", model: "gpt-5.6-sol", effort: "low", cwd, permissionMode: "full" })
+  const member = must(app.bots.list().find((bot) => bot.name === "Investigação"))
+
+  const first = await app.next(member)
+  expect(first.input).toMatchObject({ provider: "codex", model: "gpt-5.6-sol", effort: "low", cwd, policy: { mode: "full", allowedRoot: cwd } })
+  expect(result).toContain(cwd)
+  expect(result).toContain("gpt-5.6-sol")
+  await turn.tool("hire", { name: "Herdado", role: "Pesquisar", permanent: "yes", instructions: "Pesquise", wait: "no" })
+  const inherited = must(app.bots.list().find((bot) => bot.name === "Herdado"))
+
+  expect((await app.next(inherited)).input).toMatchObject({ model: "gpt-5.6-sol", effort: "high", cwd: leader.effectiveWorkingDirectory, policy: { mode: inheritMemberPermissions ? "full" : "ask" } })
+})
+
+test.each([
+  ["model", "inexistente"],
+  ["cwd", "/mimo-directory-that-does-not-exist"],
+  ["effort", "invalid"],
+  ["permissionMode", "full"],
+])("contratação inválida %s=%s não cria Bot nem Tarefa", async (field, value) => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const turn = await app.start(leader)
+  await rejects(turn.tool("hire", { name: "Inválido", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no", [field]: value }))
+  expect(app.bots.list().map((bot) => bot.id)).toEqual([leader.id])
+  expect(app.tasks.listForBot(leader.id)).toEqual([])
+})
+
+test("configurar libera a aprovação atual e retomar preserva Bot, Tarefa e histórico com os novos ajustes", async () => {
+  const app = await teamApp()
+  const created = await app.bots.create({ name: "Líder" })
+  const leader = app.bots.updateExecution({ id: created.id, setting: "permissionMode", value: "full" })
+  const turn = await app.start(leader)
+  await turn.tool("hire", { name: "Investigador", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no" })
+  const member = must(app.bots.list().find((bot) => bot.name === "Investigador"))
+
+  const first = await app.next(member)
+  const task = must(app.tasks.listForBot(member.id)[0])
+  if (first.input.policy.mode !== "ask") {
+    throw new Error("Expected a permission request")
+  }
+  const approval = first.input.policy.request({ id: "pending", tool: "bash", detail: "pwd" })
+  const cwd = join(app.directory, "worktree")
+  await mkdir(cwd)
+  await turn.tool("configure_member", { bot: member.id, model: "gpt-5.6-sol", effort: "low", cwd, permissionMode: "full" })
+  expect(await approval).toBe("allowed")
+  expect(first.input).toMatchObject({ model: "gpt-5.6-luna", policy: { mode: "full" } })
+  expect(app.conversations.active(member.id)?.taskId).toBe(task.id)
+  await app.conversations.abort(member.id)
+  await turn.finish()
+  const returning = await app.next(leader)
+  const history = app.conversations.history({ botId: leader.id, limit: 100 }).messages
+  expect(history.at(-1)?.content).toContain("was stopped")
+  expect(history.at(-1)?.content).not.toContain("direct order")
+  await returning.tool("delegate", { bot: member.id, instructions: "Continue a investigação", wait: "no" })
+  const resumed = await app.next(member)
+  expect(resumed.input).toMatchObject({ model: "gpt-5.6-sol", effort: "low", cwd, policy: { mode: "full" } })
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "working" }])
+  expect(app.conversations.history({ botId: member.id, limit: 100 }).messages.filter((message) => message.authorBotId === leader.id).map((message) => message.content)).toEqual(["Investigue", "Continue a investigação"])
+  await resumed.finish()
+  await returning.finish()
+  const completed = await app.next(leader)
+  await rejects(completed.tool("delegate", { bot: member.id, instructions: "Outra tarefa", wait: "no" }), "interrupted or failed")
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "done" }])
+})
+
+test("Líder não configura Colegas nem integrantes de outro Time", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const other = await app.bots.create({ name: "Outro Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: other.id })
+  app.bots.addColleague(leader.id, other.id)
+  const turn = await app.start(leader)
+  for (const target of [other, member]) {
+    await rejects(turn.tool("configure_member", { bot: target.id, effort: "low" }))
+    await rejects(app.bots.configureMember(leader.id, target.id, { effort: "low" }), "own team")
+    expect(app.bots.get(target.id)?.effort).toBe("medium")
+  }
 })

@@ -47,6 +47,10 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
       return
     }
 
+    if (event.type === "tool-finished" && event.tool === "configure_member") {
+      void invalidateTeam().catch(() => {})
+    }
+
     applyChatEvent(botId, event)
   }
 
@@ -80,6 +84,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "tool-finished") {
       finishChatTool(botId, event)
+
       return
     }
 

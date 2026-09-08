@@ -252,6 +252,34 @@ export function createPiAgentRuntime(sessionFactory: PiSessionFactory, observabi
       entry.policy.labels = { ...entry.policy.labels, ...toolLabels(tools) }
       entry.session.addTools(tools)
     },
+    setPermissionMode(botId: string, mode: BotPermissionMode) {
+      const entry = sessions.get(botId)
+
+      if (!entry) {
+        return
+      }
+
+      entry.policy.mode = mode
+
+      if (mode === "ask") {
+        return
+      }
+
+      for (const [key, request] of pending) {
+        if (request.botId !== botId) {
+          continue
+        }
+
+        pending.delete(key)
+
+        if (mode === "read-only") {
+          denied.add(key)
+        }
+
+        request.resolve(mode === "full" ? "allowed" : "denied")
+        deliver(botId, { type: "permission-resolved", requestId: request.request.id })
+      }
+    },
     async abort(botId: string) {
       const entry = existing(botId)
 

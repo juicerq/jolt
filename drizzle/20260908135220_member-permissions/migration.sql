@@ -1,0 +1,1 @@
+ALTER TABLE `bots` ADD `inherit_member_permissions` integer DEFAULT false NOT NULL;

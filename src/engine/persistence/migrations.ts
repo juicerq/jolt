@@ -22,6 +22,8 @@ import dropTaskOutcome from "@drizzle/20260906111558_drop-task-outcome/migration
 import questionMultiple from "@drizzle/20260906111826_question-multiple/migration.sql" with { type: "text" }
 import botPinned from "@drizzle/20260908115928_ancient_old_lace/migration.sql" with { type: "text" }
 
+import memberPermissions from "@drizzle/20260908135220_member-permissions/migration.sql" with { type: "text" }
+
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
   { name: "20260901184631_routines", timestamp: 1788288391000, sql: routines },
@@ -45,4 +47,5 @@ export const migrations = [
   { name: "20260906111558_drop-task-outcome", timestamp: 1788693358000, sql: dropTaskOutcome },
   { name: "20260906111826_question-multiple", timestamp: 1788704306000, sql: questionMultiple },
   { name: "20260908115928_ancient_old_lace", timestamp: 1788879568000, sql: botPinned },
+  { name: "20260908135220_member-permissions", timestamp: 1788875540000, sql: memberPermissions },
 ] satisfies MigrationsJournal

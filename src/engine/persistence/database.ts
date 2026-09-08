@@ -198,7 +198,7 @@ export function openDatabase(path: string, observability: Observability) {
           return parseOptional(botSchemas.storedBot, row)
         })
       },
-      update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled" | "effort" | "model" | "permissionMode">) {
+      update(id: string, changes: Pick<StoredBot, "name" | "function" | "projectId" | "workingDirectoryOverride" | "memoryEnabled" | "effort" | "model" | "permissionMode"> & Partial<Pick<StoredBot, "inheritMemberPermissions">>) {
         return observability.span({ name: "database.botupdate", context: { botId: id, ...(changes.projectId ? { projectId: changes.projectId } : {}) } }, () => {
           const row = database.transaction((transaction) => {
             const updated = transaction.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
@@ -215,7 +215,7 @@ export function openDatabase(path: string, observability: Observability) {
           return parseOptional(botSchemas.storedBot, row)
         })
       },
-      updateExecution(id: string, changes: Pick<StoredBot, "effort"> | Pick<StoredBot, "provider" | "model"> | Pick<StoredBot, "permissionMode">) {
+      updateExecution(id: string, changes: Partial<Pick<StoredBot, "effort" | "provider" | "model" | "permissionMode" | "workingDirectoryOverride">>) {
         return observability.span({ name: "database.botexecutionupdate", context: { botId: id } }, () => {
           const row = database.update(bots).set(changes).where(eq(bots.id, id)).returning().get()
 

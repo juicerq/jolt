@@ -17,7 +17,7 @@ Um Bot ligado a um único Líder, com Função, memória e histórico próprios.
 _Evitar_: Subagente, bot secundário, especialista
 
 **Integrante temporário**:
-Um Integrante que o Líder contrata para uma única Tarefa. Ele herda a pasta e o executor do Líder, não cria Bots e fica encerrado quando a Tarefa termina: não recebe novas mensagens, e seu histórico permanece ligado à Tarefa. Os demais Integrantes são permanentes.
+Um Integrante que o Líder contrata para uma única Tarefa. Ele recebe modelo, esforço, pasta e permissão antes de começar, não cria Bots e fica encerrado quando a Tarefa termina; se ela for interrompida ou falhar, o Líder pode retomá-la com o mesmo Bot e histórico. Os demais Integrantes são permanentes.
 _Evitar_: Bot temporário, subprocesso
 
 **Adicionar integrante**:
@@ -176,8 +176,11 @@ _Evitar_: Nível de pensamento, reasoning, raciocínio, modelo
 A variante do Fornecedor do Bot que executa o trabalho, como um modelo específico dentro do Codex. A pessoa escolhe por Bot; sem escolha, o Bot usa o padrão do Fornecedor.
 _Evitar_: Fornecedor, Conexão, versão
 
+**Configuração do Integrante**:
+As escolhas de Fornecedor, Modelo, Esforço, Pasta de trabalho e Permissão feitas pelo Líder ao contratar ou configurar alguém do próprio Time. Na contratação, modelo, esforço e pasta efetiva são herdados quando omitidos; a pessoa escolhe se novas contratações herdam a permissão do Líder ou começam em Perguntar, e o Líder pode escolher outra até o próprio limite.
+
 **Permissão do Bot**:
-O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho e do Diretório do Bot, além de consultar sua Conversa; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede. Chamar um Integrante ou um Colega nunca pede Decisão: vale a Permissão do Bot chamado.
+O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica limitado à leitura. A pessoa escolhe entre Somente leitura, Perguntar e Acesso total por Bot. Somente leitura permite ler, listar e pesquisar dentro da Pasta de trabalho e do Diretório do Bot, além de consultar sua Conversa; Perguntar permite essas leituras e pede uma Decisão antes das demais ferramentas ou de uma leitura externa; Acesso total não pede. Mudar a Permissão vale durante o Turno e Acesso total libera os Pedidos pendentes; mudanças de Modelo, Esforço e Pasta de trabalho valem no próximo Turno. Chamar um Integrante ou um Colega nunca pede Decisão: vale a Permissão do Bot chamado.
 _Evitar_: Sandbox, acesso ao computador, autonomia
 
 **Pedido de permissão**:

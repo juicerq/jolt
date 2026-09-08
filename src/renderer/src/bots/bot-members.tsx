@@ -10,6 +10,8 @@ import { IconButton } from "../ui/icon-button"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
 import { providerAvailable } from "../settings/provider-mutations"
+import { effortLabels } from "../chat/chat-model-effort"
+import { permissionModeLabels } from "../chat/chat-permission"
 import { BotFace } from "./bot-face"
 import { BotMemberPicker } from "./bot-member-picker"
 import { BotPage, BotPageIdentity } from "./bot-page"
@@ -82,6 +84,8 @@ function MemberList({ members }: { members: Bot[] }) {
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <strong className="text-control font-semibold break-words text-primary">{member.name}</strong>
               <span className="text-support break-words text-secondary">{member.function.outcome}</span>
+              <span className="text-support break-words text-muted">{member.model ?? "Modelo padrão"} · {effortLabels[member.effort]} · {permissionModeLabels[member.permissionMode]}</span>
+              <span className="truncate text-support text-muted" title={member.effectiveWorkingDirectory}>{member.effectiveWorkingDirectory}</span>
             </span>
           </button>
           {!member.closed && <IconButton iconSize={16} type="button" label={`Configurações de ${member.name}`} onClick={() => { selectBot(member.id); openBotRoute({ name: "settings" }) }}><Cog6ToothIcon aria-hidden="true" /></IconButton>}

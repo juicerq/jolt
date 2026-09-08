@@ -23,6 +23,15 @@ export function createTasks({ database, observability }: { database: AppDatabase
 
       return observability.span({ name: "tasks.create", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
     },
+    resume(id: string, callerBotId: string) {
+      const task = database.tasks.get(id)
+
+      if (!task || task.callerBotId !== callerBotId || (task.status !== "interrupted" && task.status !== "failed")) {
+        throw new Error("Only the caller can resume an interrupted or failed Tarefa")
+      }
+
+      return update(id, { status: "working", finishedAt: null })
+    },
     finish(id: string, status: Exclude<TaskStatus, "working">) {
       return observability.span({ name: "tasks.finish", attributes: { state: status }, context: { taskId: id } }, () => update(id, { status, finishedAt: new Date().toISOString() }))
     },

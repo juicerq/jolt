@@ -584,8 +584,8 @@ the Fornecedor offers, with a search above eight entries and the group label
 per Fornecedor, or the five Esforço levels, baixo, médio, alto, muito alto,
 máximo. Rows share the menu anatomy and the Fornecedor default and the médio
 Esforço carry the quiet `Padrão` badge. Choosing saves at once and closes the
-menu; the next turn already uses the new choice. Both chips stay disabled
-while the Bot responds.
+menu; the next turn already uses the new choice. The Modelo and Esforço chip stays disabled while the Bot responds. The
+Permissões chip remains available, including while awaiting a decision.
 When a Bot awaits a decision, a
 low-emphasis status card spans the prompt above the draft. It names the
 requested action, shows the complete target or command without changing its
