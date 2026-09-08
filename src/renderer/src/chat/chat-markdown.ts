@@ -1,4 +1,4 @@
-import type { Nodes } from "hast"
+import type { Element, Nodes } from "hast"
 import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime"
 import type { ReactElement } from "react"
 import { Fragment, jsx, jsxs } from "react/jsx-runtime"
@@ -6,7 +6,8 @@ import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
-import { visit } from "unist-util-visit"
+import { conversationFilePath, splitFilePaths } from "./chat-file-paths"
+import { SKIP, visit } from "unist-util-visit"
 
 const urlProperties = ["href", "src"] as const
 const urlDelimiters = ["/", "?", "#"]
@@ -25,6 +26,29 @@ function safeUrl(value: string) {
   return ""
 }
 
+function linkedFilePath(value: string) {
+  try {
+    return conversationFilePath(value.startsWith("file:") ? value : decodeURIComponent(value))
+  } catch {
+    return
+  }
+}
+
+function fileElement(node: Element) {
+  const value = node.tagName === "a" ? String(node.properties.href ?? "") : node.children.filter((child) => child.type === "text").map((child) => child.value).join("")
+  const file = node.tagName === "a" ? linkedFilePath(value) : conversationFilePath(value)
+
+  if (!file) {
+    return false
+  }
+
+  node.tagName = "span"
+  node.properties = { dataFilePath: file }
+  node.children = []
+
+  return true
+}
+
 export function createMarkdownRenderer({ components, cacheBytes }: { components: Partial<Components>; cacheBytes: number }) {
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true })
   const cache = new Map<string, ReactElement>()
@@ -41,10 +65,42 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
       }
 
       if (node.type === "element") {
+        // File links are converted before URL sanitization removes file: URLs.
+        if (node.tagName === "a" && fileElement(node)) {
+          return SKIP
+        }
+
         for (const property of urlProperties) {
           if (Object.hasOwn(node.properties, property)) {
             node.properties[property] = safeUrl(String(node.properties[property] ?? ""))
           }
+        }
+      }
+
+      return
+    })
+    visit(tree, (node, index, parent) => {
+      if (node.type === "element") {
+        if (node.tagName === "pre" || node.tagName === "a") {
+          return SKIP
+        }
+
+        if (node.tagName === "code") {
+          fileElement(node)
+
+          return SKIP
+        }
+      }
+
+      if (node.type === "text" && parent && typeof index === "number") {
+        const parts = splitFilePaths(node.value)
+
+        if (parts.some((part) => part.path)) {
+          parent.children.splice(index, 1, ...parts.map((part) => part.path
+            ? { type: "element" as const, tagName: "span", properties: { dataFilePath: part.path }, children: [] }
+            : { type: "text" as const, value: part.text }))
+
+          return index + parts.length
         }
       }
 

@@ -30,6 +30,7 @@ if (!window.desktop) {
 
   window.desktop = {
     remote: true,
+    fileAction: unavailable,
     getEngineConnection: connection,
     renewEngineConnection: async () => {
       localStorage.removeItem(tokenKey)

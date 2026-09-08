@@ -29,6 +29,7 @@ import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
 import { ChatCallNotice } from "./chat-call-notice"
+import { ChatFileDirectory, ChatFileText } from "./chat-file"
 import { ChatContent } from "./chat-content"
 import { flattenHistory, historyPageInput, initialMessageLimit, olderHistoryPage, revealStep, windowHistory } from "./chat-history-window"
 import { ChatMemberResult, memberResultKind } from "./chat-member-result"
@@ -142,20 +143,22 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }
 
   return (
-    <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)] max-md:before:hidden">
-      <ChatScroller botId={bot.id} footer={bot.closed ? <ChatClosed bot={bot} /> : <>
-        <ChatTeamControl key={bot.id} bot={bot} members={members} client={client} />
-        <ChatQueue bot={bot} client={client} />
-        <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />
-      </>} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
-        {isPending && <ChatLoading />}
-        {error && <ChatError message={error.message} />}
-        {isFetchingNextPage && <ChatEarlierLoading />}
-        {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} /></div>)}
-        {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
-        {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} empty={messages.length === 0} />}
-      </ChatScroller>
-    </section>
+    <ChatFileDirectory value={bot.effectiveWorkingDirectory}>
+      <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)] max-md:before:hidden">
+        <ChatScroller botId={bot.id} footer={bot.closed ? <ChatClosed bot={bot} /> : <>
+          <ChatTeamControl key={bot.id} bot={bot} members={members} client={client} />
+          <ChatQueue bot={bot} client={client} />
+          <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />
+        </>} {...(hidden + earlier > 0 ? { onRevealEarlier: revealEarlier } : {})}>
+          {isPending && <ChatLoading />}
+          {error && <ChatError message={error.message} />}
+          {isFetchingNextPage && <ChatEarlierLoading />}
+          {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} /></div>)}
+          {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
+          {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} empty={messages.length === 0} />}
+        </ChatScroller>
+      </section>
+    </ChatFileDirectory>
   )
 }
 
@@ -248,7 +251,7 @@ function PersonBubble({ time, content, images, mentions }: { time: string; conte
       )}
       {content && (
         <p className="m-0 whitespace-pre-wrap text-body text-primary">
-          {splitChatMentions(content, mentions).map((segment, index) => (segment.mention ? <ChatMentionChip key={`${index}-${segment.text}`} mention={segment.mention} /> : segment.text))}
+          {splitChatMentions(content, mentions).map((segment, index) => (segment.mention ? <ChatMentionChip key={`${index}-${segment.text}`} mention={segment.mention} /> : <ChatFileText key={`${index}-${segment.text}`} text={segment.text} />))}
         </p>
       )}
     </ChatStamped>
