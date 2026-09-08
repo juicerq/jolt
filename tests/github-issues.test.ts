@@ -1,10 +1,18 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
+import { join } from "node:path"
 import { createGithubAdapter } from "@src/engine/plugins/github/github"
-import { createObservationSystem } from "@src/engine/observability/observability"
+import { createObservationSystem, type Observability } from "@src/engine/observability/observability"
 import { rejects } from "./support/expect"
+import { testDirectory } from "./support/test-directory"
 
-afterEach(() => mock.restore())
+const observabilities: Observability[] = []
 
+afterEach(async () => {
+  mock.restore()
+  await Promise.all(observabilities.splice(0).map((observability) => observability.flush()))
+})
+
+const directory = testDirectory("mimo-github-issues-")
 
 function issue(number: number) {
   return { number, title: "Checkout failure", body: "<!-- dogama:error:123 -->", state: "open", html_url: `https://github.com/dogama/app/issues/${number}`, user: { login: "mimo" }, labels: [{ name: "bug" }], created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }
@@ -23,7 +31,8 @@ function setup(respond: (url: URL, init?: RequestInit) => Response | Promise<Res
 
     return await respond(url, init)
   }, { preconnect: fetch.preconnect }))
-  const { observability } = createObservationSystem({ appSessionId: "github-issues-test", logDirectory: "/unused", development: false, outputs: [] })
+  const { observability } = createObservationSystem({ appSessionId: "github-issues-test", logDirectory: join(directory, "logs"), development: false })
+  observabilities.push(observability)
   const adapter = createGithubAdapter({ observability, event() {} })
   const account = { id: "test-account", pluginId: "github", label: "Dogama", secret: JSON.stringify({ installationId: "1", relayToken: "test-relay-token", relayUrl: "https://relay.example.com" }), saveSecret() {} }
 

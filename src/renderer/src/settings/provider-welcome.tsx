@@ -3,10 +3,11 @@ import { openCreateBot } from "../bots/bots-store"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { ProviderConnections } from "./provider-connections"
+import { providerAvailable } from "./provider-mutations"
 
 export function ProviderWelcome({ client }: { client: EngineClient }) {
   const { data: providers } = useQuery(client.query.providers.list.queryOptions())
-  const connected = providers?.some((provider) => provider.status === "available") ?? false
+  const connected = providerAvailable(providers)
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-y-auto" aria-label="Boas-vindas ao Mimo">

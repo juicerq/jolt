@@ -15,9 +15,10 @@ import {
   UserPlusIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline"
-import type { ConversationActivity } from "@src/shared/conversations"
 import { blurMouseClick } from "../ui/blur-mouse-click"
 import {
+  type ChatActivityStep,
+  type ChatActivityToolStatus,
   formatChatActivityStepLabel,
   formatChatActivitySummary,
   formatRunningChatActivityStepLabel,
@@ -29,32 +30,54 @@ import { ChatContent, chatChipClassName, chatGuideClassName } from "./chat-conte
 import { ChatStamp, ChatStamped } from "./chat-stamp"
 import { formatChatWaitingMessage } from "./chat-waiting-messages"
 
-type PersistedStep = ConversationActivity["steps"][number]
-type PersistedThinkingStep = Extract<PersistedStep, { type: "thinking" }>
-type PersistedToolStep = Extract<PersistedStep, { type: "tool" }>
-type VisibleTool = Omit<PersistedToolStep["tools"][number], "status"> & { status: "running" | "done" | "failed" | "denied" }
-type VisibleStep =
-  | (PersistedThinkingStep & { status?: "running" | "done" })
-  | (Omit<PersistedToolStep, "tools"> & { tools: VisibleTool[] })
-interface VisibleActivity { steps: VisibleStep[] }
 type ActivityStatus = "running" | "aborting" | "failed"
 type StageMode = "compact" | "current" | "history"
-type StageStatus = "running" | "done" | "failed" | "denied"
+interface StageIcon { label: string; Icon: typeof LightBulbIcon }
 
 const activityStageConnectorClassName = "before:absolute before:-top-1 before:-left-3 before:h-[17px] before:w-2.5 before:rounded-bl before:border-b before:border-l before:border-outline after:absolute after:top-[13px] after:bottom-[-4px] after:-left-3 after:w-px after:bg-outline last:after:hidden"
 
-const activityStageIconStatusClassNames: Record<StageStatus, string> = {
+const activityStageModeClassNames: Record<StageMode, string> = {
+  compact: `${activityStageConnectorClassName} px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none`,
+  current: `${activityStageConnectorClassName} gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none`,
+  history: `${activityStageConnectorClassName} gap-0.5 px-[7px] py-[5px]`,
+}
+
+const activityStageIconStatusClassNames: Record<ChatActivityToolStatus, string> = {
   running: "animate-pulse text-secondary [animation-duration:1200ms] motion-reduce:animate-none",
   done: "text-muted",
   failed: "text-status-error",
   denied: "text-muted",
 }
 
+const stageStatusLabels: Record<ChatActivityToolStatus, string> = {
+  running: "em andamento",
+  done: "concluída",
+  failed: "com falha",
+  denied: "negada",
+}
+
+const thinkingStageIcon: StageIcon = { label: "pensamento", Icon: LightBulbIcon }
+
+const toolStageIcons: Record<string, StageIcon> = {
+  read: { label: "leitura", Icon: DocumentTextIcon },
+  grep: { label: "busca no código", Icon: DocumentMagnifyingGlassIcon },
+  find: { label: "busca por arquivos", Icon: MagnifyingGlassIcon },
+  ls: { label: "listagem de pasta", Icon: FolderOpenIcon },
+  edit: { label: "edição", Icon: PencilSquareIcon },
+  write: { label: "criação de arquivo", Icon: DocumentPlusIcon },
+  bash: { label: "comando", Icon: CommandLineIcon },
+  delegate: { label: "delegação", Icon: UserGroupIcon },
+  hire: { label: "contratação", Icon: UserPlusIcon },
+  transfer: { label: "transferência", Icon: UserGroupIcon },
+  routine: { label: "Rotina", Icon: ClockIcon },
+  remove_routine: { label: "Rotina", Icon: ClockIcon },
+}
+
 function ActivityBlock({ botName, time, children }: { botName: string; time: string; children: ReactNode }) {
   return <ChatStamped className="mb-4 w-fit text-support text-muted" name={botName} time={time} anchor="line">{children}</ChatStamped>
 }
 
-export function ChatActivity({ activity, botName, compacting, time, status, waitingMessage }: { activity: VisibleActivity; botName: string; compacting?: boolean; time: string; status?: ActivityStatus; waitingMessage?: string }) {
+export function ChatActivity({ activity, botName, compacting, time, status, waitingMessage }: { activity: { steps: ChatActivityStep[] }; botName: string; compacting?: boolean; time: string; status?: ActivityStatus; waitingMessage?: string }) {
   const isPending = status === "running" || status === "aborting"
   const pending = pendingActivityLabel(status, compacting)
   const steps = splitChatActivitySteps(activity.steps)
@@ -114,7 +137,7 @@ export function ChatActivity({ activity, botName, compacting, time, status, wait
   )
 }
 
-function LiveActivity({ steps, botName, pending }: { steps: VisibleStep[]; botName: string; pending?: string }) {
+function LiveActivity({ steps, botName, pending }: { steps: ChatActivityStep[]; botName: string; pending?: string }) {
   const label = pending ?? `${botName} está trabalhando`
   const currentIndex = pending ? -1 : steps.length - 1
 
@@ -135,7 +158,7 @@ function LiveActivity({ steps, botName, pending }: { steps: VisibleStep[]; botNa
   )
 }
 
-function SoloStage({ step }: { step: VisibleStep }) {
+function SoloStage({ step }: { step: ChatActivityStep }) {
   if (step.type === "thinking") {
     return <div className="grid min-w-0"><ThinkingTrace content={step.content} /></div>
   }
@@ -145,20 +168,15 @@ function SoloStage({ step }: { step: VisibleStep }) {
   return <div className="grid min-w-0"><ActivityDetailList details={items} prose={prose} /></div>
 }
 
-function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
+function ActivityStage({ mode, step }: { mode: StageMode; step: ChatActivityStep }) {
   const status = getStepStatus(step, mode === "current")
   const currentProps = mode === "current" && status === "running" ? { "aria-current": "step" as const } : {}
   const { items: details, prose } = step.type === "tool" ? getChatActivityStepDetails(step) : { items: [], prose: false }
   const expanded = mode !== "compact"
-  const stageModeClasses: Record<StageMode, string> = {
-    compact: `${activityStageConnectorClassName} px-[7px] py-[5px] transition-[opacity,transform] duration-150 ease-out starting:translate-y-0.5 starting:opacity-65 motion-reduce:transition-none`,
-    current: `${activityStageConnectorClassName} gap-1.5 px-[7px] py-[5px] transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none`,
-    history: `${activityStageConnectorClassName} gap-0.5 px-[7px] py-[5px]`,
-  }
   const heading = <ActivityStageHeading step={step} status={status} details={details} prose={prose} inlineDetail={!expanded} />
 
   return (
-    <div className={`relative grid min-w-0 ${stageModeClasses[mode]}`} {...currentProps}>
+    <div className={`relative grid min-w-0 ${activityStageModeClassNames[mode]}`} {...currentProps}>
       {details.length > 1
         ? (
             <details onClick={blurMouseClick} className="group/stage" open={expanded}>
@@ -173,7 +191,7 @@ function ActivityStage({ mode, step }: { mode: StageMode; step: VisibleStep }) {
   )
 }
 
-function ActivityStageHeading({ step, status, details, prose, inlineDetail }: { step: VisibleStep; status: StageStatus; details: string[]; prose: boolean; inlineDetail: boolean }) {
+function ActivityStageHeading({ step, status, details, prose, inlineDetail }: { step: ChatActivityStep; status: ChatActivityToolStatus; details: string[]; prose: boolean; inlineDetail: boolean }) {
   const label = status === "running" ? formatRunningChatActivityStepLabel(step) : formatChatActivityStepLabel(step)
 
   return (
@@ -208,7 +226,7 @@ function ThinkingTrace({ className = "", content }: { className?: string; conten
   return <div className={`${className} [&>div]:max-w-[68ch] [&>div]:py-1.5 [&>div]:text-support [&>div]:text-muted [&_li]:text-support [&_li]:text-inherit [&_p]:text-support [&_p]:text-inherit [&_strong]:text-support [&_strong]:text-inherit`}><ChatContent content={content} /></div>
 }
 
-function getStepStatus(step: VisibleStep, active: boolean) {
+function getStepStatus(step: ChatActivityStep, active: boolean) {
   if (step.type === "thinking") {
     if (!active) {
       return "done"
@@ -248,7 +266,7 @@ function pendingActivityLabel(status?: ActivityStatus, compacting?: boolean) {
   return "Compactando Contexto…"
 }
 
-function getActivityLabel(activity: VisibleActivity, botName?: string, status?: ActivityStatus, waitingMessage?: string) {
+function getActivityLabel(activity: { steps: ChatActivityStep[] }, botName?: string, status?: ActivityStatus, waitingMessage?: string) {
   if (status === "running") {
     return formatChatWaitingMessage(waitingMessage ?? "Aguardando resposta de {name}…", botName ?? "o Bot")
   }
@@ -256,68 +274,16 @@ function getActivityLabel(activity: VisibleActivity, botName?: string, status?: 
   return formatChatActivitySummary(activity)
 }
 
-function ActivityStageIcon({ step, status }: { step: VisibleStep; status: StageStatus }) {
-  const statusLabels = {
-    running: "em andamento",
-    done: "concluída",
-    failed: "com falha",
-    denied: "negada",
-  }
-  const { icon, label } = getActivityStageIcon(step)
+function ActivityStageIcon({ step, status }: { step: ChatActivityStep; status: ChatActivityToolStatus }) {
+  const { label, Icon } = stageIcon(step)
 
-  return <span className={`mt-px inline-flex size-3.5 [&_svg]:size-full [&_svg]:stroke-[1.75] ${activityStageIconStatusClassNames[status]}`} role="img" aria-label={`Atividade de ${label} ${statusLabels[status]}`}>{icon}</span>
+  return <span className={`mt-px inline-flex size-3.5 [&_svg]:size-full [&_svg]:stroke-[1.75] ${activityStageIconStatusClassNames[status]}`} role="img" aria-label={`Atividade de ${label} ${stageStatusLabels[status]}`}><Icon aria-hidden="true" /></span>
 }
 
-function getActivityStageIcon(step: VisibleStep) {
-  const iconProps = { "aria-hidden": true as const }
-
+function stageIcon(step: ChatActivityStep): StageIcon {
   if (step.type === "thinking") {
-    return { label: "pensamento", icon: <LightBulbIcon {...iconProps} /> }
+    return thinkingStageIcon
   }
 
-  if (step.name === "read") {
-    return { label: "leitura", icon: <DocumentTextIcon {...iconProps} /> }
-  }
-
-  if (step.name === "grep") {
-    return { label: "busca no código", icon: <DocumentMagnifyingGlassIcon {...iconProps} /> }
-  }
-
-  if (step.name === "find") {
-    return { label: "busca por arquivos", icon: <MagnifyingGlassIcon {...iconProps} /> }
-  }
-
-  if (step.name === "ls") {
-    return { label: "listagem de pasta", icon: <FolderOpenIcon {...iconProps} /> }
-  }
-
-  if (step.name === "edit") {
-    return { label: "edição", icon: <PencilSquareIcon {...iconProps} /> }
-  }
-
-  if (step.name === "write") {
-    return { label: "criação de arquivo", icon: <DocumentPlusIcon {...iconProps} /> }
-  }
-
-  if (step.name === "bash") {
-    return { label: "comando", icon: <CommandLineIcon {...iconProps} /> }
-  }
-
-  if (step.name === "delegate") {
-    return { label: "delegação", icon: <UserGroupIcon {...iconProps} /> }
-  }
-
-  if (step.name === "hire") {
-    return { label: "contratação", icon: <UserPlusIcon {...iconProps} /> }
-  }
-
-  if (step.name === "transfer") {
-    return { label: "transferência", icon: <UserGroupIcon {...iconProps} /> }
-  }
-
-  if (step.name === "routine" || step.name === "remove_routine") {
-    return { label: "Rotina", icon: <ClockIcon {...iconProps} /> }
-  }
-
-  return { label: unknownToolName(step.tools, step.name), icon: <WrenchScrewdriverIcon {...iconProps} /> }
+  return toolStageIcons[step.name] ?? { label: unknownToolName(step.tools, step.name), Icon: WrenchScrewdriverIcon }
 }

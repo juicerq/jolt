@@ -33,7 +33,7 @@ export function createDelegation(input: {
     const target = candidates.find((candidate) => candidate.id === reference || candidate.name === reference)
 
     if (!target) {
-      const known = reference ? input.bots.get({ id: reference }) : undefined
+      const known = reference ? input.bots.get(reference) : undefined
 
       throw new Error(`${known?.name ?? (reference || "That Bot")} is not a member of your team nor a Colega of yours`)
     }
@@ -179,7 +179,11 @@ export function createDelegation(input: {
               throw new Error("You have no active Tarefa to transfer")
             }
 
-            const leader = input.bots.get({ id: bot.leaderBotId ?? "" })
+            if (!bot.leaderBotId) {
+              throw new Error("Leader not found")
+            }
+
+            const leader = input.bots.get(bot.leaderBotId)
 
             if (!leader) {
               throw new Error("Leader not found")
@@ -224,7 +228,7 @@ export function createDelegation(input: {
           const to = await input.bots.hire(bot, { name: params.name, permanent: params.permanent === "yes", function: { outcome: params.role, ...(params.description ? { description: params.description } : {}) } })
 
           if (signal?.aborted) {
-            await input.bots.remove({ id: to.id })
+            await input.bots.remove(to.id)
             signal.throwIfAborted()
           }
 
@@ -249,7 +253,7 @@ export function createDelegation(input: {
         : []
 
       if (bot.leaderBotId) {
-        const leader = input.bots.get({ id: bot.leaderBotId })
+        const leader = input.bots.get(bot.leaderBotId)
 
         return [
           `You are a member of the team led by ${leader?.name ?? "your Leader"}.`,

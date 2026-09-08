@@ -2,17 +2,12 @@ import type { ConversationActivity } from "@src/shared/conversations"
 
 type ActivityStep = ConversationActivity["steps"][number]
 type ActivityToolStep = Extract<ActivityStep, { type: "tool" }>
-type ActivityTool = Omit<ActivityToolStep["tools"][number], "status"> & {
-  status: "running" | "done" | "failed" | "denied"
-}
 
-type ActivitySummaryStep =
-  | Extract<ActivityStep, { type: "thinking" }>
-  | (Omit<ActivityToolStep, "tools"> & { tools: ActivityTool[] })
-
-interface ActivitySummaryInput {
-  steps: ActivitySummaryStep[]
-}
+export type ChatActivityToolStatus = "running" | "done" | "failed" | "denied"
+type ChatActivityTool = Omit<ActivityToolStep["tools"][number], "status"> & { status: ChatActivityToolStatus }
+export type ChatActivityStep =
+  | (Extract<ActivityStep, { type: "thinking" }> & { status?: "running" | "done" })
+  | (Omit<ActivityToolStep, "tools"> & { tools: ChatActivityTool[] })
 
 interface ToolGroup {
   name: string
@@ -140,7 +135,7 @@ const toolGroups: ToolGroup[] = [
   },
 ]
 
-export function formatChatActivitySummary(activity: ActivitySummaryInput) {
+export function formatChatActivitySummary(activity: { steps: ChatActivityStep[] }) {
   const clauses: string[] = []
   const thinkingSteps = activity.steps.filter((step) => step.type === "thinking")
   const thinkingDurationMs = thinkingSteps.reduce((total, step) => total + (step.durationMs ?? 0), 0)
@@ -168,12 +163,10 @@ export function formatChatActivitySummary(activity: ActivitySummaryInput) {
     return "Atividade concluída"
   }
 
-  const sentence = joinClauses(clauses)
-
-  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}`
+  return capitalize(joinClauses(clauses))
 }
 
-export function formatChatActivityStepLabel(step: ActivitySummaryStep) {
+export function formatChatActivityStepLabel(step: ChatActivityStep) {
   if (step.type === "thinking") {
     if (!step.durationMs) {
       return "Pensou"
@@ -193,7 +186,7 @@ export function formatChatActivityStepLabel(step: ActivitySummaryStep) {
   return capitalize(joinClauses(clauses))
 }
 
-export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
+export function formatRunningChatActivityStepLabel(step: ChatActivityStep) {
   if (step.type === "thinking") {
     return "Pensando"
   }
@@ -209,7 +202,7 @@ export function formatRunningChatActivityStepLabel(step: ActivitySummaryStep) {
   return capitalize(group.active(count, formatTargets(step.tools)))
 }
 
-export function splitChatActivitySteps<Step extends ActivitySummaryStep>(steps: Step[]): Step[] {
+export function splitChatActivitySteps<Step extends ChatActivityStep>(steps: Step[]): Step[] {
   return steps.flatMap((step) => {
     if (step.type !== "tool") {
       return [step]
@@ -225,7 +218,7 @@ export function splitChatActivitySteps<Step extends ActivitySummaryStep>(steps: 
   })
 }
 
-export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { type: "tool" }>) {
+export function getChatActivityStepDetails(step: Extract<ChatActivityStep, { type: "tool" }>) {
   const group = toolGroups.find((candidate) => candidate.name === step.name)
   const errors = step.tools.flatMap((tool) => tool.error && tool.status !== "denied" ? [tool.error] : [])
 
@@ -236,7 +229,7 @@ export function getChatActivityStepDetails(step: Extract<ActivitySummaryStep, { 
   return { prose: false, items: [...new Set([...step.tools.flatMap((tool) => tool.detail ? [tool.detail] : []), ...errors])] }
 }
 
-function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {
+function formatToolGroup(tools: ChatActivityTool[], group: ToolGroup) {
   const matchingTools = tools.filter((tool) => tool.name === group.name)
   const clauses: string[] = []
 
@@ -254,7 +247,7 @@ function formatToolGroup(tools: ActivityTool[], group: ToolGroup) {
   return clauses
 }
 
-export function unknownToolName(tools: ActivityTool[], name: string) {
+export function unknownToolName(tools: ChatActivityTool[], name: string) {
   const label = tools.find((tool) => tool.name === name && tool.label)?.label
 
   if (!label) {
@@ -264,7 +257,7 @@ export function unknownToolName(tools: ActivityTool[], name: string) {
   return `${label.charAt(0).toLowerCase()}${label.slice(1)}`
 }
 
-function formatUnknownTool(tools: ActivityTool[], toolName: string) {
+function formatUnknownTool(tools: ChatActivityTool[], toolName: string) {
   const matchingTools = tools.filter((tool) => tool.name === toolName)
   const name = unknownToolName(tools, toolName)
   const clauses: string[] = []
@@ -292,14 +285,14 @@ function formatUnknownTool(tools: ActivityTool[], toolName: string) {
   return clauses
 }
 
-function countTargets(tools: ActivityTool[]) {
+function countTargets(tools: ChatActivityTool[]) {
   const targets = new Set(tools.flatMap((tool) => tool.detail ? [tool.detail] : []))
   const toolsWithoutTarget = tools.filter((tool) => !tool.detail).length
 
   return targets.size + toolsWithoutTarget
 }
 
-function formatTargets(tools: ActivityTool[]) {
+function formatTargets(tools: ChatActivityTool[]) {
   const targets = [...new Set(tools.flatMap((tool) => tool.detail ? [tool.detail] : []))]
 
   if (targets.length === 0) {

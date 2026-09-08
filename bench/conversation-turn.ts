@@ -1,14 +1,9 @@
 import { parseArgs } from "node:util"
-import type { Observation } from "../src/shared/observability/observation"
 import { browser, connectBrowser } from "./browser"
-import { observationLog, observations, waitForObservations } from "./observations"
+import { isFinishedTurn, observationLog, observations, waitForObservations } from "./observations"
 
 const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/mimo-turn.cpuprofile" } } })
 const logPath = observationLog(values["user-data"])
-
-function isFinishedTurn(item: Observation) {
-  return item.kind === "event" && item.name === "conversation.finished"
-}
 
 interface ProfileNode { id: number; callFrame: { functionName: string } }
 interface TraceEvent { name?: string; pid?: number; args?: { data?: { cpuProfile?: { nodes?: ProfileNode[]; samples?: number[] }; timeDeltas?: number[] } } }

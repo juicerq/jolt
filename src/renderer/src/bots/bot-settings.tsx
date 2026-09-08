@@ -2,6 +2,7 @@ import { LinkIcon, TrashIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useState } from "react"
 import type { Bot } from "@src/shared/bots"
+import type { Project } from "@src/shared/projects"
 import { BotFace } from "./bot-face"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
@@ -11,18 +12,16 @@ import { Field, fieldControlClassName } from "../ui/field"
 import { Select } from "../ui/select"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
-import { lineClassName } from "./bot-form"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
 import { BotPlugins } from "./bot-plugins"
 import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
-import { WorkspaceHint } from "./workspace-hint"
 import { BotDetachMember } from "./bot-detach-member"
 
-export interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
+interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string }
 
-const headerLineClassName = `${lineClassName} -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent`
+const headerLineClassName = "border-0 bg-transparent placeholder:text-muted focus-visible:outline-none -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent"
 
 function draftOf(bot: Bot): SettingsDraft {
   return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "" }
@@ -70,14 +69,14 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const { leader, members } = teamOf(projectGroups, bot)
   const { mutate: save, isPending: saving, error: saveError } = useMutation(client.query.bots.update.mutationOptions({
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       onClose()
     },
   }))
   const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.bots.remove.mutationOptions({
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
       forgetBot(bot.id)
     },
   }))
@@ -133,7 +132,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
               )}
             <Field label="Pasta própria" optional as="div">
               <DirectoryPicker value={draft.workingDirectoryOverride} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => patch({ workingDirectoryOverride: "" })} />
-              <WorkspaceHint source={selectedProject && { name: selectedProject.name, directory: selectedProject.defaultWorkingDirectory }} workingDirectoryOverride={draft.workingDirectoryOverride} />
+              <WorkspaceHint project={selectedProject} workingDirectoryOverride={draft.workingDirectoryOverride} />
             </Field>
           </div>
         </SettingsSection>
@@ -163,6 +162,18 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
       )}
     </BotPage>
   )
+}
+
+function WorkspaceHint({ project, workingDirectoryOverride }: { project?: Pick<Project, "name" | "defaultWorkingDirectory">; workingDirectoryOverride: string }) {
+  if (workingDirectoryOverride) {
+    return <small className="text-support font-normal text-muted">O Bot usará esta pasta para trabalhar.</small>
+  }
+
+  if (project?.defaultWorkingDirectory) {
+    return <small className="text-support font-normal text-muted">Pasta de {project.name}: <span className="font-mono [overflow-wrap:anywhere]">{project.defaultWorkingDirectory}</span></small>
+  }
+
+  return <small className="text-support font-normal text-muted">O Bot usará uma pasta privada do Mimo até você escolher outra.</small>
 }
 
 function BotRemovalDetails({ bot, members }: { bot: Pick<Bot, "name">; members: Bot[] }) {

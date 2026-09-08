@@ -1,11 +1,10 @@
 import { z } from "zod"
-import { accountStates, pluginKinds } from "./plugin-kinds"
+import { id } from "./ids"
 
 export const connectPluginTool = "connect_plugin"
 
-const id = z.string().min(1)
-const pluginKind = z.enum(pluginKinds)
-const accountState = z.enum(accountStates)
+const pluginKind = z.enum(["gmail", "whatsapp", "github", "mcp"])
+const accountState = z.enum(["connected", "needs-auth", "failed"])
 const mcpConfig = z.strictObject({ command: id, envNames: z.array(id) })
 const toolInputSchema = z.looseObject({
   type: z.literal("object"),
@@ -65,7 +64,6 @@ export const pluginSchemas = {
   storedPluginList: z.array(storedPlugin),
   storedAccount,
   storedAccountList: z.array(storedAccount),
-  access,
   accessList: z.array(access),
   toolDescriptor,
   toolDescriptorList: z.array(toolDescriptor),
@@ -73,7 +71,6 @@ export const pluginSchemas = {
   snapshot,
   request,
   addCustomInput: z.strictObject({ name: id, command: id, env: z.record(id, z.string()) }),
-  idInput: z.strictObject({ id }),
   connectInput: z.strictObject({ pluginId: id, accountId: id.optional(), botId: id.optional(), requestId: id.optional() }),
   connectOutput: z.strictObject({ connectionId: id }),
   connectionInput: z.strictObject({ connectionId: id }),
@@ -82,6 +79,8 @@ export const pluginSchemas = {
   decideInput: z.strictObject({ botId: id, requestId: id, accountId: id.nullable() }),
 }
 
+export type PluginKind = z.infer<typeof pluginKind>
+export type AccountState = z.infer<typeof accountState>
 export type StoredPlugin = z.infer<typeof storedPlugin>
 export type StoredAccount = z.infer<typeof storedAccount>
 export type PluginAccess = z.infer<typeof access>
@@ -92,3 +91,6 @@ export type Plugin = z.infer<typeof plugin>
 export type PluginSnapshot = z.infer<typeof snapshot>
 export type PluginRequest = z.infer<typeof request>
 export type PluginConnectInput = z.infer<typeof pluginSchemas.connectInput>
+export type AddCustomPluginInput = z.infer<typeof pluginSchemas.addCustomInput>
+export type PluginGrantInput = z.infer<typeof pluginSchemas.grantInput>
+export type PluginDecideInput = z.infer<typeof pluginSchemas.decideInput>

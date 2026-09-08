@@ -9,12 +9,20 @@ import { Field, fieldControlClassName } from "../ui/field"
 import { IconButton } from "../ui/icon-button"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
+import { providerAvailable } from "../settings/provider-mutations"
 import { BotFace } from "./bot-face"
 import { BotMemberPicker } from "./bot-member-picker"
 import { BotPage, BotPageIdentity } from "./bot-page"
 import { openBotRoute, selectBot } from "./bots-store"
-import { groupMembers } from "./member-groups"
 import { teamLeaders } from "./team"
+
+export function groupMembers(members: Bot[]) {
+  return {
+    permanent: members.filter((member) => !member.temporary),
+    active: members.filter((member) => member.temporary && !member.closed),
+    closed: members.filter((member) => member.closed),
+  }
+}
 
 export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client: EngineClient; groups: ProjectGroups | undefined; onClose: () => void }) {
   const [adding, setAdding] = useState<"create" | "existing" | null>(null)
@@ -88,10 +96,10 @@ function MemberCreateForm({ bot, client, onCancel, onCreated }: { bot: Pick<Bot,
   const [outcome, setOutcome] = useState("")
   const queryClient = useQueryClient()
   const { data: providers, error: providersError, isPending: providersPending } = useQuery(client.query.providers.list.queryOptions())
-  const executorAvailable = providers?.some((provider) => provider.status === "available") ?? false
+  const executorAvailable = providerAvailable(providers)
   const { mutate: create, isPending: creating, error } = useMutation(client.query.bots.create.mutationOptions({
     async onSuccess(member) {
-      await queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      await queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       onCreated(member)
     },
   }))

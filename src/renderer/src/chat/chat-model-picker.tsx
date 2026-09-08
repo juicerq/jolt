@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { type KeyboardEvent, useEffect, useId, useState } from "react"
+import { type KeyboardEvent, useId, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProviderModels, ProviderName } from "@src/shared/providers"
-import type { BotExecutionUpdate } from "../bots/bot-update"
 import type { EngineClient } from "../engine-client"
-import { useRefreshProviderModels } from "../settings/provider-mutations"
 import { MenuLabel, MenuOption } from "../ui/menu"
+import type { BotExecutionUpdate } from "./chat-bot-update"
 
 const searchThreshold = 8
 const searchClassName = "mb-1.5 w-full rounded-none border-0 border-b border-outline bg-transparent px-2 pt-0.5 pb-2 text-control font-medium text-primary placeholder:font-normal placeholder:text-muted focus-visible:outline-none max-md:text-base"
@@ -40,16 +39,12 @@ interface ChatModelOptionsProps {
   onChoose?: () => void
 }
 
-/** The Fornecedor catalogs with a search above the threshold. Mounting it refreshes the catalogs; remount it to reset the search. */
 export function ChatModelOptions({ bot, client, execution, autoFocusSearch = false, onChoose }: ChatModelOptionsProps) {
   const id = useId()
   const [query, setQuery] = useState("")
   const { catalogs, currentModelId } = useBotModel(bot, client)
-  const { mutate: refreshModels } = useRefreshProviderModels(client)
   const groups = matching(catalogs, query)
   const total = catalogs.reduce((count, entry) => count + entry.models.length, 0)
-
-  useEffect(() => refreshModels({}), [refreshModels])
 
   function handleChoose(provider: ProviderName, model: string) {
     if (provider !== bot.provider || model !== currentModelId) {

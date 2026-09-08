@@ -2,18 +2,19 @@ import { ArrowUturnLeftIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon 
 import { type ReactNode, type ToggleEvent, useId, useState } from "react"
 import { botEfforts } from "@src/shared/bot-efforts"
 import type { Bot, BotEffort } from "@src/shared/bots"
-import { effortLabels } from "../bots/bot-effort"
-import { type BotExecutionUpdate, useUpdateBotExecution } from "../bots/bot-update"
 import type { EngineClient } from "../engine-client"
+import { useRefreshProviderModels } from "../settings/provider-mutations"
 import { IconButton } from "../ui/icon-button"
 import { MenuLabel, MenuOption, menuRowClassName } from "../ui/menu"
 import { useIsMobile } from "../ui/use-is-mobile"
+import { type BotExecutionUpdate, useUpdateBotExecution } from "./chat-bot-update"
 import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName, chatControlSubmenuClassName } from "./chat-control-menu"
 import { ChatModelOptions, useBotModel } from "./chat-model-picker"
 
 type Submenu = "model" | "effort"
 
 const submenus: Submenu[] = ["model", "effort"]
+export const effortLabels: Record<BotEffort, string> = { low: "baixo", medium: "médio", high: "alto", xhigh: "muito alto", max: "máximo" }
 const rowClassName = `${menuRowClassName} bg-transparent text-secondary hover:bg-surface-hover hover:text-primary aria-expanded:bg-surface-hover aria-expanded:text-primary`
 
 /**
@@ -30,6 +31,7 @@ export function ChatModelEffort({ bot, client, disabled }: { bot: Bot; client: E
   const [open, setOpen] = useState<Submenu | null>(null)
   const [opening, setOpening] = useState(0)
   const execution = useUpdateBotExecution(bot, client)
+  const { mutate: refreshModels } = useRefreshProviderModels(client)
   const { currentModel, currentModelId, defaultModelId } = useBotModel(bot, client)
   const modelName = currentModel?.name ?? currentModelId ?? "Modelo"
   const standard = bot.effort === "medium" && currentModelId === defaultModelId
@@ -55,6 +57,10 @@ export function ChatModelEffort({ bot, client, disabled }: { bot: Bot; client: E
     if (event.newState === "open") {
       setOpen(submenu)
       setOpening((count) => count + 1)
+
+      if (submenu === "model") {
+        refreshModels({})
+      }
 
       return
     }

@@ -1,18 +1,17 @@
 import { githubSchemas } from "@src/shared/github"
 import type { Bot } from "@src/shared/bots"
 import type { ConversationEvent } from "@src/shared/conversations"
-import { parse } from "@src/shared/parse"
-import type { PluginKind } from "@src/shared/plugin-kinds"
-import { connectPluginTool, pluginSchemas, type PluginAccount, type PluginRequest, type PluginSnapshot, type PluginStep, type StoredAccount, type StoredPlugin, type ToolDescriptor } from "@src/shared/plugins"
+import { parseOptional } from "@src/shared/parse"
+import { connectPluginTool, type AddCustomPluginInput, type Plugin, type PluginAccess, type PluginAccount, type PluginConnectInput, type PluginDecideInput, type PluginGrantInput, type PluginKind, type PluginRequest, type PluginSnapshot, type PluginStep, type StoredAccount, type StoredPlugin, type ToolDescriptor } from "@src/shared/plugins"
 import type { Observability } from "../observability/observability"
 import type { createBots } from "../bots/bots"
 import type { AppDatabase } from "../persistence/database"
 import type { PiSchemaTool, PiTool } from "../pi/pi-agent-runtime"
 import { createQueue } from "../queue"
 import { PluginAuthError, type PluginAccountSession, type PluginAdapter, type PluginConnected } from "./plugin-adapter"
-import type { Secrets } from "./secrets"
+import type { Secrets } from "@src/shared/secrets"
 
-interface Catalogued { id: string; kind: PluginKind; name: string; builtIn: boolean; config?: StoredPlugin["config"] }
+type Catalogued = Pick<Plugin, "id" | "kind" | "name" | "builtIn" | "config">
 
 type Requested = { account: StoredAccount } | { cancelled: true }
 
@@ -20,7 +19,7 @@ interface PendingRequest { botId: string; request: PluginRequest; connection?: P
 
 type StepStream = ReturnType<typeof createQueue<PluginStep>>
 
-interface PendingConnection { connectionId: string; pluginId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest: () => PluginStep | undefined; cancel: () => void; release: () => void; settled: boolean }
+interface PendingConnection { connectionId: string; done: Promise<PluginSnapshot>; streams: Set<StepStream>; latest: () => PluginStep | undefined; cancel: () => void; release: () => void; settled: boolean }
 
 const connectionResultRetentionMs = 60_000
 
@@ -67,17 +66,11 @@ export function createPlugins(input: {
     return account
   }
 
-  function toolsOf(account: Pick<StoredAccount, "pluginId" | "tools">) {
-    const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
-
-    if (!plugin) {
-      return account.tools
-    }
-
+  function toolsOf(plugin: Catalogued, account: Pick<StoredAccount, "tools">) {
     return input.adapters[plugin.kind].tools?.() ?? account.tools
   }
 
-  function secretOf(account: StoredAccount | undefined) {
+  function secretOf(account: Pick<StoredAccount, "secret"> | undefined) {
     if (!account?.secret) {
       return undefined
     }
@@ -85,42 +78,38 @@ export function createPlugins(input: {
     return input.secrets.open(account.secret)
   }
 
-  function sessionFor(account: StoredAccount): PluginAccountSession {
-    const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
-
+  function sessionFor(plugin: Catalogued, account: StoredAccount): PluginAccountSession {
     return {
       id: account.id,
       pluginId: account.pluginId,
       label: account.label,
-      ...(plugin?.config ? { config: plugin.config } : {}),
-      secret: account.secret ? input.secrets.open(account.secret) : "",
+      ...(plugin.config ? { config: plugin.config } : {}),
+      secret: secretOf(account) ?? "",
       saveSecret(updated: string) {
         input.database.accounts.update(account.id, { secret: input.secrets.seal(updated), checkedAt: new Date().toISOString() })
       },
     }
   }
 
-  function resumeAccount(account: StoredAccount) {
-    const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
-
-    if (!plugin || account.state !== "connected") {
+  function resumeAccount(plugin: Catalogued, account: StoredAccount) {
+    if (account.state !== "connected") {
       return
     }
 
     try {
-      input.adapters[plugin.kind].resume?.(sessionFor(account))
+      input.adapters[plugin.kind].resume?.(sessionFor(plugin, account))
     } catch (error) {
       input.observability.event({ name: "plugin.resumefailed", context: { pluginId: plugin.id }, error: error instanceof Error ? error : new Error("Resume failed") })
     }
   }
 
-  function present(account: StoredAccount, accesses = input.database.accesses.list()): PluginAccount {
+  function present(plugin: Catalogued, account: StoredAccount, accesses: PluginAccess[]): PluginAccount {
     return {
       id: account.id,
       pluginId: account.pluginId,
       label: account.label,
       state: account.state,
-      tools: toolsOf(account).map((tool) => tool.name),
+      tools: toolsOf(plugin, account).map((tool) => tool.name),
       botIds: accesses.filter((access) => access.accountId === account.id).map((access) => access.botId),
       checkedAt: account.checkedAt,
     }
@@ -142,7 +131,7 @@ export function createPlugins(input: {
           available: availability.available,
           ...(availability.available ? {} : { unavailableReason: availability.reason }),
           ...(plugin.config ? { config: plugin.config } : {}),
-          accounts: accounts.filter((account) => account.pluginId === plugin.id).map((account) => present(account, accesses)),
+          accounts: accounts.filter((account) => account.pluginId === plugin.id).map((account) => present(plugin, account, accesses)),
         }
       }),
     }
@@ -161,7 +150,7 @@ export function createPlugins(input: {
   }
 
   function grant(botId: string, accountId: string, granted: boolean) {
-    if (!input.bots.get({ id: botId })) {
+    if (!input.bots.get(botId)) {
       throw new Error("Bot not found")
     }
 
@@ -181,7 +170,7 @@ export function createPlugins(input: {
   }
 
   function describe(plugin: Catalogued, account: StoredAccount, granted: StoredAccount[]) {
-    const tools = `Tools available now: ${toolsOf(account).map((tool) => tool.name).join(", ")}.`
+    const tools = `Tools available now: ${toolsOf(plugin, account).map((tool) => tool.name).join(", ")}.`
 
     if (granted.length > 1) {
       return `Connected ${plugin.name} as ${account.label}. You now use ${granted.length} Contas of ${plugin.name}: ${granted.map((candidate) => candidate.label).join(", ")}. Pass conta on every call using the person's selection or clear context. If the choice is ambiguous, use the ask tool with the available Contas as options. ${tools}`
@@ -276,7 +265,6 @@ export function createPlugins(input: {
       }
     }).finally(() => {
       signal?.removeEventListener("abort", abort)
-      abort()
     })
   }
 
@@ -290,11 +278,22 @@ export function createPlugins(input: {
     return outcome.account
   }
 
+  function verifier(plugin: Catalogued, target: string) {
+    const adapter = input.adapters[plugin.kind]
+    const verifyAccess = adapter.verifyAccess?.bind(adapter)
+
+    if (!verifyAccess) {
+      throw new Error(`Target verification is unavailable for ${plugin.name}`)
+    }
+
+    return (account: StoredAccount) => verifyAccess(sessionFor(plugin, account), target)
+  }
+
   function toolFor(bot: Pick<Bot, "id">, plugin: Catalogued, descriptor: ToolDescriptor): PiSchemaTool {
     const adapter = input.adapters[plugin.kind]
 
     async function run(account: StoredAccount, params: Record<string, unknown>, signal: AbortSignal | undefined, retried: boolean): Promise<string> {
-      const session = sessionFor(account)
+      const session = sessionFor(plugin, account)
 
       try {
         return await input.observability.span({ name: "plugin.toolcall", context: { botId: bot.id, pluginId: plugin.id }, attributes: { tool: descriptor.name } }, () => adapter.execute(session, descriptor, params, signal))
@@ -342,7 +341,7 @@ export function createPlugins(input: {
         continue
       }
 
-      for (const descriptor of toolsOf(account)) {
+      for (const descriptor of toolsOf(plugin, account)) {
         if (names.has(descriptor.name)) {
           continue
         }
@@ -361,24 +360,20 @@ export function createPlugins(input: {
       description: "Connect a Plugin and continue the original request. For GitHub repository access, always pass target as owner/repository, even when a Conta is already connected. This checks granted accounts and requests authorization only when needed. Without a target, use this for initial connection or an explicitly requested additional account. Use existing granted tools directly otherwise. Do not report resource access until verified.",
       inputSchema: { type: "object", properties: { plugin: { type: "string", description: "Plugin id from your instructions" }, target: { type: "string", description: "For GitHub: the requested owner/repository. Omit for other Plugins." } }, required: ["plugin"] },
       async execute(params, signal) {
-        const plugin = catalogue().find((candidate) => candidate.id === params.plugin)
+        const plugins = catalogue()
+        const plugin = plugins.find((candidate) => candidate.id === params.plugin)
 
         if (!plugin) {
-          throw new Error(`Unknown Plugin. Use one of: ${catalogue().map((candidate) => candidate.id).join(", ")}`)
+          throw new Error(`Unknown Plugin. Use one of: ${plugins.map((candidate) => candidate.id).join(", ")}`)
         }
 
-        const target = params.target === undefined ? undefined : parse(githubSchemas.repositoryTarget, params.target)
-        const adapter = input.adapters[plugin.kind]
-        const verifyAccess = adapter.verifyAccess?.bind(adapter)
+        const target = parseOptional(githubSchemas.repositoryTarget, params.target)
+        const verify = target ? verifier(plugin, target) : undefined
         const granted = accountsFor(bot, plugin)
 
-        if (target && !verifyAccess) {
-          throw new Error(`Target verification is unavailable for ${plugin.name}`)
-        }
-
-        if (target && verifyAccess) {
+        if (verify) {
           for (const account of granted.filter((candidate) => candidate.state === "connected")) {
-            const accessible = await verifyAccess(sessionFor(account), target).catch((error: unknown) => {
+            const accessible = await verify(account).catch((error: unknown) => {
               if (!(error instanceof PluginAuthError)) {
                 throw error
               }
@@ -402,11 +397,11 @@ export function createPlugins(input: {
         }
 
         if (!registered) {
-          input.conversations.addTools(bot.id, toolsOf(outcome.account).map((descriptor) => toolFor(bot, plugin, descriptor)))
+          input.conversations.addTools(bot.id, toolsOf(plugin, outcome.account).map((descriptor) => toolFor(bot, plugin, descriptor)))
         }
 
-        if (target && verifyAccess) {
-          const accessible = await verifyAccess(sessionFor(outcome.account), target)
+        if (verify) {
+          const accessible = await verify(outcome.account)
 
           if (!accessible) {
             return `Authorization finished, but access to ${target} is still unavailable. Do not report success or repeat the same connection automatically. Explain the limitation; retry authorization only if the person asks.`
@@ -441,7 +436,7 @@ export function createPlugins(input: {
     const existing = target.accountId ? accountOf(target.accountId) : matching
 
     if (existing && identity) {
-      await adapter.disconnect?.(sessionFor(existing))
+      await adapter.disconnect?.(sessionFor(plugin, existing))
       await adapter.stop(existing.id)
     }
 
@@ -453,7 +448,7 @@ export function createPlugins(input: {
       throw new Error("Conta not found")
     }
 
-    resumeAccount(account)
+    resumeAccount(plugin, account)
 
     if (target.botId) {
       grant(target.botId, account.id, true)
@@ -523,7 +518,7 @@ export function createPlugins(input: {
       }
     })
     done.catch(() => {})
-    const record: PendingConnection = { connectionId, pluginId: plugin.id, done, streams, latest: () => latest, cancel: connection.cancel, release, settled: false }
+    const record: PendingConnection = { connectionId, done, streams, latest: () => latest, cancel: connection.cancel, release, settled: false }
     connections.set(connectionId, record)
 
     return record
@@ -531,8 +526,14 @@ export function createPlugins(input: {
 
   return {
     resume() {
+      const plugins = catalogue()
+
       for (const account of input.database.accounts.list()) {
-        resumeAccount(account)
+        const plugin = plugins.find((candidate) => candidate.id === account.pluginId)
+
+        if (plugin) {
+          resumeAccount(plugin, account)
+        }
       }
     },
     tools(bot: Pick<Bot, "id" | "temporary">): PiTool[] {
@@ -613,8 +614,7 @@ export function createPlugins(input: {
       })
     },
     list,
-    async addCustom(rawInput: unknown) {
-      const details = parse(pluginSchemas.addCustomInput, rawInput)
+    async addCustom(details: AddCustomPluginInput) {
       const plugin: StoredPlugin = { id: crypto.randomUUID(), name: details.name, config: { command: details.command, envNames: Object.keys(details.env) }, createdAt: new Date().toISOString() }
       input.database.plugins.create(plugin)
 
@@ -628,8 +628,7 @@ export function createPlugins(input: {
         throw error
       }
     },
-    async remove(rawInput: unknown) {
-      const { id } = parse(pluginSchemas.idInput, rawInput)
+    async remove(id: string) {
       const plugin = pluginOf(id)
 
       if (plugin.builtIn) {
@@ -644,11 +643,11 @@ export function createPlugins(input: {
 
       return list()
     },
-    connect(rawInput: unknown) {
-      const details = parse(pluginSchemas.connectInput, rawInput)
+    connect(details: PluginConnectInput) {
       const plugin = pluginOf(details.pluginId)
+      const stored = details.accountId ? accountOf(details.accountId) : undefined
 
-      if (details.accountId && accountOf(details.accountId).pluginId !== plugin.id) {
+      if (stored && stored.pluginId !== plugin.id) {
         throw new Error("That Conta belongs to another Plugin")
       }
 
@@ -663,7 +662,6 @@ export function createPlugins(input: {
         throw new Error("That request belongs to another Plugin")
       }
 
-      const stored = details.accountId ? accountOf(details.accountId) : undefined
       const started = startConnection(plugin, details, secretOf(stored))
 
       if (pending) {
@@ -674,9 +672,8 @@ export function createPlugins(input: {
 
       return { connectionId: started.connectionId }
     },
-    connectionSteps(rawInput: unknown, signal?: AbortSignal) {
+    connectionSteps(connectionId: string, signal?: AbortSignal) {
       signal?.throwIfAborted()
-      const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
       const connection = connections.get(connectionId)
       const pending = connection?.latest()
       const queue = createQueue<PluginStep>({
@@ -693,8 +690,7 @@ export function createPlugins(input: {
 
       return queue
     },
-    async awaitConnection(rawInput: unknown) {
-      const { connectionId } = parse(pluginSchemas.connectionInput, rawInput)
+    async awaitConnection(connectionId: string) {
       const connection = connections.get(connectionId)
 
       if (!connection) {
@@ -703,8 +699,7 @@ export function createPlugins(input: {
 
       return await connection.done.finally(connection.release)
     },
-    async disconnect(rawInput: unknown) {
-      const { accountId } = parse(pluginSchemas.accountInput, rawInput)
+    async disconnect(accountId: string) {
       const account = accountOf(accountId)
       const plugin = pluginOf(account.pluginId)
 
@@ -712,20 +707,18 @@ export function createPlugins(input: {
         throw new Error("Remove the Plugin to disconnect it")
       }
 
-      await input.adapters[plugin.kind].disconnect?.(sessionFor(account))
+      await input.adapters[plugin.kind].disconnect?.(sessionFor(plugin, account))
       await input.adapters[plugin.kind].stop(account.id)
       input.database.accounts.remove(account.id)
 
       return list()
     },
-    grant(rawInput: unknown) {
-      const details = parse(pluginSchemas.grantInput, rawInput)
+    grant(details: PluginGrantInput) {
       grant(details.botId, details.accountId, details.granted)
 
       return list()
     },
-    decide(rawInput: unknown) {
-      const details = parse(pluginSchemas.decideInput, rawInput)
+    decide(details: PluginDecideInput) {
       const key = requestKey(details.botId, details.requestId)
       const pending = requests.get(key)
 
@@ -767,8 +760,10 @@ export function createPlugins(input: {
         connection.release()
       }
 
+      const plugins = catalogue()
+
       for (const account of input.database.accounts.list()) {
-        const plugin = catalogue().find((candidate) => candidate.id === account.pluginId)
+        const plugin = plugins.find((candidate) => candidate.id === account.pluginId)
 
         if (plugin) {
           await input.adapters[plugin.kind].stop(account.id).catch(() => {})

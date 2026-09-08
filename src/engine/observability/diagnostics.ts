@@ -12,8 +12,10 @@ interface DiagnosticsOptions {
   processState(): { engine: ProcessState; main: ProcessState }
   migrationState(): string[]
   exportDirectory: string
-  providerState?(): ProviderAvailability[]
+  providerState(): ProviderAvailability[]
 }
+
+const authenticationStates = { available: "authenticated", unauthenticated: "unauthenticated", incompatible: "unknown" } as const
 
 function percentile(sorted: number[], ratio: number) {
   const index = Math.max(0, Math.ceil(sorted.length * ratio) - 1)
@@ -51,17 +53,15 @@ function operationMetrics(observations: Observation[]) {
 
 export function createDiagnostics(options: DiagnosticsOptions) {
   function authentication() {
-    const states = new Map(options.providerState?.().map((provider) => [provider.provider, provider.status]))
+    const states = new Map(options.providerState().map((provider) => [provider.provider, provider.status]))
     const state = (provider: ProviderAvailability["provider"]) => {
-      if (states.get(provider) === "available") {
-        return "authenticated" as const
+      const status = states.get(provider)
+
+      if (!status) {
+        return "unknown"
       }
 
-      if (states.get(provider) === "unauthenticated") {
-        return "unauthenticated" as const
-      }
-
-      return "unknown" as const
+      return authenticationStates[status]
     }
 
     return { codex: state("codex"), opencode: state("opencode") }

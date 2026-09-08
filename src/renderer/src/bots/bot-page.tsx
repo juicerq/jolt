@@ -2,9 +2,10 @@ import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import { BotFace } from "./bot-face"
 import { Button } from "../ui/button"
-import { revealClassName } from "./bot-form"
 
-export const botPageColumnClassName = "mx-auto w-[min(560px,calc(100%-48px))] max-md:w-[calc(100%-32px)]"
+const botPageColumnClassName = "mx-auto w-[min(560px,calc(100%-48px))] max-md:w-[calc(100%-32px)]"
+
+export const revealClassName = "transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none"
 
 export function BotPage({ label, children, footer }: { label: string; children: ReactNode; footer?: ReactNode }) {
   return (

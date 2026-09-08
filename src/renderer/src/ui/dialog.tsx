@@ -3,6 +3,8 @@ import { XMarkIcon } from "@heroicons/react/24/outline"
 import { type KeyboardEvent, type ReactNode, useId } from "react"
 import { IconButton } from "./icon-button"
 
+const sheetClassName = "mobile-sheet fixed inset-0 m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,calc(100%-48px))] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong text-primary backdrop:bg-transparent shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)]"
+
 /** Centered on desktop; a bottom sheet on mobile. */
 function DialogFrame({ titleId, className, onClose, children }: { titleId: string; className: string; onClose: () => void; children: ReactNode }) {
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -49,7 +51,7 @@ export function Dialog({ eyebrow, title, onClose, children }: { eyebrow: string;
   const titleId = useId()
 
   return (
-    <DialogFrame titleId={titleId} className="mobile-sheet fixed inset-0 m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,calc(100%-48px))] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong bg-surface-raised p-0 text-primary backdrop:bg-transparent shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)] max-md:pb-[var(--safe-bottom)]" onClose={onClose}>
+    <DialogFrame titleId={titleId} className={`${sheetClassName} bg-surface-raised p-0 max-md:pb-[var(--safe-bottom)]`} onClose={onClose}>
         <header className="flex items-center justify-between gap-4 border-b border-outline px-6 pt-6 pb-[18px] max-md:px-5 max-md:pt-5 max-md:pb-4">
           <div className="min-w-0"><p className="text-metadata font-semibold tracking-[0.08em] text-muted uppercase">{eyebrow}</p><h2 className="mt-1.25 text-title font-semibold text-primary" id={titleId}>{title}</h2></div>
           <IconButton className="shrink-0" type="button" label="Fechar" tooltipPlacement="left" onClick={onClose}><XMarkIcon aria-hidden="true" /></IconButton>
@@ -63,7 +65,7 @@ export function ConfirmationDialog({ icon, title, onClose, children, actions }: 
   const titleId = useId()
 
   return (
-    <DialogFrame titleId={titleId} className="mobile-sheet fixed inset-0 m-auto box-border flex max-h-[calc(100vh-48px)] w-[min(480px,calc(100%-48px))] max-w-none flex-col overflow-hidden rounded-[18px] border border-outline-strong bg-surface p-2 text-primary backdrop:bg-transparent shadow-[0_2px_8px_rgb(0_0_0/45%),0_28px_90px_rgb(0_0_0/58%)] max-md:pb-[calc(8px+var(--safe-bottom))]" onClose={onClose}>
+    <DialogFrame titleId={titleId} className={`${sheetClassName} bg-surface p-2 max-md:pb-[calc(8px+var(--safe-bottom))]`} onClose={onClose}>
       <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-outline bg-surface-raised">
         <header className="flex items-center gap-3 px-5 pt-5 pb-3">
           <span className="size-5 flex-none text-secondary [&>svg]:size-full" aria-hidden="true">{icon}</span>

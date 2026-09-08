@@ -6,6 +6,7 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { Dialog, DialogActions, DialogBody } from "../ui/dialog"
 import { Field, fieldControlClassName } from "../ui/field"
+import { InlineAction } from "../ui/inline-action"
 import { useDisconnectProvider, useRefreshProviders } from "./provider-mutations"
 
 const loginTitle = { pending: "Continue no navegador", connected: "Conta conectada", failed: "Não foi possível conectar" }
@@ -39,7 +40,7 @@ export function SubscriptionConnection({ client, connected }: { client: EngineCl
 
   return (
     <>
-      {!connected && <Button variant="primary" type="button" disabled={isPending} aria-label="Conectar ChatGPT" onClick={connect}>Conectar</Button>}
+      {!connected && <Button type="button" disabled={isPending} aria-label="Conectar ChatGPT" onClick={connect}>Conectar</Button>}
       {opened && !attempt && (
         <Dialog eyebrow="ChatGPT" title="Conectar sua conta" onClose={() => !isPending && setOpened(false)}>
           <DialogBody><p className="m-0 text-body text-secondary" role="status">{error ? "Não foi possível iniciar a conexão. Tente novamente." : "Preparando conexão…"}</p></DialogBody>
@@ -106,7 +107,7 @@ function SubscriptionDialog({ client, initial, browserError, openBrowser, onClos
       <DialogBody>
         {pending && <PendingLogin client={client} state={state} browserError={browserError} cancelling={cancelling} onOpenBrowser={openBrowser} onSubmitted={() => void refetch()} />}
         {state.message && <p className="m-0 text-support text-status-error" role="alert">{state.message}</p>}
-        {(statusError || cancelError) && <p className="m-0 text-support text-status-error" role="alert">Não foi possível verificar a conexão. <button type="button" className="underline" onClick={() => void refetch()}>Verificar novamente</button></p>}
+        {(statusError || cancelError) && <p className="m-0 text-support text-status-error" role="alert">Não foi possível verificar a conexão. <InlineAction type="button" onClick={() => void refetch()}>Verificar novamente</InlineAction></p>}
       </DialogBody>
       <DialogActions>
         <Button variant="text" type="button" disabled={cancelling} onClick={close}>{pending ? "Cancelar" : "Fechar"}</Button>

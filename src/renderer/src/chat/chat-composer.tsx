@@ -11,17 +11,17 @@ import { ConfirmationDialog } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
 import { useIsMobile } from "../ui/use-is-mobile"
-
-export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-md:w-[calc(100%-24px)]"
-import { ChatCommandMenu, type ChatMenuChoice, useChatCommands } from "./chat-command-menu"
-import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion } from "./chat-commands"
+import { ChatCommandMenu, type ChatMenuChoice } from "./chat-command-menu"
+import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion, useChatCommands } from "./chat-commands"
 import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatMobileOptions } from "./chat-mobile-options"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
-import { addChatDraftImages, addChatDraftMention, type ChatDraft, type ChatRun, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
+import { addChatDraftImages, addChatDraftMention, type ChatDraft, type ChatRun, chatStore, clearChatDraftCommand, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
+
+export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-md:w-[calc(100%-24px)]"
 
 interface ChatComposerProps {
   bot: Bot
@@ -97,7 +97,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       const ran = await runCommand(command).then(() => true).catch(() => false)
 
       if (ran) {
-        setChatDraftCommand(bot.id, undefined, "")
+        clearChatDraftCommand(bot.id, "")
       }
 
       return
@@ -183,7 +183,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 
     if (draft.command && event.key === "Backspace" && atStart) {
       event.preventDefault()
-      setChatDraftCommand(bot.id, undefined, draft.content)
+      clearChatDraftCommand(bot.id, draft.content)
 
       return
     }
@@ -235,7 +235,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
       <div className="order-first col-span-full flex min-w-0 items-start gap-1.5">
-        {draft.command && <ChatComposerCommand command={draft.command} disabled={busy} onRemove={() => setChatDraftCommand(bot.id, undefined, draft.content)} />}
+        {draft.command && <ChatComposerCommand command={draft.command} disabled={busy} onRemove={() => clearChatDraftCommand(bot.id, draft.content)} />}
         <ChatEditor
           id={`prompt-${bot.id}`}
           content={draft.content}

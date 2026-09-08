@@ -2,22 +2,22 @@ import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { useCallback, useState } from "react"
 import type { Bot } from "@src/shared/bots"
-import type { ConversationMessage, MessageImage, MessageReply } from "@src/shared/conversations"
+import type { ConversationMessage, IncomingMessage, MessageImage, MessageReply } from "@src/shared/conversations"
 import type { Task } from "@src/shared/tasks"
 import { BotFace } from "../bots/bot-face"
 import { Button } from "../ui/button"
 import { focusBrowser } from "../browser/browser-store"
 import type { EngineClient } from "../engine-client"
 import { appSettingsStore } from "../settings/app-settings-store"
-import { teamAvatarIdentities, teamNames, teamOf } from "../bots/team"
+import { type TeamIdentities, teamIdentities, teamOf } from "../bots/team"
 import {
   type ChatDraft,
   chatStore,
-  dismissChatRun,
   emptyChatDraft,
   failChatRun,
   markChatAborting,
   setChatDraft,
+  settleChatRun,
   startChatRun,
   type ChatRun as ChatRunState,
 } from "./chat-store"
@@ -28,6 +28,7 @@ import { chatReadingPosition } from "./chat-reading-position"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
+import { ChatCallNotice } from "./chat-call-notice"
 import { ChatContent } from "./chat-content"
 import { flattenHistory, historyPageInput, initialMessageLimit, olderHistoryPage, revealStep, windowHistory } from "./chat-history-window"
 import { ChatMemberResult, memberResultKind } from "./chat-member-result"
@@ -38,15 +39,16 @@ import { ChatPluginRequest } from "./chat-plugin-request"
 import { ChatQuestion, type QuestionAnswer } from "./chat-question"
 import { finishConversationOpen } from "./chat-open-span"
 import { chatGreeting } from "./chat-greetings"
-import { ChatRoutineCall } from "./chat-routine-call"
-import { ChatTriggerRun } from "./chat-trigger-run"
 import { ChatTurnEnding } from "./chat-turn-ending"
 import { connectionStore } from "../connection"
 import { useIsMobile } from "../ui/use-is-mobile"
 import { ChatTeamUpdates } from "./chat-team-updates"
 import { ChatTeamControl } from "./chat-team-control"
 
+interface ChatTeam { bots: TeamIdentities; tasks: Record<string, Task> }
+
 const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" })
+const pulsingDotDelays = ["", "[animation-delay:150ms]", "[animation-delay:300ms]"]
 
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
   const mobile = useIsMobile()
@@ -62,10 +64,8 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const earlier = history?.earlier ?? 0
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const { data: tasks } = useQuery(client.query.tasks.listForBot.queryOptions({ input: { botId: bot.id } }))
-  const names = teamNames(groups)
   const { members } = teamOf(groups, bot)
-  const avatarIdentities = teamAvatarIdentities(groups)
-  const tasksById = Object.fromEntries((tasks ?? []).map((task) => [task.id, task]))
+  const team: ChatTeam = { bots: teamIdentities(groups), tasks: Object.fromEntries((tasks ?? []).map((task) => [task.id, task])) }
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
   const { visible, hidden } = windowHistory(messages ?? [], shown)
   const historyIds = new Set(messages?.map((message) => message.id))
@@ -151,9 +151,9 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {isFetchingNextPage && <ChatEarlierLoading />}
-        {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasksById} onQuestionAnswer={handleQuestionAnswer} /></div>)}
+        {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} /></div>)}
         {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
-        {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} tasks={tasksById} historyIds={historyIds} empty={messages.length === 0} />}
+        {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} empty={messages.length === 0} />}
       </ChatScroller>
     </section>
   )
@@ -171,11 +171,11 @@ function ChatEarlierLoading() {
   )
 }
 
-function ChatRunSlot({ activityDetailsVisible, avatarIdentities, bot, client, names, tasks, historyIds, empty }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; tasks: Record<string, Task>; historyIds: Set<string>; empty: boolean }) {
+function ChatRunSlot({ activityDetailsVisible, bot, client, team, historyIds, empty }: { activityDetailsVisible: boolean; bot: Bot; client: EngineClient; team: ChatTeam; historyIds: Set<string>; empty: boolean }) {
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
 
   if (run) {
-    return <ChatRun activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} run={run} tasks={tasks} historyIds={historyIds} />
+    return <ChatRun activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} run={run} team={team} historyIds={historyIds} />
   }
 
   if (empty) {
@@ -185,46 +185,38 @@ function ChatRunSlot({ activityDetailsVisible, avatarIdentities, bot, client, na
   return null
 }
 
-function ChatMessage({ activityDetailsVisible, answer, avatarIdentities, bot, message, names, tasks, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; message: ConversationMessage; names: Record<string, string>; tasks: Record<string, Task>; onQuestionAnswer?: QuestionAnswer }) {
-  const fromOtherBot = message.author === "bot" && message.authorBotId !== null && message.authorBotId !== bot.id
-
-  if (fromOtherBot) {
-    return <ChatMemberMessage bot={bot} message={message} names={names} tasks={tasks} />
-  }
-
-  if (message.author === "routine") {
-    if (!activityDetailsVisible) {
-      return null
-    }
-
-    return <ChatRoutineCall botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
-  }
-
-  if (message.author === "trigger") {
-    if (!activityDetailsVisible) {
-      return null
-    }
-
-    return <ChatTriggerRun botName={bot.name} time={formatMessageTime(message.createdAt)} content={message.content} />
-  }
-
+function ChatMessage({ activityDetailsVisible, answer, bot, message, team, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; team: ChatTeam; onQuestionAnswer?: QuestionAnswer }) {
   const time = formatMessageTime(message.createdAt)
+  const ownMessage = message.author === "bot" && (message.authorBotId === null || message.authorBotId === bot.id)
 
-  if (message.author === "person") {
-    if (message.replyTo) {
-      return null
-    }
-
-    return <PersonBubble time={time} content={message.content} images={message.images} mentions={knownChatMentions(avatarIdentities)} />
+  if (!ownMessage) {
+    return <ChatTurnStart activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} team={team} time={time} />
   }
 
   return <BotBubble activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} time={time} {...(answer ? { answer } : {})} {...(onQuestionAnswer ? { onQuestionAnswer } : {})} />
 }
 
-function ChatMemberMessage({ bot, message, names, tasks }: { bot: Pick<Bot, "id">; message: Pick<ConversationMessage, "authorBotId" | "taskId" | "createdAt" | "content">; names: Record<string, string>; tasks: Record<string, Task> }) {
-  const task = tasks[message.taskId ?? ""]
+function ChatTurnStart({ activityDetailsVisible, bot, message, team, time, open = false }: { activityDetailsVisible: boolean; bot: Bot; message: IncomingMessage; team: ChatTeam; time: string; open?: boolean }) {
+  if (message.author === "person") {
+    if (message.replyTo) {
+      return null
+    }
 
-  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time={formatMessageTime(message.createdAt)} content={message.content} />
+    return <PersonBubble time={time} content={message.content} images={message.images} mentions={knownChatMentions(team.bots)} />
+  }
+
+  if (message.author === "routine" || message.author === "trigger") {
+    if (!activityDetailsVisible) {
+      return null
+    }
+
+    return <ChatCallNotice kind={message.author} botName={bot.name} time={time} content={message.content} open={open} />
+  }
+
+  const task = message.taskId ? team.tasks[message.taskId] : undefined
+  const author = message.authorBotId ? team.bots[message.authorBotId] : undefined
+
+  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={author?.name ?? "Bot"} status={task?.status} time={time} content={message.content} open={open} />
 }
 
 function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: QuestionAnswer }) {
@@ -238,7 +230,7 @@ function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuest
       {(message.content || message.question) && (
         <ChatStamped className="chat-bot-bubble" copy={message.content} name={bot.name} time={time} anchor="bubble">
           {message.content && <ChatContent content={message.content} />}
-          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} interactive={!!onQuestionAnswer && !bot.closed} onAnswer={onQuestionAnswer ?? unavailableQuestionAnswer} />}
+          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} {...(onQuestionAnswer && !bot.closed ? { onAnswer: onQuestionAnswer } : {})} />}
         </ChatStamped>
       )}
       {message.ending && <ChatStamped name={bot.name} time={time} anchor="text"><ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} /></ChatStamped>}
@@ -263,37 +255,7 @@ function PersonBubble({ time, content, images, mentions }: { time: string; conte
   )
 }
 
-function ChatRunMessage({ activityDetailsVisible, avatarIdentities, bot, names, run, tasks }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task> }) {
-  if (run.message.author === "person") {
-    if (run.message.replyTo) {
-      return null
-    }
-
-    return <PersonBubble time="Agora" content={run.message.content} images={run.message.images} mentions={knownChatMentions(avatarIdentities)} />
-  }
-
-  if (run.message.author === "routine") {
-    if (!activityDetailsVisible) {
-      return null
-    }
-
-    return <ChatRoutineCall botName={bot.name} time="Agora" content={run.message.content} open />
-  }
-
-  if (run.message.author === "trigger") {
-    if (!activityDetailsVisible) {
-      return null
-    }
-
-    return <ChatTriggerRun botName={bot.name} time="Agora" content={run.message.content} open />
-  }
-
-  const task = tasks[run.message.taskId ?? ""]
-
-  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={names[run.message.authorBotId ?? ""] ?? "Bot"} status={task?.status} time="Agora" content={run.message.content} open />
-}
-
-function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names, run, tasks, historyIds }: { activityDetailsVisible: boolean; avatarIdentities: Record<string, { name: string; avatarSeed: string }>; bot: Bot; client: EngineClient; names: Record<string, string>; run: ChatRunState; tasks: Record<string, Task>; historyIds: Set<string> }) {
+function ChatRun({ activityDetailsVisible, bot, client, run, team, historyIds }: { activityDetailsVisible: boolean; bot: Bot; client: EngineClient; run: ChatRunState; team: ChatTeam; historyIds: Set<string> }) {
   const permissionRequest = run.permissionRequests[0]
   const pluginRequest = run.pluginRequests[0]
   const awaitingDecision = !!permissionRequest || !!pluginRequest
@@ -302,15 +264,15 @@ function ChatRun({ activityDetailsVisible, avatarIdentities, bot, client, names,
 
   return (
     <>
-      {!historyIds.has(run.messageId) && <ChatRunMessage activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} names={names} run={run} tasks={tasks} />}
-      {run.completedMessages.filter((message) => !historyIds.has(message.id)).map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasks} />)}
+      {!historyIds.has(run.messageId) && <ChatTurnStart activityDetailsVisible={activityDetailsVisible} bot={bot} message={run.message} team={team} time="Agora" open />}
+      {run.completedMessages.filter((message) => !historyIds.has(message.id)).map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} team={team} />)}
       <article className="flex w-fit max-w-full flex-col gap-3 self-start">
         {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
-        {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
+        {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest key={permissionRequest.id} botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} step={run.pluginSteps[pluginRequest.id]} /></ChatStamped>}
         {workingSilently && <ChatWorkingIndicator botName={bot.name} />}
         {handedOff && <div className="flex flex-wrap items-center gap-3"><p className="m-0 text-support text-secondary" role="status">{bot.name} aguarda sua ajuda no computador.</p><Button variant="secondary" onClick={() => focusBrowser(bot.id)}>Acompanhar página</Button></div>}
-        {run.error && <div className="mt-3.5 flex items-start gap-3 max-[700px]:flex-wrap"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => dismissChatRun(bot.id)}>Fechar</button></div>}
+        {run.error && <div className="mt-3.5 flex items-start gap-3 max-[700px]:flex-wrap"><div className="min-w-0 flex-1"><strong className="text-control font-semibold text-primary">O bot parou</strong><p className="mt-[3px] mb-0 text-support text-secondary">{run.error}</p></div><button className="flex-none rounded-lg border border-outline-strong bg-transparent px-3 py-2 text-metadata font-medium text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" onClick={() => settleChatRun(bot.id, "available")}>Fechar</button></div>}
       </article>
     </>
   )
@@ -320,18 +282,12 @@ function awaitingHandoff(run: ChatRunState) {
   return run.steps.some((step) => step.type === "tool" && step.tools.some((tool) => tool.name === "browser" && tool.detail === "handoff" && tool.status === "running"))
 }
 
-async function unavailableQuestionAnswer() {
-  return false
+function PulsingDots({ className }: { className: string }) {
+  return pulsingDotDelays.map((delay) => <span key={delay} className={`size-1.5 animate-pulse rounded-full [animation-duration:900ms] motion-reduce:animate-none ${delay} ${className}`} aria-hidden="true" />)
 }
 
 function ChatWorkingIndicator({ botName }: { botName: string }) {
-  return (
-    <div className="flex w-fit items-center gap-1" role="status" aria-label={`${botName} está trabalhando`}>
-      <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />
-      <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-delay:150ms] [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />
-      <span className="size-1.5 animate-pulse rounded-full bg-muted [animation-delay:300ms] [animation-duration:900ms] motion-reduce:animate-none" aria-hidden="true" />
-    </div>
-  )
+  return <div className="flex w-fit items-center gap-1" role="status" aria-label={`${botName} está trabalhando`}><PulsingDots className="bg-muted" /></div>
 }
 
 function ChatClosed({ bot }: { bot: Bot }) {
@@ -353,7 +309,7 @@ function EmptyChat({ bot }: { bot: Bot }) {
 }
 
 function ChatLoading() {
-  return <div className="flex min-h-[220px] items-center justify-center gap-[7px] text-muted" aria-label="Carregando conversa"><span className="size-1.5 animate-pulse rounded-full bg-secondary [animation-duration:900ms] motion-reduce:animate-none" /><span className="size-1.5 animate-pulse rounded-full bg-secondary [animation-delay:150ms] [animation-duration:900ms] motion-reduce:animate-none" /><span className="size-1.5 animate-pulse rounded-full bg-secondary [animation-delay:300ms] [animation-duration:900ms] motion-reduce:animate-none" /></div>
+  return <div className="flex min-h-[220px] items-center justify-center gap-[7px] text-muted" aria-label="Carregando conversa"><PulsingDots className="bg-secondary" /></div>
 }
 
 function ChatError({ message }: { message: string }) {

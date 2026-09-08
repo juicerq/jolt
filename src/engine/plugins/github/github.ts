@@ -2,23 +2,22 @@ import { z } from "zod"
 import type { ExternalEvent } from "@src/shared/triggers"
 import { githubSchemas, type GithubCredentials } from "@src/shared/github"
 import { parse } from "@src/shared/parse"
-import { pluginSchemas, type ToolDescriptor } from "@src/shared/plugins"
+import type { ToolDescriptor } from "@src/shared/plugins"
 import type { Observability } from "@src/engine/observability/observability"
-import { PluginAuthError, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
+import { PluginAuthError, toolInputSchema, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
 
 const pollDelayMs = 2_000
 const retryDelayMs = 3_000
 const githubApiVersion = "2026-03-10"
-const repositoryInput = { owner: z.string().min(1), repository: z.string().min(1) }
-const issueInput = z.strictObject({ ...repositoryInput, number: z.coerce.number().int().positive() })
-const pullRequestInput = issueInput
+const repositoryInput = z.strictObject({ owner: z.string().min(1), repository: z.string().min(1) })
+const issueInput = repositoryInput.extend({ number: z.coerce.number().int().positive() })
 const commentInput = issueInput.extend({ body: z.string().min(1) })
 const issueFields = { title: z.string().trim().min(1), body: z.string(), labels: z.array(z.string().trim().min(1)) }
-const createIssueInput = z.strictObject({ ...repositoryInput, ...issueFields })
+const createIssueInput = repositoryInput.extend(issueFields)
 const updateIssueInput = issueInput.extend({ title: issueFields.title.optional(), body: issueFields.body.optional(), labels: issueFields.labels.optional(), state: z.enum(["open", "closed"]).optional() }).refine((value) => value.title !== undefined || value.body !== undefined || value.labels !== undefined || value.state !== undefined, "Provide at least one issue field to update")
-const listIssuesInput = z.strictObject({ ...repositoryInput, state: z.enum(["open", "closed", "all"]).default("open"), labels: issueFields.labels.optional() })
-const listPullRequestsInput = z.strictObject({ ...repositoryInput, state: z.enum(["open", "closed", "all"]).default("open"), head: z.string().min(1).optional(), base: z.string().min(1).optional() })
-const createPullRequestInput = z.strictObject({ ...repositoryInput, title: z.string().min(1), body: z.string(), head: z.string().min(1), base: z.string().min(1), draft: z.boolean().default(true) })
+const listIssuesInput = repositoryInput.extend({ state: z.enum(["open", "closed", "all"]).default("open"), labels: issueFields.labels.optional() })
+const listPullRequestsInput = repositoryInput.extend({ state: z.enum(["open", "closed", "all"]).default("open"), head: z.string().min(1).optional(), base: z.string().min(1).optional() })
+const createPullRequestInput = repositoryInput.extend({ title: z.string().min(1), body: z.string(), head: z.string().min(1), base: z.string().min(1), draft: z.boolean().default(true) })
 const user = z.looseObject({ login: z.string().min(1) })
 const label = z.looseObject({ name: z.string().min(1) })
 const issue = z.looseObject({ number: z.int(), title: z.string(), body: z.string().nullable(), state: z.string(), html_url: z.url(), user, labels: z.array(label), created_at: z.string(), updated_at: z.string() })
@@ -30,7 +29,6 @@ const pullRequestFile = z.looseObject({ filename: z.string(), status: z.string()
 const pullRequestFiles = z.array(pullRequestFile)
 const checkRun = z.looseObject({ name: z.string(), status: z.string(), conclusion: z.string().nullable(), html_url: z.url().nullable() })
 const checkRuns = z.looseObject({ check_runs: z.array(checkRun) }).transform((value) => value.check_runs)
-const createdPullRequest = pullRequest
 const createdComment = z.looseObject({ html_url: z.url() })
 
 const githubTools: ToolDescriptor[] = [
@@ -38,61 +36,61 @@ const githubTools: ToolDescriptor[] = [
     name: "github_repositories",
     label: "Repositórios do GitHub",
     description: "List the repositories currently available through the chosen GitHub Conta. If the requested repository is missing, call connect_plugin with plugin github and target owner/repository. It checks existing access and guides authorization for that repository, then resumes your request. Do not ask the person to choose an installation or configure access manually. Use the ids from this result when creating a Gatilho.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: toolInputSchema(z.object({})),
   },
   {
     name: "github_issues_list",
     label: "Issues do GitHub",
     description: "List all pages of repository issues, excluding pull requests. Use state all to reconcile existing issues, including closed ones. Labels filter requires every supplied label.",
-    inputSchema: parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(listIssuesInput)),
+    inputSchema: toolInputSchema(listIssuesInput),
   },
   {
     name: "github_issue_create",
     label: "Criação de issue do GitHub",
     description: "Create an issue and read it back to confirm title, body and labels. Returns number, title, body, labels, url and state. If creation or verification fails, reconcile existing issues before trying another creation.",
-    inputSchema: parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(createIssueInput)),
+    inputSchema: toolInputSchema(createIssueInput),
   },
   {
     name: "github_issue_update",
     label: "Atualização de issue do GitHub",
     description: "Update issue title, body, labels or state and verify by reading it back. Labels replace the entire existing set; preserve labels you want to keep. Returns confirmed issue fields.",
-    inputSchema: parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(updateIssueInput)),
+    inputSchema: toolInputSchema(updateIssueInput),
   },
   {
     name: "github_labels_list",
     label: "Labels do GitHub",
     description: "List all existing repository labels before choosing labels for an issue.",
-    inputSchema: parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(z.strictObject(repositoryInput))),
+    inputSchema: toolInputSchema(repositoryInput),
   },
   {
     name: "github_pull_requests_list",
     label: "PRs do GitHub",
     description: "List all pages of pull requests. Use state all and head owner:branch to reconcile a prior PR creation; base filters the target branch.",
-    inputSchema: parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(listPullRequestsInput)),
+    inputSchema: toolInputSchema(listPullRequestsInput),
   },
   {
     name: "github_issue_read",
     label: "Leitura de issue do GitHub",
     description: "Read the current state of one GitHub issue. Use this after a GitHub Evento because the webhook payload may be old.",
-    inputSchema: { type: "object", properties: { owner: { type: "string" }, repository: { type: "string" }, number: { type: "number" } }, required: ["owner", "repository", "number"] },
+    inputSchema: toolInputSchema(issueInput),
   },
   {
     name: "github_pull_request_read",
     label: "Leitura de PR do GitHub",
     description: "Read the current pull request, its changed files and checks.",
-    inputSchema: { type: "object", properties: { owner: { type: "string" }, repository: { type: "string" }, number: { type: "number" } }, required: ["owner", "repository", "number"] },
+    inputSchema: toolInputSchema(issueInput),
   },
   {
     name: "github_comment",
     label: "Comentário no GitHub",
     description: "Publish one comment on a GitHub issue or pull request.",
-    inputSchema: { type: "object", properties: { owner: { type: "string" }, repository: { type: "string" }, number: { type: "number" }, body: { type: "string" } }, required: ["owner", "repository", "number", "body"] },
+    inputSchema: toolInputSchema(commentInput),
   },
   {
     name: "github_pull_request_create",
     label: "Criação de PR no GitHub",
     description: "Open a GitHub pull request from a branch that has already been pushed. Create it as a draft unless the person explicitly requested otherwise.",
-    inputSchema: { type: "object", properties: { owner: { type: "string" }, repository: { type: "string" }, title: { type: "string" }, body: { type: "string" }, head: { type: "string" }, base: { type: "string" }, draft: { type: "boolean" } }, required: ["owner", "repository", "title", "body", "head", "base"] },
+    inputSchema: toolInputSchema(createPullRequestInput),
   },
 ]
 
@@ -284,7 +282,7 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
       return await verifyIssue(account, path, fields)
     },
     async github_labels_list(account, raw) {
-      const details = parse(z.strictObject(repositoryInput), raw)
+      const details = parse(repositoryInput, raw)
       const current = await githubPages(account, z.array(label), `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/labels`)
 
       return JSON.stringify(current)
@@ -306,7 +304,7 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
       return JSON.stringify(current)
     },
     async github_pull_request_read(account, raw) {
-      const details = parse(pullRequestInput, raw)
+      const details = parse(issueInput, raw)
       const path = `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/pulls/${details.number}`
       const current = await githubJson(account, pullRequest, path)
       const [files, checks] = await Promise.all([
@@ -324,7 +322,7 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
     },
     async github_pull_request_create(account, raw) {
       const details = parse(createPullRequestInput, raw)
-      const created = await githubJson(account, createdPullRequest, `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/pulls`, { method: "POST", body: JSON.stringify({ title: details.title, body: details.body, head: details.head, base: details.base, draft: details.draft }) })
+      const created = await githubJson(account, pullRequest, `/repos/${encodeURIComponent(details.owner)}/${encodeURIComponent(details.repository)}/pulls`, { method: "POST", body: JSON.stringify({ title: details.title, body: details.body, head: details.head, base: details.base, draft: details.draft }) })
 
       return `Pull request #${created.number} opened${created.draft ? " as a draft" : ""}: ${created.html_url}`
     },
@@ -347,18 +345,16 @@ export function createGithubAdapter(input: { relayUrl?: string; observability: O
     tools() {
       return githubTools
     },
-    async verifyAccess(account, rawTarget) {
-      const target = parse(githubSchemas.repositoryTarget, rawTarget)
+    async verifyAccess(account, target) {
       const repositories = await githubPages(account, githubSchemas.repositories, "/installation/repositories")
 
       return repositories.some((repository) => repository.fullName.toLowerCase() === target.toLowerCase())
     },
     connect(details) {
-      const target = details.target ? parse(githubSchemas.repositoryTarget, details.target) : undefined
       const controller = new AbortController()
       const connected = (async () => {
         const relay = configuredRelay()
-        const started = await relayJson(githubSchemas.connectionStarted, new URL("/v1/connections", relay), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ target }), signal: controller.signal })
+        const started = await relayJson(githubSchemas.connectionStarted, new URL("/v1/connections", relay), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ target: details.target }), signal: controller.signal })
         details.step({ type: "browser", url: started.installUrl })
 
         while (!controller.signal.aborted) {

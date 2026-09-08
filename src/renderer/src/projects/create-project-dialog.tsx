@@ -8,21 +8,13 @@ import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
 import { Field, fieldControlClassName } from "../ui/field"
 
 export function CreateProjectDialog({ client }: { client: EngineClient }) {
-  return (
-    <Dialog eyebrow="Novo Projeto" title="Organize seus Bots" onClose={closeDialog}>
-      <CreateProjectForm client={client} />
-    </Dialog>
-  )
-}
-
-function CreateProjectForm({ client }: { client: EngineClient }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [defaultWorkingDirectory, setDefaultWorkingDirectory] = useState("")
   const directory = useDirectoryChooser(setDefaultWorkingDirectory)
   const { mutate, isPending, error } = useMutation(client.query.projects.create.mutationOptions({
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       closeDialog()
     },
   }))
@@ -39,20 +31,22 @@ function CreateProjectForm({ client }: { client: EngineClient }) {
   }
 
   return (
-    <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
-      <DialogBody>
-        <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Mimo" value={name} onChange={(event) => setName(event.target.value)} /></Field>
-        <Field label="Pasta padrão" optional as="div">
-          <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => setDefaultWorkingDirectory("")} />
-          <small className="text-support font-normal text-secondary">Usada pelos Bots que não têm uma pasta própria.</small>
-        </Field>
-        {directory.error && <p className="text-support text-status-error">Falha ao escolher a pasta: {directory.error}</p>}
-        {error && <p className="text-support text-status-error">Falha ao criar o Projeto: {error.message}</p>}
-      </DialogBody>
-      <DialogActions>
-        <Button variant="text" type="button" onClick={closeDialog}>Cancelar</Button>
-        <Button type="submit" disabled={isPending || !projectName}>{isPending ? "Criando..." : "Criar Projeto"}</Button>
-      </DialogActions>
-    </form>
+    <Dialog eyebrow="Novo Projeto" title="Organize seus Bots" onClose={closeDialog}>
+      <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
+        <DialogBody>
+          <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Mimo" value={name} onChange={(event) => setName(event.target.value)} /></Field>
+          <Field label="Pasta padrão" optional as="div">
+            <DirectoryPicker value={defaultWorkingDirectory} placeholder="Escolher pasta" onChoose={directory.choose} onClear={() => setDefaultWorkingDirectory("")} />
+            <small className="text-support font-normal text-secondary">Usada pelos Bots que não têm uma pasta própria.</small>
+          </Field>
+          {directory.error && <p className="text-support text-status-error">Falha ao escolher a pasta: {directory.error}</p>}
+          {error && <p className="text-support text-status-error">Falha ao criar o Projeto: {error.message}</p>}
+        </DialogBody>
+        <DialogActions>
+          <Button variant="text" type="button" onClick={closeDialog}>Cancelar</Button>
+          <Button type="submit" disabled={isPending || !projectName}>{isPending ? "Criando..." : "Criar Projeto"}</Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   )
 }

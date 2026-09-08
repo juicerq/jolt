@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { id, optionalId } from "./ids"
 import { messageImageMimeTypes } from "./message-images"
 import { permissionSchemas } from "./permissions"
 import { pluginSchemas } from "./plugins"
@@ -10,9 +11,7 @@ export const askTool = "ask"
 export const sendMessageTool = "send_message"
 export const messageContentLimit = 800
 
-const id = z.string().min(1)
 export const messageAuthor = z.enum(["person", "bot", "routine", "trigger"])
-const optionalId = id.nullable()
 const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMimeTypes) })
 const messageQuestionOption = z.strictObject({
   value: id.max(100),
@@ -135,20 +134,17 @@ const compactionResult = z.strictObject({
 
 export const conversationSchemas = {
   overview: z.array(overview),
-  botInput: z.strictObject({ botId: id }),
   compactInput: z.strictObject({ botId: id, instructions: z.string().trim().min(1).optional() }),
   compactionResult,
   historyInput: z.strictObject({ botId: id, before: id.optional(), limit: z.int().min(1).max(500) }),
   history,
   sendInput: z.strictObject({ botId: id, content: z.string(), images: z.array(messageImage), replyTo: messageReply.nullable().default(null), mentionedBotIds: z.array(id).default([]), deliver: z.enum(["queue", "now"]).default("queue") }),
   queueInput: z.strictObject({ botId: id, id }),
-  queuedMessage,
   askToolInput,
   sendMessageToolInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),
-  event,
   botEvent,
 }
 
@@ -173,3 +169,7 @@ export type TurnContext = { startedAt: string; timeZone: string } & (
   | { cause: "task-assignment"; taskId: string; sender: { id: string; name: string } }
   | { cause: "task-result"; taskId: string; sender: { id: string; name: string }; status: TaskStatus }
 )
+export type HistoryInput = z.infer<typeof conversationSchemas.historyInput>
+export type CompactInput = z.infer<typeof conversationSchemas.compactInput>
+export type SendInput = z.infer<typeof conversationSchemas.sendInput>
+export type QueueInput = z.infer<typeof conversationSchemas.queueInput>

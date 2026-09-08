@@ -1,6 +1,6 @@
 import type { Bot } from "@src/shared/bots"
 import { parse } from "@src/shared/parse"
-import { githubTriggerEvents, triggerSchemas, type ExternalEvent, type Trigger, type TriggerRun } from "@src/shared/triggers"
+import { githubTriggerEvents, triggerSchemas, type CreateTriggerInput, type ExternalEvent, type Trigger, type TriggerRun, type UpdateTriggerInput } from "@src/shared/triggers"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
@@ -76,7 +76,7 @@ export function createTriggers(input: {
     })
   }
 
-  function hasAccess(trigger: Trigger) {
+  function hasAccess(trigger: Pick<Trigger, "botId" | "accountId">) {
     return input.database.accesses.listForBot(trigger.botId).some((access) => access.accountId === trigger.accountId)
   }
 
@@ -104,17 +104,15 @@ export function createTriggers(input: {
     return account
   }
 
-  function create(rawInput: unknown) {
-    const details = parse(triggerSchemas.createInput, rawInput)
-    const bot = input.bots.get({ id: details.botId })
+  function create(details: CreateTriggerInput) {
+    const bot = input.bots.get(details.botId)
     const account = input.database.accounts.get(details.accountId)
-    const granted = input.database.accesses.listForBot(details.botId).some((access) => access.accountId === details.accountId)
 
     if (!bot || bot.temporary) {
       throw new Error("A permanent Bot is required")
     }
 
-    if (account?.pluginId !== "github" || !granted) {
+    if (account?.pluginId !== "github" || !hasAccess(details)) {
       throw new Error("The Bot has no Acesso to that GitHub Conta")
     }
 
@@ -123,8 +121,7 @@ export function createTriggers(input: {
     return input.database.triggers.create(trigger)
   }
 
-  function update(rawInput: unknown) {
-    const details = parse(triggerSchemas.updateInput, rawInput)
+  function update(details: UpdateTriggerInput) {
     const trigger = existing(details.id)
     const updated = input.database.triggers.update(trigger.id, details)
 
@@ -135,8 +132,7 @@ export function createTriggers(input: {
     return updated
   }
 
-  function remove(rawInput: unknown) {
-    const { id } = parse(triggerSchemas.idInput, rawInput)
+  function remove(id: string) {
     const trigger = existing(id)
     input.database.triggers.remove(trigger.id)
   }
@@ -211,7 +207,7 @@ export function createTriggers(input: {
       const created = input.database.triggerRuns.create(run)
 
       if (created) {
-        input.observability.event({ name: "trigger.queued", context: { botId: trigger.botId }, attributes: { source: trigger.source, event: `${event.event}.${event.action}` } })
+        input.observability.event({ name: "trigger.queued", context: { botId: trigger.botId, pluginId: trigger.source }, attributes: { reason: `${event.event}.${event.action}` } })
       }
     }
 
@@ -314,7 +310,7 @@ export function createTriggers(input: {
       parameters: { id: "Id of the Gatilho" },
       async execute(params) {
         const trigger = existing(params.id ?? "", bot.id)
-        remove({ id: trigger.id })
+        remove(trigger.id)
 
         return `Gatilho "${trigger.name}" removed.`
       },
@@ -329,9 +325,7 @@ export function createTriggers(input: {
     remove,
     ingest,
     tools,
-    list(rawInput: unknown) {
-      const { botId } = parse(triggerSchemas.botInput, rawInput)
-
+    list(botId: string) {
       return input.database.triggers.listForBot(botId)
     },
     instructions(bot: Pick<Bot, "id" | "temporary" | "permissionMode">) {

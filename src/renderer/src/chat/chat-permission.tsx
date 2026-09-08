@@ -2,7 +2,7 @@ import { ChevronDownIcon, ExclamationCircleIcon, HandRaisedIcon, LockClosedIcon 
 import { type ReactNode, useId } from "react"
 import { botPermissionModes, type BotPermissionMode } from "@src/shared/bot-permissions"
 import type { Bot } from "@src/shared/bots"
-import { type BotExecutionUpdate, useUpdateBotExecution } from "../bots/bot-update"
+import { type BotExecutionUpdate, useUpdateBotExecution } from "./chat-bot-update"
 import type { EngineClient } from "../engine-client"
 import { MenuLabel, MenuOption } from "../ui/menu"
 import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName } from "./chat-control-menu"

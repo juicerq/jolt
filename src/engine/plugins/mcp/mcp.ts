@@ -4,7 +4,7 @@ import { z } from "zod"
 import { parse } from "@src/shared/parse"
 import { pluginSchemas, type StoredPlugin, type ToolDescriptor } from "@src/shared/plugins"
 import type { Observability } from "@src/engine/observability/observability"
-import { slugify, type PluginAdapter } from "../plugin-adapter"
+import type { PluginAccountSession, PluginAdapter } from "../plugin-adapter"
 
 const environmentSchema = z.record(z.string(), z.string())
 
@@ -12,6 +12,12 @@ interface Server { client: Client; ready: Promise<ToolDescriptor[]> }
 
 function inheritedEnvironment() {
   return Object.fromEntries(["PATH", "HOME", "USER", "TMPDIR", "LANG"].flatMap((name) => (process.env[name] ? [[name, process.env[name]]] : [])))
+}
+
+function slugify(name: string) {
+  const slug = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+
+  return slug || "plugin"
 }
 
 function textOf(result: Awaited<ReturnType<Client["callTool"]>>) {
@@ -70,7 +76,7 @@ export function createMcpAdapter(input: { observability: Observability }): Plugi
     return server
   }
 
-  function serverFor(account: Parameters<PluginAdapter["execute"]>[0]) {
+  function serverFor(account: PluginAccountSession) {
     const running = servers.get(account.id)
 
     if (running) {

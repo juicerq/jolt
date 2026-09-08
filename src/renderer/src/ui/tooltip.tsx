@@ -33,7 +33,8 @@ export function useTooltip() {
     const keyboardFocus = event.currentTarget.matches(":focus-visible")
 
     if (keyboardFocus) {
-      show()
+      clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(show, 0)
     }
   }
 

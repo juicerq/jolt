@@ -1,5 +1,5 @@
 import type { Bot } from "@src/shared/bots"
-import { routineSchemas, type Frequency, type Routine } from "@src/shared/routines"
+import { routineSchemas, type CreateRoutineInput, type Frequency, type Routine, type UpdateRoutineInput } from "@src/shared/routines"
 import { weekdays } from "@src/shared/weekdays"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
@@ -220,7 +220,7 @@ export function createRoutines(input: {
   }
 
   function owner(botId: string) {
-    const bot = input.bots.get({ id: botId })
+    const bot = input.bots.get(botId)
 
     if (!bot) {
       throw new Error("Bot not found")
@@ -243,8 +243,7 @@ export function createRoutines(input: {
     return routine
   }
 
-  function create(rawInput: unknown) {
-    const details = parse(routineSchemas.createInput, rawInput)
+  function create(details: CreateRoutineInput) {
     const bot = owner(details.botId)
     const now = new Date()
     const routine: Routine = { id: crypto.randomUUID(), ...details, status: "active", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, nextCallAt: nextCall(details.frequency, now).toISOString(), createdAt: now.toISOString() }
@@ -257,8 +256,7 @@ export function createRoutines(input: {
     })
   }
 
-  function update(rawInput: unknown) {
-    const { id, ...changes } = parse(routineSchemas.updateInput, rawInput)
+  function update({ id, ...changes }: UpdateRoutineInput) {
     const routine = existing(id)
 
     return input.observability.span({ name: "routines.update", context: { botId: routine.botId } }, () => {
@@ -275,8 +273,7 @@ export function createRoutines(input: {
     })
   }
 
-  function remove(rawInput: unknown) {
-    const { id } = parse(routineSchemas.idInput, rawInput)
+  function remove(id: string) {
     const routine = existing(id)
 
     input.observability.span({ name: "routines.remove", context: { botId: routine.botId } }, () => {
@@ -291,9 +288,7 @@ export function createRoutines(input: {
     create,
     update,
     remove,
-    list(rawInput: unknown) {
-      const { botId } = parse(routineSchemas.botInput, rawInput)
-
+    list(botId: string) {
       return input.database.routines.listForBot(botId)
     },
     tools(bot: Pick<Bot, "id" | "temporary">): PiCustomTool[] {
@@ -344,7 +339,7 @@ export function createRoutines(input: {
         parameters: { id: "Id of the Rotina to remove" },
         async execute(params) {
           const routine = existing(params.id ?? "", bot.id)
-          remove({ id: routine.id })
+          remove(routine.id)
 
           return `Rotina "${routine.name}" removed.`
         },

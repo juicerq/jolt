@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process"
+import { execFile, type ExecFileException } from "node:child_process"
 import { promisify } from "node:util"
 import { z } from "zod"
 import { parse } from "../shared/parse"
@@ -39,11 +39,13 @@ async function servePort() {
 }
 
 function describe(error: unknown): ServeFailure {
-  if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+  const failure: Partial<ExecFileException> = error instanceof Error ? error : { message: String(error) }
+
+  if (failure.code === "ENOENT") {
     return { message: "O comando tailscale não foi encontrado. Instale o Tailscale neste notebook.", enableUrl: null }
   }
 
-  const output = error instanceof Error ? [String(Reflect.get(error, "stderr") ?? ""), String(Reflect.get(error, "stdout") ?? ""), error.message].join("\n") : String(error)
+  const output = [failure.stderr, failure.stdout, failure.message].join("\n")
   const message = output.split("\n").map((line) => line.trim()).find(Boolean) ?? "Falha ao configurar o Tailscale."
 
   return { message, enableUrl: output.match(/https:\/\/login\.tailscale\.com\/\S+/)?.[0] ?? null }

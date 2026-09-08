@@ -1,7 +1,7 @@
 import { z } from "zod"
+import { id } from "./ids"
 import { weekdays } from "./weekdays"
 
-const id = z.string().min(1)
 const weekday = z.enum(weekdays)
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 const chosenDays = z.array(weekday).min(1)
@@ -29,10 +29,7 @@ const routine = z.strictObject({
 export const routineSchemas = {
   createInput: routine.pick({ botId: true, name: true, content: true, frequency: true }),
   updateInput: routine.pick({ id: true, name: true, content: true, frequency: true, status: true }),
-  idInput: z.strictObject({ id }),
-  botInput: z.strictObject({ botId: id }),
   frequency,
-  status,
   routine,
   routineList: z.array(routine),
 }
@@ -40,3 +37,5 @@ export const routineSchemas = {
 export type Routine = z.infer<typeof routine>
 export type Frequency = z.infer<typeof frequency>
 export type Weekday = z.infer<typeof weekday>
+export type CreateRoutineInput = z.infer<typeof routineSchemas.createInput>
+export type UpdateRoutineInput = z.infer<typeof routineSchemas.updateInput>

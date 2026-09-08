@@ -19,21 +19,13 @@ function parseEnvironment(text: string) {
 }
 
 export function AddPluginDialog({ client, onClose }: { client: EngineClient; onClose: () => void }) {
-  return (
-    <Dialog eyebrow="Novo Plugin" title="Conecte um servidor MCP" onClose={onClose}>
-      <AddPluginForm client={client} onClose={onClose} />
-    </Dialog>
-  )
-}
-
-function AddPluginForm({ client, onClose }: { client: EngineClient; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [command, setCommand] = useState("")
   const [environment, setEnvironment] = useState("")
   const { mutate, isPending, error } = useMutation(client.query.plugins.addCustom.mutationOptions({
     onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.list.queryOptions().queryKey })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
       onClose()
     },
   }))
@@ -51,20 +43,22 @@ function AddPluginForm({ client, onClose }: { client: EngineClient; onClose: () 
   }
 
   return (
-    <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
-      <DialogBody>
-        <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Linear" value={name} onChange={(event) => setName(event.target.value)} /></Field>
-        <Field label="Comando"><input className={`${fieldControlClassName} font-mono`} required placeholder="npx -y linear-mcp-server" value={command} onChange={(event) => setCommand(event.target.value)} /></Field>
-        <Field label="Variáveis de ambiente" optional>
-          <textarea className={`${fieldControlClassName} field-sizing-content max-h-40 min-h-20 resize-none font-mono font-normal`} placeholder={"LINEAR_API_KEY=lin_api_..."} rows={3} value={environment} onChange={(event) => setEnvironment(event.target.value)} />
-          <small className="text-support font-normal text-muted">Uma por linha, no formato NOME=valor. Os valores são salvos com criptografia.</small>
-        </Field>
-        {error && <p className="text-support text-status-error">Falha ao adicionar o Plugin: {error.message}</p>}
-      </DialogBody>
-      <DialogActions>
-        <Button variant="text" type="button" disabled={isPending} onClick={onClose}>Cancelar</Button>
-        <Button type="submit" disabled={isPending || !pluginName || !pluginCommand}>{isPending ? "Iniciando..." : "Adicionar Plugin"}</Button>
-      </DialogActions>
-    </form>
+    <Dialog eyebrow="Novo Plugin" title="Conecte um servidor MCP" onClose={onClose}>
+      <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
+        <DialogBody>
+          <Field label="Nome"><input className={fieldControlClassName} autoFocus required placeholder="Ex: Linear" value={name} onChange={(event) => setName(event.target.value)} /></Field>
+          <Field label="Comando"><input className={`${fieldControlClassName} font-mono`} required placeholder="npx -y linear-mcp-server" value={command} onChange={(event) => setCommand(event.target.value)} /></Field>
+          <Field label="Variáveis de ambiente" optional>
+            <textarea className={`${fieldControlClassName} field-sizing-content max-h-40 min-h-20 resize-none font-mono font-normal`} placeholder={"LINEAR_API_KEY=lin_api_..."} rows={3} value={environment} onChange={(event) => setEnvironment(event.target.value)} />
+            <small className="text-support font-normal text-muted">Uma por linha, no formato NOME=valor. Os valores são salvos com criptografia.</small>
+          </Field>
+          {error && <p className="text-support text-status-error">Falha ao adicionar o Plugin: {error.message}</p>}
+        </DialogBody>
+        <DialogActions>
+          <Button variant="text" type="button" disabled={isPending} onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={isPending || !pluginName || !pluginCommand}>{isPending ? "Iniciando..." : "Adicionar Plugin"}</Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   )
 }

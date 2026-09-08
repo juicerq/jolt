@@ -78,7 +78,7 @@ async function conversation() {
   })
   const bot = await bots.create({ name: "Conversa" })
   const events = conversations.events()[Symbol.asyncIterator]()
-  await conversations.send({ botId: bot.id, content: "Me explica com detalhes", images: [] })
+  await conversations.send({ botId: bot.id, content: "Me explica com detalhes", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
   const session = await opened.promise
   const tool = (name: string) => {
     const found = session.customTools?.find((candidate) => candidate.name === name)
@@ -157,7 +157,7 @@ test("só a primeira Resposta a uma Pergunta entra na conversa, mesmo vinda de d
   c.emit({ type: "text", text: question.content })
   c.finish()
   const questionId = must(c.history().find((message) => message.question)).id
-  const answer = (value: string) => c.conversations.send({ botId: c.bot.id, content: "", images: [], replyTo: { messageId: questionId, optionValues: [value] } })
+  const answer = (value: string) => c.conversations.send({ botId: c.bot.id, content: "", images: [], replyTo: { messageId: questionId, optionValues: [value] }, mentionedBotIds: [], deliver: "queue" })
 
   const first = answer("pdf")
   await rejects(answer("md"), "Esta Pergunta já foi respondida.")
@@ -170,7 +170,7 @@ test("só a primeira Resposta a uma Pergunta entra na conversa, mesmo vinda de d
 test("interromper preserva as mensagens enviadas e impede envios posteriores", async () => {
   const c = await conversation()
   await c.tool(sendMessageTool).execute({ content: "Achei a primeira evidência." })
-  await c.conversations.abort({ botId: c.bot.id })
+  await c.conversations.abort(c.bot.id)
   expect(await c.tool(sendMessageTool).execute({ content: "Não deve chegar" }).catch((error: unknown) => error)).toBeInstanceOf(Error)
   expect(c.history().filter((message) => message.author === "bot").map(({ content, ending }) => ({ content, ending }))).toEqual([
     { content: "Achei a primeira evidência.", ending: null },

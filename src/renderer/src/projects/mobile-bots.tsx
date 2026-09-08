@@ -27,7 +27,7 @@ export function MobileBots({ client }: { client: EngineClient }) {
   const visible = groups.map((group) => ({ ...group, bots: group.bots.filter((bot) => matches(bot) || bot.members.some(matches)) })).filter((group) => group.bots.length > 0)
 
   return <div className="flex min-h-0 flex-1 flex-col bg-canvas pb-[var(--safe-bottom)]">
-    <header className="flex items-center justify-between px-5 pt-4 pb-3"><h1 className="m-0 text-title font-semibold">Seus Bots</h1><div className="flex gap-1"><IconButton label="Mostrar navegadores" onClick={toggleBrowserSidebar}><ComputerDesktopIcon /></IconButton><CreateMenu draftOpen={false} size={34} /></div></header>
+    <header className="flex items-center justify-between px-5 pt-4 pb-3"><h1 className="m-0 text-title font-semibold">Seus Bots</h1><div className="flex gap-1"><IconButton label="Mostrar navegadores" onClick={toggleBrowserSidebar}><ComputerDesktopIcon /></IconButton><CreateMenu size={34} /></div></header>
     <div className="px-5 pb-3"><BotSearch value={search} onChange={(search) => mobileListStore.setState((state) => ({ ...state, search, scrollTop: 0 }))} /></div>
     <div className="flex gap-2 px-5 pb-4" aria-label="Filtrar Bots">
       <button className={`mobile-filter ${!pendingOnly ? "bg-surface-active text-primary" : "text-secondary"}`} aria-pressed={!pendingOnly} onClick={() => mobileListStore.setState((state) => ({ ...state, pendingOnly: false, scrollTop: 0 }))}>Todos</button>

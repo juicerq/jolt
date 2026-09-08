@@ -1,10 +1,10 @@
 import { ArrowDownIcon } from "@heroicons/react/24/outline"
 import { type ClipboardEvent, type PropsWithChildren, type ReactNode, startTransition, type UIEvent, useCallback, useRef, useState } from "react"
 import { chatReadingPosition } from "./chat-reading-position"
-import { getChatScrollMode } from "./chat-scroll"
 
 const scrollAnchoringMinimumTop = 1
 const revealDistance = 600
+const followDistance = 312
 
 export function ChatScroller({ botId, children, footer, onRevealEarlier }: PropsWithChildren<{ botId: string; footer: ReactNode; onRevealEarlier?: () => Promise<void> }>) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
@@ -85,7 +85,7 @@ export function ChatScroller({ botId, children, footer, onRevealEarlier }: Props
         }
 
         const distanceFromEnd = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-        const contentIsNearEnd = getChatScrollMode(distanceFromEnd) === "follow"
+        const contentIsNearEnd = distanceFromEnd <= followDistance
 
         if (shouldFollowRef.current || contentIsNearEnd) {
           shouldFollowRef.current = true
@@ -119,7 +119,7 @@ export function ChatScroller({ botId, children, footer, onRevealEarlier }: Props
   function handleScroll(event: UIEvent<HTMLDivElement>) {
     const viewport = event.currentTarget
     const distanceFromEnd = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-    const shouldFollow = getChatScrollMode(distanceFromEnd) === "follow"
+    const shouldFollow = distanceFromEnd <= followDistance
 
     if (restoredRef.current) {
       chatReadingPosition.save(botId, viewport, shouldFollow)

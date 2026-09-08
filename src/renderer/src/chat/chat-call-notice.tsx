@@ -1,17 +1,26 @@
-import { ChevronDownIcon, ClockIcon } from "@heroicons/react/24/outline"
+import { BoltIcon, ChevronDownIcon, ClockIcon } from "@heroicons/react/24/outline"
 import { blurMouseClick } from "../ui/blur-mouse-click"
 import { chatChipClassName, chatGuideClassName } from "./chat-content"
 import { ChatStamp } from "./chat-stamp"
 
-export function ChatRoutineCall({ botName, time, content, open = false }: { botName: string; time: string; content: string; open?: boolean }) {
+type CallKind = "routine" | "trigger"
+
+const calls: Record<CallKind, { Icon: typeof ClockIcon; sentence: string; stamp: string }> = {
+  routine: { Icon: ClockIcon, sentence: "Uma Rotina chamou", stamp: "Rotina" },
+  trigger: { Icon: BoltIcon, sentence: "Um Gatilho chamou", stamp: "Gatilho" },
+}
+
+export function ChatCallNotice({ kind, botName, time, content, open }: { kind: CallKind; botName: string; time: string; content: string; open: boolean }) {
+  const { Icon, sentence, stamp } = calls[kind]
+
   return (
     <div className="group w-fit max-w-[min(720px,100%)] self-start">
       <details onClick={blurMouseClick} className="group/call text-support text-muted transition-[opacity,transform] duration-180 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none" open={open}>
         <summary className={chatChipClassName}>
-          <ClockIcon className="size-4" aria-hidden="true" />
-          <span>Uma Rotina chamou {botName}</span>
+          <Icon className="size-4" aria-hidden="true" />
+          <span>{sentence} {botName}</span>
           <ChevronDownIcon className="size-[13px] transition-transform duration-150 ease-out group-open/call:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
-          <ChatStamp name="Rotina" time={time} />
+          <ChatStamp name={stamp} time={time} />
         </summary>
         <p className={`${chatGuideClassName} mt-2 mb-1 ml-[14px] max-w-[min(620px,100%)] whitespace-pre-wrap py-1 pl-4 text-support text-secondary`}>{content}</p>
       </details>

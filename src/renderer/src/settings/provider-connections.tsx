@@ -5,6 +5,7 @@ import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { Dialog, DialogActions, DialogBody } from "../ui/dialog"
 import { Field, fieldControlClassName } from "../ui/field"
+import { InlineAction } from "../ui/inline-action"
 import { SettingsSection, settingsPanelClassName } from "../ui/settings-section"
 import { useDisconnectProvider, useRefreshProviders } from "./provider-mutations"
 import { SubscriptionConnection } from "./subscription-connection"
@@ -54,7 +55,7 @@ export function ProviderConnections({ client }: { client: EngineClient }) {
 
   return (
     <SettingsSection title="Inscrições">
-      {error && <p className="m-0 text-support text-status-error">Não foi possível verificar as inscrições. <button type="button" className="underline" onClick={() => void refetch()}>Tentar novamente</button></p>}
+      {error && <p className="m-0 text-support text-status-error">Não foi possível verificar as inscrições. <InlineAction type="button" onClick={() => void refetch()}>Tentar novamente</InlineAction></p>}
       {isPending && <p className="m-0 text-support text-muted">Verificando inscrições…</p>}
       {data && (
         <div className={settingsPanelClassName}>

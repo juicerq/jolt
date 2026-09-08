@@ -1,7 +1,7 @@
 import type { AuthInteraction, AuthPrompt } from "@earendil-works/pi-ai"
 import { z } from "zod"
 import { parse } from "@src/shared/parse"
-import { providerLoginInput, providerLoginReply, type ProviderLogin } from "@src/shared/providers"
+import type { ProviderLogin, ProviderLoginReply } from "@src/shared/providers"
 import type { PiModels } from "./pi-models"
 
 const authorizationUrl = z.url({ protocol: /^https$/, hostname: /^auth\.openai\.com$/ })
@@ -87,11 +87,10 @@ export function createPiAuthentication(models: Pick<PiModels, "login">) {
 
   return {
     start,
-    status(rawInput: unknown) {
-      return structuredClone(session(parse(providerLoginInput, rawInput).id).state)
+    status(id: string) {
+      return structuredClone(session(id).state)
     },
-    reply(rawInput: unknown) {
-      const input = parse(providerLoginReply, rawInput)
+    reply(input: ProviderLoginReply) {
       const attempt = session(input.id)
 
       if (!attempt.reply || !attempt.state.url) {
@@ -107,8 +106,8 @@ export function createPiAuthentication(models: Pick<PiModels, "login">) {
 
       attempt.reply(input.url)
     },
-    async cancel(rawInput: unknown) {
-      const attempt = session(parse(providerLoginInput, rawInput).id)
+    async cancel(id: string) {
+      const attempt = session(id)
       attempt.controller.abort()
       await attempt.done
 

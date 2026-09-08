@@ -1,13 +1,12 @@
 import { AdjustmentsHorizontalIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline"
 import { useState } from "react"
 import type { Bot } from "@src/shared/bots"
-import { effortLabels } from "../bots/bot-effort"
-import { useUpdateBotExecution } from "../bots/bot-update"
+import { useUpdateBotExecution } from "./chat-bot-update"
 import type { EngineClient } from "../engine-client"
 import { Dialog, DialogBody } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { ChatModelOptions, useBotModel } from "./chat-model-picker"
-import { ChatEffortOptions } from "./chat-model-effort"
+import { ChatEffortOptions, effortLabels } from "./chat-model-effort"
 import { ChatPermissionOptions, permissionModeLabels } from "./chat-permission"
 
 const pageTitles = { options: "Opções da conversa", model: "Modelo", effort: "Esforço", permission: "Permissões" }

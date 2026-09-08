@@ -42,7 +42,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
   }
 
   return {
-    record(runtimeEvent: Exclude<PiRuntimeEvent, { type: "text" }>): ConversationEvent {
+    record(runtimeEvent: Exclude<PiRuntimeEvent, { type: "text" } | { type: "message-finished" }>): ConversationEvent {
       if (runtimeEvent.type === "started") {
         thinkingStartedAt = undefined
         steps = []
@@ -90,10 +90,6 @@ export function createConversationActivityRecorder(messageId: string, message: I
 
       if (runtimeEvent.type === "finished" && thinkingStartedAt !== undefined) {
         finishThinking()
-      }
-
-      if (runtimeEvent.type === "message-finished") {
-        return { type: "message-finished" }
       }
 
       return runtimeEvent

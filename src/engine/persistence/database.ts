@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite"
-import { and, asc, count, desc, eq, inArray, isNull, lt, max, notExists, or, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, getTableColumns, inArray, isNull, lt, max, notExists, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
@@ -34,22 +34,7 @@ function insertion(table: SQLiteTable) {
   return sql`${table}.rowid`
 }
 
-const messageColumns = {
-  id: messages.id,
-  botId: messages.botId,
-  author: messages.author,
-  authorBotId: messages.authorBotId,
-  taskId: messages.taskId,
-  triggerRunId: messages.triggerRunId,
-  content: messages.content,
-  images: messages.images,
-  question: messages.question,
-  replyTo: messages.replyTo,
-  activity: messages.activity,
-  ending: messages.ending,
-  error: messages.error,
-  createdAt: messages.createdAt,
-}
+const { position, ...messageColumns } = getTableColumns(messages)
 
 const historyColumns = {
   id: messages.id,
@@ -280,7 +265,7 @@ export function openDatabase(path: string, observability: Observability) {
           }
 
           const older = cursor ? and(eq(messages.botId, botId), lt(messages.position, cursor.position)) : eq(messages.botId, botId)
-          const rows = database.select({ ...messageColumns, position: messages.position }).from(messages).where(older).orderBy(desc(messages.position)).limit(page.limit).all().toReversed()
+          const rows = database.select({ ...messageColumns, position }).from(messages).where(older).orderBy(desc(messages.position)).limit(page.limit).all().toReversed()
           const oldest = rows.at(0)
           const earlier = oldest ? database.select({ value: count() }).from(messages).where(and(eq(messages.botId, botId), lt(messages.position, oldest.position))).get()?.value ?? 0 : 0
 
@@ -538,13 +523,6 @@ export function openDatabase(path: string, observability: Observability) {
       list() {
         return observability.span({ name: "database.pluginlist" }, () => parse(pluginSchemas.storedPluginList, database.select().from(plugins).orderBy(asc(plugins.createdAt), asc(insertion(plugins))).all()))
       },
-      get(id: string) {
-        return observability.span({ name: "database.pluginget", context: { pluginId: id } }, () => {
-          const row = database.select().from(plugins).where(eq(plugins.id, id)).get()
-
-          return parseOptional(pluginSchemas.storedPlugin, row)
-        })
-      },
       remove(id: string) {
         return observability.span({ name: "database.pluginremove", context: { pluginId: id } }, () => database.transaction((transaction) => {
           transaction.delete(accounts).where(eq(accounts.pluginId, id)).run()
@@ -653,7 +631,7 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     migrationState: () => {
-      return observability.span({ name: "database.transaction" }, () => database.all<{ name: string }>(sql`SELECT name FROM __drizzle_migrations ORDER BY id`).map((entry) => entry.name))
+      return observability.span({ name: "database.migrationstate" }, () => database.all<{ name: string }>(sql`SELECT name FROM __drizzle_migrations ORDER BY id`).map((entry) => entry.name))
     },
     close() {
       sqlite.close()

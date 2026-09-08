@@ -1,44 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { Bot } from "@src/shared/bots"
 import { BotFace } from "../bots/bot-face"
-import type { EngineClient } from "../engine-client"
 import { MenuOption, menuCardClassName } from "../ui/menu"
-import { buildChatCommand, type ChatCommand, startedChatCommand, suggestChatCommands } from "./chat-commands"
-import type { ChatDraft } from "./chat-store"
-
-export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft) {
-  const queryClient = useQueryClient()
-  const { mutateAsync: remember, isPending: remembering, error: rememberError, reset } = useMutation(client.query.memory.add.mutationOptions({
-    onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
-    },
-  }))
-  const context = { memoryEnabled: bot.memoryEnabled }
-  const suggestions = draft.command ? [] : suggestChatCommands(draft.content, context)
-  const command = draft.command ? buildChatCommand(draft.command, draft.content, context) : null
-
-  function start(content: string) {
-    if (draft.command) {
-      return null
-    }
-
-    return startedChatCommand(content, context)
-  }
-
-  async function run(target: ChatCommand) {
-    await remember({ botId: bot.id, content: target.content })
-  }
-
-  return {
-    suggestions,
-    command,
-    start,
-    run,
-    reset,
-    pending: remembering,
-    error: rememberError,
-  }
-}
 
 export interface ChatMenuChoice { key: string; label: string; detail: string; avatar?: string }
 

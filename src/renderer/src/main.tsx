@@ -9,7 +9,7 @@ import { createDesktopBrowser } from "./browser/browser-desktop"
 import { subscribeBrowserPages } from "./browser/browser-pages"
 import { createRemoteBrowser } from "./browser/browser-remote"
 import { browserStore } from "./browser/browser-store"
-import { markUpdateReady } from "./settings/app-update-store"
+import { appUpdateStore } from "./settings/app-update-store"
 import { MobilePairingRequired } from "./settings/mobile-pairing"
 import { refreshProviders } from "./settings/provider-mutations"
 import { chatVisits } from "./chat/chat-visits"
@@ -40,7 +40,7 @@ if (!connection) {
   const engineClient = createEngineClient(connection)
   subscribeChatEvents({ client: engineClient, queryClient })
   window.desktop.onTurnNotificationOpened(selectBot)
-  window.desktop.onUpdateReady(markUpdateReady)
+  window.desktop.onUpdateReady(() => appUpdateStore.setState(() => ({ updateReady: true })))
   const browser = window.desktop.remote ? createRemoteBrowser(engineClient) : createDesktopBrowser()
 
   if (window.desktop.remote) {

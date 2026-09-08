@@ -1,4 +1,4 @@
-import type { AccountState } from "@src/shared/plugin-kinds"
+import type { AccountState } from "@src/shared/plugins"
 
 export const accountStateLabels: Record<AccountState, string> = {
   connected: "Conectada",

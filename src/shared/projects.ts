@@ -1,7 +1,7 @@
 import { z } from "zod"
+import { id } from "./ids"
 import { botSchemas, workingDirectory } from "./bots"
 
-const id = z.string().min(1)
 const project = z.strictObject({
   id,
   name: id,
@@ -21,3 +21,4 @@ export const projectSchemas = {
 
 export type Project = z.infer<typeof project>
 export type ProjectGroups = z.infer<typeof groupedList>
+export type CreateProjectInput = z.infer<typeof projectSchemas.createInput>

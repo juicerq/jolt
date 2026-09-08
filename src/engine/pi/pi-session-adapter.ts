@@ -17,8 +17,16 @@ import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import { createMessagingExtension } from "./pi-messaging"
 import { sendMessageTool } from "@src/shared/conversations"
+import type { ObservationAttributes } from "@src/shared/observability/observation"
+import type { Observability } from "../observability/observability"
 import type { PiModels } from "./pi-models"
-import type { PiMeasurement, PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
+import type { PiRuntimeEvent, PiSessionFactory, PiTool } from "./pi-agent-runtime"
+
+interface Measurement {
+  name: string
+  attributes: ObservationAttributes
+  error?: Error
+}
 
 const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", note: "content", browser: "action" }
 const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
@@ -172,7 +180,7 @@ function createEventNormalizer() {
   }
 }
 
-function usageMeasurement(message: AssistantMessage): PiMeasurement | undefined {
+function usageMeasurement(message: AssistantMessage): Measurement | undefined {
   const { usage } = message
   const tokens = calculateContextTokens(usage)
 
@@ -181,7 +189,6 @@ function usageMeasurement(message: AssistantMessage): PiMeasurement | undefined 
   }
 
   return {
-    type: "measurement",
     name: "pi.usage",
     attributes: {
       model: message.model,
@@ -196,14 +203,14 @@ function usageMeasurement(message: AssistantMessage): PiMeasurement | undefined 
   }
 }
 
-function contextMeasurement(session: Pick<AgentSession, "getContextUsage">): PiMeasurement | undefined {
+function contextMeasurement(session: Pick<AgentSession, "getContextUsage">): Measurement | undefined {
   const usage = session.getContextUsage()
 
   if (!usage || usage.tokens === null || usage.percent === null) {
     return
   }
 
-  return { type: "measurement", name: "pi.context", attributes: { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent } }
+  return { name: "pi.context", attributes: { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent } }
 }
 
 function compactionState(event: Extract<AgentSessionEvent, { type: "compaction_end" }>) {
@@ -218,11 +225,10 @@ function compactionState(event: Extract<AgentSessionEvent, { type: "compaction_e
   return "done"
 }
 
-function compactionMeasurement(event: Extract<AgentSessionEvent, { type: "compaction_end" }>): PiMeasurement {
+function compactionMeasurement(event: Extract<AgentSessionEvent, { type: "compaction_end" }>): Measurement {
   const { result } = event
 
   return {
-    type: "measurement",
     name: "pi.compaction",
     attributes: {
       reason: event.reason,
@@ -230,14 +236,14 @@ function compactionMeasurement(event: Extract<AgentSessionEvent, { type: "compac
       ...(result ? { tokens: result.tokensBefore, bytes: Buffer.byteLength(result.summary) } : {}),
       ...(result?.usage ? { inputTokens: result.usage.input, outputTokens: result.usage.output, cost: result.usage.cost.total } : {}),
     },
-    ...(event.errorMessage ? { error: event.errorMessage } : {}),
+    ...(event.errorMessage ? { error: new Error(event.errorMessage) } : {}),
   }
 }
 
-function toolMeasurement(event: Extract<AgentSessionEvent, { type: "tool_execution_end" }>): PiMeasurement {
+function toolMeasurement(event: Extract<AgentSessionEvent, { type: "tool_execution_end" }>): Measurement {
   const bytes = textBlocks(event.result).reduce((total, block) => total + Buffer.byteLength(block.text), 0)
 
-  return { type: "measurement", name: "pi.tool", attributes: { tool: event.toolName, state: event.isError ? "failed" : "done", bytes } }
+  return { name: "pi.tool", attributes: { tool: event.toolName, state: event.isError ? "failed" : "done", bytes } }
 }
 
 function measure(event: AgentSessionEvent, session: Pick<AgentSession, "getContextUsage">) {
@@ -336,9 +342,10 @@ function openSessionManager(sessionsDirectory: string, cwd: string, sessionFile?
   return SessionManager.open(sessionPath, sessionsDirectory, cwd)
 }
 
-export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; models: PiModels }): PiSessionFactory {
+export function createPiSessionFactory(options: { agentDirectory: string; sessionsDirectory: string; models: PiModels; observability: Observability }): PiSessionFactory {
   return {
     async open(input) {
+      const context = { botId: input.botId, provider: input.provider }
       const { model, modelRuntime } = await options.models.resolve(input.provider, input.model)
       const registrar = createToolRegistrar(input.botId)
       const loader = new DefaultResourceLoader({
@@ -397,7 +404,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
             const measurement = measure(event, result.session)
 
             if (measurement) {
-              listener(measurement)
+              options.observability.event({ ...measurement, context })
             }
 
             const normalized = normalizer.normalize(event)

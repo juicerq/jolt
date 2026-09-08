@@ -1,9 +1,9 @@
 import { z } from "zod"
+import { id } from "./ids"
 
 const triggerSources = ["github"] as const
 export const githubTriggerEvents = ["issues", "issue_comment", "pull_request", "pull_request_review", "pull_request_review_comment", "check_run"] as const
 
-const id = z.string().min(1)
 const triggerSource = z.enum(triggerSources)
 const githubEvent = z.enum(githubTriggerEvents)
 const repository = z.strictObject({ id, fullName: id })
@@ -60,11 +60,10 @@ export const triggerSchemas = {
   externalEvent,
   createInput,
   updateInput: trigger.pick({ id: true, name: true, event: true, actions: true, repositories: true, labels: true, instruction: true, includeOwnEvents: true, status: true }),
-  idInput: z.strictObject({ id }),
-  botInput: z.strictObject({ botId: id }),
-  ingestInput: externalEvent,
 }
 
 export type Trigger = z.infer<typeof trigger>
 export type TriggerRun = z.infer<typeof triggerRun>
 export type ExternalEvent = z.infer<typeof externalEvent>
+export type CreateTriggerInput = z.infer<typeof triggerSchemas.createInput>
+export type UpdateTriggerInput = z.infer<typeof triggerSchemas.updateInput>

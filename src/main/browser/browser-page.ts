@@ -9,6 +9,13 @@ const frameRetryMs = 150
 const frameQuality = 75
 const watchFrameWidth = 1280
 const parkedBounds = { x: 1 - pageSize.width, y: 1 - pageSize.height, ...pageSize }
+const httpUrl = /^https?:\/\//
+
+function blockNonHttp(event: { preventDefault(): void }, url: string) {
+  if (!httpUrl.test(url)) {
+    event.preventDefault()
+  }
+}
 
 export class BrowserPage {
   private readonly driver: BrowserDriver
@@ -36,7 +43,7 @@ export class BrowserPage {
     contents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     contents.session.setPermissionCheckHandler(() => false)
     contents.setWindowOpenHandler(({ url }) => {
-      if (!/^https?:\/\//.test(url) || this.popup) {
+      if (!httpUrl.test(url) || this.popup) {
         return { action: "deny" }
       }
 
@@ -52,20 +59,8 @@ export class BrowserPage {
   }
 
   private observe(contents: WebContents) {
-    contents.on("will-navigate", (event, url) => {
-      const allowed = /^https?:\/\//.test(url)
-
-      if (!allowed) {
-        event.preventDefault()
-      }
-    })
-    contents.on("will-redirect", (event, url) => {
-      const allowed = /^https?:\/\//.test(url)
-
-      if (!allowed) {
-        event.preventDefault()
-      }
-    })
+    contents.on("will-navigate", blockNonHttp)
+    contents.on("will-redirect", blockNonHttp)
     contents.on("did-navigate", () => this.update())
     contents.on("did-navigate-in-page", () => this.update())
     contents.on("page-title-updated", () => this.update())

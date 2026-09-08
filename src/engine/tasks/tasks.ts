@@ -1,8 +1,6 @@
 import type { Task, TaskStatus } from "@src/shared/tasks"
-import { taskSchemas } from "@src/shared/tasks"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
-import { parse } from "@src/shared/parse"
 
 export function createTasks({ database, observability }: { database: AppDatabase; observability: Observability }) {
   function update(id: string, changes: Partial<Pick<Task, "assigneeBotId" | "status" | "finishedAt">>) {
@@ -34,9 +32,7 @@ export function createTasks({ database, observability }: { database: AppDatabase
     get(id: string) {
       return database.tasks.get(id)
     },
-    listForBot(rawInput: unknown) {
-      const { botId } = parse(taskSchemas.botInput, rawInput)
-
+    listForBot(botId: string) {
       return database.tasks.listForBot(botId)
     },
   }

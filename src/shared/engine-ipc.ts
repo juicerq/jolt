@@ -6,11 +6,12 @@ export const engineReadyMessage = z.object({
   port: z.int().min(1),
 })
 
-export const engineAccessMessage = z.strictObject({
-  type: z.literal("access"),
+const engineAccess = z.strictObject({
   token: z.string().min(1),
   origin: z.url({ protocol: /^https$/ }).optional(),
 })
+
+export const engineAccessMessage = engineAccess.extend({ type: z.literal("access") })
 
 export const loopbackHttpUrl = z.string().refine((value) => {
   try {
@@ -22,12 +23,12 @@ export const loopbackHttpUrl = z.string().refine((value) => {
   }
 })
 
-export const engineConnection = z.object({
+const engineConnection = z.object({
   url: loopbackHttpUrl,
   token: z.string().min(1),
 })
 
-export const forwardedObservationEvent = z.strictObject({
+const forwardedObservationEvent = z.strictObject({
   type: z.literal("observation"),
   name: observationName,
   attributes: observationAttributes.optional(),
@@ -42,6 +43,7 @@ const forwardedObservationSpan = z.strictObject({
 export const forwardedObservation = z.discriminatedUnion("type", [forwardedObservationEvent, forwardedObservationSpan])
 
 export type EngineReadyMessage = z.infer<typeof engineReadyMessage>
+export type EngineAccess = z.infer<typeof engineAccess>
 export type EngineAccessMessage = z.infer<typeof engineAccessMessage>
 export type EngineConnection = z.infer<typeof engineConnection>
 export type ForwardedObservationEvent = z.infer<typeof forwardedObservationEvent>

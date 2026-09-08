@@ -1,5 +1,6 @@
-import type { PluginKind } from "@src/shared/plugin-kinds"
-import type { PluginStep, StoredPlugin, ToolDescriptor } from "@src/shared/plugins"
+import { z } from "zod"
+import { parse } from "@src/shared/parse"
+import { pluginSchemas, type PluginKind, type PluginStep, type StoredPlugin, type ToolDescriptor } from "@src/shared/plugins"
 
 export class PluginAuthError extends Error {}
 
@@ -34,8 +35,6 @@ export interface PluginAdapter {
   stop(accountId: string): Promise<void>
 }
 
-export function slugify(name: string) {
-  const slug = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
-
-  return slug || "plugin"
+export function toolInputSchema(schema: z.ZodType) {
+  return parse(pluginSchemas.toolDescriptor.shape.inputSchema, z.toJSONSchema(schema, { io: "input" }))
 }

@@ -4,6 +4,7 @@ import type { ContractRouterClient } from "@orpc/contract"
 import { createTanstackQueryUtils } from "@orpc/tanstack-query"
 import type { engineContract } from "@src/shared/engine-contract"
 import type { EngineConnection } from "@src/shared/engine-ipc"
+import type { ExternalObservationSpan } from "@src/shared/observability/observation"
 
 export function createEngineClient(connection: EngineConnection) {
   let { token } = connection
@@ -35,8 +36,6 @@ export function createEngineClient(connection: EngineConnection) {
     return fetch(retry, init)
   }
 
-  const senderLink = new RPCLink({ url: connection.url, headers })
-  const sender: ContractRouterClient<typeof engineContract> = createORPCClient(senderLink)
   const link = new RPCLink({
     url: connection.url,
     headers,
@@ -53,17 +52,13 @@ export function createEngineClient(connection: EngineConnection) {
       request.headers.set("x-trace-id", traceId)
       request.headers.set("x-parent-span-id", spanId)
 
+      function report(span: Pick<ExternalObservationSpan, "outcome" | "attributes" | "error">) {
+        void client.observations.rendererSpan({ name: "renderer.rpc", timestamp: new Date().toISOString(), durationMs: performance.now() - startedAt, traceId, spanId, ...span }).catch(() => {})
+      }
+
       try {
         const response = await authorizedFetch(request, init)
-        void sender.observations.rendererSpan({
-          name: "renderer.rpc",
-          timestamp: new Date().toISOString(),
-          durationMs: performance.now() - startedAt,
-          outcome: response.ok ? "ok" : "error",
-          traceId,
-          spanId,
-          attributes: { method: request.method, code: String(response.status) },
-        }).catch(() => {})
+        report({ outcome: response.ok ? "ok" : "error", attributes: { method: request.method, code: String(response.status) } })
 
         return response
       } catch (error) {
@@ -71,16 +66,7 @@ export function createEngineClient(connection: EngineConnection) {
           throw error
         }
 
-        void sender.observations.rendererSpan({
-          name: "renderer.rpc",
-          timestamp: new Date().toISOString(),
-          durationMs: performance.now() - startedAt,
-          outcome: "error",
-          traceId,
-          spanId,
-          attributes: { method: request.method },
-          error: { type: "RequestError", message: "Request failed" },
-        }).catch(() => {})
+        report({ outcome: "error", attributes: { method: request.method }, error: { type: "RequestError", message: "Request failed" } })
 
         throw error
       }

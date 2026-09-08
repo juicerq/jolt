@@ -5,19 +5,21 @@ import type { PluginStep, ToolDescriptor } from "@src/shared/plugins"
 import { whatsappChatKinds, type WhatsappChat, type WhatsappChatKind, type WhatsappMessage } from "@src/shared/whatsapp"
 import type { Observability } from "@src/engine/observability/observability"
 import type { AppDatabase } from "@src/engine/persistence/database"
-import { PluginAuthError, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
+import { PluginAuthError, toolInputSchema, type PluginAccountSession, type PluginAdapter } from "../plugin-adapter"
 import { whatsappAuth } from "./whatsapp-auth"
 import { incoming, nameOf, type IncomingMessage } from "./whatsapp-messages"
 
 const reconnectDelayMs = 3000
-const chatProperty = { type: "string", description: "Chat id from whatsapp_chats" } as const
 
 const chatIdList = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).transform((value) => Array.isArray(value) ? value : [value])
 
 const inputs = {
-  whatsapp_chats: z.object({ limit: z.coerce.number().int().min(1).max(100).default(30), kinds: z.array(z.enum(whatsappChatKinds)).min(1).default([...whatsappChatKinds]) }),
-  whatsapp_read: z.object({ chatIds: chatIdList, limit: z.coerce.number().int().min(1).max(200).default(30) }),
-  whatsapp_send: z.object({ chatId: z.string().min(1), text: z.string().min(1) }),
+  whatsapp_chats: z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(30).describe("Maximum chats, default 30, up to 100"),
+    kinds: z.array(z.enum(whatsappChatKinds)).min(1).default([...whatsappChatKinds]).describe("Kinds of chat to list. contact is one person, group is many, newsletter is a channel the person follows, self is the person's own notes. All kinds by default."),
+  }),
+  whatsapp_read: z.object({ chatIds: chatIdList.describe("Chat ids from whatsapp_chats"), limit: z.coerce.number().int().min(1).max(200).default(30).describe("Maximum messages per chat, default 30, up to 200") }),
+  whatsapp_send: z.object({ chatId: z.string().min(1).describe("Chat id from whatsapp_chats"), text: z.string().min(1).describe("Message text") }),
 }
 
 const whatsappTools: ToolDescriptor[] = [
@@ -25,32 +27,19 @@ const whatsappTools: ToolDescriptor[] = [
     name: "whatsapp_chats",
     label: "Lista de conversas do WhatsApp",
     description: "List the person's WhatsApp chats, most recent first. Each chat shows its id, its name, what kind of chat it is, when the last message arrived, how many messages Mimo has stored, and the last message itself with its sender. Use this first: it is cheap, and it gives you the chat ids that whatsapp_read and whatsapp_send need. Mimo only stores what arrived while it was open.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        limit: { type: "number", description: "Maximum chats, default 30, up to 100" },
-        kinds: { type: "array", items: { type: "string", enum: [...whatsappChatKinds] }, description: "Kinds of chat to list. contact is one person, group is many, newsletter is a channel the person follows, self is the person's own notes. All kinds by default." },
-      },
-    },
+    inputSchema: toolInputSchema(inputs.whatsapp_chats),
   },
   {
     name: "whatsapp_read",
     label: "Leitura de conversa do WhatsApp",
     description: "Read the stored messages of one or more WhatsApp chats, oldest first, with sender, time and text. Pass every chat you need in one call. Non-text messages read as a marker such as [image]. The stored history has gaps: Mimo loses what arrived while it was closed and never recovers it. Do not assume you read the whole conversation.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        chatIds: { type: "array", items: { type: "string" }, description: "Chat ids from whatsapp_chats" },
-        limit: { type: "number", description: "Maximum messages per chat, default 30, up to 200" },
-      },
-      required: ["chatIds"],
-    },
+    inputSchema: toolInputSchema(inputs.whatsapp_read),
   },
   {
     name: "whatsapp_send",
     label: "Envio de mensagem no WhatsApp",
     description: "Send a text message to a WhatsApp chat right away, as the person. Whoever reads it sees a message from the person, with no sign that a Bot wrote it.",
-    inputSchema: { type: "object", properties: { chatId: chatProperty, text: { type: "string", description: "Message text" } }, required: ["chatId", "text"] },
+    inputSchema: toolInputSchema(inputs.whatsapp_send),
   },
 ]
 
@@ -76,12 +65,7 @@ export function createWhatsappAdapter(input: { observability: Observability; dat
     let current: WASocket | undefined
     let closed = false
     let loggedOut = false
-    let resolveOpened: (label: string) => void = () => {}
-    let rejectOpened: (error: Error) => void = () => {}
-    const opened = new Promise<string>((resolve, reject) => {
-      resolveOpened = resolve
-      rejectOpened = reject
-    })
+    const { promise: opened, resolve: resolveOpened, reject: rejectOpened } = Promise.withResolvers<string>()
 
     const session: Session = {
       socket() {

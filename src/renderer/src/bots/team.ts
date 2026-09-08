@@ -17,11 +17,9 @@ export function findTeamBot(groups: ProjectGroups | undefined, id: string) {
   return teamBots(groups).find((bot) => bot.id === id)
 }
 
-export function teamNames(groups: ProjectGroups | undefined) {
-  return Object.fromEntries(teamBots(groups).map((bot) => [bot.id, bot.name]))
-}
+export type TeamIdentities = Record<string, Pick<Bot, "name" | "avatarSeed">>
 
-export function teamAvatarIdentities(groups: ProjectGroups | undefined) {
+export function teamIdentities(groups: ProjectGroups | undefined): TeamIdentities {
   return Object.fromEntries(teamBots(groups).map((bot) => [bot.id, { name: bot.name, avatarSeed: bot.avatarSeed }]))
 }
 

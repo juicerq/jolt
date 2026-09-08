@@ -6,9 +6,10 @@ import type { Bot } from "@src/shared/bots"
 import { askTool, sendMessageTool, type TurnContext } from "@src/shared/conversations"
 import { createConversationTools } from "@src/engine/conversations/conversation-tools"
 import { botInstructions } from "@src/engine/conversations/bot-instructions"
-import type { PiTool } from "@src/engine/pi/pi-agent-runtime"
+import type { PiSessionFactory, PiTool } from "@src/engine/pi/pi-agent-runtime"
 import { createPiModels } from "@src/engine/pi/pi-models"
 import { createPiSessionFactory } from "@src/engine/pi/pi-session-adapter"
+import { createObservationSystem } from "@src/engine/observability/observability"
 
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
@@ -88,7 +89,7 @@ interface Turn {
   error?: string
 }
 
-async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: string, agentDirectory: string): Promise<Turn> {
+async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactory): Promise<Turn> {
   const messages: string[] = []
   const toolsBeforeFirstMessage: string[] = []
   const sequence: string[] = []
@@ -98,7 +99,6 @@ async function runTurn(scenario: Scenario, cwd: string, sessionsDirectory: strin
   let failure: string | undefined
   let undeliveredText = ""
 
-  const factory = createPiSessionFactory({ agentDirectory, sessionsDirectory, models })
   const gmailTool: PiTool = {
     name: "gmail_search",
     label: "Pesquisa no Gmail",
@@ -176,6 +176,8 @@ const cwd = join(root, "bot")
 const sessionsDirectory = join(root, "sessions")
 const agentDirectory = join(root, "agent")
 await Bun.$`mkdir -p ${cwd} ${sessionsDirectory} ${agentDirectory}`.quiet()
+const { observability } = createObservationSystem({ appSessionId: "protocol-check", logDirectory: join(root, "logs"), development: false })
+const factory = createPiSessionFactory({ agentDirectory, sessionsDirectory, models, observability })
 
 const selected = values.scenario.length > 0 ? scenarios.filter((scenario) => values.scenario.includes(scenario.name)) : scenarios
 const runs = Number(values.runs)
@@ -183,7 +185,7 @@ const turns: Turn[] = []
 
 for (const scenario of selected) {
   for (let run = 0; run < runs; run++) {
-    const turn = await runTurn(scenario, cwd, sessionsDirectory, agentDirectory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], undeliveredText: "", sequence: [], toolsBeforeFirstMessage: [], asked: 0, durationMs: 0, deliveries: [], error: String(error) }))
+    const turn = await runTurn(scenario, cwd, factory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], undeliveredText: "", sequence: [], toolsBeforeFirstMessage: [], asked: 0, durationMs: 0, deliveries: [], error: String(error) }))
 
     turns.push(turn)
     console.log(JSON.stringify(turn))
@@ -203,6 +205,7 @@ for (const scenario of selected) {
   console.log(`${scenario.name}: messages ${messages.toFixed(1)}, opened before work ${openedFirst}/${own.length}, silent ${silent}/${own.length}, asked ${own.reduce((sum, turn) => sum + turn.asked, 0)}, ${Math.round(duration)}ms, errors ${failed}`)
 }
 
+await observability.flush()
 await rm(root, { recursive: true, force: true })
 
 if (turns.some((turn) => turn.error || turn.messages.length === 0)) {
