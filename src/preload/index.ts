@@ -1,3 +1,4 @@
+import type { LocalFileRequest } from "../shared/local-files"
 import { contextBridge, ipcRenderer } from "electron"
 import type { BrowserState, BrowserBounds } from "../shared/browser"
 import type { EngineConnection } from "../shared/engine-ipc"
@@ -6,6 +7,7 @@ import type { TurnNotification } from "../shared/turn-notification"
 
 contextBridge.exposeInMainWorld("desktop", {
   remote: false,
+  fileAction: (request: LocalFileRequest): Promise<void> => ipcRenderer.invoke("file:action", request),
   getBrowserState: (): Promise<BrowserState> => ipcRenderer.invoke("agent-browser:state"),
   watchBrowser: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:watch", botId),
   takeBrowserControl: (botId: string): Promise<void> => ipcRenderer.invoke("agent-browser:take-control", botId),

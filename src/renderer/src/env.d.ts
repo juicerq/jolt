@@ -1,3 +1,4 @@
+import type { LocalFileRequest } from "@src/shared/local-files"
 import type { BrowserState, BrowserBounds } from "@src/shared/browser"
 import type { EngineConnection } from "@src/shared/engine-ipc"
 import type { MobileAccess, MobileAccessUpdate } from "@src/shared/mobile-access"
@@ -7,6 +8,7 @@ declare global {
   interface Window {
     desktop: {
       remote: boolean
+      fileAction(request: LocalFileRequest): Promise<void>
       getBrowserState(): Promise<BrowserState>
       watchBrowser: (botId: string) => Promise<void>
       takeBrowserControl: (botId: string) => Promise<void>
