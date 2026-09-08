@@ -1,6 +1,6 @@
 import type { QueuedMessage } from "@src/shared/conversations"
 
-type QueueEntry = Pick<QueuedMessage, "content" | "images">
+type QueueEntry = Pick<QueuedMessage, "content" | "images" | "taskId">
 
 export function createMessageQueue() {
   const byBot = new Map<string, QueuedMessage[]>()

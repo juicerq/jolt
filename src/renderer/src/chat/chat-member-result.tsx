@@ -16,6 +16,7 @@ export function memberResultKind(botId: string, task: Pick<Task, "assigneeBotId"
 
 const resultLabels: Record<TaskStatus, (name: string) => string> = {
   working: (name) => `${name} retornou`,
+  blocked: (name) => `${name} precisa de uma resposta`,
   done: (name) => `${name} retornou`,
   interrupted: (name) => `${name} não concluiu a Tarefa`,
   failed: (name) => `${name} não concluiu a Tarefa`,

@@ -16,6 +16,7 @@ import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import { createMessagingExtension } from "./pi-messaging"
+import { reportTaskTool } from "@src/shared/tasks"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { ObservationAttributes } from "@src/shared/observability/observation"
 import type { Observability } from "../observability/observability"
@@ -351,7 +352,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension()] : [])],
+        extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension(input.tools.includes(reportTaskTool))] : [])],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,

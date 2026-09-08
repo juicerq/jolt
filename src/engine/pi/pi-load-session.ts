@@ -1,3 +1,4 @@
+import { reportTaskTool } from "@src/shared/tasks"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { PiRuntimeEvent, PiSession, PiSessionFactory } from "./pi-agent-runtime"
 
@@ -88,6 +89,14 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
               await send.execute({ content: event.content }, turn.signal)
 
               continue
+            }
+
+            if (event.type === "finished" && event.reason === "stop") {
+              const report = input.customTools?.find((tool) => tool.name === reportTaskTool)
+
+              if (report) {
+                await report.execute({ status: "done", content: response.join("\n\n") }, turn.signal)
+              }
             }
 
             for (const listener of listeners) {

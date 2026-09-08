@@ -26,6 +26,7 @@ const messageQuestion = z.strictObject({
 const messageReply = z.strictObject({ messageId: id, optionValues: z.array(id.max(100)).min(1) })
 const queuedMessage = z.strictObject({
   id,
+  taskId: id.optional(),
   content: z.string(),
   images: z.array(messageImage),
   promoted: z.boolean(),

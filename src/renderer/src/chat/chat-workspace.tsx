@@ -145,7 +145,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   return (
     <ChatFileDirectory value={bot.effectiveWorkingDirectory}>
       <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)] max-md:before:hidden">
-        <ChatScroller botId={bot.id} footer={bot.closed ? <ChatClosed bot={bot} /> : <>
+        <ChatScroller botId={bot.id} footer={<>
           <ChatTeamControl key={bot.id} bot={bot} members={members} client={client} />
           <ChatQueue bot={bot} client={client} />
           <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />
@@ -233,7 +233,7 @@ function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuest
       {(message.content || message.question) && (
         <ChatStamped className="chat-bot-bubble" copy={message.content} name={bot.name} time={time} anchor="bubble">
           {message.content && <ChatContent content={message.content} bot={bot} />}
-          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} {...(onQuestionAnswer && !bot.closed ? { onAnswer: onQuestionAnswer } : {})} />}
+          {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} {...(onQuestionAnswer ? { onAnswer: onQuestionAnswer } : {})} />}
         </ChatStamped>
       )}
       {message.ending && <ChatStamped name={bot.name} time={time} anchor="text"><ChatTurnEnding botName={bot.name} ending={message.ending} {...(message.error ? { error: message.error } : {})} /></ChatStamped>}
@@ -291,14 +291,6 @@ function PulsingDots({ className }: { className: string }) {
 
 function ChatWorkingIndicator({ botName }: { botName: string }) {
   return <div className="flex w-fit items-center gap-1" role="status" aria-label={`${botName} está trabalhando`}><PulsingDots className="bg-muted" /></div>
-}
-
-function ChatClosed({ bot }: { bot: Bot }) {
-  return (
-    <p className="mx-auto my-0 w-[min(680px,calc(100%-48px))] rounded-full border border-outline bg-surface-raised px-4 py-3 text-center text-support text-muted max-[700px]:w-[calc(100%-28px)]" role="status">
-      {bot.name} foi encerrado. O histórico da Tarefa continua disponível.
-    </p>
-  )
 }
 
 function EmptyChat({ bot }: { bot: Bot }) {

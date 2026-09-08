@@ -11,6 +11,7 @@ import { createProjects } from "@src/engine/projects/projects"
 import { createQueue } from "@src/engine/queue"
 import { createTasks } from "@src/engine/tasks/tasks"
 import type { Bot } from "@src/shared/bots"
+import { reportTaskTool } from "@src/shared/tasks"
 import { sendMessageTool } from "@src/shared/conversations"
 
 import { must, rejects } from "../support/expect"
@@ -25,6 +26,7 @@ afterEach(async () => {
 
 function turnDriver(input: PiSessionInput, emit: (event: PiRuntimeEvent) => void) {
   const cancellation = new AbortController()
+  let finishOnSteer = false
   const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
 
   async function tool(name: string, params: Record<string, string>) {
@@ -41,9 +43,28 @@ function turnDriver(input: PiSessionInput, emit: (event: PiRuntimeEvent) => void
     settled,
     input,
     tool,
+    finishOnNextSteer() {
+      finishOnSteer = true
+    },
+    async steer() {
+      if (finishOnSteer) {
+        await tool(reportTaskTool, { status: "done", content: "Investigação entregue" })
+        emit({ type: "finished", reason: "stop" })
+        settle()
+      }
+    },
     async finish(content = "Trabalho entregue") {
-      await tool(sendMessageTool, { content })
+      const reports = input.tools.includes(reportTaskTool)
+      await tool(reports ? reportTaskTool : sendMessageTool, reports ? { content, status: "done" } : { content })
       emit({ type: "finished", reason: "stop" })
+      settle()
+    },
+    stop() {
+      emit({ type: "finished", reason: "stop" })
+      settle()
+    },
+    fail(error: string) {
+      emit({ type: "finished", reason: "error", error })
       settle()
     },
     abort() {
@@ -90,7 +111,7 @@ async function teamApp() {
           turns(input.botId).push(current)
           await current.settled
         },
-        async steer() {},
+        async steer() { await current?.steer() },
         async compact() { return { tokensBefore: 0 } },
         async abort() { current?.abort() },
         subscribe(listener) {
@@ -459,8 +480,11 @@ test("configurar libera a aprovação atual e retomar preserva Bot, Tarefa e his
   await resumed.finish()
   await returning.finish()
   const completed = await app.next(leader)
-  await rejects(completed.tool("delegate", { bot: member.id, instructions: "Outra tarefa", wait: "no" }), "interrupted or failed")
-  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "done" }])
+  await completed.tool("delegate", { bot: member.id, instructions: "Valide o resultado", wait: "no" })
+  const validation = await app.next(member)
+  expect(validation.input).toMatchObject({ model: "gpt-5.6-sol", effort: "low", cwd, policy: { mode: "full" } })
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "done" }, { status: "working" }])
+  expect(app.conversations.history({ botId: member.id, limit: 100 }).messages.at(-1)?.content).toBe("Valide o resultado")
 })
 
 test("Líder não configura Colegas nem integrantes de outro Time", async () => {
@@ -475,4 +499,147 @@ test("Líder não configura Colegas nem integrantes de outro Time", async () => 
     await rejects(app.bots.configureMember(leader.id, target.id, { effort: "low" }), "own team")
     expect(app.bots.get(target.id)?.effort).toBe("medium")
   }
+})
+
+
+test("orientações do Líder e da pessoa complementam a Tarefa e somente a entrega volta", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const caller = await app.start(leader)
+  await caller.tool("hire", { name: "Cadastro", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no" })
+  const member = must(app.bots.list().find((bot) => bot.temporary))
+  const worker = await app.next(member)
+  const task = must(app.tasks.latest(member.id))
+  await worker.tool(sendMessageTool, { content: "Hipótese inicial: cache" })
+  await caller.tool("delegate", { bot: member.id, instructions: "Use staging", wait: "no" })
+  await app.conversations.send({ botId: member.id, content: "Confira recuperação", images: [], replyTo: null, mentionedBotIds: [], deliver: "now" })
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "working" }])
+  expect(app.conversations.history({ botId: member.id, limit: 100 }).messages.slice(-2).map((message) => ({ content: message.content, taskId: message.taskId, author: message.author }))).toEqual([
+    { content: "Use staging", taskId: task.id, author: "bot" },
+    { content: "Confira recuperação", taskId: task.id, author: "person" },
+  ])
+  await caller.finish()
+  await worker.finish("Validação concluída: recuperação comprovada")
+  const returning = await app.next(leader)
+  await returning.finish()
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === member.id).map((message) => message.content)).toEqual(["Validação concluída: recuperação comprovada"])
+})
+
+test("bloqueio pede resposta ao Líder e retoma a mesma Tarefa", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const member = await app.bots.create({ name: "Investigador", leaderBotId: leader.id })
+  const caller = await app.start(leader)
+  await caller.tool("delegate", { bot: member.id, instructions: "Investigue", wait: "no" })
+  const worker = await app.next(member)
+  const task = must(app.tasks.latest(member.id))
+  expect(worker.input.tools).not.toContain("ask")
+  await worker.tool(reportTaskTool, { status: "blocked", content: "Qual ambiente devo consultar?" })
+  await caller.finish()
+  worker.stop()
+  const returning = await app.next(leader)
+  expect(app.tasks.get(task.id)).toMatchObject({ status: "blocked", finishedAt: null })
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toContain("Qual ambiente")
+  await returning.tool("delegate", { bot: member.id, instructions: "Staging", wait: "no" })
+  const continued = await app.next(member)
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ id: task.id, status: "working" }])
+  await continued.finish("Consultei staging")
+})
+
+test("Fila no temporário continua vinculada e entrega os dois resultados ao Líder", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const caller = await app.start(leader)
+  await caller.tool("hire", { name: "Cadastro", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no" })
+  const member = must(app.bots.list().find((bot) => bot.temporary))
+  const worker = await app.next(member)
+  await app.conversations.send({ botId: member.id, content: "Agora valide", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  await caller.finish()
+  await worker.finish("Investigação entregue")
+  const returning = await app.next(leader)
+  const validation = await app.next(member)
+  expect(app.conversations.active(member.id)?.taskId).toBe(app.tasks.latest(member.id)?.id)
+  expect(app.bots.get(member.id)?.closed).toBe(false)
+  await returning.finish()
+  await validation.finish("Validação entregue")
+  await app.next(leader)
+  expect(app.tasks.listForBot(member.id).map((task) => task.status)).toEqual(["done", "done"])
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === member.id).map((message) => message.content)).toEqual(["Investigação entregue", "Validação entregue"])
+})
+
+test.each(["error", "missing-report", "report-then-error"])("retorno %s preserva falha e progresso sem anunciar sucesso", async (kind) => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const member = await app.bots.create({ name: "Investigador", leaderBotId: leader.id })
+  const caller = await app.start(leader)
+  await caller.tool("delegate", { bot: member.id, instructions: "Investigue", wait: "no" })
+  const worker = await app.next(member)
+  await worker.tool(sendMessageTool, { content: "Achei falha no carregamento" })
+  if (kind === "report-then-error") {
+    await worker.tool(reportTaskTool, { status: "done", content: "Resultado ainda não consolidado" })
+  }
+  await caller.finish()
+  if (kind === "missing-report") {
+    worker.stop()
+  } else {
+    worker.fail("HTTP 429: limite do fornecedor")
+  }
+  await app.next(leader)
+  expect(app.tasks.latest(member.id)?.status).toBe("failed")
+  const result = app.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content
+  expect(result).toContain(kind === "missing-report" ? "report_task" : "HTTP 429")
+  expect(result).toContain(kind === "report-then-error" ? "Resultado ainda não consolidado" : "Achei falha no carregamento")
+  expect(result).toContain("partial")
+})
+
+
+test("orientação enquanto Colega aguarda disponibilidade não duplica a execução", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const colleague = await app.bots.create({ name: "Pesquisador" })
+  app.bots.addColleague(leader.id, colleague.id)
+  const independent = await app.start(colleague)
+  const caller = await app.start(leader)
+  await caller.tool("delegate", { bot: colleague.id, instructions: "Investigue", wait: "no" })
+  await caller.tool("delegate", { bot: colleague.id, instructions: "Inclua staging", wait: "no" })
+  await caller.finish()
+  await independent.finish("Pedido independente concluído")
+  const worker = await app.next(colleague)
+  const events = app.conversations.events()[Symbol.asyncIterator]()
+  while (true) {
+    const next = await events.next()
+    if (next.value?.botId === colleague.id && next.value.event.type === "message-finished" && next.value.event.message?.content === "Inclua staging") {
+      break
+    }
+    if (app.conversations.history({ botId: colleague.id, limit: 100 }).messages.at(-1)?.content === "Inclua staging") {
+      break
+    }
+  }
+  await events.return?.()
+  await worker.finish("Resultado com staging")
+  await app.next(leader)
+  expect(app.tasks.listForBot(colleague.id)).toHaveLength(1)
+  expect(app.conversations.active(colleague.id)).toBeUndefined()
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === colleague.id).map((message) => message.content)).toEqual(["Resultado com staging"])
+})
+
+
+test("orientação na transição da entrega vira continuação sem perda ou duplicação", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "PM" })
+  const caller = await app.start(leader)
+  await caller.tool("hire", { name: "Cadastro", role: "Investigar", permanent: "no", instructions: "Investigue", wait: "no" })
+  const member = must(app.bots.list().find((bot) => bot.temporary))
+  const worker = await app.next(member)
+  worker.finishOnNextSteer()
+  await caller.tool("delegate", { bot: member.id, instructions: "Agora valide", wait: "no" })
+  const validation = await app.next(member)
+  expect(app.tasks.listForBot(member.id).map((task) => task.status)).toEqual(["done", "working"])
+  expect(app.conversations.history({ botId: member.id, limit: 100 }).messages.filter((message) => message.content === "Agora valide")).toHaveLength(1)
+  await caller.finish()
+  const firstResult = await app.next(leader)
+  await firstResult.finish()
+  await validation.finish("Validação entregue")
+  await app.next(leader)
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === member.id).map((message) => message.content)).toEqual(["Investigação entregue", "Validação entregue"])
 })

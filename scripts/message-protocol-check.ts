@@ -113,10 +113,12 @@ async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactor
       return inbox.map((line) => `- ${line}`).join("\n")
     },
   }
-  const messagingTools = createConversationTools((content, question) => {
-    messages.push(content)
-    deliveries.push({ elapsedMs: Math.round((Bun.nanoseconds() - started) / 1e6), characters: content.length })
-    asked += Number(!!question)
+  const messagingTools = createConversationTools({
+    send(content, question) {
+      messages.push(content)
+      deliveries.push({ elapsedMs: Math.round((Bun.nanoseconds() - started) / 1e6), characters: content.length })
+      asked += Number(!!question)
+    },
   })
   const customTools = scenario.gmail ? [...messagingTools, gmailTool] : messagingTools
   const tools = ["read", "grep", "find", "ls", "bash", "edit", "write", ...customTools.map((tool) => tool.name)]

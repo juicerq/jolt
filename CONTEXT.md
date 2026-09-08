@@ -17,7 +17,7 @@ Um Bot ligado a um único Líder, com Função, memória e histórico próprios.
 _Evitar_: Subagente, bot secundário, especialista
 
 **Integrante temporário**:
-Um Integrante que o Líder contrata para uma única Tarefa. Ele recebe modelo, esforço, pasta e permissão antes de começar, não cria Bots e fica encerrado quando a Tarefa termina; se ela for interrompida ou falhar, o Líder pode retomá-la com o mesmo Bot e histórico. Os demais Integrantes são permanentes.
+Um Integrante que o Líder contrata para um trabalho pontual, com modelo, esforço, pasta e permissão definidos antes de começar. Não cria Bots e fica inativo entre Tarefas; o Líder pode continuar com o mesmo Bot, preservando Conversa, pasta e configurações, inclusive depois de uma entrega. Os demais Integrantes são permanentes.
 _Evitar_: Bot temporário, subprocesso
 
 **Adicionar integrante**:
@@ -25,7 +25,7 @@ Criar um Bot permanente ligado a um Líder ou vincular um Bot permanente existen
 _Evitar_: Convidar, duplicar Bot
 
 **Encerrado**:
-O estado de um Integrante temporário cuja Tarefa terminou.
+O estado inativo de um Integrante temporário entre Tarefas, disponível para continuidade pelo Líder.
 _Evitar_: Removido, arquivado, deletado
 
 **Desvincular do time**:
@@ -200,11 +200,15 @@ O nome de um Bot que a pessoa escolhe com `@` ao escrever uma Mensagem, e que o 
 _Evitar_: Marcação, tag, Comando
 
 **Tarefa**:
-Um trabalho com instruções e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
+Um trabalho com instruções, um solicitante e um único Bot responsável. Novas orientações durante a execução complementam a Tarefa; depois de uma entrega concluída, outro pedido cria uma nova Tarefa no mesmo Bot e Conversa. Uma Tarefa interrompida, com falha ou bloqueada pode ser retomada.
 _Evitar_: Mensagem, atividade
 
+**Tarefa bloqueada**:
+Uma Tarefa que aguarda informação ou decisão do solicitante para continuar. O fim do Turno que apresenta o bloqueio não conclui a Tarefa.
+_Evitar_: Concluída, falha, encerrada
+
 **Resultado da Tarefa**:
-O que o Bot responsável entrega ao concluir uma Tarefa.
+A entrega explícita e autossuficiente do Bot responsável ao solicitante, separada das mensagens de progresso. Informa a conclusão do pedido ou o bloqueio que depende de informação ou decisão; falhas e interrupções preservam o contexto e são comunicadas como trabalho não concluído.
 _Evitar_: Resposta, retorno, output
 
 **Conexão por Assinatura**:

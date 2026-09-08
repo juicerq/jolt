@@ -1,7 +1,8 @@
 import type { InlineExtension } from "@earendil-works/pi-coding-agent"
+import { reportTaskTool } from "@src/shared/tasks"
 import { askTool, sendMessageTool } from "@src/shared/conversations"
 
-export function createMessagingExtension(): InlineExtension {
+export function createMessagingExtension(assigned: boolean): InlineExtension {
   return {
     name: "mimo-messaging",
     factory(pi) {
@@ -14,7 +15,7 @@ export function createMessagingExtension(): InlineExtension {
       })
 
       pi.on("tool_result", (event) => {
-        if (!event.isError && (event.toolName === sendMessageTool || event.toolName === askTool)) {
+        if (!event.isError && (assigned ? event.toolName === reportTaskTool : event.toolName === sendMessageTool || event.toolName === askTool)) {
           delivered = true
         }
       })
@@ -27,7 +28,7 @@ export function createMessagingExtension(): InlineExtension {
         reminded = true
         pi.sendMessage({
           customType: "mimo.messaging-reminder",
-          content: "No message has been delivered to the Mimo conversation. Send your answer with send_message now, one complete idea per call. If a choice is required, use ask. Do not repeat work already completed. Plain assistant text is not delivered.",
+          content: assigned ? "No Tarefa result has been delivered. Use report_task now: done with a self-contained result, or blocked with the information or decision needed. Progress sent with send_message is not the delivery. Do not repeat work already completed." : "No message has been delivered to the Mimo conversation. Send your answer with send_message now, one complete idea per call. If a choice is required, use ask. Do not repeat work already completed. Plain assistant text is not delivered.",
           display: false,
         }, { deliverAs: "followUp", triggerTurn: true })
       })
