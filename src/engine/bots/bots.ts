@@ -197,6 +197,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         provider: selectedProvider.provider,
         function: input.function ?? { outcome: "Ajudar no que você precisar" },
         temporary: false,
+        pinned: false,
         memoryEnabled: true,
         effort: "medium",
         model: null,
@@ -217,6 +218,7 @@ export function createBots({ database, observability, privateBotsDirectory, prov
         function: details.function,
         workingDirectoryOverride: leader.workingDirectoryOverride,
         temporary: !details.permanent,
+        pinned: false,
         memoryEnabled: true,
         effort: "medium",
         model: null,
@@ -322,6 +324,16 @@ export function createBots({ database, observability, privateBotsDirectory, prov
     updateExecution(rawInput: unknown) {
       const input = parse(botSchemas.updateExecutionInput, rawInput)
       const updated = database.bots.updateExecution(input.id, executionChange(input))
+
+      if (!updated) {
+        throw new Error("Bot not found")
+      }
+
+      return present(updated)
+    },
+    updatePinned(rawInput: unknown) {
+      const input = parse(botSchemas.updatePinnedInput, rawInput)
+      const updated = database.bots.updatePinned(input.id, input.pinned)
 
       if (!updated) {
         throw new Error("Bot not found")

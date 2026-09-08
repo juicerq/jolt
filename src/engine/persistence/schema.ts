@@ -26,6 +26,7 @@ export const bots = snakeCase.table("bots", {
   function: text({ mode: "json" }).$type<StoredBot["function"]>().notNull(),
   workingDirectoryOverride: text(),
   temporary: integer({ mode: "boolean" }).notNull().default(false),
+  pinned: integer({ mode: "boolean" }).notNull().default(false),
   memoryEnabled: integer({ mode: "boolean" }).notNull().default(true),
   effort: text({ enum: ["low", "medium", "high", "xhigh", "max"] }).$type<StoredBot["effort"]>().notNull().default("medium"),
   model: text(),

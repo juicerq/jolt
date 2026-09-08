@@ -1,0 +1,1 @@
+ALTER TABLE `bots` ADD `pinned` integer DEFAULT false NOT NULL;

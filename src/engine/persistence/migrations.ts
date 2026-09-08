@@ -20,6 +20,7 @@ import botContinuity from "@drizzle/20260905015106_bot-continuity/migration.sql"
 import optionalProjectFolder from "@drizzle/20260905031351_optional-project-folder/migration.sql" with { type: "text" }
 import dropTaskOutcome from "@drizzle/20260906111558_drop-task-outcome/migration.sql" with { type: "text" }
 import questionMultiple from "@drizzle/20260906111826_question-multiple/migration.sql" with { type: "text" }
+import botPinned from "@drizzle/20260908115928_ancient_old_lace/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -43,4 +44,5 @@ export const migrations = [
   { name: "20260905031351_optional-project-folder", timestamp: 1788578031000, sql: optionalProjectFolder },
   { name: "20260906111558_drop-task-outcome", timestamp: 1788693358000, sql: dropTaskOutcome },
   { name: "20260906111826_question-multiple", timestamp: 1788704306000, sql: questionMultiple },
+  { name: "20260908115928_ancient_old_lace", timestamp: 1788879568000, sql: botPinned },
 ] satisfies MigrationsJournal

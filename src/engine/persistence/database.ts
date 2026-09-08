@@ -237,6 +237,13 @@ export function openDatabase(path: string, observability: Observability) {
           return parseOptional(botSchemas.storedBot, row)
         })
       },
+      updatePinned(id: string, pinned: boolean) {
+        return observability.span({ name: "database.botpinupdate", context: { botId: id } }, () => {
+          const row = database.update(bots).set({ pinned }).where(eq(bots.id, id)).returning().get()
+
+          return parseOptional(botSchemas.storedBot, row)
+        })
+      },
       remove(id: string) {
         return observability.span({ name: "database.botremove", context: { botId: id } }, () => database.delete(bots).where(eq(bots.id, id)).run().changes)
       },

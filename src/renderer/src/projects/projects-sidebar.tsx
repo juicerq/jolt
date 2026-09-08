@@ -1,7 +1,7 @@
-import { ArrowPathIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
-import { useQuery } from "@tanstack/react-query"
+import { ArrowPathIcon, BookmarkIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import { type ReactNode, type Ref, useId, useState } from "react"
+import { type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type Ref, useId, useRef, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { BotFace } from "../bots/bot-face"
@@ -19,6 +19,7 @@ import { menuCardClassName, MenuOption } from "../ui/menu"
 import { Tooltip, useTooltip } from "../ui/tooltip"
 
 const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
+type TogglePinned = (bot: Bot) => void
 
 const teamAvatarHoverClassNames = [
   "group-hover/stack:-translate-y-0.5",
@@ -52,7 +53,17 @@ export function ProjectsSidebar({ client, mobile = false }: { client: EngineClie
 function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; search: string; draftOpen: boolean }) {
   const selectedBotId = useSelector(botsStore, (state) => (state.draft === null && state.screen === null ? state.selectedBotId : null))
   const statuses = useSelector(chatStore, (state) => state.statuses)
+  const queryClient = useQueryClient()
   const { data, error, isPending } = useQuery(client.query.projects.list.queryOptions())
+  const { mutate: updatePinned, variables: pinning, isPending: pinningPending, error: pinError } = useMutation(client.query.bots.updatePinned.mutationOptions({
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
+    },
+  }))
+
+  function togglePinned(bot: Bot) {
+    updatePinned({ id: bot.id, pinned: !bot.pinned })
+  }
 
   if (error) {
     return <p className="mx-2.5 my-3 text-support text-status-error">Falha ao carregar Projetos: {error.message}</p>
@@ -79,15 +90,28 @@ function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; 
     return <SidebarEmpty title="Nenhum Bot encontrado">Tente outro nome ou função.</SidebarEmpty>
   }
 
+  const { pinnedBots, projects, unassignedBots } = splitPinnedBots(visibleData)
+
   return (
     <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto max-[720px]:block" aria-label="Projetos e Bots">
-      {visibleData.projects.map((project) => <ProjectSection key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} />)}
-      {visibleData.unassignedBots.length > 0 && (
-        <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
-          {visibleData.projects.length > 0 && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
+      {pinError && <p className="mx-2.5 my-3 text-support text-status-error" role="alert">Não foi possível atualizar o Bot: {pinError.message}</p>}
+      {pinnedBots.length > 0 && (
+        <section className="[&+&]:mt-5" aria-labelledby="pinned-bots">
+          <ProjectHeading id="pinned-bots">Fixados</ProjectHeading>
           <ul className="m-0 list-none p-0 max-[720px]:block">
-            {visibleData.unassignedBots.map((bot) => (
-              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
+            {pinnedBots.map((bot) => (
+              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {projects.map((project) => <ProjectSection key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />)}
+      {unassignedBots.length > 0 && (
+        <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
+          {(projects.length > 0 || pinnedBots.length > 0) && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
+          <ul className="m-0 list-none p-0 max-[720px]:block">
+            {unassignedBots.map((bot) => (
+              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
             ))}
           </ul>
         </section>
@@ -96,7 +120,7 @@ function SidebarProjects({ client, search, draftOpen }: { client: EngineClient; 
   )
 }
 
-function ProjectSection({ project, selectedBotId, statuses }: { project: ProjectGroups["projects"][number]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
+function ProjectSection({ project, selectedBotId, statuses, pinningBotId, onTogglePinned }: { project: ProjectGroups["projects"][number]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
   return (
     <section className="[&+&]:mt-5" aria-labelledby={`project-${project.id}`}>
       <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
@@ -105,7 +129,7 @@ function ProjectSection({ project, selectedBotId, statuses }: { project: Project
       ) : (
         <ul className="m-0 list-none p-0 max-[720px]:block">
           {project.bots.map((bot) => (
-            <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} />
+            <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} />
           ))}
         </ul>
       )}
@@ -236,7 +260,34 @@ function matchesSearch(bot: Bot, query: string) {
   return `${bot.name} ${bot.function.outcome}`.toLocaleLowerCase("pt-BR").includes(query)
 }
 
-function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined> }) {
+function splitPinnedBots(data: ProjectGroups) {
+  const pinnedBots: (Bot & { members: Bot[] })[] = []
+  const split = (bots: (Bot & { members: Bot[] })[]) => bots.flatMap((bot) => {
+    if (bot.pinned) {
+      pinnedBots.push(bot)
+
+      return []
+    }
+
+    const pinnedMembers = bot.members.filter((member) => member.pinned).map((member) => ({ ...member, members: [] }))
+    pinnedBots.push(...pinnedMembers)
+
+    return [{ ...bot, members: bot.members.filter((member) => !member.pinned) }]
+  })
+  const projects = data.projects.flatMap((project) => {
+    const bots = split(project.bots)
+
+    if (project.bots.length > 0 && bots.length === 0) {
+      return []
+    }
+
+    return [{ ...project, bots }]
+  })
+
+  return { pinnedBots, projects, unassignedBots: split(data.unassignedBots) }
+}
+
+function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
   const hasTeam = bot.members.length > 0
   const [expanded, setExpanded] = useState(hasTeam)
   const [closedShown, setClosedShown] = useState(false)
@@ -247,13 +298,13 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
   const highlighted = highlightedBotId(bot, selectedBotId, expanded)
 
   if (!hasTeam) {
-    return <li className="block border-0 p-0"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} /></li>
+    return <li className="block border-0 p-0"><BotRow bot={bot} selected={selectedBotId === bot.id} status={statuses[bot.id] ?? "available"} pinning={pinningBotId === bot.id} onTogglePinned={onTogglePinned} /></li>
   }
 
   return (
     <li className="block border-0 p-0">
       <div className="group/leader relative">
-        <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} />
+        <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} pinning={pinningBotId === bot.id} onTogglePinned={onTogglePinned} />
         <IconButton
           className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
           iconSize={13}
@@ -275,7 +326,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
         inert={!expanded ? true : undefined}
       >
         <ul className={`${memberListClassName} ${expanded ? "py-0.5" : "py-0"}`} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
-          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} />)}
+          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
               <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
@@ -284,7 +335,7 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
               </button>
             </li>
           )}
-          {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} />)}
+          {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
         </ul>
       </div>
     </li>
@@ -294,10 +345,10 @@ function BotGroup({ bot, selectedBotId, statuses }: { bot: Bot & { members: Bot[
 const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5"
 const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
 
-function MemberItem({ member, selected, status }: { member: Bot; selected: boolean; status?: ChatStatus }) {
+function MemberItem({ member, selected, status, pinning, onTogglePinned }: { member: Bot; selected: boolean; status?: ChatStatus; pinning: boolean; onTogglePinned: TogglePinned }) {
   return (
     <li className={`${memberItemClassName}${member.closed ? " opacity-60" : ""}`}>
-      <BotRow bot={member} member selected={selected} status={status} />
+      <BotRow bot={member} member selected={selected} status={status} pinning={pinning} onTogglePinned={onTogglePinned} />
     </li>
   )
 }
@@ -310,19 +361,61 @@ function avatarSize(members: Bot[] | undefined) {
   return "size-[38px] min-w-[38px]"
 }
 
-function BotRow({ bot, member = false, members, selected, status, teamLeader = false }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean }) {
+function BotRow({ bot, member = false, members, selected, status, teamLeader = false, pinning, onTogglePinned }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean; pinning: boolean; onTogglePinned: TogglePinned }) {
   const avatarSizeClassName = avatarSize(members)
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  function openContextMenuAt(x: number, y: number) {
+    const menu = contextMenuRef.current
+
+    if (!menu) {
+      return
+    }
+
+    menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - 224))}px`
+    menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - 52))}px`
+    menu.showPopover()
+    menu.querySelector("button")?.focus()
+  }
+
+  function handleContextMenu(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 2) {
+      return
+    }
+
+    event.preventDefault()
+    openContextMenuAt(event.clientX, event.clientY)
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+      return
+    }
+
+    event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+
+    openContextMenuAt(bounds.left + 24, bounds.top + bounds.height / 2)
+  }
 
   return (
-    <button
-      className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
-      type="button"
-      aria-current={selected ? "true" : undefined}
-      onClick={() => selectBot(bot.id)}
-      {...tooltip.focusProps}
-    >
+    <>
+      <button
+        className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
+        type="button"
+        aria-current={selected ? "true" : undefined}
+        onClick={() => selectBot(bot.id)}
+        onContextMenu={handleContextMenu}
+        onPointerUp={handlePointerUp}
+        onKeyDown={handleKeyDown}
+        {...tooltip.focusProps}
+      >
       {status ? (
         <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role="img" aria-label={`Status: ${chatStatusLabels[status]}`}>
           <span className="relative flex shrink-0">
@@ -340,7 +433,11 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{bot.name}</strong>
         <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>
       </span>
-    </button>
+      </button>
+      <div ref={contextMenuRef} className={`${menuCardClassName} fixed inset-auto z-50`} popover="auto" aria-label={`Ações de ${bot.name}`}>
+        <MenuOption icon={<BookmarkIcon className="size-4 shrink-0 text-muted" aria-hidden="true" />} label={bot.pinned ? "Desafixar" : "Fixar"} selected={false} disabled={pinning} onSelect={() => onTogglePinned(bot)} />
+      </div>
+    </>
   )
 }
 

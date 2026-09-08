@@ -20,6 +20,7 @@ const storedBot = z.strictObject({
   function: botFunction,
   workingDirectoryOverride: workingDirectory.nullable(),
   temporary: z.boolean(),
+  pinned: z.boolean(),
   memoryEnabled: z.boolean(),
   effort: botEffort,
   model: optionalId,
@@ -38,6 +39,7 @@ const updateExecutionInput = z.discriminatedUnion("setting", [
   z.strictObject({ id, setting: z.literal("model"), value: z.strictObject({ provider: providerName, model: id }) }),
   z.strictObject({ id, setting: z.literal("permissionMode"), value: botPermissionMode }),
 ])
+const updatePinnedInput = z.strictObject({ id, pinned: z.boolean() })
 
 export const botSchemas = {
   createInput,
@@ -49,6 +51,7 @@ export const botSchemas = {
   colleagueList: z.array(colleague),
   updateInput: z.strictObject({ id, name: id, function: botFunction, projectId: optionalId, workingDirectoryOverride: workingDirectory.nullable(), memoryEnabled: z.boolean(), effort: botEffort, model: optionalId, permissionMode: botPermissionMode }),
   updateExecutionInput,
+  updatePinnedInput,
   storedBot,
   storedBotList: z.array(storedBot),
   bot,

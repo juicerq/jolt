@@ -163,6 +163,7 @@ export async function seedLoadDatabase(userDataDirectory: string, seed = 1) {
       function: { outcome: `Entregar o trabalho de ${name} com histórico de carga para medir a interface.` },
       workingDirectoryOverride: null,
       temporary: false,
+      pinned: false,
       memoryEnabled: true,
       effort: "medium",
       model: null,

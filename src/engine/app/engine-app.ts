@@ -99,6 +99,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
         return bot
       }),
       update: operations.bots.update.handler(({ input }) => bots.update(input)),
+      updatePinned: operations.bots.updatePinned.handler(({ input }) => bots.updatePinned(input)),
       updateExecution: operations.bots.updateExecution.handler(({ input }) => bots.updateExecution(input)),
       remove: operations.bots.remove.handler(({ input }) => bots.remove(input)),
       removeColleague: operations.bots.removeColleague.handler(({ input }) => bots.removeColleague(input)),

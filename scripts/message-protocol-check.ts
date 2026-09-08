@@ -39,6 +39,7 @@ const bot: Bot = {
   function: { outcome: "Ajudar no que você precisar" },
   workingDirectoryOverride: null,
   temporary: false,
+  pinned: false,
   memoryEnabled: true,
   effort: "xhigh",
   model: values.model,

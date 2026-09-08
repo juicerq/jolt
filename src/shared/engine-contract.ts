@@ -48,6 +48,7 @@ export const engineContract = {
     list: oc.output(botSchemas.botList).route({ method: "GET", path: "/bots" }),
     get: oc.input(botSchemas.idInput).output(botSchemas.bot).route({ method: "GET", path: "/bots/{id}" }),
     update: oc.input(botSchemas.updateInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/update" }),
+    updatePinned: oc.input(botSchemas.updatePinnedInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/pinned" }),
     updateExecution: oc.input(botSchemas.updateExecutionInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/execution" }),
     remove: oc.input(botSchemas.idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
     removeColleague: oc.input(botSchemas.colleagueInput).route({ method: "POST", path: "/bots/{botId}/colleagues/{colleagueBotId}/remove" }),
