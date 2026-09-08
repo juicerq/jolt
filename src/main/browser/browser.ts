@@ -1,6 +1,6 @@
 import { ipcMain, View, WebContentsView, type BrowserWindow } from "electron"
 import { z } from "zod"
-import { browserBounds, type BrowserFrameInput, type BrowserPreview, type BrowserRequest, type BrowserState } from "@src/shared/browser"
+import { browserBounds, browserOpen, type BrowserFrameInput, type BrowserPreview, type BrowserRequest, type BrowserState } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
 import { BrowserPage } from "./browser-page"
 
@@ -45,6 +45,14 @@ export class Browser {
       })
     }
 
+    handle("open", async (raw) => {
+      const input = parse(browserOpen, raw)
+      const page = this.ensurePage(input)
+      const opening = page.open(input.url)
+
+      this.focus(input.botId)
+      await opening
+    })
     handle("state", () => this.state())
     handle("watch", (raw) => this.focus(parse(z.string(), raw)))
     handle("take-control", async (raw) => {
@@ -149,6 +157,15 @@ export class Browser {
     }
 
     const state = this.state()
+    const focused = state.pages.find((page) => page.botId === state.focusedBotId)
+
+    if (focused?.control === "bot") {
+      this.window.contentView.addChildView(this.inputShield)
+    } else {
+      this.window.contentView.removeChildView(this.inputShield)
+    }
+
+    this.window.contentView.addChildView(this.cover)
     this.window.webContents.send("agent-browser:state", state)
     this.remote.publish(state.pages)
   }
@@ -189,21 +206,29 @@ export class Browser {
       return result
     }
 
-    let page = this.pages.get(request.botId)
-
-    if (!page) {
-      page = new BrowserPage({ window: this.window, cover: this.cover }, request, () => this.publish())
-      page.view.webContents.on("before-input-event", (event, input) => {
-        if (input.type === "keyDown" && input.key === "Escape" && page?.preview.control === "user" && this.focusedBotId === request.botId) {
-          event.preventDefault()
-          this.minimize()
-        }
-      })
-      this.pages.set(request.botId, page)
-      this.publish()
-    }
+    const page = request.input.action === "take_control" ? this.page(request.botId) : this.ensurePage(request)
 
     return page.execute(request.input, signal)
+  }
+
+  private ensurePage(bot: { botId: string; botName: string }) {
+    const existing = this.pages.get(bot.botId)
+
+    if (existing) {
+      return existing
+    }
+
+    const page = new BrowserPage({ window: this.window, cover: this.cover }, bot, () => this.publish())
+    page.view.webContents.on("before-input-event", (event, input) => {
+      if (input.type === "keyDown" && input.key === "Escape" && page.preview.control === "user" && this.focusedBotId === bot.botId) {
+        event.preventDefault()
+        this.minimize()
+      }
+    })
+    this.pages.set(bot.botId, page)
+    this.publish()
+
+    return page
   }
 
   private minimize() {

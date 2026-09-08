@@ -219,7 +219,7 @@ function ChatTurnStart({ activityDetailsVisible, bot, message, team, time, open 
   const task = message.taskId ? team.tasks[message.taskId] : undefined
   const author = message.authorBotId ? team.bots[message.authorBotId] : undefined
 
-  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={author?.name ?? "Bot"} status={task?.status} time={time} content={message.content} open={open} />
+  return <ChatMemberResult kind={memberResultKind(bot.id, task)} name={author?.name ?? "Bot"} {...(message.authorBotId && author ? { bot: { id: message.authorBotId, name: author.name } } : {})} status={task?.status} time={time} content={message.content} open={open} />
 }
 
 function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: QuestionAnswer }) {
@@ -232,7 +232,7 @@ function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuest
       {activityDetailsVisible && message.activity && <ChatActivity activity={message.activity} botName={bot.name} time={time} />}
       {(message.content || message.question) && (
         <ChatStamped className="chat-bot-bubble" copy={message.content} name={bot.name} time={time} anchor="bubble">
-          {message.content && <ChatContent content={message.content} />}
+          {message.content && <ChatContent content={message.content} bot={bot} />}
           {message.question && <ChatQuestion botId={bot.id} messageId={message.id} question={message.question} answerValues={answer?.optionValues} {...(onQuestionAnswer && !bot.closed ? { onAnswer: onQuestionAnswer } : {})} />}
         </ChatStamped>
       )}

@@ -637,10 +637,13 @@ cancel on the left and the single primary action on the right.
 keeps control. The header identifies the Bot, who has control, and the page URL.
 The footer puts the ghost action Voltar ao chat immediately before the primary
 Assumir controle action. Taking control pauses the Bot and replaces that primary
-action with Devolver para the named Bot in the same position. Returning control
+action with Passar para the named Bot in the same position. Returning control
 keeps the expanded view open for watching; Voltar ao chat only collapses it and
 preserves whoever has control. Preview actions say Assistir while the Bot has
-control and Abrir while the person has control.
+control and Abrir while the person has control. Clicking an HTTP(S) link in a
+Bot message on desktop opens that Bot’s page in the expanded view with the
+person in control. The Bot can take over the current page without another
+confirmation; the same header and controls reflect that transfer.
 
 **Form field.** Every field has a visible label in control type. Placeholder
 copy gives one realistic example. Helper text uses support type. Validation sits

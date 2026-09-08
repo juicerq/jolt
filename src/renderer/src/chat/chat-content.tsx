@@ -1,4 +1,4 @@
-import { isValidElement, type ReactNode } from "react"
+import { isValidElement, useState, type MouseEvent, type ReactNode } from "react"
 import { highlightChatCode } from "./chat-code-highlight"
 import { ChatCopyButton } from "./chat-copy"
 import { ChatFile } from "./chat-file"
@@ -27,8 +27,24 @@ const markdown = createMarkdownRenderer({
   },
 })
 
-export function ChatContent({ content }: { content: string }) {
-  return <div className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">{markdown.render(content)}</div>
+export function ChatContent({ content, bot }: { content: string; bot?: { id: string; name: string } }) {
+  const [error, setError] = useState<string | null>(null)
+
+  async function openLink(event: MouseEvent<HTMLDivElement>) {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null
+
+    if (!bot || window.desktop.remote || !(link instanceof HTMLAnchorElement) || !/^https?:$/.test(link.protocol)) {
+      return
+    }
+
+    event.preventDefault()
+    setError(null)
+    await window.desktop.openBotBrowser({ botId: bot.id, botName: bot.name, url: link.href }).catch(() => {
+      setError("Não foi possível abrir o link. Tente novamente.")
+    })
+  }
+
+  return <div onClick={(event) => void openLink(event)} className="min-w-0 text-body text-primary [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0">{markdown.render(content)}{error && <p role="alert">{error}</p>}</div>
 }
 
 function ChatCodeBlock({ children }: { children?: ReactNode }) {

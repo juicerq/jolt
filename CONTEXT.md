@@ -264,11 +264,11 @@ A capacidade de todo Bot de procurar informação na internet e ler uma página,
 _Evitar_: Busca, navegação, Plugin de pesquisa
 
 **Navegador do Bot**:
-A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
+A página de trabalho de um Bot nos sites, iniciada pelo Bot ou pelo clique da pessoa em um link da mensagem dele no computador. Cada Bot mantém sua página, visível e compartilhada com a pessoa; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:
-No computador, a pessoa escolhe Assumir controle e passa a usar o site enquanto o Bot espera. Voltar ao chat recolhe o navegador e mantém o controle com a pessoa; Devolver para o Bot indicado permite que ele continue e mantém a visualização aberta.
+No computador, a pessoa pode assumir o site ou abrir um link da mensagem do Bot já com o controle; o Bot também pode assumir a página atual, sem nova confirmação, e só um deles interage por vez. Passar para o Bot indicado entrega o controle mantendo a visualização aberta; Voltar ao chat apenas recolhe o navegador.
 _Evitar_: Interromper, Adiantar
 
 **Acompanhar o navegador**:

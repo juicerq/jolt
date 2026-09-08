@@ -28,12 +28,13 @@ export class BrowserPage {
   private closed = false
   private controlRevision = 0
   private readonly lifetime = new AbortController()
-  private busy = false
+  private running?: { controller: AbortController; done: Promise<void> }
+  private opening = false
   private requestingControl = false
   private popup?: WebContentsView
 
   constructor(private readonly host: { window: BrowserWindow; cover: View }, bot: { botId: string; botName: string }, private readonly changed: () => void) {
-    this.preview = { botId: bot.botId, botName: bot.botName, url: "about:blank", title: "Navegador", control: "bot", popup: false, reason: null, image: null, error: null }
+    this.preview = { botId: bot.botId, botName: bot.botName, url: "about:blank", title: "Navegador", control: "bot", openedBy: "bot", popup: false, reason: null, image: null, error: null }
     this.view = new WebContentsView({ webPreferences })
     this.driver = new BrowserDriver(this.view.webContents)
     this.view.setBounds(parkedBounds)
@@ -151,6 +152,28 @@ export class BrowserPage {
     this.changed()
   }
 
+  async open(url: string) {
+    if (this.opening) {
+      throw new Error("A página já está abrindo. Tente novamente.")
+    }
+
+    this.opening = true
+
+    try {
+      this.running?.controller.abort(new Error("The person opened a link. Read the current page before continuing."))
+      await this.running?.done
+      await this.takeControl()
+      this.lifetime.signal.throwIfAborted()
+      this.closePopup()
+      this.preview.openedBy = "user"
+      this.preview.reason = null
+      this.preview.error = null
+      await this.view.webContents.loadURL(url)
+    } finally {
+      this.opening = false
+    }
+  }
+
   async takeControl(reason?: string) {
     this.controlRevision += 1
     this.requestingControl = true
@@ -204,6 +227,10 @@ export class BrowserPage {
   }
 
   resume() {
+    if (this.closed || this.requestingControl || this.opening) {
+      throw new Error("The browser is changing control or closed. Try again when it is ready.")
+    }
+
     if (this.popup) {
       throw new Error("Close the site popup before returning browser control")
     }
@@ -295,16 +322,24 @@ export class BrowserPage {
   }
 
   async execute(input: BrowserAction, callerSignal: AbortSignal) {
-    const signal = AbortSignal.any([callerSignal, this.lifetime.signal])
-    const revision = this.controlRevision
-
-    if (this.busy) {
+    if (this.running || this.opening) {
       throw new Error("A browser action is already running for this Bot")
     }
 
-    this.busy = true
+    const controller = new AbortController()
+    const signal = AbortSignal.any([callerSignal, this.lifetime.signal, controller.signal])
+    const { promise: done, resolve: finish } = Promise.withResolvers<void>()
+    this.running = { controller, done }
 
     try {
+      signal.throwIfAborted()
+
+      if (input.action === "take_control") {
+        this.resume()
+      }
+
+      const revision = this.controlRevision
+
       await this.waitForControl(signal)
       this.preview.error = null
 
@@ -317,7 +352,7 @@ export class BrowserPage {
       const ready = async () => {
         await this.waitForControl(signal)
 
-        if (revision !== this.controlRevision && input.action !== "snapshot") {
+        if (revision !== this.controlRevision && input.action !== "snapshot" && input.action !== "take_control") {
           throw new Error("The person used the browser. Do not repeat the previous action; take a fresh snapshot before continuing.")
         }
       }
@@ -338,7 +373,8 @@ export class BrowserPage {
 
       throw error
     } finally {
-      this.busy = false
+      this.running = undefined
+      finish()
       this.changed()
     }
   }
