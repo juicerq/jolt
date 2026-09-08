@@ -3,6 +3,7 @@ import { CheckIcon } from "@heroicons/react/24/outline"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import type { MessageQuestion } from "@src/shared/conversations"
+import { connectionStore } from "../connection"
 import { Button } from "../ui/button"
 import { chatStore } from "./chat-store"
 
@@ -18,6 +19,7 @@ interface ChatQuestionProps {
 }
 
 export function ChatQuestion({ botId, messageId, question, answerValues, interactive, onAnswer }: ChatQuestionProps) {
+  const connected = useSelector(connectionStore, (state) => state.connected)
   const busy = useSelector(chatStore, (state) => !!state.runs[botId])
   const activeAnswerValues = useSelector(chatStore, (state) => {
     const reply = state.runs[botId]?.message.replyTo
@@ -31,7 +33,7 @@ export function ChatQuestion({ botId, messageId, question, answerValues, interac
   const [pendingValues, setPendingValues] = useState<string[]>()
   const [marked, setMarked] = useState<string[]>([])
   const answered = answerValues ?? activeAnswerValues ?? pendingValues
-  const disabled = busy || !interactive
+  const disabled = busy || !interactive || !connected
 
   async function answer(values: string[]) {
     if (answered || disabled) {

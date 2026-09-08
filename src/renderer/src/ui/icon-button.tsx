@@ -38,9 +38,9 @@ const toneClassNames = {
   "window-close": "border-0 bg-transparent text-muted hover:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] hover:text-status-error focus-visible:bg-[color-mix(in_oklch,var(--color-status-error)_15%,transparent)] focus-visible:text-status-error active:bg-surface-active disabled:opacity-40",
 }
 
-const iconButtonClassName = "grid shrink-0 place-items-center p-0 transition-[color,background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
+const iconButtonClassName = "max-md:min-h-11 max-md:min-w-11 grid shrink-0 place-items-center p-0 transition-[color,background-color,opacity] duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
 
-export function IconButton({ children, className, current = false, iconSize = 17, label, onClick, position = "relative", shape = "rounded", size = 32, tone = "ghost", tooltipPlacement = "top", ...props }: IconButtonProps) {
+export function IconButton({ children, className, current = false, iconSize = 17, label, onClick, position = "relative", shape = "rounded", size = 32, tone = "ghost", tooltipPlacement = "top", type = "button", ...props }: IconButtonProps) {
   const tooltip = useTooltip()
   const classes = [
     iconButtonClassName,
@@ -59,7 +59,7 @@ export function IconButton({ children, className, current = false, iconSize = 17
 
   return (
     <>
-      <button {...props} {...tooltip.anchorProps} className={classes} aria-current={current ? "page" : undefined} aria-label={label} onClick={handleClick}>
+      <button {...props} type={type} {...tooltip.anchorProps} className={classes} aria-current={current ? "page" : undefined} aria-label={label} onClick={handleClick}>
         {children}
       </button>
       <Tooltip {...tooltip.popoverProps} placement={tooltipPlacement}>{label}</Tooltip>

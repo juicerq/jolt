@@ -674,6 +674,9 @@ export function createConversations(input: {
 
       return [...botIds].some((id) => active.has(id)) || delegation.hasWork(botIds)
     },
+    overview() {
+      return input.database.conversations.overview()
+    },
     history(rawInput: unknown) {
       const { botId, ...page } = parse(conversationSchemas.historyInput, rawInput)
 

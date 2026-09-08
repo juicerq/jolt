@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom"
 import { XMarkIcon } from "@heroicons/react/24/outline"
 import { type KeyboardEvent, type ReactNode, useId } from "react"
 import { IconButton } from "./icon-button"
@@ -14,7 +15,7 @@ function DialogFrame({ titleId, className, onClose, children }: { titleId: strin
     onClose()
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-40 grid place-items-center bg-overlay p-6 backdrop-blur-sm" role="presentation" onKeyDown={handleKeyDown}>
       <dialog
         className={className}
@@ -26,14 +27,21 @@ function DialogFrame({ titleId, className, onClose, children }: { titleId: strin
             node.showModal()
           }
         }}
+        onClose={(event) => {
+          if (event.target === event.currentTarget) {
+            onClose()
+          }
+        }}
         onCancel={(event) => {
+          event.stopPropagation()
           event.preventDefault()
           onClose()
         }}
       >
         {children}
       </dialog>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

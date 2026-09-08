@@ -1,3 +1,4 @@
+import { loadChatDrafts, saveChatDrafts } from "./chat-draft-storage"
 import { Store } from "@tanstack/react-store"
 import type { ConversationActivity, ConversationMessage, IncomingMessage, QueuedMessage } from "@src/shared/conversations"
 import type { PermissionRequest } from "@src/shared/permissions"
@@ -32,6 +33,7 @@ export interface ChatRun {
 export type ChatDraft = Pick<IncomingMessage, "content" | "images"> & { mentions: ChatMention[]; command?: ChatCommandName }
 
 interface ChatState {
+  draftSaved: boolean
   drafts: Record<string, ChatDraft>
   runs: Record<string, ChatRun | undefined>
   statuses: Record<string, ChatStatus | undefined>
@@ -42,7 +44,7 @@ export type ChatStatus = "available" | "working" | "awaiting-decision" | "awaiti
 
 export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: [] }
 
-export const chatStore = new Store<ChatState>({ drafts: {}, runs: {}, statuses: {}, queued: {} })
+export const chatStore = new Store<ChatState>({ drafts: loadChatDrafts(), draftSaved: true, runs: {}, statuses: {}, queued: {} })
 
 export function resetChatConnection() {
   chatStore.setState((state) => ({ ...state, runs: {}, statuses: {}, queued: {} }))
@@ -234,7 +236,10 @@ export function settleChatRun(botId: string, status: "available" | "completed" |
 }
 
 function updateDraft(botId: string, update: (draft: ChatDraft) => ChatDraft) {
-  chatStore.setState((state) => ({ ...state, drafts: { ...state.drafts, [botId]: update(state.drafts[botId] ?? emptyChatDraft) } }))
+  const drafts = { ...chatStore.state.drafts, [botId]: update(chatStore.state.drafts[botId] ?? emptyChatDraft) }
+  const draftSaved = saveChatDrafts(drafts)
+
+  chatStore.setState((state) => ({ ...state, drafts, draftSaved }))
 }
 
 function updateRun(botId: string, update: (run: ChatRun) => ChatRun) {

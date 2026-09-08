@@ -532,3 +532,27 @@
     }
   }
 }
+
+@layer components {
+  .mobile-filter {
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: var(--text-control);
+    outline: none;
+  }
+
+  .mobile-filter:focus-visible {
+    box-shadow: 0 0 0 1px var(--color-focus);
+  }
+}
+
+@media (width < 48rem) {
+  .chat-control-popover button {
+    min-height: 44px;
+  }
+
+  .mobile-sheet button {
+    min-height: 44px;
+  }
+}

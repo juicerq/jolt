@@ -6,7 +6,7 @@ export type BotExecutionUpdate = ReturnType<typeof useUpdateBotExecution>
 
 export function useUpdateBotExecution(bot: Pick<Bot, "id">, client: EngineClient) {
   const queryClient = useQueryClient()
-  const { mutate, isPending } = useMutation(client.query.bots.updateExecution.mutationOptions({
+  const { mutate, isPending, error } = useMutation(client.query.bots.updateExecution.mutationOptions({
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: client.query.projects.list.queryOptions().queryKey })
     },
@@ -16,5 +16,5 @@ export function useUpdateBotExecution(bot: Pick<Bot, "id">, client: EngineClient
     mutate({ id: bot.id, ...change })
   }
 
-  return { update, isPending }
+  return { update, isPending, error }
 }

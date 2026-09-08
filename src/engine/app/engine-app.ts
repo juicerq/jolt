@@ -104,6 +104,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       removeColleague: operations.bots.removeColleague.handler(({ input }) => bots.removeColleague(input)),
     },
     conversations: {
+      overview: operations.conversations.overview.handler(() => conversations.overview()),
       history: operations.conversations.history.handler(({ input }) => conversations.history(input)),
       events: operations.conversations.events.handler(({ signal }) => surfacedStream(conversations.events(signal))),
       send: operations.conversations.send.handler(({ input }) => conversations.send(input)),

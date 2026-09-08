@@ -1,7 +1,4 @@
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
-import { unified } from "unified"
-import { visit } from "unist-util-visit"
+import { conversationPreview } from "./conversation-preview"
 import type { Bot } from "@src/shared/bots"
 import type { FinishReason } from "@src/shared/conversations"
 
@@ -11,7 +8,6 @@ const tonePeak = 0.1215
 const bodyLimit = 120
 
 let chime: AudioContext | undefined
-let markdown: ReturnType<typeof buildMarkdownParser> | undefined
 
 export async function alertTurnFinished({ bot, reason, response, error }: { bot: Pick<Bot, "id" | "name"> | undefined; reason: FinishReason; response?: string; error?: string }) {
   if (!bot || reason === "aborted" || document.hasFocus()) {
@@ -31,7 +27,7 @@ function notificationBody(reason: FinishReason, response: string | undefined, er
     return `Não foi possível concluir a resposta: ${error}`
   }
 
-  const text = response ? plainText(response) : ""
+  const text = response ? conversationPreview(response) : ""
 
   if (!text) {
     return "Resposta concluída"
@@ -42,23 +38,6 @@ function notificationBody(reason: FinishReason, response: string | undefined, er
   }
 
   return `${text.slice(0, bodyLimit).trimEnd().replace(/\s\S+$/, "")}…`
-}
-
-function buildMarkdownParser() {
-  return unified().use(remarkParse).use(remarkGfm)
-}
-
-function plainText(response: string) {
-  const parser = (markdown ??= buildMarkdownParser())
-  const spoken: string[] = []
-
-  visit(parser.parse(response), (node) => {
-    if (node.type === "text" || node.type === "inlineCode") {
-      spoken.push(node.value)
-    }
-  })
-
-  return spoken.join(" ").replace(/\s+/g, " ").trim()
 }
 
 async function playChime() {

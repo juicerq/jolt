@@ -123,6 +123,10 @@ const event = z.discriminatedUnion("type", [
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })
+const overview = message.pick({ botId: true, id: true, createdAt: true, author: true, authorBotId: true, ending: true }).extend({
+  preview: z.string(),
+  awaitingResponse: z.boolean(),
+})
 const history = z.strictObject({ messages: z.array(message), earlier: z.int().nonnegative() })
 const compactionResult = z.strictObject({
   tokensBefore: z.int().nonnegative(),
@@ -130,6 +134,7 @@ const compactionResult = z.strictObject({
 })
 
 export const conversationSchemas = {
+  overview: z.array(overview),
   botInput: z.strictObject({ botId: id }),
   compactInput: z.strictObject({ botId: id, instructions: z.string().trim().min(1).optional() }),
   compactionResult,
@@ -147,6 +152,7 @@ export const conversationSchemas = {
   botEvent,
 }
 
+export type ConversationOverview = z.infer<typeof overview>
 export type ConversationMessage = z.infer<typeof message>
 export type MessageImage = z.infer<typeof messageImage>
 export type MessageQuestion = z.infer<typeof messageQuestion>

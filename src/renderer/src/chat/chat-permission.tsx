@@ -7,7 +7,7 @@ import type { EngineClient } from "../engine-client"
 import { MenuLabel, MenuOption } from "../ui/menu"
 import { chatControlAnchor, chatControlChipClassName, chatControlPopoverClassName } from "./chat-control-menu"
 
-const permissionModeLabels: Record<BotPermissionMode, string> = {
+export const permissionModeLabels: Record<BotPermissionMode, string> = {
   "read-only": "Somente leitura",
   ask: "Perguntar",
   full: "Acesso total",
@@ -44,15 +44,17 @@ export function ChatPermission({ bot, client, disabled }: { bot: Bot; client: En
   )
 }
 
-function ChatPermissionOptions({ bot, execution }: { bot: Pick<Bot, "permissionMode">; execution: BotExecutionUpdate }) {
+export function ChatPermissionOptions({ bot, execution, onChoose }: { bot: Pick<Bot, "permissionMode">; execution: BotExecutionUpdate; onChoose?: () => void }) {
   const labelId = useId()
 
   function handleChoose(permissionMode: BotPermissionMode) {
     if (permissionMode === bot.permissionMode) {
+      onChoose?.()
       return
     }
 
     execution.update({ setting: "permissionMode", value: permissionMode })
+    onChoose?.()
   }
 
   return (

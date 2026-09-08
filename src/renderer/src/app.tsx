@@ -5,9 +5,13 @@ import type { EngineClient } from "./engine-client"
 import { type BrowserActions, BrowserPanel } from "./browser/browser-panel"
 import { botsStore, closeBrowserSidebar, toggleBrowserSidebar } from "./bots/bots-store"
 import { BotsWorkspace } from "./bots/bots-workspace"
+import { useIsMobile } from "./ui/use-is-mobile"
+import { useViewportHeight } from "./ui/use-viewport-height"
 import { IconButton } from "./ui/icon-button"
 
 export function App({ browser, client }: { browser: BrowserActions; client: EngineClient }) {
+  const mobile = useIsMobile()
+  const viewportHeight = useViewportHeight()
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
   const browserNeedsHelp = useStore(browserStore, (state) => state.pages.some((page) => page.control === "user" || !!page.error))
   const sidebarOpen = useStore(botsStore, (state) => state.browserSidebarOpen)
@@ -23,7 +27,7 @@ export function App({ browser, client }: { browser: BrowserActions; client: Engi
   }
 
   return (
-    <main className={`relative m-0 flex h-dvh min-h-0 w-full max-w-none overflow-hidden bg-canvas p-0 font-sans text-control font-medium text-primary [color-scheme:dark] ${clearance} md:max-[96rem]:[--window-controls-clearance:180px]`}>
+    <main style={mobile ? { height: viewportHeight } : undefined} className={`relative m-0 flex h-dvh min-h-0 w-full max-w-none overflow-hidden bg-canvas p-0 font-sans text-control font-medium text-primary [color-scheme:dark] ${clearance} md:max-[96rem]:[--window-controls-clearance:180px]`}>
       <div className="min-h-0 min-w-0 flex-1" inert={browserFocused}>
         {frameless && <WindowControls />}
         <div className={`absolute top-6 z-30 [-webkit-app-region:no-drag] min-[96rem]:hidden max-md:hidden ${frameless ? "right-32" : "right-6"}`}>

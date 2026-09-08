@@ -1,32 +1,20 @@
-import { Bars3Icon, ChevronLeftIcon, ComputerDesktopIcon } from "@heroicons/react/24/outline"
+import { ChevronLeftIcon, ComputerDesktopIcon, UserGroupIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
-import { chatStore } from "../chat/chat-store"
+import { needsResponse, useConversationOverview } from "../chat/chat-overview"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { BotFace } from "./bot-face"
-import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, openMobileMenu, toggleBrowserSidebar } from "./bots-store"
-import { findTeamBot } from "./team"
+import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, selectBot, showBotList, toggleBrowserSidebar } from "./bots-store"
+import { findTeamBot, teamOf } from "./team"
 
-const routeTitles: Record<BotRoute["name"], string> = {
-  chat: "Conversa",
-  settings: "Configurações",
-  members: "Integrantes",
-  routines: "Rotinas",
-  triggers: "Gatilhos",
-  memory: "Memórias",
-  routine: "Rotina",
-  trigger: "Gatilho",
-}
-
-const routeParents: Partial<Record<BotRoute["name"], BotRoute>> = { routine: { name: "routines" }, trigger: { name: "triggers" } }
-
+const routeTitles: Record<BotRoute["name"], string> = { chat: "Conversa", details: "Sobre o Bot", settings: "Configurações", members: "Integrantes", routines: "Rotinas", triggers: "Gatilhos", memory: "Memórias", routine: "Rotina", trigger: "Gatilho" }
+const routeParents: Partial<Record<BotRoute["name"], BotRoute>> = { routine: { name: "routines" }, trigger: { name: "triggers" }, details: { name: "chat" } }
 const screenTitles = { plugins: "Plugins", settings: "Configurações" }
 
-/** Mobile title bar for the conversation plane. Hidden on desktop, where the sidebar and the edge tab do this job; the edge tab also owns the Bot's pages on mobile. */
 export function WorkspaceTopBar({ client }: { client: EngineClient }) {
   const screen = useSelector(botsStore, (state) => state.screen)
   const draft = useSelector(botsStore, (state) => state.draft)
@@ -36,62 +24,49 @@ export function WorkspaceTopBar({ client }: { client: EngineClient }) {
   const bot = selectedBotId ? findTeamBot(groups, selectedBotId) : undefined
 
   if (screen) {
-    return <TopBar back={{ label: `Fechar ${screenTitles[screen]}`, onBack: closeWorkspaceScreen }}><TopBarTitle>{screenTitles[screen]}</TopBarTitle></TopBar>
+    return <TopBar back={{ label: "Voltar", onBack: closeWorkspaceScreen }}>{screenTitles[screen]}</TopBar>
   }
 
   if (draft) {
-    return <TopBar back={{ label: "Descartar criação", onBack: discardDraft }}><TopBarTitle>Novo Bot</TopBarTitle></TopBar>
+    return <TopBar back={{ label: "Voltar", onBack: discardDraft }}>Novo Bot</TopBar>
   }
 
   if (!bot) {
-    return <TopBar><TopBarTitle>Mimo</TopBarTitle></TopBar>
+    return <TopBar back={{ label: "Bots", onBack: showBotList }}>Mimo</TopBar>
   }
 
-  if (route.name === "chat") {
-    return <TopBar><BotIdentity bot={bot} /></TopBar>
+  if (route.name !== "chat") {
+    const parent = routeParents[route.name] ?? { name: "details" }
+
+    return <TopBar back={{ label: "Voltar", onBack: () => openBotRoute(parent) }}>{routeTitles[route.name]}</TopBar>
   }
 
-  const parent = routeParents[route.name] ?? { name: "chat" }
+  const { leader, members } = teamOf(groups, bot)
 
-  return (
-    <TopBar back={{ label: `Voltar para ${routeTitles[parent.name]}`, onBack: () => openBotRoute(parent) }}>
-      <TopBarTitle>{routeTitles[route.name]}</TopBarTitle>
-    </TopBar>
-  )
+  return <TopBar back={{ label: leader?.name ?? "Bots", onBack: () => leader ? selectBot(leader.id) : showBotList() }} action={members.length > 0 && <IconButton label={`Integrantes de ${bot.name}`} onClick={() => openBotRoute({ name: "members" })}><UserGroupIcon /></IconButton>}>
+    <BotIdentity bot={bot} members={members} client={client} />
+  </TopBar>
 }
 
-function TopBar({ back, children }: { back?: { label: string; onBack: () => void }; children: ReactNode }) {
-  const menuOpen = useSelector(botsStore, (state) => state.mobileMenuOpen)
+function TopBar({ back, children, action }: { back: { label: string; onBack: () => void }; children: ReactNode; action?: ReactNode }) {
   const browserOpen = useSelector(botsStore, (state) => state.browserSidebarOpen)
 
-  return (
-    <header className={`flex min-h-[52px] shrink-0 items-center gap-1 border-b border-outline bg-surface pr-[max(8px,var(--window-controls-clearance))] md:hidden pl-1.5`}>
-      <div className="mr-1 flex self-stretch items-center border-r border-outline pr-1"><IconButton size={34} type="button" label="Abrir menu" aria-expanded={menuOpen} aria-controls="mobile-menu" onClick={openMobileMenu}><Bars3Icon aria-hidden="true" /></IconButton></div>
-      {back && <IconButton size={34} type="button" label={back.label} onClick={back.onBack}><ChevronLeftIcon aria-hidden="true" /></IconButton>}
-      <div className="min-w-0 flex-1">{children}</div>
-      <IconButton id="browser-sidebar-toggle-mobile" size={34} label="Mostrar navegadores" aria-expanded={browserOpen} aria-controls="browser-sidebar" onClick={toggleBrowserSidebar}><ComputerDesktopIcon aria-hidden="true" /></IconButton>
-    </header>
-  )
+  return <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-outline bg-surface px-3 md:hidden">
+    <button className="flex h-11 max-w-24 shrink-0 items-center gap-0.5 rounded-lg pr-1 text-support text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active" onClick={back.onBack} aria-label={back.label === "Voltar" ? "Voltar" : `Voltar para ${back.label}`}><ChevronLeftIcon className="size-4 shrink-0" /><span className="truncate">{back.label}</span></button>
+    <div className="min-w-0 flex-1 text-section font-semibold">{children}</div>{action}
+    <IconButton id="browser-sidebar-toggle-mobile" label="Mostrar navegadores" aria-expanded={browserOpen} aria-controls="browser-sidebar" onClick={toggleBrowserSidebar}><ComputerDesktopIcon /></IconButton>
+  </header>
 }
 
-function TopBarTitle({ children }: { children: string }) {
-  return <h1 className="m-0 truncate text-section font-semibold text-primary">{children}</h1>
+function BotIdentity({ bot, members, client }: { bot: Bot; members: Bot[]; client: EngineClient }) {
+  const overview = useConversationOverview(client)
+  const ownStatus = overview.status(bot.id)
+  const teamPending = members.some((member) => !member.closed && needsResponse(overview.status(member.id)))
+  const status = teamPending ? "awaiting-decision" : ownStatus
+  const label = teamPending && !needsResponse(ownStatus) ? "Seu Time precisa de você" : chatStatusLabels[ownStatus]
+
+  return <button className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" onClick={() => openBotRoute({ name: "details" })} aria-label={`Sobre ${bot.name}`}>
+    <span className="relative flex shrink-0"><BotFace className="size-8" name={bot.avatarSeed} botId={bot.id} size={32} /><span className={`absolute right-0 bottom-0 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" /></span>
+    <span className="flex min-w-0 flex-col"><strong className="truncate text-section font-semibold text-primary">{bot.name}</strong><small className="truncate text-metadata font-medium text-secondary">{label}</small></span>
+  </button>
 }
-
-function BotIdentity({ bot }: { bot: Bot }) {
-  const status = useSelector(chatStore, (state) => state.statuses[bot.id] ?? "available")
-
-  return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <span className="relative flex shrink-0">
-        <BotFace className="size-8" name={bot.avatarSeed} botId={bot.id} size={32} />
-        <span className={`absolute right-0 bottom-0 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <strong className="truncate text-control font-semibold text-primary">{bot.name}</strong>
-        <small className="truncate text-metadata font-medium text-muted">{chatStatusLabels[status]}</small>
-      </span>
-    </div>
-  )
-}
-

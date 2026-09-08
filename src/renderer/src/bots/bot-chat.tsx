@@ -12,6 +12,8 @@ import { IconButton } from "../ui/icon-button"
 import { BrainIcon } from "../ui/brain-icon"
 import { InlineAction } from "../ui/inline-action"
 import { ProviderWelcome } from "../settings/provider-welcome"
+import { BotDetails } from "./bot-details"
+import { useIsMobile } from "../ui/use-is-mobile"
 import { BotMemory } from "./bot-memory"
 import { BotMembers } from "./bot-members"
 import { BotRoutineEditor } from "./bot-routine-editor"
@@ -33,6 +35,7 @@ interface BotRouteAction {
 }
 
 export function BotChat({ client, botId }: { client: EngineClient; botId: string | null }) {
+  const mobile = useIsMobile()
   const route = useSelector(botsStore, (state) => state.botRoute)
   const { data: groups, error, isPending } = useQuery(client.query.projects.list.queryOptions())
   const bot = botId ? findTeamBot(groups, botId) : undefined
@@ -60,7 +63,7 @@ export function BotChat({ client, botId }: { client: EngineClient; botId: string
   return (
     <>
       <BotRouteScreen bot={bot} client={client} groups={groups} route={route} />
-      <BotRouteTab bot={bot} route={route} />
+      {!mobile && <BotRouteTab bot={bot} route={route} />}
     </>
   )
 }
@@ -69,6 +72,10 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   const { leader } = teamOf(groups, bot)
   const close = () => openBotRoute({ name: "chat" })
   const openRoutines = () => openBotRoute({ name: "routines" })
+
+  if (route.name === "details") {
+    return <BotDetails bot={bot} groups={groups} />
+  }
 
   if (route.name === "members" && !bot.leaderBotId) {
     return <BotMembers key={bot.id} bot={bot} client={client} groups={groups} onClose={close} />

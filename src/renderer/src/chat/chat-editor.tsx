@@ -18,7 +18,7 @@ interface ChatEditorProps {
   onPasteFiles: (files: FileList) => void
 }
 
-const editorClassName = "relative box-border max-h-40 min-w-0 flex-1 overflow-y-auto rounded-lg px-1 text-body text-primary focus-visible:outline-none min-h-[25px] py-0 whitespace-pre-wrap max-md:text-base max-md:leading-[1.55] [overflow-wrap:anywhere] data-[disabled=true]:opacity-60 data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:text-muted data-[empty=true]:before:content-[attr(data-placeholder)]"
+const editorClassName = "relative box-border max-h-40 min-w-0 flex-1 overflow-y-auto rounded-lg px-1 text-body text-primary focus-visible:outline-none min-h-[25px] py-0 whitespace-pre-wrap max-md:max-h-[min(160px,20dvh)] max-md:text-base max-md:leading-[1.55] [overflow-wrap:anywhere] data-[disabled=true]:opacity-60 data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:text-muted data-[empty=true]:before:content-[attr(data-placeholder)]"
 
 function readNode(node: ChildNode): string {
   if (node.nodeType === Node.TEXT_NODE) {

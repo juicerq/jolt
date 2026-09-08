@@ -1,17 +1,19 @@
 import { ArrowDownIcon } from "@heroicons/react/24/outline"
 import { type ClipboardEvent, type PropsWithChildren, type ReactNode, startTransition, type UIEvent, useCallback, useRef, useState } from "react"
+import { chatReadingPosition } from "./chat-reading-position"
 import { getChatScrollMode } from "./chat-scroll"
 
 const scrollAnchoringMinimumTop = 1
 const revealDistance = 600
 
-export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChildren<{ footer: ReactNode; onRevealEarlier?: () => Promise<void> }>) {
+export function ChatScroller({ botId, children, footer, onRevealEarlier }: PropsWithChildren<{ botId: string; footer: ReactNode; onRevealEarlier?: () => Promise<void> }>) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const mutationObserverRef = useRef<MutationObserver | null>(null)
   const frameRef = useRef<number | null>(null)
   const shouldFollowRef = useRef(true)
+  const restoredRef = useRef(false)
   const revealingRef = useRef(false)
   const revealRef = useRef<(() => Promise<void>) | undefined>(undefined)
   const [showEndButton, setShowEndButton] = useState(false)
@@ -67,6 +69,17 @@ export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChi
           return
         }
 
+        if (!restoredRef.current) {
+          const restored = chatReadingPosition.restore(botId, viewport)
+          restoredRef.current = restored !== "loading"
+
+          if (restored !== "end") {
+            shouldFollowRef.current = false
+            setShowEndButton(true)
+            return
+          }
+        }
+
         if (viewport.scrollHeight <= viewport.clientHeight) {
           revealEarlier(viewport)
         }
@@ -91,7 +104,7 @@ export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChi
     resizeObserverRef.current.observe(viewportRef.current)
     mutationObserverRef.current = new MutationObserver(scheduleReconciliation)
     mutationObserverRef.current.observe(content, { childList: true, characterData: true, subtree: true })
-  }, [revealEarlier])
+  }, [botId, revealEarlier])
 
   const attachViewport = useCallback((viewport: HTMLDivElement | null) => {
     viewportRef.current = viewport
@@ -107,6 +120,10 @@ export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChi
     const viewport = event.currentTarget
     const distanceFromEnd = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
     const shouldFollow = getChatScrollMode(distanceFromEnd) === "follow"
+
+    if (restoredRef.current) {
+      chatReadingPosition.save(botId, viewport, shouldFollow)
+    }
 
     shouldFollowRef.current = shouldFollow
     setShowEndButton(!shouldFollow)
@@ -139,9 +156,9 @@ export function ChatScroller({ children, footer, onRevealEarlier }: PropsWithChi
   return (
     <div className="relative col-start-1 row-start-1 min-h-0 min-w-0">
       <div className="flex h-full min-h-0 max-h-none flex-col gap-0 overflow-x-hidden overflow-y-auto p-0" ref={attachViewport} onScroll={handleScroll} aria-live="polite">
-        <div className="box-border flex min-h-full flex-none flex-col pt-16 pb-[22px] max-md:pt-4 max-md:pb-3" ref={attachContent}>
+        <div className="box-border flex min-h-full flex-none flex-col pt-16 pb-[22px] max-md:pt-4 max-md:pb-[calc(12px+var(--safe-bottom))]" ref={attachContent}>
           <div className="mx-auto flex w-full max-w-[928px] flex-1 flex-col gap-3 px-10 max-md:px-4" onCopy={handleCopy}>{children}</div>
-          <div className="sticky bottom-[22px] z-[2] mt-3 flex-none max-md:bottom-3">
+          <div className="sticky bottom-[22px] z-[2] mt-3 flex-none max-md:bottom-[calc(12px+var(--safe-bottom))]">
             {showEndButton && <button className="absolute bottom-full left-1/2 mb-3 inline-flex h-[34px] w-auto -translate-x-1/2 items-center justify-center gap-1.5 rounded-full border border-outline-strong bg-surface-raised px-3 text-control font-medium text-secondary shadow-[0_8px_24px_rgb(0_0_0_/_28%)] hover:bg-surface-hover hover:text-primary active:scale-96 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface [&_svg]:size-4 [&_svg]:stroke-[1.75]" type="button" onClick={handleGoToEnd}><ArrowDownIcon aria-hidden="true" /><span>Ir para o fim</span></button>}
             {footer}
           </div>

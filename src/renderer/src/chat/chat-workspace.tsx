@@ -24,6 +24,7 @@ import {
 import { ChatComposer } from "./chat-composer"
 import { ChatQueue } from "./chat-queue"
 import { ChatImage } from "./chat-images"
+import { chatReadingPosition } from "./chat-reading-position"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
 import { ChatActivity } from "./chat-activity"
@@ -40,12 +41,16 @@ import { chatGreeting } from "./chat-greetings"
 import { ChatRoutineCall } from "./chat-routine-call"
 import { ChatTriggerRun } from "./chat-trigger-run"
 import { ChatTurnEnding } from "./chat-turn-ending"
+import { connectionStore } from "../connection"
+import { useIsMobile } from "../ui/use-is-mobile"
+import { ChatTeamUpdates } from "./chat-team-updates"
 import { ChatTeamControl } from "./chat-team-control"
 
 const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
 export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient }) {
-  const [shown, setShown] = useState(initialMessageLimit)
+  const mobile = useIsMobile()
+  const [shown, setShown] = useState(() => chatReadingPosition.shown(bot.id, initialMessageLimit))
   const activityDetailsVisible = useSelector(appSettingsStore, (state) => state.activityDetailsVisible)
   const { data: pages, error, isPending, isFetchedAfterMount, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery(client.query.conversations.history.infiniteOptions({
     input: (before: string | undefined) => historyPageInput(bot.id, before),
@@ -64,7 +69,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   const { mutateAsync: abort } = useMutation(client.query.conversations.abort.mutationOptions())
   const { visible, hidden } = windowHistory(messages ?? [], shown)
   const historyIds = new Set(messages?.map((message) => message.id))
-  const answersByQuestionId = Object.fromEntries((messages ?? []).flatMap((message) => message.replyTo ? [[message.replyTo.messageId, message.replyTo]] : []))
+  const answersByQuestionId = questionAnswers(messages)
   const handleOpened = useCallback((section: HTMLElement | null) => {
     if (section && messages) {
       finishConversationOpen(client.raw.observations, { botId: bot.id, count: messages.length, state: isFetchedAfterMount ? "fetched" : "cached" })
@@ -72,6 +77,10 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }, [bot.id, client, isFetchedAfterMount, messages])
 
   async function sendPersonInput(message: { content: string; images: MessageImage[]; replyTo: MessageReply | null }, mentions: ChatDraft["mentions"]) {
+    if (!connectionStore.state.connected) {
+      return false
+    }
+
     startChatRun(bot.id, { author: "person", authorBotId: null, taskId: null, triggerRunId: null, ...message }, "")
 
     return client.raw.conversations.send({ botId: bot.id, ...message, mentionedBotIds: mentionedBotIds(message.content, mentions) }).then(() => true).catch((sendError: unknown) => {
@@ -82,12 +91,20 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
   }
 
   async function handleSend(draft: ChatDraft, deliver: "queue" | "now") {
+    if (!connectionStore.state.connected) {
+      return
+    }
+
     const message = { content: draft.content.trim(), images: draft.images, replyTo: null }
 
     setChatDraft(bot.id, emptyChatDraft)
 
     if (!chatStore.state.runs[bot.id]) {
-      await sendPersonInput(message, draft.mentions)
+      const sent = await sendPersonInput(message, draft.mentions)
+
+      if (!sent) {
+        setChatDraft(bot.id, draft)
+      }
 
       return
     }
@@ -108,7 +125,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
       await fetchNextPage()
     }
 
-    setShown((count) => count + revealStep)
+    setShown(chatReadingPosition.reveal(bot.id, revealStep, initialMessageLimit))
   }
 
   async function handleAbort() {
@@ -126,7 +143,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
 
   return (
     <section ref={handleOpened} className="relative grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-surface before:pointer-events-none before:absolute before:top-0 before:right-2 before:left-px before:z-[1] before:h-3 before:rounded-tl-[23px] before:bg-[color-mix(in_srgb,var(--color-surface)_36%,transparent)] before:backdrop-blur-[6px] before:[clip-path:inset(0_round_23px_0_0)] before:[mask-image:linear-gradient(to_bottom,#000,transparent)] max-md:before:hidden">
-      <ChatScroller footer={bot.closed ? <ChatClosed bot={bot} /> : <>
+      <ChatScroller botId={bot.id} footer={bot.closed ? <ChatClosed bot={bot} /> : <>
         <ChatTeamControl key={bot.id} bot={bot} members={members} client={client} />
         <ChatQueue bot={bot} client={client} />
         <ChatComposer bot={bot} client={client} onAbort={handleAbort} onSend={handleSend} />
@@ -134,11 +151,16 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
         {isPending && <ChatLoading />}
         {error && <ChatError message={error.message} />}
         {isFetchingNextPage && <ChatEarlierLoading />}
-        {visible.map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasksById} onQuestionAnswer={handleQuestionAnswer} />)}
+        {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} avatarIdentities={avatarIdentities} bot={bot} message={message} names={names} tasks={tasksById} onQuestionAnswer={handleQuestionAnswer} /></div>)}
+        {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
         {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} avatarIdentities={avatarIdentities} bot={bot} client={client} names={names} tasks={tasksById} historyIds={historyIds} empty={messages.length === 0} />}
       </ChatScroller>
     </section>
   )
+}
+
+function questionAnswers(messages: ConversationMessage[] = []) {
+  return Object.fromEntries(messages.flatMap((message) => message.replyTo ? [[message.replyTo.messageId, message.replyTo]] : []))
 }
 
 function ChatEarlierLoading() {

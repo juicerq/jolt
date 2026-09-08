@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import type { BotConversationEvent, FinishReason } from "@src/shared/conversations"
 import { findTeamBot } from "../bots/team"
 import type { EngineClient } from "../engine-client"
+import { connectionStore } from "../connection"
 import { listenEngineStream } from "../engine-stream"
 import { createChatStreamBuffer } from "./chat-stream-buffer"
 import {
@@ -58,6 +59,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "message-finished") {
       finishChatMessage(botId, event.message)
+      void queryClient.invalidateQueries({ queryKey: client.query.conversations.overview.key() }).catch(() => {})
       return
     }
 
@@ -134,6 +136,7 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
+      queryClient.invalidateQueries({ queryKey: client.query.conversations.overview.key() }),
       invalidateTeam(),
       alertTurnFinished({ bot, reason: event.reason, response, ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
         console.error("O aviso do turno falhou", alertError)
@@ -153,14 +156,19 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   const stop = listenEngineStream({
     label: "as conversas",
     open: (signal) => client.raw.conversations.events(undefined, { signal }),
+    probe: (signal) => client.raw.health(undefined, { signal }),
     connected() {
+      connectionStore.setState(() => ({ connected: true }))
       resetChatConnection()
       void queryClient.invalidateQueries().catch((error: unknown) => {
         console.error("Não foi possível atualizar o estado das conversas", error)
       })
     },
     handle,
-    closed: () => chunks.drainAll(),
+    closed() {
+      connectionStore.setState(() => ({ connected: false }))
+      chunks.drainAll()
+    },
   })
 
   return () => {

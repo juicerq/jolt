@@ -121,7 +121,7 @@ function ChatSubmenuTitle({ submenuId, children }: { submenuId: string; children
   )
 }
 
-function ChatEffortOptions({ bot, execution, onChoose }: { bot: Pick<Bot, "effort">; execution: BotExecutionUpdate; onChoose?: () => void }) {
+export function ChatEffortOptions({ bot, execution, onChoose }: { bot: Pick<Bot, "effort">; execution: BotExecutionUpdate; onChoose?: () => void }) {
   function handleChoose(effort: BotEffort) {
     if (effort !== bot.effort) {
       execution.update({ setting: "effort", value: effort })

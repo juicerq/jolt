@@ -242,6 +242,21 @@ export function openDatabase(path: string, observability: Observability) {
       },
     },
     conversations: {
+      overview() {
+        const lastPositions = database.select({ botId: messages.botId, position: max(messages.position).as("position") }).from(messages).groupBy(messages.botId).as("last")
+        const rows = database.select({
+          botId: messages.botId,
+          id: messages.id,
+          createdAt: messages.createdAt,
+          author: messages.author,
+          authorBotId: messages.authorBotId,
+          ending: messages.ending,
+          preview: sql<string>`substr(${messages.content}, 1, 240)`,
+          awaitingResponse: sql<boolean>`${messages.question} is not null and ${messages.question} != 'null'`.mapWith(Boolean),
+        }).from(messages).innerJoin(lastPositions, and(eq(messages.botId, lastPositions.botId), eq(messages.position, lastPositions.position))).all()
+
+        return parse(conversationSchemas.overview, rows)
+      },
       get(messageId: string) {
         return observability.span({ name: "database.conversationmessageget" }, () => {
           const row = database.select(messageColumns).from(messages).where(eq(messages.id, messageId)).get()

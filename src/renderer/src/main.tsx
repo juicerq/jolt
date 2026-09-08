@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React, { type ReactNode } from "react"
 import ReactDOM from "react-dom/client"
 import { App } from "./app"
+import { subscribeWorkspaceNavigation } from "./bots/workspace-navigation"
 import { selectBot } from "./bots/bots-store"
 import { createEngineClient } from "./engine-client"
 import { createDesktopBrowser } from "./browser/browser-desktop"
@@ -11,6 +12,7 @@ import { browserStore } from "./browser/browser-store"
 import { markUpdateReady } from "./settings/app-update-store"
 import { MobilePairingRequired } from "./settings/mobile-pairing"
 import { refreshProviders } from "./settings/provider-mutations"
+import { chatVisits } from "./chat/chat-visits"
 import { subscribeChatEvents } from "./chat/chat-events"
 import "./desktop-shim"
 import "./styles.css"
@@ -32,6 +34,8 @@ const connection = await window.desktop.getEngineConnection()
 if (!connection) {
   render(<MobilePairingRequired />)
 } else {
+  subscribeWorkspaceNavigation()
+  chatVisits.subscribe()
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
   const engineClient = createEngineClient(connection)
   subscribeChatEvents({ client: engineClient, queryClient })

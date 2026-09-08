@@ -5,6 +5,9 @@ import { type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent, u
 import type { Bot } from "@src/shared/bots"
 import type { MessageImage } from "@src/shared/conversations"
 import type { EngineClient } from "../engine-client"
+import { connectionStore } from "../connection"
+import { Button } from "../ui/button"
+import { ConfirmationDialog } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
 import { useIsMobile } from "../ui/use-is-mobile"
@@ -15,6 +18,7 @@ import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type C
 import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
+import { ChatMobileOptions } from "./chat-mobile-options"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
 import { addChatDraftImages, addChatDraftMention, type ChatDraft, type ChatRun, chatStore, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
@@ -35,19 +39,25 @@ function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSug
 }
 
 function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; run?: Pick<ChatRun, "status">; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
+  const mobile = useIsMobile()
+  const connected = useSelector(connectionStore, (state) => state.connected)
   const working = !!run
   const aborting = run?.status === "aborting"
 
   return (
     <div className="col-start-5 flex items-center gap-2">
+      {mobile && working && !empty && !blocked && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting || !connected} label="Interromper resposta" onClick={onAbort}><StopIcon /></IconButton>}
       {working && (empty || blocked)
-        ? <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting} label={abortLabel({ aborting, blocked })} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked} label={sendLabel({ command, pending, working, blocked })} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        ? <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting || !connected} label={abortLabel({ aborting, blocked })} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
+        : <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked || !connected} label={connected ? sendLabel({ command, pending, working, blocked }) : "Aguardando conexão para enviar"} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </div>
   )
 }
 
 export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps) {
+  const connected = useSelector(connectionStore, (state) => state.connected)
+  const draftSaved = useSelector(chatStore, (state) => state.draftSaved)
+  const [confirmStop, setConfirmStop] = useState(false)
   const draft = useSelector(chatStore, (state) => state.drafts[bot.id] ?? emptyChatDraft)
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -62,10 +72,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const choices = menuChoices(commands, mentions)
   const menuOpen = choices.length > 0 && draft.content !== dismissedContent
   const active = Math.min(highlighted, choices.length - 1)
-  const empty = !command && draft.content.trim().length === 0 && draft.images.length === 0
+  const empty = composerEmpty(command, draft)
   const commandBlocked = !!draft.command && !!run
   const busy = commandPending
-  const settingsDisabled = !!run || commandPending
+  const settingsDisabled = [!!run, commandPending, !connected].some(Boolean)
   const editor = editorText(draft, bot.name)
 
   async function attachFiles(files: Iterable<File>) {
@@ -79,7 +89,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   }
 
   async function handleSend(immediate: boolean) {
-    if (empty || busy || commandBlocked) {
+    if (empty || busy || commandBlocked || !connected) {
       return
     }
 
@@ -241,13 +251,19 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           onPasteFiles={(files) => void attachFiles(files)}
         />
       </div>
-      <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
-      <div className="col-start-4 flex min-w-0">
-        <ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} />
-      </div>
-      <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={onAbort} onSend={handleSend} />
+      {mobile ? <ChatMobileOptions bot={bot} client={client} disabled={settingsDisabled} /> : <>
+        <ChatPermission bot={bot} client={client} disabled={settingsDisabled} />
+        <div className="col-start-4 flex min-w-0"><ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} /></div>
+      </>}
+      <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={() => mobile ? setConfirmStop(true) : onAbort()} onSend={handleSend} />
+      {!draftSaved && <p className="col-span-full m-0 px-2 text-support text-status-warning" role="status">Sem espaço para salvar o rascunho neste celular. Mantenha esta tela aberta até enviar.</p>}
+      {confirmStop && <ConfirmationDialog icon={<StopIcon />} title={`Interromper ${bot.name}?`} onClose={() => setConfirmStop(false)} actions={<><Button type="button" variant="text" onClick={() => setConfirmStop(false)}>Continuar trabalhando</Button><Button type="button" disabled={!connected} onClick={() => { setConfirmStop(false); onAbort() }}>Interromper</Button></>}><p className="m-0 text-body text-secondary">As mensagens e a Fila serão preservadas.</p></ConfirmationDialog>}
     </form>
   )
+}
+
+function composerEmpty(command: ChatCommand | null, draft: ChatDraft) {
+  return !command && draft.content.trim().length === 0 && draft.images.length === 0
 }
 
 function editorText(draft: Pick<ChatDraft, "command">, botName: string) {
@@ -311,11 +327,11 @@ function ChatCommandStatus({ error }: { error: Error }) {
 
 function ChatComposerImages({ images, onRemove }: { images: MessageImage[]; onRemove: (index: number) => void }) {
   return (
-    <ul className="order-first col-span-full m-0 flex list-none flex-wrap gap-2 p-1">
+    <ul className="order-first col-span-full m-0 flex list-none flex-wrap gap-2 p-1 max-md:max-h-[min(80px,12dvh)] max-md:overflow-y-auto">
       {images.map((image, index) => (
-        <li key={`${index}-${image.data.length}`} className="group relative">
+        <li key={`${index}-${image.data.length}`} className="group relative max-md:flex max-md:items-center max-md:gap-1">
           <ChatImage className="block size-12 rounded-lg border border-outline-strong object-cover" image={image} index={index} />
-          <IconButton className="-top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} position="absolute" shape="circle" size={24} tone="canvas" type="button" label="Remover imagem" tooltipPlacement="top" onClick={() => onRemove(index)}><XMarkIcon aria-hidden="true" /></IconButton>
+          <IconButton className="-top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:static max-md:bg-transparent max-md:opacity-100" iconSize={13} position="absolute" shape="circle" size={24} tone="canvas" type="button" label="Remover imagem" tooltipPlacement="top" onClick={() => onRemove(index)}><XMarkIcon aria-hidden="true" /></IconButton>
         </li>
       ))}
     </ul>

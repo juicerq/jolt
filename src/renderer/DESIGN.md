@@ -327,38 +327,52 @@ outside this scale need a visible alignment reason.
 
 ## Mobile
 
-Below 48rem, the Tailwind `md` breakpoint, the sidebar compacts into a 64px
-rail beside the conversation plane, which loses the shell radius, outline, and
-channel. The rail holds a search icon on top, then the Leaders and independent
-Bots as 38px Blobatars with their status light, each inside a 48px tonal tile
-when selected or when one of its members is, and at the bottom the "+",
-Plugins, and Settings icons. The search icon opens the full list as a bottom
-sheet with the search field at its bottom edge, focused, so the list grows
-upward from the keyboard; choosing a Bot closes the sheet. The "+" opens Novo
-Bot and Novo Projeto as a sheet.
+Below 48rem, the conversation fills the viewport. A full Bot list replaces the
+sidebar rail; Projects group Leaders and independent Bots, and indented rows
+keep Integrantes visibly attached to their Leader. Leader faces retain the
+three-avatar signature. Search and the “Precisam de você” filter preserve their
+state when returning from a conversation. Previews come from persisted messages,
+while live requests and work take precedence over recorded state.
 
-The conversation plane gains a 52px top bar with the Bot's 32px Blobatar and
-its status light, the name in control type and the state in metadata type. On
-a page, a back action at the left returns to its parent, the conversation, or
-Rotinas and Gatilhos for their editors, and the bar names the page instead of
-the Bot; Plugins, Settings, and Novo Bot get the same back action to close.
-The edge tab stays and owns the Bot's pages as on desktop, but starts closed:
-a swipe leftward from the right edge opens it, a swipe rightward over it or
-choosing a page closes it. The window controls do not render.
+The conversation header has one identity action, opening the Bot's detail page.
+A Leader links directly to Integrantes; an Integrante returns to its Leader.
+The root back action returns to the Bot list. Detail pages lead to Memórias,
+Rotinas, Gatilhos, Integrantes and Configurações, using the existing capabilities
+of each Bot. The desktop edge tab does not render on mobile. Browser history
+tracks destinations, and reopening the remote app restores the last conversation.
 
-Dialogs, confirmations, the rail's sheets, and the prompt's Permissões and
-Modelo menus become bottom sheets: full width, 20px top radius, one top
-outline, the overlay behind, and a 240ms slide from the bottom that reduced
-motion removes. The Modelo chip truncates; its sheet holds the `Modelo` and
-`Esforço` rows and `Redefinir para o padrão`, and a row opens its list as a
-second sheet over the first, titled in control type with a back action at the
-left. Choosing a Modelo moves straight to the Esforço sheet; choosing an
-Esforço closes both. Enter breaks the line in the prompt and the send action
-delivers. Hover-revealed controls stay visible, tooltips never open on touch,
-and a tap on a message shows its author and time below the content instead of
-beside it. Rows that hold text and two actions wrap the actions to a second
-line. Text inputs use 16px so the device does not zoom on focus. Safe areas pad
-the top bar, the list, the prompt, and every sheet.
+Team updates appear near the latest messages. They link to Integrantes who need
+a response, are working, or have messages since the Leader's previous visit.
+The header distinguishes a completed Leader response from a Time still waiting
+for the person. These are factual status and message previews, not generated
+summaries of unseen work.
+
+The composer keeps images, conversation options and send within 44px touch
+targets. Its options sheet presents Modelo, Esforço and Permissões. Execution
+settings keep the Engine's existing rule: changes require an idle Bot. Stop
+remains reachable while writing and asks for confirmation on mobile. The Fila
+stays above the composer. On mobile it shows a compact count and preview; opening
+it reveals an ordered sheet with message text, image previews and separate 44px
+Enviar agora and Remover controls. Desktop keeps two-line previews and visible
+actions inline, with the complete Fila available in a dialog. The queue explains
+whether it waits for the current response, a decision, reconnection or resumption.
+Removing or advancing a message gives feedback; an open, drained queue shows an
+empty state.
+Interrupting preserves queued messages. Text, mentions, commands and image drafts
+persist on this device; storage failures leave the draft in memory and show a
+warning. Sending failures restore the draft.
+
+A connection banner communicates reconnection and sending waits for the
+connection. Returning from a background tab refreshes the connection and recorded
+state. Reading positions survive navigation between conversations during the
+session. The available visual viewport controls mobile height, including keyboard
+resizes; short viewports bound the editor, attachments and Fila independently.
+
+Dialogs and conversation menus become bottom sheets with the existing surface,
+outline, overlay and reduced-motion behavior. Enter breaks the line; the send
+action delivers. Touch controls remain visible, tooltips do not open on touch,
+and message metadata is available by tapping. Inputs use 16px type to avoid
+focus zoom. Headers, composers, lists and sheets respect safe areas.
 
 ## Elevation & Depth
 
