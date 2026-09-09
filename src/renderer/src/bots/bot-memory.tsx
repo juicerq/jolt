@@ -14,11 +14,9 @@ import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
 
-const learnedFrom = { person: "Aprendeu com você", routine: "Aprendeu em uma Rotina", trigger: "Aprendeu em um Gatilho", bot: "Aprendeu com outro Bot" }
-
 function describeOrigin(memory: Pick<Memory, "origin" | "source" | "createdAt">) {
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
-  const source = memory.origin === "person" ? "Você adicionou" : learnedFrom[memory.source?.turnAuthor ?? "bot"]
+  const source = memory.origin === "person" ? "Você registrou" : "Aprendeu na conversa"
 
   return `${source} · ${date}`
 }
@@ -77,7 +75,12 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
         {memory.source && <details className="mt-2 text-support text-secondary">
           <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Origem da Lembrança</summary>
           <p className="m-0 mt-2 whitespace-pre-wrap">{memory.source.content}</p>
-          <p className="m-0 mt-1 text-muted">Nota de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(memory.source.createdAt))}</p>
+          <p className="m-0 mt-1 text-muted">Mensagem de {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(memory.source.createdAt))}</p>
+        </details>}
+        {memory.supersededAt && <p className="m-0 mt-1 text-support text-muted">Superada em {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(memory.supersededAt))}</p>}
+        {memory.supersededBy && <details className="mt-2 text-support text-secondary">
+          <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">O que mudou</summary>
+          <p className="m-0 mt-2 whitespace-pre-wrap">{memory.supersededBy.content}</p>
         </details>}
       </div>
       {editing && onEdit && (
@@ -95,7 +98,7 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
 function clearNote(bot: Bot, count: number) {
   const memories = count === 1 ? "1 Lembrança" : `${count} Lembranças`
 
-  return `Limpar a Memória de ${bot.name} apaga ${memories} e as Notas pendentes. Não é possível desfazer.`
+  return `Limpar a Memória de ${bot.name} apaga ${memories} ativas e superadas. A conversa antiga não será usada para recriá-las. Não é possível desfazer.`
 }
 
 function TeamMemory({ leader, client }: { leader: Pick<Bot, "id" | "name">; client: EngineClient }) {
@@ -112,7 +115,7 @@ function TeamMemory({ leader, client }: { leader: Pick<Bot, "id" | "name">; clie
   return (
     <div className="flex flex-col gap-2">
       <p className="m-0 text-control font-semibold text-secondary">O que {leader.name} sabe</p>
-      <MemoryList memories={memories} busy={false} />
+      <MemoryList memories={memories.filter((memory) => !memory.supersededAt)} busy={false} />
     </div>
   )
 }
@@ -182,7 +185,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
   const hasMemories = !!memories && memories.length > 0
   const busy = [adding, updating, forgetting, clearing, toggling].some(Boolean)
   const failure = [listError, addError, updateError, forgetError, toggleError].find(Boolean)
-  const state = bot.memoryEnabled ? `${bot.name} lê as Lembranças e anota o que aprende.` : `${bot.name} não usa nem registra Memórias enquanto esta opção estiver desativada. As Lembranças ficam salvas.`
+  const state = bot.memoryEnabled ? `${bot.name} usa as Lembranças ativas e aprende com o que você diz.` : `${bot.name} não usa nem registra Memórias enquanto esta opção estiver desativada. As Lembranças ficam salvas.`
 
   function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -201,7 +204,7 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
       <p className="m-0 text-support text-muted">{state}</p>
       {bot.memoryEnabled && (
         <>
-          {memories && <MemoryList memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
+          {memories && <MemorySections memories={memories} busy={busy} onEdit={(id, content) => updateMemory({ id, content })} onForget={(id) => forget({ id })} />}
           {hasMemories && <p className="m-0 text-metadata font-medium text-muted">{memoryUsage(memories)} de {memoryLimits.total} caracteres</p>}
           <form className="flex items-start gap-2" onSubmit={handleAdd}>
             <label className="min-w-0 flex-1">
@@ -217,5 +220,21 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
       {bot.memoryEnabled && leader && <TeamMemory leader={leader} client={client} />}
       {bot.memoryEnabled && memories && confirmingClear && <MemoryClearDialog bot={bot} count={memories.length} clearing={clearing} error={clearError} onClear={() => clear({ botId: bot.id })} onClose={() => setConfirmingClear(false)} />}
     </SettingsSection>
+  )
+}
+
+function MemorySections({ memories, busy, onEdit, onForget }: { memories: Memory[]; busy: boolean; onEdit: (id: string, content: string) => void; onForget: (id: string) => void }) {
+  const active = memories.filter((memory) => !memory.supersededAt)
+  const superseded = memories.filter((memory) => !!memory.supersededAt)
+
+  return (
+    <>
+      <MemoryList memories={active} busy={busy} onEdit={onEdit} onForget={onForget} />
+      {superseded.length > 0 && <details className="text-support text-secondary">
+        <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Lembranças superadas ({superseded.length})</summary>
+        <p className="my-2 text-support text-secondary">Continuam disponíveis para perguntas sobre o passado.</p>
+        <MemoryList memories={superseded} busy={busy} onForget={onForget} />
+      </details>}
+    </>
   )
 }

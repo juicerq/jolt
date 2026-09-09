@@ -89,19 +89,19 @@ A espera cancelável dentro do mesmo Turno enquanto o provedor volta a responder
 _Evitar_: Novo Turno automático, reiniciar o trabalho, troca automática
 
 **Memória do Bot**:
-A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pessoa liga, desliga e limpa a Memória por Bot. Um Integrante lê também a Memória do seu Líder. Um Integrante temporário não tem Memória própria.
+A coleção de Lembranças ativas e superadas de um Bot, que a pessoa pode ligar, desligar e limpar. Somente as ativas entram no Contexto; um Integrante lê também as ativas do Líder, e um Integrante temporário não tem Memória própria.
 _Evitar_: Contexto, histórico, Notas
 
 **Lembrança**:
-Um item da Memória: uma frase que orienta o Bot em toda execução, com Origem, data e a Nota que sustenta o aprendizado quando existe. A Curadoria cria, substitui e esquece Lembranças; uma edição da pessoa passa a ser uma orientação dela.
-_Evitar_: Fato, entrada, item, memória
+Uma frase curta e direta sobre conhecimento útil em conversas futuras, com Origem, data de registro e Mensagem original quando existe. Não repete autoria nem guarda trabalho ou configuração que já pertence a Função, Projeto, Time, Plugin, Rotina ou Gatilho; adicionar ou editar pela interface protege seu texto da Curadoria.
+_Evitar_: Fato, entrada, item, memória, pedido, tarefa, rotina
 
-**Nota**:
-Um registro curto que o Bot escreve durante o trabalho para a Curadoria avaliar. Uma Nota nunca entra no Contexto. Ela guarda a Origem do turno em que nasceu.
-_Evitar_: Memória, log, diário, rascunho
+**Lembrança superada**:
+Uma Lembrança preservada como conhecimento histórico após uma declaração posterior e explícita da pessoa sobre uma mudança incompatível no mesmo assunto e escopo. Mantém texto, Origem e data, sai do Contexto e do Limite, e continua visível e pesquisável pelo próprio Bot com a evidência da mudança.
+_Evitar_: Esquecida, apagada, inativa
 
 **Curadoria**:
-A passagem separada em que o Mimo avalia as Notas pendentes e consolida as Lembranças, preservando a origem, a confirmação e o escopo do aprendizado. Acontece fora da Conversa quando o Bot está livre; falhas preservam as Notas para nova tentativa, e uma edição da pessoa durante a passagem prevalece.
+A passagem separada em que o Mimo aprende diretamente das novas declarações da pessoa e revisa as Lembranças, respeitando seu escopo e a proteção do texto editado pela pessoa. Memória ligada autoriza a Curadoria mesmo em modo somente leitura; ela acontece com o Bot livre, retoma mensagens pendentes após falha e preserva edições concorrentes da pessoa.
 _Evitar_: Dreaming, consolidação, compactação, resumo
 
 **Modelo da Curadoria**:
@@ -109,23 +109,23 @@ A escolha geral de qual Modelo executa a Curadoria de todos os Bots, usando um F
 _Evitar_: Modelo do Time, Modelo do Líder
 
 **Origem**:
-De onde um Turno, uma Nota ou uma Lembrança veio: da pessoa, de uma Rotina, de um Gatilho ou de outro Bot. O Mimo inclui a Origem no Contexto e a registra; o Bot não a escreve.
+De onde um Turno ou uma Lembrança veio: um Turno pode vir da pessoa, de uma Rotina, de um Gatilho ou de outro Bot; uma Lembrança pode ser registrada pela pessoa ou aprendida de sua declaração na Conversa. O Mimo registra a Origem separadamente do conteúdo; uma origem antiga desconhecida não comprova uma fala da pessoa.
 _Evitar_: Fonte, autor, proveniência
 
 **Limite da Memória**:
-O tamanho máximo da Memória de um Bot. Uma Lembrança que não cabe é recusada até o Bot esquecer ou substituir outra.
+O tamanho máximo das Lembranças ativas de um Bot. Uma Lembrança que não cabe é recusada até liberar espaço; superadas não contam.
 _Evitar_: Budget, cota, orçamento
 
 **Esquecer**:
-Apagar uma Lembrança. A pessoa ou a Curadoria esquece.
+Apagar uma Lembrança, retirando-a também da busca de Memória; a pessoa pode esquecer qualquer uma e a Curadoria apenas as criadas pelo Bot. Evidência antiga já processada não a recria, e outras declarações ainda pendentes continuam elegíveis para aprendizado.
 _Evitar_: Remover, deletar, excluir
 
 **Limpar a Memória**:
-Esquecer todas as Lembranças e Notas de um Bot de uma vez.
+Esquecer todas as Lembranças ativas e superadas de um Bot de uma vez, descartando o aprendizado pendente da Conversa antiga.
 _Evitar_: Resetar, apagar tudo, excluir
 
 **Memória desligada**:
-O estado em que o Bot não lê nem escreve Memória, própria ou do Líder. Nada é apagado. Religar devolve tudo.
+O estado em que o Bot não lê nem aprende Memória, própria ou do Líder, preservando as Lembranças salvas. Religar retoma seu uso sem aprender das mensagens recebidas enquanto estava desligada.
 _Evitar_: Pausada, arquivada
 
 **Memória do Time**:
@@ -188,7 +188,7 @@ O modo que decide se um Bot pode agir sozinho, deve pedir uma Decisão ou fica l
 _Evitar_: Sandbox, acesso ao computador, autonomia
 
 **Pedido de permissão**:
-Uma solicitação feita durante a Conversa antes de o Bot usar uma ferramenta sujeita à Permissão do Bot. Cada Pedido autoriza ou nega uma única chamada; a Nota também pede, mas a Curadoria não.
+Uma solicitação feita durante a Conversa antes de o Bot usar uma ferramenta sujeita à Permissão do Bot. Cada Pedido autoriza ou nega uma única chamada; a Curadoria é governada pela configuração de Memória.
 _Evitar_: Confirmação, consentimento permanente, aprovação da Curadoria
 
 **Decisão**:

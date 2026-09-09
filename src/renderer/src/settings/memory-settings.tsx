@@ -31,10 +31,10 @@ export function MemorySettings({ client }: { client: EngineClient }) {
         <Field label="Modelo da Curadoria">
           <CurationModelSelect settings={data} disabled={isPending || saving || !data} unavailable={unavailable} onChange={(model) => configure({ model })} />
         </Field>
-        <p className="m-0 text-support text-secondary">Este modelo organiza as Lembranças dos Bots. Para isso, recebe as Notas, as Lembranças e a Função de cada um.</p>
+        <p className="m-0 text-support text-secondary">Este modelo organiza as Lembranças dos Bots. Para isso, recebe as novas mensagens da conversa, as Lembranças e a Função de cada um.</p>
         {isPending && <p className="m-0 text-support text-muted">Carregando modelos...</p>}
         {saving && <p className="m-0 text-support text-muted" role="status">Salvando...</p>}
-        {unavailable && <p className="m-0 text-support text-status-error">Reconecte a conta em Inscrições ou escolha outro modelo. As Notas aguardam até o acesso voltar.</p>}
+        {unavailable && <p className="m-0 text-support text-status-error">Reconecte a conta em Inscrições ou escolha outro modelo. As mensagens aguardam até o acesso voltar.</p>}
         {failure && <p className="m-0 text-support text-status-error" role="alert">{failure.message}</p>}
         <CurationStatus client={client} />
       </div>
@@ -76,7 +76,7 @@ function CurationStatus({ client }: { client: EngineClient }) {
 
   return (
     <div className="flex flex-col gap-3" aria-live="polite">
-      {data && <p className="m-0 text-support text-muted">{data.pending ? `${data.pending} ${data.pending === 1 ? "Nota aguardando" : "Notas aguardando"} Curadoria.` : "Nenhuma Nota pendente."}</p>}
+      {data && <p className="m-0 text-support text-muted">{data.pending ? `${data.pending} ${data.pending === 1 ? "Bot aguardando" : "Bots aguardando"} Curadoria.` : "Nenhuma conversa pendente."}</p>}
       {data?.failures.map((entry) => <div key={entry.botId} className="flex flex-col items-start gap-2">
         <p className="m-0 text-support text-status-error">{entry.name}: {entry.error}</p>
         <Button type="button" variant="secondary" disabled={isPending} onClick={() => retry({ botId: entry.botId })}>{isPending ? "Avaliando..." : "Tentar novamente"}</Button>

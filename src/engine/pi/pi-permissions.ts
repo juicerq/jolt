@@ -23,9 +23,9 @@ export type PiPermissionPolicy =
 
 const observationTools = new Set(["read", "grep", "find", "ls"])
 const conversationTools = [askTool, sendMessageTool, finishSilentlyTool, reportTaskTool]
-const readOnlyTools = new Set([...observationTools, ...conversationTools, webSearchTool, webFetchTool, ...Object.values(historyTools)])
-const exemptTools = new Set(["list_models", connectPluginTool, delegateTool, transferTool, ...conversationTools, webSearchTool, webFetchTool, ...Object.values(historyTools)])
-const detailFields: Record<string, string> = { bash: "command", hire: "name", configure_member: "bot", note: "content", remove_routine: "id", routine: "content" }
+const readOnlyTools = new Set([...observationTools, ...conversationTools, webSearchTool, webFetchTool, "search_memories", ...Object.values(historyTools)])
+const exemptTools = new Set(["list_models", connectPluginTool, delegateTool, transferTool, ...conversationTools, webSearchTool, webFetchTool, "search_memories", ...Object.values(historyTools)])
+const detailFields: Record<string, string> = { bash: "command", hire: "name", configure_member: "bot", remove_routine: "id", routine: "content" }
 const briefFields: Record<string, string> = { hire: "instructions", routine: "frequency" }
 
 export function toolsForPermissionMode(mode: BotPermissionMode, tools: string[]) {

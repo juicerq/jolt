@@ -530,12 +530,15 @@ line, a ghost pencil that edits the text inline, and a ghost trash action per
 row, one input with a secondary add button, a text action to clear that commits
 the same way as Excluir, and the Leader's Memória as a quiet block that appears
 only when the Leader knows something. Off hides everything but the sentence.
-An optional disclosure below the Origem shows the Nota that supports the current
-Lembrança and when it was written. Editing a Lembrança makes its origin the person.
+An optional disclosure below the Origem shows the original message supporting the
+Lembrança and its date. Editing protects the text and records the person's edit.
+A collapsed section shows Lembranças superadas, their supersession date and the
+message explaining the change. These remain searchable historical knowledge,
+do not count toward the active limit, and can be forgotten but not edited.
 
 **Curation settings.** App settings includes a Memória section with one model
 selector grouped by connected Fornecedor. Its default follows each Bot's model.
-Supporting copy names what is sent to the selected Fornecedor. Pending Notas and
+Supporting copy names what is sent to the selected Fornecedor. Pending Bots and
 failures appear below, with a retry action for each affected Bot; an unavailable
 saved model remains visible instead of silently selecting another.
 
