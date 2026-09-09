@@ -40,6 +40,7 @@ import { ChatPluginRequest } from "./chat-plugin-request"
 import { ChatQuestion, type QuestionAnswer } from "./chat-question"
 import { finishConversationOpen } from "./chat-open-span"
 import { chatGreeting } from "./chat-greetings"
+import { ChatProviderWaiting, ChatRecoveryActions } from "./chat-recovery"
 import { ChatTurnEnding } from "./chat-turn-ending"
 import { connectionStore } from "../connection"
 import { useIsMobile } from "../ui/use-is-mobile"
@@ -117,6 +118,10 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
       })
   }
 
+  async function handleRetry() {
+    return sendPersonInput({ content: "Continue de onde parou antes da falha do provedor. Confira o histórico e os resultados já obtidos; preserve o trabalho realizado e não repita ações concluídas.", images: [], replyTo: null }, [])
+  }
+
   async function handleQuestionAnswer(messageId: string, optionValues: string[]) {
     return sendPersonInput({ content: "", images: [], replyTo: { messageId, optionValues } }, [])
   }
@@ -155,7 +160,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
           {isFetchingNextPage && <ChatEarlierLoading />}
           {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} /></div>)}
           {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
-          {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} empty={messages.length === 0} />}
+          {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} messages={messages} onRetry={handleRetry} />}
         </ChatScroller>
       </section>
     </ChatFileDirectory>
@@ -174,14 +179,18 @@ function ChatEarlierLoading() {
   )
 }
 
-function ChatRunSlot({ activityDetailsVisible, bot, client, team, historyIds, empty }: { activityDetailsVisible: boolean; bot: Bot; client: EngineClient; team: ChatTeam; historyIds: Set<string>; empty: boolean }) {
+function ChatRunSlot({ activityDetailsVisible, bot, client, team, historyIds, messages, onRetry }: { activityDetailsVisible: boolean; bot: Bot; client: EngineClient; team: ChatTeam; historyIds: Set<string>; messages: ConversationMessage[]; onRetry: () => Promise<boolean> }) {
   const run = useSelector(chatStore, (state) => state.runs[bot.id])
 
   if (run) {
     return <ChatRun activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} run={run} team={team} historyIds={historyIds} />
   }
 
-  if (empty) {
+  if (messages.at(-1)?.ending === "failed") {
+    return <ChatRecoveryActions bot={bot} client={client} onRetry={onRetry} />
+  }
+
+  if (messages.length === 0) {
     return <EmptyChat bot={bot} />
   }
 
@@ -262,7 +271,7 @@ function ChatRun({ activityDetailsVisible, bot, client, run, team, historyIds }:
   const permissionRequest = run.permissionRequests[0]
   const pluginRequest = run.pluginRequests[0]
   const awaitingDecision = !!permissionRequest || !!pluginRequest
-  const workingSilently = !activityDetailsVisible && run.status === "running" && !awaitingDecision
+  const workingSilently = !activityDetailsVisible && run.status === "running" && !awaitingDecision && !run.providerWait
   const handedOff = window.desktop.remote && awaitingHandoff(run)
 
   return (
@@ -270,7 +279,7 @@ function ChatRun({ activityDetailsVisible, bot, client, run, team, historyIds }:
       {!historyIds.has(run.messageId) && <ChatTurnStart activityDetailsVisible={activityDetailsVisible} bot={bot} message={run.message} team={team} time="Agora" open />}
       {run.completedMessages.filter((message) => !historyIds.has(message.id)).map((message) => <ChatMessage key={message.id} activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} team={team} />)}
       <article className="flex w-fit max-w-full flex-col gap-3 self-start">
-        {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" status={run.status} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
+        <ChatRunActivity activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} run={run} />
         {permissionRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPermissionRequest key={permissionRequest.id} botId={bot.id} client={client} request={permissionRequest} remaining={run.permissionRequests.length - 1} /></ChatStamped>}
         {!permissionRequest && pluginRequest && <ChatStamped className="chat-request-bubble" name={bot.name} time="Agora" anchor="bubble"><ChatPluginRequest botId={bot.id} client={client} request={pluginRequest} step={run.pluginSteps[pluginRequest.id]} /></ChatStamped>}
         {workingSilently && <ChatWorkingIndicator botName={bot.name} />}
@@ -279,6 +288,13 @@ function ChatRun({ activityDetailsVisible, bot, client, run, team, historyIds }:
       </article>
     </>
   )
+}
+
+function ChatRunActivity({ activityDetailsVisible, bot, client, run }: { activityDetailsVisible: boolean; bot: Bot; client: EngineClient; run: ChatRunState }) {
+  return <>
+    {activityDetailsVisible && <ChatActivity activity={withoutRequestedDetails(run)} botName={bot.name} time="Agora" {...(run.providerWait ? {} : { status: run.status })} compacting={run.compacting} waitingMessage={run.waitingMessage} />}
+    {run.providerWait && <ChatProviderWaiting bot={bot} client={client} wait={run.providerWait} aborting={run.status === "aborting"} />}
+  </>
 }
 
 function awaitingHandoff(run: ChatRunState) {

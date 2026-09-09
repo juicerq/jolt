@@ -8,6 +8,8 @@ import type { PiPermissionPolicy } from "./pi-permissions"
 
 export type PiRuntimeEvent =
   | { type: "started" }
+  | { type: "provider-waiting"; attempt: number; maxAttempts: number; delayMs: number }
+  | { type: "provider-resumed" }
   | { type: "text"; text: string }
   | { type: "message-finished"; reason?: "aborted" | "error"; error?: string }
   | { type: "thinking-started" }

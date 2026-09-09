@@ -84,6 +84,10 @@ _Evitar_: Memória, histórico completo, prompt permanente
 Uma execução conversacional do Bot iniciada por uma mensagem da pessoa, uma Chamada, um Disparo, uma Tarefa ou um Resultado da Tarefa.
 _Evitar_: Ativação, rodada, run
 
+**Recuperação do provedor**:
+A espera cancelável dentro do mesmo Turno enquanto o provedor volta a responder, preservando mensagens e trabalho sem registrar cada tentativa como falha na Conversa. Ao esgotá-la, a pessoa pode retomar pelo histórico ou escolher outro Modelo; limites de plano encerram a espera com previsão de liberação quando disponível, sem mudar Modelo ou cobrança automaticamente.
+_Evitar_: Novo Turno automático, reiniciar o trabalho, troca automática
+
 **Memória do Bot**:
 A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pessoa liga, desliga e limpa a Memória por Bot. Um Integrante lê também a Memória do seu Líder. Um Integrante temporário não tem Memória própria.
 _Evitar_: Contexto, histórico, Notas

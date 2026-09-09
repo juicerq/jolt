@@ -460,6 +460,14 @@ request, Plugin request, failure, or completed response. Showing the details
 restores the complete live stack and persisted disclosures; hiding never
 deletes the recorded Activity.
 
+Provider recovery remains visible even when Activity details are hidden. One
+quiet status identifies the provider, with the next attempt on a supporting
+line below it. It replaces the working dots during the wait; cancellation
+remains in the composer. Intermediate failures belong to
+diagnostics, not conversation messages. A final failure preserves prior work
+and offers Tentar novamente and Trocar modelo below the latest message; model
+selection does not resume work or enable paid usage automatically.
+
 **New Bot.** Creating a Bot happens inside the conversation plane instead of a
 dialog. The form shows a 77px Blobatar and one borderless name field on a raised
 surface. The single primary action appears after the name has content without

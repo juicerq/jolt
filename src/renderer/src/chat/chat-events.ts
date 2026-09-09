@@ -16,6 +16,7 @@ import {
   resetChatConnection,
   resolveChatPlugin,
   setChatCompacting,
+  setChatProviderWait,
   setChatPluginStep,
   setChatQueue,
   settleChatRun,
@@ -49,6 +50,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "tool-finished" && event.tool === "configure_member") {
       void invalidateTeam().catch(() => {})
+    }
+
+    if (event.type === "provider-waiting" || event.type === "provider-resumed") {
+      setChatProviderWait(botId, event)
+      return
     }
 
     applyChatEvent(botId, event)

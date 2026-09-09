@@ -102,6 +102,8 @@ const pluginStepEvent = z.strictObject({ type: z.literal("plugin-step"), request
 const pluginResolvedEvent = z.strictObject({ type: z.literal("plugin-resolved"), requestId: id })
 const compactionStartedEvent = z.strictObject({ type: z.literal("compaction-started"), reason: z.enum(["manual", "threshold", "overflow"]) })
 const compactionFinishedEvent = z.strictObject({ type: z.literal("compaction-finished") })
+const providerWaitingEvent = z.strictObject({ type: z.literal("provider-waiting"), attempt: z.int().positive(), maxAttempts: z.int().positive(), delayMs: z.number().nonnegative() })
+const providerResumedEvent = z.strictObject({ type: z.literal("provider-resumed") })
 const queueChangedEvent = z.strictObject({ type: z.literal("queue-changed"), queued: z.array(queuedMessage) })
 const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
@@ -119,6 +121,8 @@ const event = z.discriminatedUnion("type", [
   pluginResolvedEvent,
   compactionStartedEvent,
   compactionFinishedEvent,
+  providerWaitingEvent,
+  providerResumedEvent,
   queueChangedEvent,
   finishedEvent,
 ])
