@@ -354,8 +354,6 @@ function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineC
       void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
     },
   }))
-  const label = members.length === 1 ? "1 integrante encerrado" : `${members.length} integrantes encerrados`
-
   async function removeClosed() {
     const results = await Promise.allSettled(members.map((member) => removeBot({ id: member.id })))
     members.forEach((member, index) => {
@@ -367,7 +365,7 @@ function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineC
 
   return (
     <>
-      <IconButton iconSize={13} position="relative" shape="circle" size={24} type="button" label={`Excluir ${label} de ${leaderName}`} disabled={removing} onClick={() => setConfirming(true)}>
+      <IconButton iconSize={13} position="relative" shape="circle" size={24} type="button" label="Excluir encerrados" disabled={removing} onClick={() => setConfirming(true)}>
         <TrashIcon aria-hidden="true" />
       </IconButton>
       {confirming && (
