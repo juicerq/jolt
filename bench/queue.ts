@@ -1,8 +1,9 @@
 import { parseArgs } from "node:util"
+import { MIMO_LOAD_DEBUGGING_PORT } from "@src/shared/app-profile"
 import { z } from "zod"
 import { connectCdp } from "./cdp"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: "9222" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: String(MIMO_LOAD_DEBUGGING_PORT) } } })
 const cdp = await connectCdp(values.port)
 const text = z.string()
 const snapshotSchema = z.object({ rows: z.array(z.string()), bubbles: z.array(z.string()), stop: z.boolean(), editable: z.string().nullable() })

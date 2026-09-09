@@ -1,8 +1,9 @@
 import { parseArgs } from "node:util"
+import { MIMO_LOAD_DEBUGGING_PORT } from "@src/shared/app-profile"
 import { browser, connectBrowser } from "./browser"
 import { isOpenSpan, observationLog, observations, percentile, waitForObservations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, rounds: { type: "string", default: "3" }, port: { type: "string", default: "9222" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, rounds: { type: "string", default: "3" }, port: { type: "string", default: String(MIMO_LOAD_DEBUGGING_PORT) } } })
 const logPath = observationLog(values["user-data"])
 const route = ["Leve", "Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Leve", "Enorme", "Pesada", "Média"]
 const rounds = Number(values.rounds)

@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
 import { z } from "zod"
 import { loopbackHttpUrl } from "../shared/engine-ipc"
+import { resolveAppProfile } from "../shared/app-profile"
 import { parse } from "../shared/parse"
 import { turnNotification } from "../shared/turn-notification"
 import { startAppUpdates } from "./app-update"
@@ -16,6 +17,8 @@ import { actOnLocalFile } from "./local-files"
 import { loadSecret } from "./secret-file"
 import { createTurnNotifications } from "./turn-notification"
 
+const appProfile = resolveAppProfile({ packaged: app.isPackaged, loadProvider: process.env.MIMO_LOAD_PROVIDER === "true" })
+
 // Uma única pasta de dados por máquina no dev, fora do checkout: worktrees e `bun run dev` abrem o mesmo banco do serviço.
 if (process.env.MIMO_USER_DATA) {
   app.setPath("userData", process.env.MIMO_USER_DATA)
@@ -23,10 +26,11 @@ if (process.env.MIMO_USER_DATA) {
   app.setPath("userData", join(app.getPath("appData"), "mimo-dev"))
 }
 
-app.setName(app.isPackaged ? "Mimo" : "Mimo Dev")
+app.setName(appProfile.name)
 
-if (process.platform === "linux" && !app.isPackaged) {
-  app.setDesktopName("mimo-dev.desktop")
+if (process.platform === "linux" && appProfile.desktopName) {
+  app.setDesktopName(`${appProfile.desktopName}.desktop`)
+  app.commandLine.appendSwitch("class", appProfile.desktopName)
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -65,7 +69,7 @@ if (process.platform !== "win32") {
   })
 }
 
-const icon = join(app.getAppPath(), "resources", app.isPackaged ? "icon.png" : "icon-dev.png")
+const icon = join(app.getAppPath(), "resources", appProfile.icon)
 const engineName = process.platform === "win32" ? "mimo-engine.exe" : "mimo-engine"
 const executable = app.isPackaged
   ? join(process.resourcesPath, "engine", engineName)
@@ -85,7 +89,7 @@ const engine = new EngineProcess({
   appVersion: app.getVersion(),
   electronVersion: process.versions.electron,
   development: !app.isPackaged,
-  loadProvider: !app.isPackaged && process.env.MIMO_LOAD_PROVIDER === "true",
+  loadProvider: appProfile.loadProvider,
   onUnexpectedExit(error) {
     console.error(error)
     app.exit(1)
@@ -93,7 +97,7 @@ const engine = new EngineProcess({
 })
 
 app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1")
-app.commandLine.appendSwitch("remote-debugging-port", await browserDebuggingPort())
+app.commandLine.appendSwitch("remote-debugging-port", await browserDebuggingPort(appProfile.debuggingPort))
 
 void app.whenReady().then(async () => {
   const mobileAccess = createMobileAccess({ directory: app.getPath("userData"), engine, keepAwake: createKeepAwake(), ...(rendererUrl ? { rendererPort: Number(new URL(rendererUrl).port) } : {}) })
@@ -106,6 +110,7 @@ void app.whenReady().then(async () => {
   void starting.then(() => mobileAccess.restore(), () => {})
 
   const window = new BrowserWindow({
+    title: appProfile.title,
     width: 960,
     height: 760,
     frame: false,
@@ -118,6 +123,7 @@ void app.whenReady().then(async () => {
     },
   })
   mainWindow = window
+  window.on("page-title-updated", (event) => event.preventDefault())
 
   if (showOnReady) {
     window.maximize()

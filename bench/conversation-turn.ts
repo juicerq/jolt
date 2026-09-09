@@ -1,8 +1,9 @@
 import { parseArgs } from "node:util"
+import { MIMO_LOAD_DEBUGGING_PORT } from "@src/shared/app-profile"
 import { browser, connectBrowser } from "./browser"
 import { isFinishedTurn, observationLog, observations, waitForObservations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, profile: { type: "string", default: "/tmp/mimo-turn.cpuprofile" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: String(MIMO_LOAD_DEBUGGING_PORT) }, profile: { type: "string", default: "/tmp/mimo-turn.cpuprofile" } } })
 const logPath = observationLog(values["user-data"])
 
 interface ProfileNode { id: number; callFrame: { functionName: string } }
