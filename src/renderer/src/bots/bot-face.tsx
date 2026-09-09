@@ -1,10 +1,11 @@
 import { Blobatar } from "@blobatar/react"
 import { useSelector } from "@tanstack/react-store"
 import { useCallback, useRef } from "react"
-import { chatStore } from "../chat/chat-store"
+import { chatStatusLabels } from "../chat/chat-status"
+import { chatStore, type ChatStatus } from "../chat/chat-store"
 
-export function BotFace({ name, size, className, botId }: { name: string; size: number; className: string; botId?: string }) {
-  const status = useSelector(chatStore, (state) => botId ? state.statuses[botId] ?? "available" : "available")
+export function BotFace({ name, size, className, botId, status: recordedStatus }: { name: string; size: number; className: string; botId?: string; status?: ChatStatus }) {
+  const status = useSelector(chatStore, (state) => botId ? state.statuses[botId] ?? recordedStatus ?? "available" : recordedStatus ?? "available")
   const previousStatus = useRef(status)
   const handleStatusChange = useCallback((element: SVGSVGElement | null) => {
     if (!element || previousStatus.current === status) {
@@ -47,13 +48,30 @@ export function BotFace({ name, size, className, botId }: { name: string; size: 
   }, [status])
 
   return (
-    <Blobatar
-      name={name}
-      size={size}
-      animate="always"
-      className={`bot-face ${className}`}
-      data-status={status}
-      ref={handleStatusChange}
-    />
+    <span className={`bot-face inline-flex shrink-0 ${className}`} data-status={status} role={botId ? "img" : undefined} aria-label={botId ? chatStatusLabels[status] : undefined}>
+      <span className="relative inline-flex size-full">
+        <Blobatar
+          name={name}
+          size={size}
+          animate="always"
+          className="size-full"
+          ref={handleStatusChange}
+        />
+        <svg className="bot-face-signal pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 100 100" aria-hidden="true">
+          <g className="bot-face-status-dot" fill="currentColor">
+            <circle cx="86" cy="86" r="9" />
+          </g>
+          <g className="bot-face-work" fill="currentColor">
+            <circle cx="86" cy="80" r="3" />
+            <circle cx="91.2" cy="83" r="3" />
+            <circle cx="91.2" cy="89" r="3" />
+            <circle cx="86" cy="92" r="3" />
+            <circle cx="80.8" cy="89" r="3" />
+            <circle cx="80.8" cy="83" r="3" />
+            <circle cx="86" cy="86" r="3" />
+          </g>
+        </svg>
+      </span>
+    </span>
   )
 }

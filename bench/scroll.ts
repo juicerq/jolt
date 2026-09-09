@@ -1,8 +1,9 @@
 import { parseArgs } from "node:util"
+import { MIMO_LOAD_DEBUGGING_PORT } from "@src/shared/app-profile"
 import { browser, connectBrowser, evaluate } from "./browser"
 import { startProbe, stopProbe, summarizeFrames } from "./page-probe"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: "9222" }, steps: { type: "string", default: "40" }, px: { type: "string", default: "1200" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { port: { type: "string", default: String(MIMO_LOAD_DEBUGGING_PORT) }, steps: { type: "string", default: "40" }, px: { type: "string", default: "1200" } } })
 const bots = ["Leve", "Enorme"]
 const steps = Number(values.steps)
 const px = Number(values.px)

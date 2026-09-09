@@ -8,7 +8,7 @@
   "packageManager": "bun@1.4.0",
   "type": "module",
   "main": "out/main/index.js",
-  "trustedDependencies": ["electron"],
+  "trustedDependencies": ["electron", "agent-browser"],
   "scripts": {
     "postinstall": "bun node_modules/electron/install.js",
     "dev": "bun run dev:run",

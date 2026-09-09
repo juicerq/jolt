@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
-import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
+import { chatStatusLabels } from "../chat/chat-status"
 import { needsResponse, useConversationOverview } from "../chat/chat-overview"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
@@ -66,7 +66,7 @@ function BotIdentity({ bot, members, client }: { bot: Bot; members: Bot[]; clien
   const label = teamPending && !needsResponse(ownStatus) ? "Seu Time precisa de você" : chatStatusLabels[ownStatus]
 
   return <button className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" onClick={() => openBotRoute({ name: "details" })} aria-label={`Sobre ${bot.name}`}>
-    <span className="relative flex shrink-0"><BotFace className="size-8" name={bot.avatarSeed} botId={bot.id} size={32} /><span className={`absolute right-0 bottom-0 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" /></span>
+    <BotFace className="size-8" name={bot.avatarSeed} botId={bot.id} status={status} size={32} />
     <span className="flex min-w-0 flex-col"><strong className="truncate text-section font-semibold text-primary">{bot.name}</strong><small className="truncate text-metadata font-medium text-secondary">{label}</small></span>
   </button>
 }

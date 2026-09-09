@@ -1,9 +1,10 @@
 import { parseArgs } from "node:util"
+import { MIMO_LOAD_DEBUGGING_PORT } from "@src/shared/app-profile"
 import { z } from "zod"
 import { connectCdp } from "./cdp"
 import { isFinishedTurn, isOpenSpan, observationLog, observations, waitForObservations } from "./observations"
 
-const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: "9222" }, rounds: { type: "string", default: "10" } } })
+const { values } = parseArgs({ args: Bun.argv.slice(2), options: { "user-data": { type: "string", default: ".mimo-load" }, port: { type: "string", default: String(MIMO_LOAD_DEBUGGING_PORT) }, rounds: { type: "string", default: "10" } } })
 const logPath = observationLog(values["user-data"])
 const rounds = Number(values.rounds)
 const route = ["Média", "Pesada", "Enorme", "Coordenador", "Pesquisador", "Leve"]

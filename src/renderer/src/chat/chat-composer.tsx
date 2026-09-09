@@ -65,15 +65,15 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
   const mobile = useIsMobile()
-  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError } = useChatCommands(bot, client, draft)
+  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, renewed } = useChatCommands(bot, client, draft)
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
   const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
-  const commands = run ? [] : suggestions
+  const commands = run ? suggestions.filter((suggestion) => suggestion.command === "novo") : suggestions
   const choices = menuChoices(commands, mentions)
   const menuOpen = choices.length > 0 && draft.content !== dismissedContent
   const active = Math.min(highlighted, choices.length - 1)
   const empty = composerEmpty(command, draft)
-  const commandBlocked = !!draft.command && !!run
+  const commandBlocked = !!draft.command && draft.command !== "novo" && !!run
   const busy = commandPending
   const permissionDisabled = busy || !connected
   const settingsDisabled = [!!run, commandPending, !connected].some(Boolean)
@@ -98,7 +98,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       const ran = await runCommand(command).then(() => true).catch(() => false)
 
       if (ran) {
-        clearChatDraftCommand(bot.id, "")
+        const current = chatStore.state.drafts[bot.id] ?? emptyChatDraft
+
+        if (current.command === draft.command) {
+          clearChatDraftCommand(bot.id, current === draft ? "" : current.content)
+        }
       }
 
       return
@@ -211,10 +215,6 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   function handleDrop(event: DragEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (busy) {
-      return
-    }
-
     void attachFiles(event.dataTransfer.files)
   }
 
@@ -231,19 +231,18 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDrop={handleDrop}
     >
       {menuOpen && <ChatCommandMenu id={menuId} label={commands.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
-      {!menuOpen && commandError && <ChatCommandStatus error={commandError} />}
+      <ChatCommandStatus error={commandError} renewed={renewed} menuOpen={menuOpen} />
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
-      <IconButton iconSize={16} shape="circle" size={34} type="button" disabled={busy} label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
+      <IconButton iconSize={16} shape="circle" size={34} type="button" label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
       <div className="order-first col-span-full flex min-w-0 items-start gap-1.5">
-        {draft.command && <ChatComposerCommand command={draft.command} disabled={busy} onRemove={() => clearChatDraftCommand(bot.id, draft.content)} />}
+        {draft.command && <ChatComposerCommand command={draft.command} onRemove={() => clearChatDraftCommand(bot.id, draft.content)} />}
         <ChatEditor
           id={`prompt-${bot.id}`}
           content={draft.content}
           mentions={draft.mentions}
           placeholder={editor.placeholder}
           label={editor.label}
-          disabled={busy}
           menuOpen={menuOpen}
           menuId={menuId}
           enterBreaksLine={mobile}
@@ -264,7 +263,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
 }
 
 function composerEmpty(command: ChatCommand | null, draft: ChatDraft) {
-  return !command && draft.content.trim().length === 0 && draft.images.length === 0
+  if (draft.command) {
+    return !command
+  }
+
+  return draft.content.trim().length === 0 && draft.images.length === 0
 }
 
 function editorText(draft: Pick<ChatDraft, "command">, botName: string) {
@@ -307,12 +310,11 @@ function sendLabel({ command, pending, run, blocked }: { command: ChatCommand | 
   return "Enviar mensagem"
 }
 
-function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCommandName; disabled: boolean; onRemove: () => void }) {
+function ChatComposerCommand({ command, onRemove }: { command: ChatCommandName; onRemove: () => void }) {
   return (
     <button
       className="flex h-[25px] shrink-0 items-center gap-1 rounded-md border border-outline-strong bg-surface-hover px-2 text-metadata font-medium text-secondary transition-colors duration-150 hover:bg-surface-active hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none [&>svg]:size-3 [&>svg]:stroke-2"
       type="button"
-      disabled={disabled}
       aria-label={`Remover o Comando ${command}`}
       onClick={onRemove}
     >
@@ -322,7 +324,15 @@ function ChatComposerCommand({ command, disabled, onRemove }: { command: ChatCom
   )
 }
 
-function ChatCommandStatus({ error }: { error: Error }) {
+function ChatCommandStatus({ error, renewed, menuOpen }: { error: Error | null; renewed: boolean; menuOpen: boolean }) {
+  if (renewed) {
+    return <p className="col-span-full m-0 px-2 text-support text-secondary" role="status">Sessão nova pronta. O histórico continua salvo, mas não entra no contexto desta sessão.</p>
+  }
+
+  if (!error || menuOpen) {
+    return null
+  }
+
   return <div className={`${menuCardClassName} absolute bottom-full left-0 mb-2 max-w-full px-3 py-2 text-support text-status-error`} role="alert" aria-live="polite">Falha ao executar o Comando: {error.message}</div>
 }
 

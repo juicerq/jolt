@@ -7,7 +7,7 @@ import { BotFace } from "./bot-face"
 import type { EngineClient } from "../engine-client"
 import { Button } from "../ui/button"
 import { DirectoryPicker, useDirectoryChooser } from "../ui/directory-picker"
-import { ConfirmationDialog } from "../ui/dialog"
+import { BotRemovalDialog } from "./bot-removal-dialog"
 import { Field, fieldControlClassName } from "../ui/field"
 import { Switch } from "../ui/switch"
 import { Select } from "../ui/select"
@@ -16,7 +16,6 @@ import { useEscape } from "../ui/use-escape"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
 import { BotPlugins } from "./bot-plugins"
-import { forgetBot } from "./bots-store"
 import { teamOf } from "./team"
 import { BotDetachMember } from "./bot-detach-member"
 
@@ -69,18 +68,11 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
   const { data: projectGroups, error: projectsError } = useQuery(client.query.projects.list.queryOptions())
   const projects = projectGroups?.projects ?? []
   const selectedProject = projects.find((project) => project.id === draft.projectId)
-  const { leader, members } = teamOf(projectGroups, bot)
+  const { leader } = teamOf(projectGroups, bot)
   const { mutate: save, isPending: saving, error: saveError } = useMutation(client.query.bots.update.mutationOptions({
     onSuccess() {
       void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
       onClose()
-    },
-  }))
-  const { mutate: remove, isPending: removing, error: removeError } = useMutation(client.query.bots.remove.mutationOptions({
-    onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
-      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
-      forgetBot(bot.id)
     },
   }))
   const change = settingsChange(bot, draft)
@@ -148,22 +140,7 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
       <section className="flex justify-end" aria-label="Excluir Bot">
         <Button className="inline-flex items-center gap-2" variant="danger" type="button" onClick={() => setConfirmingRemoval(true)}><TrashIcon className="size-4" aria-hidden="true" />Excluir Bot</Button>
       </section>
-      {confirmingRemoval && (
-        <ConfirmationDialog
-          icon={<TrashIcon />}
-          title="Excluir Bot"
-          onClose={() => !removing && setConfirmingRemoval(false)}
-          actions={(
-            <>
-              <Button variant="text" type="button" autoFocus disabled={removing} onClick={() => setConfirmingRemoval(false)}>Cancelar</Button>
-              <Button variant="danger" type="button" disabled={removing} onClick={() => remove({ id: bot.id })}>{removing ? "Excluindo..." : "Excluir Bot"}</Button>
-            </>
-          )}
-        >
-          <BotRemovalDetails bot={bot} members={members} />
-          {removeError && <p className="m-0 text-support text-status-error">Falha ao excluir o Bot: {removeError.message}</p>}
-        </ConfirmationDialog>
-      )}
+      {confirmingRemoval && <BotRemovalDialog bot={bot} client={client} onClose={() => setConfirmingRemoval(false)} />}
     </BotPage>
   )
 }
@@ -178,18 +155,6 @@ function WorkspaceHint({ project, workingDirectoryOverride }: { project?: Pick<P
   }
 
   return <small className="text-support font-normal text-muted">O Bot usará uma pasta privada do Mimo até você escolher outra.</small>
-}
-
-function BotRemovalDetails({ bot, members }: { bot: Pick<Bot, "name">; members: Bot[] }) {
-  return <>
-    <p className="m-0 text-control text-secondary">Excluir {bot.name} apaga sua conversa, sua memória e seu Diretório privado. Não é possível desfazer.</p>
-    {members.length > 0 && <>
-      <p className="m-0 text-control text-secondary">Também exclui {members.length} {members.length === 1 ? "Integrante, com sua conversa, memória e Diretório privado:" : "Integrantes, com suas conversas, memórias e Diretórios privados:"}</p>
-      <ul className="m-0 max-h-48 overflow-y-auto pl-5 text-control text-secondary">
-        {members.map((member) => <li key={member.id}>{member.name}{member.closed ? " · Temporário encerrado" : ""}</li>)}
-      </ul>
-    </>}
-  </>
 }
 
 function MemberPermissionDefault({ checked, disabled, onChange }: { checked: boolean; disabled: boolean; onChange: (checked: boolean) => void }) {

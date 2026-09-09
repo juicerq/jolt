@@ -8,7 +8,6 @@ interface ChatEditorProps {
   mentions: ChatMention[]
   placeholder: string
   label: string
-  disabled: boolean
   menuOpen: boolean
   menuId: string
   /** Mobile: Enter breaks the line and the send action delivers. Desktop keeps Enter to send and Shift+Enter to break. */
@@ -18,7 +17,7 @@ interface ChatEditorProps {
   onPasteFiles: (files: FileList) => void
 }
 
-const editorClassName = "relative box-border max-h-40 min-w-0 flex-1 overflow-y-auto rounded-lg px-1 text-body text-primary focus-visible:outline-none min-h-[25px] py-0 whitespace-pre-wrap max-md:max-h-[min(160px,20dvh)] max-md:text-base max-md:leading-[1.55] [overflow-wrap:anywhere] data-[disabled=true]:opacity-60 data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:text-muted data-[empty=true]:before:content-[attr(data-placeholder)]"
+const editorClassName = "relative box-border max-h-40 min-w-0 flex-1 overflow-y-auto rounded-lg px-1 text-body text-primary focus-visible:outline-none min-h-[25px] py-0 whitespace-pre-wrap max-md:max-h-[min(160px,20dvh)] max-md:text-base max-md:leading-[1.55] [overflow-wrap:anywhere] data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:text-muted data-[empty=true]:before:content-[attr(data-placeholder)]"
 
 function readNode(node: ChildNode): string {
   if (node.nodeType === Node.TEXT_NODE) {
@@ -80,6 +79,48 @@ function caretAtStart(node: HTMLElement) {
   return before.toString().length === 0
 }
 
+function scrollCaretIntoView(node: HTMLElement) {
+  const selection = window.getSelection()
+
+  if (!selection || selection.rangeCount === 0) {
+    return
+  }
+
+  const caret = selection.getRangeAt(0)
+
+  if (!node.contains(caret.startContainer)) {
+    return
+  }
+
+  const end = caret.cloneRange()
+
+  end.collapse(false)
+
+  const clientRects = end.getClientRects()
+
+  if (clientRects.length === 0) {
+    node.scrollTop = node.scrollHeight
+
+    return
+  }
+
+  const caretRect = [...clientRects].at(-1)
+
+  if (!caretRect) {
+    node.scrollTop = node.scrollHeight
+
+    return
+  }
+
+  const nodeRect = node.getBoundingClientRect()
+
+  if (caretRect.bottom > nodeRect.bottom) {
+    node.scrollTop += caretRect.bottom - nodeRect.bottom
+  } else if (caretRect.top < nodeRect.top) {
+    node.scrollTop -= nodeRect.top - caretRect.top
+  }
+}
+
 const ChatEditorContent = memo(
   ({ content, mentions }: { revision: number; content: string; mentions: ChatMention[] }) => (
     <>
@@ -91,7 +132,7 @@ const ChatEditorContent = memo(
   (before, after) => before.revision === after.revision,
 )
 
-export function ChatEditor({ id, content, mentions, placeholder, label, disabled, menuOpen, menuId, enterBreaksLine, onChange, onKeyDown, onPasteFiles }: ChatEditorProps) {
+export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen, menuId, enterBreaksLine, onChange, onKeyDown, onPasteFiles }: ChatEditorProps) {
   const ref = useRef<HTMLDivElement | null>(null)
   const typed = useRef(content)
   const [revision, setRevision] = useState(0)
@@ -108,6 +149,7 @@ export function ChatEditor({ id, content, mentions, placeholder, label, disabled
     if (revision > 0 && node && (loose || node.contains(document.activeElement))) {
       node.focus()
       caretToEnd(node)
+      scrollCaretIntoView(node)
     }
   }, [revision])
 
@@ -120,6 +162,7 @@ export function ChatEditor({ id, content, mentions, placeholder, label, disabled
 
     typed.current = readEditor(node)
     onChange(typed.current)
+    scrollCaretIntoView(node)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -153,7 +196,7 @@ export function ChatEditor({ id, content, mentions, placeholder, label, disabled
       ref={ref}
       className={editorClassName}
       id={id}
-      contentEditable={!disabled}
+      contentEditable
       suppressContentEditableWarning
       role="combobox"
       aria-label={label}
@@ -163,7 +206,6 @@ export function ChatEditor({ id, content, mentions, placeholder, label, disabled
       aria-autocomplete="list"
       data-placeholder={placeholder}
       data-empty={content.length === 0}
-      data-disabled={disabled}
       onInput={handleInput}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}

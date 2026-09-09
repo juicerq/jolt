@@ -189,9 +189,16 @@ with the eyes leading the body by roughly 125–230ms. Each identity has its own
 direction, blink timing, breathing pace, and working rhythm. Work reduces glance
 travel to a quarter; waiting and errors ease it to zero over 240ms instead of
 snapping the face forward.
-Working narrows the eyes into concentration and adds a gentle sway. Waiting for
-a decision or response, interrupting, and error states stop ambient glances and
-body movement while keeping the blink. An error lowers and tilts the eyes into
+Working narrows the eyes into concentration, with small alternating lifts,
+elastic compression, and glances toward the work. Seven small amber dots pulse
+in sequence within the same footprint as the other status dots, with no solid
+yellow dot underneath. Available and completed show one quiet green dot. Waiting
+for a decision or response opens the eyes and calls with a brief tilted lift
+followed by a long pause while a blue status dot remains visible. Reduced motion
+keeps the working cluster visible without pulsing.
+Interrupting and error states stop ambient glances and body movement while
+keeping the blink. Mobile faces use the same saved status as their row until
+a live session status arrives. An error lowers and tilts the eyes into
 concern, without anger, shaking, or changing the Bot's color. A visible transition
 to completed briefly squints the eyes with a small lift, then returns to rest;
 opening an already-completed Bot does not replay it. Faces never follow the
@@ -240,8 +247,8 @@ The app has no decorative brand color.
 - **Status colors:** Green means available or complete. Yellow means working or
   interrupting. Red means failure. Blue is reserved for a future state where
   the Bot is waiting for a decision from the user. Each color answers a state
-  question. In the sidebar, a status badge sits on the avatar and exposes its
-  text in a top tooltip instead of repeating it in the Bot description.
+ question. In the sidebar, the avatar itself animates for activity and exposes its
+ status text in a top tooltip instead of repeating it in the Bot description.
 - **Syntax colors:** Muted lavender, sage, amber, and blue distinguish code
   tokens inside fenced blocks. They never leave code or replace status colors.
 
@@ -401,8 +408,7 @@ Text buttons and form fields do not become pills.
 ## Components
 
 **Bot row.** A 32px Blobatar sits beside two text lines. The first line is the
-Bot name in control type and primary ink. The second line combines a 6px status
-light, a short state, and a clipped work summary in metadata type. Hover and
+Bot name in control type and primary ink. The second line shows a clipped work summary in metadata type. Hover and
 selection use tone. The row keeps the same outline in every state.
 
 **Leader row.** It has the same anatomy as a Bot row and two disclosure states.

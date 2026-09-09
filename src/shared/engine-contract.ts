@@ -59,6 +59,7 @@ export const engineContract = {
     history: oc.input(conversationSchemas.historyInput).output(conversationSchemas.history).route({ method: "GET", path: "/bots/{botId}/messages" }),
     events: oc.output(eventIterator(conversationSchemas.botEvent)).route({ method: "GET", path: "/conversations/events" }),
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
+    newSession: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/new-session" }),
     compact: oc.input(conversationSchemas.compactInput).output(conversationSchemas.compactionResult).route({ method: "POST", path: "/bots/{botId}/compact" }),
     abort: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
     abortTeam: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/team/abort" }),

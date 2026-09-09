@@ -14,6 +14,10 @@ function readRoute(params: URLSearchParams): BotRoute {
     }
   }
 
+  if (page === "members" && params.get("create") === "true") {
+    return { name: "members", create: true }
+  }
+
   if (page && routeNames.has(page)) {
     return { name: page as Exclude<BotRoute["name"], "routine" | "trigger"> }
   }
@@ -73,6 +77,10 @@ export function subscribeWorkspaceNavigation() {
 
     if (botRoute.name !== "chat") {
       params.set("page", botRoute.name)
+    }
+
+    if (botRoute.name === "members" && botRoute.create) {
+      params.set("create", "true")
     }
 
     if ("id" in botRoute) {

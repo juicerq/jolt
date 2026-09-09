@@ -21,6 +21,6 @@ export default defineConfig({
   renderer: {
     resolve,
     plugins: [tailwindcss(), react()],
-    server: { host: "127.0.0.1", allowedHosts: [".ts.net"], proxy: { "/rpc": `http://127.0.0.1:${defaultEnginePort}` } },
+    server: { host: "127.0.0.1", port: 5174, allowedHosts: [".ts.net"], proxy: { "/rpc": `http://127.0.0.1:${defaultEnginePort}` } },
   },
 })

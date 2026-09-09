@@ -31,6 +31,9 @@ async function conversation(source: "person" | "routine" = "person") {
   const database = openDatabase(databasePath, observability)
   const listeners = new Set<(event: PiRuntimeEvent) => void>()
   const opened = Promise.withResolvers<PiSessionInput>()
+  const sessionInputs: PiSessionInput[] = []
+  const disposed: string[] = []
+  const failures: Error[] = []
   const settled = Promise.withResolvers<void>()
   const emit = (event: PiRuntimeEvent) => {
     for (const listener of listeners) {
@@ -39,9 +42,18 @@ async function conversation(source: "person" | "routine" = "person") {
   }
   const factory: PiSessionFactory = {
     async open(input) {
+      const failure = failures.shift()
+
+      if (failure) {
+        throw failure
+      }
+
+      sessionInputs.push(input)
+      const sessionFile = `session-${sessionInputs.length}.jsonl`
       opened.resolve(input)
 
       return {
+        sessionFile,
         async prompt() {
           emit({ type: "started" })
           await settled.promise
@@ -57,7 +69,7 @@ async function conversation(source: "person" | "routine" = "person") {
 
           return () => listeners.delete(listener)
         },
-        dispose() { listeners.clear() },
+        dispose() { disposed.push(sessionFile); listeners.clear() },
       }
     },
   }
@@ -96,6 +108,11 @@ async function conversation(source: "person" | "routine" = "person") {
 
   return {
     bot,
+    bots,
+    database,
+    sessionInputs,
+    disposed,
+    failures,
     conversations,
     databasePath,
     observability,
@@ -209,6 +226,49 @@ test("envio só confirma entrega depois de persistir a Mensagem", async () => {
   await c.tool(sendMessageTool).execute({ content: "Achei a causa." })
   c.finish()
   expect(c.history().filter((message) => message.author === "bot").map((message) => message.content)).toEqual(["Achei a causa."])
+})
+
+test("/novo interrompe o turno, esvazia a Fila e recarrega uma sessão sem o contexto anterior", async () => {
+  const c = await conversation()
+  await c.tool(sendMessageTool).execute({ content: "Mensagem preservada no histórico." })
+  await c.conversations.send({ botId: c.bot.id, content: "Não levar à sessão nova", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  const reset = c.conversations.newSession(c.bot.id)
+  await rejects(c.conversations.newSession(c.bot.id), "Aguarde a operação da sessão terminar.")
+  await rejects(c.conversations.send({ botId: c.bot.id, content: "Envio concorrente", images: [], replyTo: null, mentionedBotIds: [], deliver: "now" }), "Aguarde a operação da sessão terminar.")
+  await reset
+
+  expect(c.conversations.active(c.bot.id)).toBeUndefined()
+  expect(c.disposed).toEqual(["session-1.jsonl"])
+  expect(c.sessionInputs).toHaveLength(2)
+  expect(c.sessionInputs.at(-1)?.sessionFile).toBeUndefined()
+  expect(c.database.conversations.sessionFile(c.bot.id)).toBe("session-2.jsonl")
+  expect(c.history().map((message) => message.content)).toEqual(["Me explica com detalhes", "Mensagem preservada no histórico.", ""])
+  const initial = c.conversations.events()[Symbol.asyncIterator]()
+  const next = initial.next()
+  c.conversations.notify(c.bot.id, { type: "compaction-finished" })
+  expect((await next).value?.event.type).toBe("compaction-finished")
+  await initial.return?.()
+
+  await c.conversations.close(c.bot.id)
+  await c.conversations.send({ botId: c.bot.id, content: "Primeira mensagem nova", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  expect(c.sessionInputs.at(-1)?.sessionFile).toBe("session-2.jsonl")
+})
+
+test("/novo relê as instruções atuais e uma falha ao abrir não ressuscita a sessão anterior", async () => {
+  const c = await conversation()
+  await c.conversations.abort(c.bot.id)
+  await c.bots.update({ ...c.bot, function: { outcome: "Use as novas instruções do harness" } })
+  c.failures.push(new Error("Provider indisponível"))
+  await rejects(c.conversations.newSession(c.bot.id), "Provider indisponível")
+  expect(c.database.conversations.sessionFile(c.bot.id)).toBeUndefined()
+
+  await c.conversations.send({ botId: c.bot.id, content: "Tentar novamente", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  expect(c.sessionInputs.at(-1)?.sessionFile).toBeUndefined()
+  expect(c.sessionInputs.at(-1)?.instructions).toContain("Use as novas instruções do harness")
+  await c.conversations.abort(c.bot.id)
+  await c.conversations.newSession(c.bot.id)
+  expect(c.sessionInputs.at(-1)?.sessionFile).toBeUndefined()
+  expect(c.database.conversations.sessionFile(c.bot.id)).toBe("session-3.jsonl")
 })
 
 test("Rotina encerra sem mensagem, alerta ou novidade no resumo", async () => {
