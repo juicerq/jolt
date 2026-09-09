@@ -326,14 +326,12 @@ function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onToggle
         <ul className={`${memberListClassName} ${expanded ? "py-0.5" : "py-0"}`} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
           {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
           {groups.closed.length > 0 && (
-            <li className={memberItemClassName}>
-              <div className="mb-0.5 flex w-full items-center gap-1 rounded-lg border border-transparent bg-transparent pl-2.5 pr-1">
-                <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
-                  Encerrados
-                  <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
-                </button>
-                <ClosedMembersCleanup client={client} leaderName={bot.name} members={groups.closed} />
-              </div>
+            <li className={`${memberItemClassName} group/closed relative`}>
+              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 pr-9.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+                Encerrados
+                <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
+              </button>
+              <ClosedMembersCleanup client={client} leaderName={bot.name} members={groups.closed} />
             </li>
           )}
           {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
@@ -343,7 +341,7 @@ function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onToggle
   )
 }
 
-const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5"
+const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none pr-0 pl-2.5"
 
 function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineClient; leaderName: string; members: Bot[] }) {
   const queryClient = useQueryClient()
@@ -365,7 +363,7 @@ function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineC
 
   return (
     <>
-      <IconButton iconSize={13} position="relative" shape="circle" size={24} type="button" label="Excluir encerrados" disabled={removing} onClick={() => setConfirming(true)}>
+      <IconButton className="top-1/2 right-2 z-20 -translate-y-1/2" iconSize={13} position="absolute" size={24} type="button" label="Excluir encerrados" disabled={removing} onClick={() => setConfirming(true)}>
         <TrashIcon aria-hidden="true" />
       </IconButton>
       {confirming && (
