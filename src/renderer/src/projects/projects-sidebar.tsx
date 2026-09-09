@@ -9,6 +9,8 @@ import { botRouteActions } from "../bots/bot-route-actions"
 import { BotDetachDialog } from "../bots/bot-detach-member"
 import { teamOf } from "../bots/team"
 import { BotRemovalDialog } from "../bots/bot-removal-dialog"
+import { BotDropProvider } from "../bots/bot-drop"
+import { SortableBots } from "../bots/sortable-bots"
 import { BotFace } from "../bots/bot-face"
 import { groupMembers } from "../bots/bot-members"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateTeamBot, openCreateProject, openPlugins, openSettings, openBotRoute, selectBot } from "../bots/bots-store"
@@ -126,7 +128,7 @@ function SidebarProjectResults({ client, data, search, draftOpen, selectedBotId,
   const { pinnedBots, projects, unassignedBots } = splitPinnedBots(visibleData)
   const detachLeader = detachingBot ? teamOf(data, detachingBot).leader : undefined
 
-  return <SidebarProjectList client={client} pinnedBots={pinnedBots} projects={projects} unassignedBots={unassignedBots} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} pinError={pinError} onTogglePinned={onTogglePinned} detachingBot={detachingBot} detachLeader={detachLeader} removingBot={removingBot} onDetach={onDetach} onRemove={onRemove} />
+  return <BotDropProvider client={client} data={data}><SidebarProjectList client={client} pinnedBots={pinnedBots} projects={projects} unassignedBots={unassignedBots} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} pinError={pinError} onTogglePinned={onTogglePinned} detachingBot={detachingBot} detachLeader={detachLeader} removingBot={removingBot} onDetach={onDetach} onRemove={onRemove} /></BotDropProvider>
 }
 
 function SidebarProjectList({ client, pinnedBots, projects, unassignedBots, selectedBotId, statuses, pinningBotId, pinError, onTogglePinned, detachingBot, detachLeader, removingBot, onDetach, onRemove }: { client: EngineClient; pinnedBots: (Bot & { members: Bot[] })[]; projects: ProjectGroups["projects"]; unassignedBots: (Bot & { members: Bot[] })[]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; pinError: Error | null; onTogglePinned: TogglePinned; detachingBot: Bot | null; detachLeader: Bot | undefined; removingBot: Bot | null; onDetach: (bot: Bot | null) => void; onRemove: (bot: Bot | null) => void }) {
@@ -138,22 +140,22 @@ function SidebarProjectList({ client, pinnedBots, projects, unassignedBots, sele
       {pinnedBots.length > 0 && (
         <section className="[&+&]:mt-5" aria-labelledby="pinned-bots">
           <ProjectHeading id="pinned-bots">Fixados</ProjectHeading>
-          <ul className="m-0 list-none p-0 max-[720px]:block">
-            {pinnedBots.map((bot) => (
+          <SortableBots group="pinned" items={pinnedBots}>
+            {(bot) => (
               <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />
-            ))}
-          </ul>
+            )}
+          </SortableBots>
         </section>
       )}
       {projects.map((project) => <ProjectSection key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />)}
       {unassignedBots.length > 0 && (
         <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
           {(projects.length > 0 || pinnedBots.length > 0) && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
-          <ul className="m-0 list-none p-0 max-[720px]:block">
-            {unassignedBots.map((bot) => (
+          <SortableBots group="unassigned" items={unassignedBots}>
+            {(bot) => (
               <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />
-            ))}
-          </ul>
+            )}
+          </SortableBots>
         </section>
       )}
     </nav>
@@ -167,11 +169,11 @@ function ProjectSection({ project, selectedBotId, statuses, pinningBotId, onTogg
       {project.bots.length === 0 ? (
         <p className="m-0 px-2.5 pt-[7px] pb-[9px] text-support text-muted">Nenhum Bot</p>
       ) : (
-        <ul className="m-0 list-none p-0 max-[720px]:block">
-          {project.bots.map((bot) => (
+        <SortableBots group={project.id} items={project.bots}>
+          {(bot) => (
             <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />
-          ))}
-        </ul>
+          )}
+        </SortableBots>
       )}
     </section>
   )
@@ -344,7 +346,7 @@ function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned, 
   }
 
   return (
-    <li className="block border-0 p-0">
+    <li data-bot-team={bot.id} className="block border-0 p-0">
       <div className="group/leader relative">
         <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} pinning={pinningBotId === bot.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />
         <IconButton
@@ -367,18 +369,22 @@ function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned, 
         aria-hidden={!expanded}
         inert={!expanded ? true : undefined}
       >
-        <ul className={`${memberListClassName} ${expanded ? "py-0.5" : "py-0"}`} id={closedListId} aria-label={`Integrantes de ${bot.name}`}>
-          {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />)}
-          {groups.closed.length > 0 && (
-            <li className={memberItemClassName}>
-              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
-                Encerrados
-                <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
-              </button>
-            </li>
-          )}
-          {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />)}
-        </ul>
+        <div className="min-h-0 overflow-hidden">
+          <SortableBots group={`team-${bot.id}`} label={`Integrantes de ${bot.name}`} items={openMembers} className={`${memberListClassName} ${expanded ? "py-0.5" : "py-0"}`}>
+            {(member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />}
+          </SortableBots>
+          <ul className={memberListClassName} id={closedListId}>
+            {groups.closed.length > 0 && (
+              <li className={memberItemClassName}>
+                <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+                  Encerrados
+                  <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
+                </button>
+              </li>
+            )}
+            {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />)}
+          </ul>
+        </div>
       </div>
     </li>
   )
@@ -423,6 +429,8 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
       <button
         className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
         type="button"
+        data-bot-id={bot.id}
+        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
         aria-current={selected ? "true" : undefined}
         onClick={() => selectBot(bot.id)}
         {...tooltip.focusProps}
