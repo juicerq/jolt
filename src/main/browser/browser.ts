@@ -3,12 +3,14 @@ import { z } from "zod"
 import { browserBounds, type BrowserFrameInput, type BrowserPreview, type BrowserRequest, type BrowserState } from "@src/shared/browser"
 import { parse } from "@src/shared/parse"
 import { BrowserPage } from "./browser-page"
+import { importZenSession } from "./zen-session"
 
 export class Browser {
   private readonly pages = new Map<string, BrowserPage>()
   private focusedBotId: string | null = null
   private readonly timer: ReturnType<typeof setInterval>
   private capturing = false
+  private preparingSession?: ReturnType<typeof importZenSession>
   private readonly cover = new View()
   private readonly inputShield = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
 
@@ -202,6 +204,13 @@ export class Browser {
       this.pages.set(request.botId, page)
       this.publish()
     }
+
+    this.preparingSession ??= importZenSession(page.view.webContents.session.cookies).catch(() => {
+      console.warn("Não foi possível importar as sessões do Zen. Confira MIMO_ZEN_PROFILE e MIMO_ZEN_CONTAINER; o navegador continua disponível.")
+      return { imported: 0, skipped: 0 }
+    })
+    await this.preparingSession
+    signal.throwIfAborted()
 
     return page.execute(request.input, signal)
   }
