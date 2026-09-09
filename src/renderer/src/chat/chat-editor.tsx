@@ -79,6 +79,48 @@ function caretAtStart(node: HTMLElement) {
   return before.toString().length === 0
 }
 
+function scrollCaretIntoView(node: HTMLElement) {
+  const selection = window.getSelection()
+
+  if (!selection || selection.rangeCount === 0) {
+    return
+  }
+
+  const caret = selection.getRangeAt(0)
+
+  if (!node.contains(caret.startContainer)) {
+    return
+  }
+
+  const end = caret.cloneRange()
+
+  end.collapse(false)
+
+  const clientRects = end.getClientRects()
+
+  if (clientRects.length === 0) {
+    node.scrollTop = node.scrollHeight
+
+    return
+  }
+
+  const caretRect = [...clientRects].at(-1)
+
+  if (!caretRect) {
+    node.scrollTop = node.scrollHeight
+
+    return
+  }
+
+  const nodeRect = node.getBoundingClientRect()
+
+  if (caretRect.bottom > nodeRect.bottom) {
+    node.scrollTop += caretRect.bottom - nodeRect.bottom
+  } else if (caretRect.top < nodeRect.top) {
+    node.scrollTop -= nodeRect.top - caretRect.top
+  }
+}
+
 const ChatEditorContent = memo(
   ({ content, mentions }: { revision: number; content: string; mentions: ChatMention[] }) => (
     <>
@@ -107,6 +149,7 @@ export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen
     if (revision > 0 && node && (loose || node.contains(document.activeElement))) {
       node.focus()
       caretToEnd(node)
+      scrollCaretIntoView(node)
     }
   }, [revision])
 
@@ -119,6 +162,7 @@ export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen
 
     typed.current = readEditor(node)
     onChange(typed.current)
+    scrollCaretIntoView(node)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
