@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite"
-import { and, asc, count, desc, eq, getTableColumns, inArray, isNull, lt, max, notExists, or, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, lt, max, ne, notExists, or, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
@@ -235,7 +235,11 @@ export function openDatabase(path: string, observability: Observability) {
     },
     conversations: {
       overview() {
-        const lastPositions = database.select({ botId: messages.botId, position: max(messages.position).as("position") }).from(messages).groupBy(messages.botId).as("last")
+        const lastPositions = database.select({ botId: messages.botId, position: max(messages.position).as("position") }).from(messages).where(and(
+          ne(messages.author, "routine"),
+          ne(messages.author, "trigger"),
+          or(ne(messages.content, ""), ne(messages.images, []), isNotNull(messages.ending)),
+        )).groupBy(messages.botId).as("last")
         const rows = database.select({
           botId: messages.botId,
           id: messages.id,

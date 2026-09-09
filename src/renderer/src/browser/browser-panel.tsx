@@ -50,10 +50,10 @@ export function BrowserPanel({ browser, sidebarOpen, onCloseSidebar }: { browser
 function browserStatus(page: BrowserPreview, canControl: boolean) {
   if (page.control === "user") {
     if (!canControl) {
-      return `${page.botName} aguarda sua ajuda no computador.${page.reason ? ` ${page.reason}` : ""}`
+      return `Você pode interagir com a página no computador.${page.reason ? ` ${page.reason}` : ""}`
     }
 
-    return page.reason ?? `${page.botName} aguarda você devolver o controle.`
+    return page.reason ?? `Você pode navegar ou passar o controle para ${page.botName}.`
   }
 
   if (!canControl) {
@@ -69,7 +69,7 @@ function BrowserViewer({ browser, page }: { browser: BrowserActions; page: Brows
   const control = browser.control
   const userControl = page.control === "user"
   const userLabel = control ? "Você está no controle" : "Controle no computador"
-  const controlLabel = userControl ? `Devolver para ${page.botName}` : "Assumir controle"
+  const controlLabel = userControl ? `Passar para ${page.botName}` : "Assumir controle"
   const status = browserStatus(page, !!control)
 
   return (
@@ -132,7 +132,7 @@ function BrowserCards({ browser, pages, sidebarOpen, onCloseSidebar }: { browser
             {page.control === "user" && <span className="text-support text-secondary [overflow-wrap:anywhere]">{browserStatus(page, !!control)}</span>}
             {page.error && <span className="text-support text-status-error [overflow-wrap:anywhere]" role="alert">{page.error}</span>}
           </div>
-          {control && page.control === "user" && !page.popup && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void run(() => control.resume(page.botId))}>Devolver para {page.botName}</Button></div>}
+          {control && page.control === "user" && !page.popup && <div className="px-3 pb-3"><Button className="max-w-full whitespace-normal [overflow-wrap:anywhere]" variant="secondary" disabled={pending} onClick={() => void run(() => control.resume(page.botId))}>Passar para {page.botName}</Button></div>}
         </div>
       ))}
       {error && <p className="rounded-lg bg-surface-raised p-3 text-support text-status-error" role="alert">{error}</p>}

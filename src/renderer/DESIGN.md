@@ -412,8 +412,10 @@ selection use tone. The row keeps the same outline in every state.
 
 **Leader row.** It has the same anatomy as a Bot row and two disclosure states.
 Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes
-below. Collapsed, it hides the Integrantes and overlaps the Leader plus up to two
-members as 24px Blabatars. A separate chevron toggles the team without changing
+below. Collapsed, it hides the Integrantes and shows the Leader as a 32px Blobatar
+centered in front, with up to two 24px Integrantes peeking from behind at the
+sides. With one Integrante, the Leader shifts slightly right while the Integrante
+peeks from the left. A separate chevron toggles the team without changing
 which Bot conversation is selected. The complete team block owns 8px of space
 below it in either state so adjacent teams remain distinct. Expansion combines
 a 160ms height transition with a shorter opacity fade and becomes immediate
@@ -460,10 +462,20 @@ supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work. Activity details
 are a global display preference and start hidden. When hidden, persisted
 activity renders nothing. A running turn shows three quiet pulsing dots below
-the latest message, without a visible label, and removes them for a permission
-request, Plugin request, failure, or completed response. Showing the details
+the latest message, without explanatory text or narrated work status.
+The dots are removed for a permission request, Plugin request, failure, or completed turn.
+Background checks with no meaningful update leave no visible message or notification;
+their recorded Activity remains available in the details. Showing the details
 restores the complete live stack and persisted disclosures; hiding never
 deletes the recorded Activity.
+
+Provider recovery remains visible even when Activity details are hidden. One
+quiet status identifies the provider, with the next attempt on a supporting
+line below it. It replaces the working dots during the wait; cancellation
+remains in the composer. Intermediate failures belong to
+diagnostics, not conversation messages. A final failure preserves prior work
+and offers Tentar novamente and Trocar modelo below the latest message; model
+selection does not resume work or enable paid usage automatically.
 
 **New Bot.** Creating a Bot happens inside the conversation plane instead of a
 dialog. The form shows a 77px Blobatar and one borderless name field on a raised
@@ -618,7 +630,10 @@ while the Comando lacks what it needs, such as `lembrar` before any text.
 While the Bot responds, the field stays editable and the stop action sits at
 the left of the send action, outlined in error ink. Enter puts the draft in the
 Fila. Ctrl+Enter, or Ctrl with a click on send, adianta the draft: it reaches
-the Bot in the current Turn without stopping the work.
+the Bot in the current Turn without stopping the work. While the Bot is waiting
+for another Bot's result, Enter sends directly and releases that wait. The work
+continues and its result arrives later. The send action remains available without
+an explanatory status.
 
 The Fila is a raised 12px card that sits above the prompt in the flow, at the
 prompt's width, so the conversation and the return-to-end button move up with
@@ -642,10 +657,13 @@ cancel on the left and the single primary action on the right.
 keeps control. The header identifies the Bot, who has control, and the page URL.
 The footer puts the ghost action Voltar ao chat immediately before the primary
 Assumir controle action. Taking control pauses the Bot and replaces that primary
-action with Devolver para the named Bot in the same position. Returning control
+action with Passar para the named Bot in the same position. Returning control
 keeps the expanded view open for watching; Voltar ao chat only collapses it and
 preserves whoever has control. Preview actions say Assistir while the Bot has
-control and Abrir while the person has control.
+control and Abrir while the person has control. Clicking an HTTP(S) link in a
+Bot message on desktop opens that Bot’s page in the expanded view with the
+person in control. The Bot can take over the current page without another
+confirmation; the same header and controls reflect that transfer.
 
 **Form field.** Every field has a visible label in control type. Placeholder
 copy gives one realistic example. Helper text uses support type. Validation sits

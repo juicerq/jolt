@@ -5,6 +5,7 @@ const botId = z.string().min(1)
 export const browserAction = z.discriminatedUnion("action", [
   z.object({ action: z.literal("navigate"), url: z.url({ protocol: /^https?$/ }) }),
   z.object({ action: z.literal("snapshot") }),
+  z.object({ action: z.literal("take_control") }),
   z.object({ action: z.literal("click"), target: z.string().regex(/^@e[0-9]+$/) }),
   z.object({ action: z.literal("fill"), target: z.string().regex(/^@e[0-9]+$/), text: z.string().max(20_000) }),
   z.object({ action: z.literal("press"), key: z.enum(["Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "Backspace"]) }),
@@ -12,6 +13,10 @@ export const browserAction = z.discriminatedUnion("action", [
   z.object({ action: z.literal("handoff"), reason: z.string().min(1).max(500) }),
   z.object({ action: z.literal("close") }),
 ])
+
+export const browserOpen = z.object({ botId, botName: z.string().min(1), url: z.url({ protocol: /^https?$/ }) })
+
+export type BrowserOpen = z.infer<typeof browserOpen>
 
 export const browserRequest = z.object({
   type: z.literal("browser-request"),
@@ -47,6 +52,7 @@ const browserPreview = z.object({
   url: z.string(),
   title: z.string(),
   control: z.enum(["bot", "user"]),
+  openedBy: z.enum(["bot", "user"]),
   popup: z.boolean(),
   reason: z.string().nullable(),
   image: z.string().nullable(),

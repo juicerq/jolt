@@ -1,3 +1,4 @@
+import { reportTaskTool, type TaskReport } from "@src/shared/tasks"
 import type { Bot } from "@src/shared/bots"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
@@ -7,7 +8,7 @@ import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
-import { askTool, sendMessageTool, type BotConversationEvent, type CompactInput, type ConversationEvent, type ConversationMessage, type FinishReason, type HistoryInput, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type QueueInput, type SendInput, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { askTool, finishSilentlyTool, sendMessageTool, type BotConversationEvent, type CompactInput, type ConversationEvent, type ConversationMessage, type FinishReason, type HistoryInput, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type QueueInput, type SendInput, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationTools } from "./conversation-tools"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
@@ -46,16 +47,18 @@ export interface BotExtension {
   inheritance?(leader: Bot, references: string | undefined): BotInheritance
 }
 
-export interface TurnResult { reason: FinishReason; response: string; error?: string; interruptedByPerson?: boolean }
+export interface TurnResult { reason: FinishReason; response: string; report?: TaskReport; error?: string }
 interface ActiveTurn {
   message: ConversationMessage
   settled: Promise<void>
+  ready: Promise<void>
+  started(): void
   signal: AbortSignal
   sender?: TurnSender
   abort(reason?: "person"): Promise<void>
   release(): void
 }
-interface TurnSender { bot(content: string, question: MessageQuestion | null): void; person(message: IncomingMessage): void }
+interface TurnSender { bot(content: string, question: MessageQuestion | null): void; incoming(message: IncomingMessage): void; report(result: TaskReport): void; silence(): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 interface TriggerCall { trigger: Trigger; run: TriggerRun }
 
@@ -81,6 +84,9 @@ export function createConversations(input: {
     tasks: input.tasks,
     observability: input.observability,
     runTurn,
+    steer: steerTurn,
+    drainQueue,
+    waitingChanged: (botId, waiting) => deliver(botId, { type: "delegation-waiting", waiting }),
     active: (botId) => active.get(botId)?.message,
     assertCallable,
     inheritance: (leader, references) => input.extensions.flatMap((extension) => extension.inheritance ? [extension.inheritance(leader, references)] : []),
@@ -99,6 +105,18 @@ export function createConversations(input: {
     input.observability.event({ name: "conversation.closeunanswered", attributes: { count: unanswered.length } })
   }
 
+  function senderFor(botId: string) {
+    const turn = active.get(botId)
+
+    if (!turn?.sender) {
+      throw new Error("No active conversation turn")
+    }
+
+    turn.signal.throwIfAborted()
+
+    return turn.sender
+  }
+
   async function open(botId: string) {
     const bot = input.bots.get(botId)
 
@@ -106,22 +124,16 @@ export function createConversations(input: {
       throw new Error("Bot not found")
     }
 
-    if (bot.closed) {
-      throw new Error(`${bot.name} was closed with its Tarefa`)
-    }
-
     const cwd = await input.bots.resolveWorkingDirectory(botId)
     const botDirectory = await input.bots.directory(botId)
+    const message = active.get(botId)?.message
+    const assigned = assignedTask(message)
+    const background = message && message.author !== "person" && !assigned
     const customTools = [
-      ...createConversationTools((content, question) => {
-        const turn = active.get(botId)
-
-        if (!turn?.sender) {
-          throw new Error("No active conversation turn")
-        }
-
-        turn.signal.throwIfAborted()
-        turn.sender.bot(content, question)
+      ...createConversationTools({
+        send: (content, question) => senderFor(botId).bot(content, question),
+        ...(background ? { silence: () => senderFor(botId).silence() } : {}),
+        ...(assigned ? { report: (result: TaskReport) => senderFor(botId).report(result) } : {}),
       }),
       ...extensions.flatMap((extension) => extension.tools(bot)),
     ]
@@ -132,7 +144,7 @@ export function createConversations(input: {
       throw new Error("Project not found")
     }
 
-    const instructions = botInstructions({ bot, directory: botDirectory, ...(project ? { project } : {}), extensions: extensions.map((extension) => extension.instructions(bot)) })
+    const instructions = botInstructions({ bot, directory: botDirectory, ...(project ? { project } : {}), extensions: [...extensions.map((extension) => extension.instructions(bot)), ...(assigned ? ["This turn continues a Tarefa. Work directly without narrating ongoing status. Finish with report_task: done for the requested result, blocked for missing information or a decision. Address the Bot who requested the Tarefa. Your report must stand alone, including relevant evidence and limitations; earlier progress messages will not be forwarded. New instructions require an updated report. Do not use ask or end with only progress."] : [])] })
     const profile = JSON.stringify({ cwd, tools, instructions, provider: bot.provider, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
@@ -159,6 +171,14 @@ export function createConversations(input: {
     }
 
     sessions.set(botId, profile)
+  }
+
+  function assignedTask(message?: Pick<ConversationMessage, "botId" | "taskId">) {
+    const task = message?.taskId ? input.tasks.get(message.taskId) : undefined
+
+    if (task && task.callerBotId !== message?.botId) {
+      return task
+    }
   }
 
   function incoming(message: ConversationMessage): IncomingMessage {
@@ -318,17 +338,21 @@ export function createConversations(input: {
     }
 
     const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+    const { promise: ready, resolve: started } = Promise.withResolvers<void>()
     const opened: ConversationMessage = { id: crypto.randomUUID(), botId, ...message, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
     const cancellation = new AbortController()
     const turn: ActiveTurn = {
       message: opened,
       settled,
+      ready,
+      started,
       signal: AbortSignal.any([cancellation.signal, ...(signal ? [signal] : [])]),
       async abort(reason) {
         cancellation.abort(reason)
         await settled
       },
       release() {
+        started()
         active.delete(botId)
         settle()
       },
@@ -349,16 +373,47 @@ export function createConversations(input: {
   }
 
   function queuedIncoming(queued: QueuedMessage): IncomingMessage {
-    return { author: "person", authorBotId: null, taskId: null, triggerRunId: null, content: queued.content, images: queued.images, replyTo: null }
+    return { author: "person", authorBotId: null, taskId: queued.taskId ?? null, triggerRunId: null, content: queued.content, images: queued.images, replyTo: null }
   }
 
-  async function steerQueued(botId: string, sender: TurnSender, queued: QueuedMessage) {
-    await input.runtime.steer(botId, { content: queued.content, images: queued.images }).then(() => {
-      sender.person(queuedIncoming(queued))
-    }).catch((error: unknown) => {
-      messageQueue.restore(botId, queued)
+  async function steerTurn(botId: string, message: IncomingMessage) {
+    const turn = active.get(botId)
+
+    if (!turn || (message.taskId && message.taskId !== turn.message.taskId)) {
+      return false
+    }
+
+    await turn.ready
+
+    if (active.get(botId) !== turn || !turn.sender) {
+      return false
+    }
+
+    await input.runtime.steer(botId, { content: message.content, images: message.images })
+
+    if (active.get(botId) !== turn) {
+      return false
+    }
+
+    turn.sender.incoming(message)
+
+    if (message.author === "person") {
+      delegation.releaseWait(botId)
+    }
+
+    return true
+  }
+
+  async function steerQueued(botId: string, queued: QueuedMessage) {
+    const delivered = await steerTurn(botId, queuedIncoming(queued)).catch((error: unknown) => {
       input.observability.event({ name: "conversation.steerfailed", context: { botId }, error })
+
+      return false
     })
+
+    if (!delivered) {
+      messageQueue.restore(botId, queued)
+    }
 
     publishQueue(botId)
   }
@@ -374,7 +429,7 @@ export function createConversations(input: {
       const queued = messageQueue.take(botId, message.id)
 
       if (queued) {
-        await steerQueued(botId, sender, queued)
+        await steerQueued(botId, queued)
       }
     }
   }
@@ -392,7 +447,7 @@ export function createConversations(input: {
 
     const bot = input.bots.get(botId)
 
-    if (!bot || bot.closed) {
+    if (!bot) {
       messageQueue.clear(botId)
       publishQueue(botId)
 
@@ -406,7 +461,7 @@ export function createConversations(input: {
     }
 
     publishQueue(botId)
-    await runTurn(botId, queuedIncoming(taken)).catch((error: unknown) => {
+    await startPersonTurn(botId, queuedIncoming(taken)).catch((error: unknown) => {
       messageQueue.restore(botId, taken)
       publishQueue(botId)
       input.observability.event({ name: "conversation.queuefailed", context: { botId }, error })
@@ -429,6 +484,12 @@ export function createConversations(input: {
       signal.throwIfAborted()
       input.database.conversations.append(turn.message)
     } catch (error) {
+      const task = assignedTask(turn.message)
+
+      if (task) {
+        input.tasks.finish(task.id, signal.aborted ? "interrupted" : "failed")
+      }
+
       turn.release()
 
       throw error
@@ -443,19 +504,44 @@ export function createConversations(input: {
 
     const completion = Promise.withResolvers<TurnResult>()
     let finished = false
-    const responses: string[] = []
+    let response = ""
+    let silenced = false
+    let requiresAnswer = message.author === "person"
+    let report: TaskReport | undefined
+    const task = assignedTask(turn.message)
+    const ownsTask = task && (turn.message.author === "person" || turn.message.authorBotId === task.callerBotId)
     let responseBytes = 0
     let terminalMessageFinished = false
     const activity = createConversationActivityRecorder(turn.message.id, incoming(turn.message))
     let eventCount = 0
     let receivedFirstEvent = false
     let unsubscribe = () => {}
-    turn.sender = { bot: (content, question) => publishMessage({ content, question }), person: publishIncoming }
+    turn.sender = {
+      bot: (content, question) => publishMessage({ content, question }),
+      incoming: publishIncoming,
+      silence() {
+        if (requiresAnswer || task) {
+          throw new Error("A direct request needs an answer. Deliver it before stopping.")
+        }
+
+        if (response) {
+          throw new Error("A message was already delivered. Stop normally without repeating it.")
+        }
+
+        publishMessage({})
+        silenced = true
+      },
+      report(result) {
+        publishMessage({ content: result.content })
+        report = result
+      },
+    }
+    turn.started()
     input.observability.event({ name: "conversation.started", context: { botId } })
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
       eventCount++
 
-      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && (runtimeEvent.tool === askTool || runtimeEvent.tool === sendMessageTool)) {
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && ([askTool, sendMessageTool, finishSilentlyTool, reportTaskTool].includes(runtimeEvent.tool))) {
         return
       }
 
@@ -486,16 +572,9 @@ export function createConversations(input: {
       const deliveredEvent = activity.record(runtimeEvent)
 
       if (deliveredEvent.type === "finished") {
-        if (deliveredEvent.reason === "stop" && responses.length === 0) {
-          const error = "O Bot terminou sem enviar uma mensagem. Tente novamente."
+        finishRuntime(deliveredEvent)
 
-          finish("error", error)
-          deliver(botId, { type: "finished", reason: "error", error })
-
-          return
-        }
-
-        finish(deliveredEvent.reason, deliveredEvent.error)
+        return
       }
 
       deliver(botId, deliveredEvent)
@@ -510,6 +589,20 @@ export function createConversations(input: {
       finish(event.reason, event.error)
       deliver(botId, event)
     })
+
+    function finishRuntime(event: Extract<ConversationEvent, { type: "finished" }>) {
+      if (event.reason === "stop" && ((!response && !silenced) || (task && !report))) {
+        const error = task ? "O Bot terminou sem entregar o resultado da Tarefa com report_task. Retome o mesmo Bot para concluir a entrega." : "O Bot terminou sem enviar uma mensagem. Tente novamente."
+
+        finish("error", error)
+        deliver(botId, { type: "finished", reason: "error", error })
+
+        return
+      }
+
+      finish(event.reason, event.error)
+      deliver(botId, event.reason === "stop" && silenced && !response ? { ...event, silent: true } : event)
+    }
 
     function finish(reason: FinishReason, error?: unknown) {
       if (finished) {
@@ -530,13 +623,22 @@ export function createConversations(input: {
         context: { botId },
         ...(error ? { error } : {}),
       })
+      if (task && ownsTask) {
+        const taskStatus = { stop: report?.status ?? "failed", aborted: "interrupted", error: "failed" } as const
+        input.tasks.finish(task.id, taskStatus[reason])
+      }
+
       turn.release()
       unsubscribe()
       signal.removeEventListener("abort", interrupt)
-      completion.resolve({ reason, ...(signal.reason === "person" ? { interruptedByPerson: true } : {}), response: responses.join("\n\n"), ...(errorMessage ? { error: errorMessage } : {}) })
+      completion.resolve({ reason, response, ...(report ? { report } : {}), ...(errorMessage ? { error: errorMessage } : {}) })
     }
 
     function publishIncoming(incoming: IncomingMessage) {
+      report = undefined
+      response = ""
+      silenced = false
+      requiresAnswer ||= incoming.author === "person"
       const message: ConversationMessage = { id: crypto.randomUUID(), botId, ...incoming, taskId: turn.message.taskId, triggerRunId: turn.message.triggerRunId, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
 
       input.database.conversations.append(message)
@@ -569,13 +671,13 @@ export function createConversations(input: {
       } catch (persistError) {
         input.observability.event({ name: "conversation.persistencefailed", context: { botId }, error: persistError })
 
-        if (content) {
+        if (!ending) {
           throw persistError
         }
       }
 
       if (content) {
-        responses.push(content)
+        response = content
       }
 
       responseBytes += Buffer.byteLength(content)
@@ -586,7 +688,7 @@ export function createConversations(input: {
     }
 
     void completion.promise.then(async (result) => {
-      if (result.reason === "stop") {
+      if (result.reason === "stop" && !task) {
         await drainQueue(botId)
       }
     }).catch((error: unknown) => {
@@ -624,30 +726,49 @@ export function createConversations(input: {
     return chosen.map((option) => option.label).join(", ")
   }
 
+  async function startPersonTurn(botId: string, message: IncomingMessage) {
+    const referenced = message.replyTo ? input.database.conversations.get(message.replyTo.messageId)?.taskId : message.taskId
+    const task = referenced ? input.tasks.get(referenced) : input.tasks.latest(botId)
+    const bot = input.bots.get(botId)
+    const continues = task?.assigneeBotId === botId && (referenced || bot?.leaderBotId || task.status === "blocked")
+
+    if (continues) {
+      await delegation.continuePerson(task, message)
+
+      return
+    }
+
+    await runTurn(botId, message)
+  }
+
   async function accept(botId: string, message: IncomingMessage, delivery: "queue" | "now") {
     if (stopping.has(botId)) {
       throw new Error("Aguarde a operação da sessão terminar.")
     }
 
-    const { content, images, replyTo } = message
     const turn = active.get(botId)
 
     if (!turn) {
-      await runTurn(botId, message)
+      await startPersonTurn(botId, message)
 
       return
     }
 
-    const immediate = delivery === "now" || !!replyTo
+    const task = assignedTask(turn.message)
+    const linked = { ...message, taskId: task?.id ?? null }
+    const immediate = delivery === "now" || !!message.replyTo || delegation.waiting(botId)
 
-    if (immediate && turn.sender) {
-      await input.runtime.steer(botId, { content, images })
-      turn.sender.person(message)
+    if (immediate && await steerTurn(botId, linked)) {
+      return
+    }
+
+    if (!active.has(botId)) {
+      await startPersonTurn(botId, linked)
 
       return
     }
 
-    const queued = messageQueue.add(botId, { content, images })
+    const queued = messageQueue.add(botId, { content: message.content, images: message.images, ...(task ? { taskId: task.id } : {}) })
 
     if (immediate) {
       messageQueue.promote(botId, queued.id)
@@ -693,6 +814,7 @@ export function createConversations(input: {
       signal?.throwIfAborted()
       const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
         { botId, event: { type: "started", messageId: turn.message.id, message: incoming(turn.message) } },
+        ...(delegation.waiting(botId) ? [{ botId, event: { type: "delegation-waiting" as const, waiting: true } }] : []),
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
         ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])

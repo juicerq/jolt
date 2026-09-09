@@ -16,6 +16,7 @@ import { existsSync } from "node:fs"
 import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import { createMessagingExtension } from "./pi-messaging"
+import { describePiFailure } from "./pi-failures"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { ObservationAttributes } from "@src/shared/observability/observation"
 import type { Observability } from "../observability/observability"
@@ -135,41 +136,50 @@ function createEventNormalizer() {
   let lastReason: "stop" | "aborted" | "error" = "error"
   let lastError: string | undefined
   let interrupted = false
+  let active = false
 
   function normalize(event: AgentSessionEvent): PiRuntimeEvent | undefined {
     if (event.type === "agent_start") {
       lastReason = "error"
       lastError = undefined
+
+      if (active) {
+        return { type: "provider-resumed" }
+      }
+
+      active = true
       interrupted = false
 
       return { type: "started" }
     }
 
     if (event.type === "message_end" && event.message.role === "assistant") {
-      return finishMessage(event.message)
+      finishMessage(event.message)
+
+      return
     }
 
     if (event.type === "agent_settled") {
       const reason = interrupted && lastReason !== "stop" ? "aborted" : lastReason
+      active = false
 
       return { type: "finished", reason, ...(reason === "error" && lastError ? { error: lastError } : {}) }
+    }
+
+    if (event.type === "auto_retry_start" || event.type === "summarization_retry_scheduled") {
+      return { type: "provider-waiting", attempt: event.attempt, maxAttempts: event.maxAttempts, delayMs: event.delayMs }
+    }
+
+    if (event.type === "auto_retry_end" || event.type === "summarization_retry_attempt_start" || event.type === "summarization_retry_finished") {
+      return { type: "provider-resumed" }
     }
 
     return normalizeStateless(event)
   }
 
-  function finishMessage(message: Extract<Extract<AgentSessionEvent, { type: "message_end" }>["message"], { role: "assistant" }>): PiRuntimeEvent | undefined {
-    const reason = message.stopReason
-    const terminalReason = terminalMessageReason(reason)
-
-    lastReason = reason === "stop" || reason === "aborted" ? reason : "error"
+  function finishMessage(message: AssistantMessage) {
+    lastReason = message.stopReason === "stop" || message.stopReason === "aborted" ? message.stopReason : "error"
     lastError = message.errorMessage?.trim().slice(0, 500) || undefined
-
-    if (!terminalReason) {
-      return
-    }
-
-    return { type: "message-finished", reason: terminalReason, ...(terminalReason === "error" && lastError ? { error: lastError } : {}) }
   }
 
   return {
@@ -247,7 +257,15 @@ function toolMeasurement(event: Extract<AgentSessionEvent, { type: "tool_executi
 }
 
 function measure(event: AgentSessionEvent, session: Pick<AgentSession, "getContextUsage">) {
+  if (event.type === "auto_retry_start" || event.type === "summarization_retry_scheduled") {
+    return { name: "pi.retry", attributes: { count: event.attempt, state: "waiting" }, error: new Error(event.errorMessage) }
+  }
+
   if (event.type === "message_end" && event.message.role === "assistant") {
+    if (event.message.stopReason === "error") {
+      return { name: "pi.responsefailed", attributes: { model: event.message.model }, error: new Error(event.message.errorMessage) }
+    }
+
     return usageMeasurement(event.message)
   }
 
@@ -261,18 +279,6 @@ function measure(event: AgentSessionEvent, session: Pick<AgentSession, "getConte
 
   if (event.type === "compaction_end") {
     return compactionMeasurement(event)
-  }
-
-  return
-}
-
-function terminalMessageReason(reason: string) {
-  if (reason === "aborted") {
-    return "aborted" as const
-  }
-
-  if (reason === "error" || reason === "length") {
-    return "error" as const
   }
 
   return
@@ -351,7 +357,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
-        extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension()] : [])],
+        extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension(input.tools)] : [])],
         noSkills: true,
         noPromptTemplates: true,
         noThemes: true,
@@ -372,6 +378,28 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       })
       result.session.setActiveToolsByName(input.tools)
       const normalizer = createEventNormalizer()
+      let recoveryTimer: ReturnType<typeof setTimeout> | undefined
+      let recoveryExpired = false
+
+      function clearRecovery() {
+        clearTimeout(recoveryTimer)
+        recoveryTimer = undefined
+      }
+
+      function trackRecovery(event: AgentSessionEvent) {
+        if (event.type === "auto_retry_start" || event.type === "summarization_retry_scheduled") {
+          recoveryTimer ??= setTimeout(() => {
+            recoveryExpired = true
+            void result.session.abort().catch((error: unknown) => {
+              options.observability.event({ name: "pi.recoveryabortfailed", context, error })
+            })
+          }, 60_000)
+        }
+
+        if (event.type === "auto_retry_end" || event.type === "summarization_retry_finished" || event.type === "agent_settled") {
+          clearRecovery()
+        }
+      }
 
       return {
         sessionFile: result.session.sessionFile ? basename(result.session.sessionFile) : undefined,
@@ -384,6 +412,8 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
           }
         },
         async prompt({ content, images = [], context }) {
+          recoveryExpired = false
+
           if (context) {
             await result.session.sendCustomMessage({ customType: "mimo.turn-context", content: `Mimo context for the next message:\n${JSON.stringify(context)}`, display: false })
           }
@@ -394,6 +424,8 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
           return result.session.steer(content, images.map((image) => ({ type: "image", ...image })))
         },
         abort() {
+          clearRecovery()
+          recoveryExpired = false
           normalizer.abort()
 
           return result.session.abort()
@@ -401,6 +433,7 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
         addTools: (tools) => registrar.add(tools),
         subscribe(listener) {
           return result.session.subscribe((event) => {
+            trackRecovery(event)
             const measurement = measure(event, result.session)
 
             if (measurement) {
@@ -410,11 +443,23 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
             const normalized = normalizer.normalize(event)
 
             if (normalized) {
+              if (normalized.type === "finished" && recoveryExpired) {
+                listener({ type: "finished", reason: "error", error: "O provedor não voltou a responder após um minuto de recuperação. Você pode tentar novamente ou trocar o modelo." })
+                return
+              }
+
+              if (normalized.type === "finished" && normalized.error) {
+                normalized.error = describePiFailure(normalized.error, input.provider)
+              }
+
               listener(normalized)
             }
           })
         },
-        dispose: () => result.session.dispose(),
+        dispose() {
+          clearRecovery()
+          result.session.dispose()
+        },
       }
     },
   }

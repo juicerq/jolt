@@ -61,11 +61,24 @@ function MobileBotRow({ bot, members = [], status, preview, waiting = 0 }: { bot
   const detail = preview || (pending ? chatStatusLabels[status] : bot.function.outcome)
 
   return <button data-bot-id={bot.id} aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" className="flex min-h-20 w-full items-center gap-3 rounded-lg bg-transparent px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active" onClick={() => selectBot(bot.id)}>
-    <span className="relative flex size-11 shrink-0 items-center">
-      <BotFace className={members.length ? "absolute top-0 left-1 size-8" : "size-11"} name={bot.avatarSeed} botId={bot.id} status={status} size={members.length ? 32 : 44} />
-      {members.slice(0, 2).map((member, index) => <BotFace key={member.id} className={`absolute bottom-0 size-6 ${index === 0 ? "left-0" : "right-0"}`} name={member.avatarSeed} botId={member.id} status={member.status} size={24} />)}
-      {!members.length && <span className={`absolute right-0 bottom-0 size-2 rounded-full ${chatStatusClassNames[status]}`} />}
-    </span>
+    <MobileBotAvatar bot={bot} members={members} status={status} />
     <span className="flex min-w-0 flex-1 flex-col gap-1"><strong className="truncate text-section font-semibold text-primary">{bot.name}</strong><span className={`line-clamp-2 text-support ${pending ? "text-status-awaiting-decision" : "text-secondary"}`}>{detail}</span>{waiting > 0 && <span className="text-support text-status-awaiting-decision">{waiting} {waiting === 1 ? "Integrante precisa" : "Integrantes precisam"} de você</span>}</span>
   </button>
+}
+
+function MobileBotAvatar({ bot, members, status }: { bot: Bot; members: Bot[]; status: ChatStatus }) {
+  if (members.length === 0) {
+    return <span className="relative flex size-11 shrink-0 items-center">
+      <BotFace className="size-11" name={bot.avatarSeed} botId={bot.id} size={44} />
+      <span className={`absolute right-0 bottom-0 size-2 rounded-full ${chatStatusClassNames[status]}`} />
+    </span>
+  }
+
+  const [first, second] = members
+
+  return <span className="relative block h-8 w-12 shrink-0">
+    <BotFace className={`absolute top-1 z-1 size-6 ${second ? "left-0" : "left-0.5"}`} name={first.avatarSeed} botId={first.id} size={24} />
+    {second && <BotFace className="absolute top-1 right-0 z-1 size-6" name={second.avatarSeed} botId={second.id} size={24} />}
+    <BotFace className={`absolute top-0 z-2 size-8 ${second ? "left-2" : "left-4"}`} name={bot.avatarSeed} botId={bot.id} size={32} />
+  </span>
 }

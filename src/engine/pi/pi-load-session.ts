@@ -1,3 +1,4 @@
+import { reportTaskTool } from "@src/shared/tasks"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { PiRuntimeEvent, PiSession, PiSessionFactory } from "./pi-agent-runtime"
 
@@ -5,7 +6,6 @@ const chunkDelayMs = 15
 const chunkLength = 24
 
 const thinking = "Preciso ler o módulo de cobrança, comparar as três funções e escolher a que mantém a interface atual. Vou verificar os testes antes de responder."
-const progress = "Encontrei dois pontos no cálculo. Vou comparar o impacto antes de fechar a recomendação."
 
 const response = [
   "Revisei o módulo de cobrança inteiro. O desconto é aplicado duas vezes quando há cupom e crédito na mesma compra, e o arredondamento acontece antes da soma dos itens.",
@@ -43,8 +43,6 @@ function scriptedTurn(): (PiRuntimeEvent | { type: "send"; content: string })[] 
     { type: "thinking-started" },
     ...chunks(thinking).map((text): PiRuntimeEvent => ({ type: "thinking", text })),
     { type: "thinking-finished" },
-    ...chunks(progress).map((text): PiRuntimeEvent => ({ type: "text", text })),
-    { type: "send", content: progress },
     { type: "tool-started", callId: "read-1", tool: "read", detail: "src/billing/invoice.ts" },
     { type: "tool-finished", callId: "read-1", tool: "read", failed: false },
     { type: "tool-started", callId: "bash-1", tool: "bash", detail: "bun test tests/billing" },
@@ -88,6 +86,14 @@ export function createPiLoadSessionFactory(): PiSessionFactory {
               await send.execute({ content: event.content }, turn.signal)
 
               continue
+            }
+
+            if (event.type === "finished" && event.reason === "stop") {
+              const report = input.customTools?.find((tool) => tool.name === reportTaskTool)
+
+              if (report) {
+                await report.execute({ status: "done", content: response.join("\n\n") }, turn.signal)
+              }
             }
 
             for (const listener of listeners) {

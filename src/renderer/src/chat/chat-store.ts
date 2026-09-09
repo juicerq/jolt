@@ -15,6 +15,8 @@ export interface ChatRun {
   steps: ChatActivityStep[]
   waitingMessage: string
   compacting: boolean
+  waitingForTasks?: boolean
+  providerWait?: Extract<ConversationEvent, { type: "provider-waiting" }>
   status: "running" | "aborting" | "failed"
   permissionRequests: PermissionRequest[]
   pluginRequests: PluginRequest[]
@@ -32,7 +34,7 @@ interface ChatState {
   queued: Record<string, QueuedMessage[] | undefined>
 }
 
-export type ChatStatus = "available" | "working" | "awaiting-decision" | "awaiting-response" | "waiting" | "completed" | "error"
+export type ChatStatus = "available" | "working" | "awaiting-decision" | "awaiting-response" | "waiting" | "recovering" | "completed" | "error"
 
 export const emptyChatDraft: ChatDraft = { content: "", images: [], mentions: [] }
 
@@ -161,6 +163,28 @@ export function setChatCompacting(botId: string, compacting: boolean) {
   updateRun(botId, (run) => ({ ...run, compacting }))
 }
 
+export function setChatDelegationWaiting(botId: string, waiting: boolean) {
+  updateRun(botId, (run) => ({ ...run, waitingForTasks: waiting }))
+}
+
+export function setChatProviderWait(botId: string, event: Extract<ConversationEvent, { type: "provider-waiting" | "provider-resumed" }>) {
+  updateRun(botId, (run) => {
+    if (event.type === "provider-waiting") {
+      return { ...run, providerWait: event, steps: run.steps.map((step) => step.type === "thinking" ? { ...step, status: "done" } : step) }
+    }
+
+    const { providerWait: _wait, ...resumed } = run
+
+    return resumed
+  })
+
+  if (chatStore.state.runs[botId]?.status === "aborting") {
+    return
+  }
+
+  setChatStatus(botId, event.type === "provider-waiting" ? "recovering" : "working")
+}
+
 export function requestChatPermission(botId: string, request: PermissionRequest) {
   updateRun(botId, (run) => ({ ...run, permissionRequests: [...run.permissionRequests.filter((pending) => pending.id !== request.id), request] }))
   setChatStatus(botId, "awaiting-decision")
@@ -206,7 +230,7 @@ export function failChatRun(botId: string, error: string) {
   setChatStatus(botId, "error")
 }
 
-export function settleChatRun(botId: string, status: "available" | "completed" | "error") {
+export function settleChatRun(botId: string, status?: "available" | "completed" | "error") {
   const run = chatStore.state.runs[botId]
 
   if (!run) {

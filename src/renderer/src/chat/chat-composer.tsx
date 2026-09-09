@@ -38,7 +38,7 @@ function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSug
   return mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
 }
 
-function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; run?: Pick<ChatRun, "status">; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
+function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; run?: Pick<ChatRun, "status" | "waitingForTasks">; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
   const mobile = useIsMobile()
   const connected = useSelector(connectionStore, (state) => state.connected)
   const working = !!run
@@ -48,8 +48,8 @@ function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, o
     <div className="col-start-5 flex items-center gap-2">
       {mobile && working && !empty && !blocked && <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting || !connected} label="Interromper resposta" onClick={onAbort}><StopIcon /></IconButton>}
       {working && (empty || blocked)
-        ? <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting || !connected} label={abortLabel({ aborting, blocked })} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
-        : <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked || !connected} label={connected ? sendLabel({ command, pending, working, blocked }) : "Aguardando conexão para enviar"} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>}
+        ? <IconButton iconSize={14} shape="circle" size={34} tone="danger" type="button" disabled={aborting || !connected} label={abortLabel({ run, blocked })} tooltipPlacement="top" onClick={onAbort}><StopIcon aria-hidden="true" /></IconButton>
+        : <IconButton className="active:scale-96 [&>svg]:stroke-2" shape="circle" size={34} tone="primary" type="button" disabled={empty || pending || blocked || !connected} label={connected ? sendLabel({ command, pending, run, blocked }) : "Aguardando conexão para enviar"} tooltipPlacement="top" onClick={(event) => void onSend(event.ctrlKey || event.metaKey)}><ArrowUpIcon aria-hidden="true" /></IconButton>}
     </div>
   )
 }
@@ -278,8 +278,8 @@ function editorText(draft: Pick<ChatDraft, "command">, botName: string) {
   return { placeholder: `Converse com ${botName}...`, label: `Mensagem para ${botName}` }
 }
 
-function abortLabel({ aborting, blocked }: { aborting: boolean; blocked: boolean }) {
-  if (aborting) {
+function abortLabel({ run, blocked }: { run?: Pick<ChatRun, "status">; blocked: boolean }) {
+  if (run?.status === "aborting") {
     return "Interrompendo resposta"
   }
 
@@ -287,10 +287,10 @@ function abortLabel({ aborting, blocked }: { aborting: boolean; blocked: boolean
     return "Interromper resposta · remova o Comando para enfileirar"
   }
 
-  return "Interromper resposta · escreva para enfileirar"
+  return "Interromper resposta"
 }
 
-function sendLabel({ command, pending, working, blocked }: { command: ChatCommand | null; pending: boolean; working: boolean; blocked: boolean }) {
+function sendLabel({ command, pending, run, blocked }: { command: ChatCommand | null; pending: boolean; run?: Pick<ChatRun, "waitingForTasks">; blocked: boolean }) {
   if (pending) {
     return "Executando Comando"
   }
@@ -303,7 +303,7 @@ function sendLabel({ command, pending, working, blocked }: { command: ChatComman
     return `Executar o Comando ${command.command}`
   }
 
-  if (working) {
+  if (run && !run.waitingForTasks) {
     return "Enfileirar mensagem · Ctrl+Enter adianta · Esc interrompe"
   }
 

@@ -41,6 +41,7 @@ if (!window.desktop) {
     getMobileAccess: unavailable,
     configureMobileAccess: unavailable,
     unpairMobileAccess: unavailable,
+    openBotBrowser: unavailable,
     getBrowserState: unavailable,
     onBrowserState: () => {},
     onTurnNotificationOpened: () => {},

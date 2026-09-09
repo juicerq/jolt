@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseArgs } from "node:util"
 import type { Bot } from "@src/shared/bots"
-import { askTool, sendMessageTool, type TurnContext } from "@src/shared/conversations"
+import type { TurnContext } from "@src/shared/conversations"
 import { createConversationTools } from "@src/engine/conversations/conversation-tools"
 import { botInstructions } from "@src/engine/conversations/bot-instructions"
 import type { PiSessionFactory, PiTool } from "@src/engine/pi/pi-agent-runtime"
@@ -22,13 +22,6 @@ const { values } = parseArgs({
 })
 
 const provider = values.provider === "codex" ? "codex" : "opencode"
-
-const routineInstructions = [
-  "A turn with cause \"routine\" is a scheduled call from one of your Rotinas, not from the person. Do what it asks and reply briefly; say \"nothing new\" when there is nothing to report.",
-  "Use the routine tool once when the person asks you to check or do something on a schedule. Give the Rotina a short name and express repeated calls as one schedule. A one-time Rotina remains listed as completed or failed after its call. Use remove_routine to remove one for good.",
-  "Your Rotinas:",
-  "- 01c58f3c: \"resumo-gmail-minuto\" — Verifique a caixa de entrada do Gmail e resuma as mensagens novas desde a última verificação. Se não houver nada novo, responda apenas \"nada novo\", every 10 minutes, active",
-].join("\n")
 
 const bot: Bot = {
   id: "protocol-check",
@@ -67,7 +60,7 @@ interface Scenario {
 
 const moment = { startedAt: new Date().toISOString(), timeZone: "America/Sao_Paulo" }
 const routineContext: TurnContext = { cause: "routine", routineId: "01c58f3c", frequency: { form: "interval", everyMinutes: 10, days: ["monday"], startTime: "00:00", endTime: "23:59" }, scheduledFor: new Date().toISOString(), ...moment }
-const routineContent = "Verifique a caixa de entrada do Gmail e resuma as mensagens novas desde a última verificação. Se não houver nada novo, responda apenas \"nada novo\"."
+const routineContent = "Verifique a caixa de entrada do Gmail e resuma as mensagens novas desde a última verificação. Avise apenas se houver algo que precisa da minha atenção."
 
 const scenarios: Scenario[] = [
   { name: "person-tool", content: "Rode ls -la na sua pasta e depois me diga o que apareceu", context: { cause: "person", ...moment } },
@@ -82,9 +75,9 @@ interface Turn {
   scenario: string
   messages: string[]
   undeliveredText: string
-  toolsBeforeFirstMessage: string[]
   sequence: string[]
   asked: number
+  silent: boolean
   durationMs: number
   deliveries: { elapsedMs: number; characters: number }[]
   error?: string
@@ -92,7 +85,6 @@ interface Turn {
 
 async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactory): Promise<Turn> {
   const messages: string[] = []
-  const toolsBeforeFirstMessage: string[] = []
   const sequence: string[] = []
   let asked = 0
   const deliveries: { elapsedMs: number; characters: number }[] = []
@@ -113,10 +105,14 @@ async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactor
       return inbox.map((line) => `- ${line}`).join("\n")
     },
   }
-  const messagingTools = createConversationTools((content, question) => {
-    messages.push(content)
-    deliveries.push({ elapsedMs: Math.round((Bun.nanoseconds() - started) / 1e6), characters: content.length })
-    asked += Number(!!question)
+  let silent = false
+  const messagingTools = createConversationTools({
+    ...(scenario.context.cause === "routine" ? { silence() { silent = true } } : {}),
+    send(content, question) {
+      messages.push(content)
+      deliveries.push({ elapsedMs: Math.round((Bun.nanoseconds() - started) / 1e6), characters: content.length })
+      asked += Number(!!question)
+    },
   })
   const customTools = scenario.gmail ? [...messagingTools, gmailTool] : messagingTools
   const tools = ["read", "grep", "find", "ls", "bash", "edit", "write", ...customTools.map((tool) => tool.name)]
@@ -130,7 +126,7 @@ async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactor
     policy: { botId: bot.id, allowedRoot: cwd, mode: "full" },
     customTools,
     ephemeral: true,
-    instructions: botInstructions({ bot, directory: cwd, extensions: [routineInstructions] }),
+    instructions: botInstructions({ bot, directory: cwd, extensions: [] }),
   })
   const unsubscribe = session.subscribe((event) => {
     if (event.type === "text") {
@@ -139,10 +135,6 @@ async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactor
 
     if (event.type === "tool-started") {
       sequence.push(`+${event.tool}`)
-
-      if (event.tool !== askTool && event.tool !== sendMessageTool && messages.length === 0) {
-        toolsBeforeFirstMessage.push(event.tool)
-      }
     }
 
     if (event.type === "tool-finished") {
@@ -164,8 +156,8 @@ async function runTurn(scenario: Scenario, cwd: string, factory: PiSessionFactor
     undeliveredText,
     deliveries,
     sequence,
-    toolsBeforeFirstMessage,
     asked,
+    silent,
     durationMs: Math.round((Bun.nanoseconds() - started) / 1e6),
     ...(failure ? { error: failure } : {}),
   }
@@ -186,7 +178,7 @@ const turns: Turn[] = []
 
 for (const scenario of selected) {
   for (let run = 0; run < runs; run++) {
-    const turn = await runTurn(scenario, cwd, factory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], undeliveredText: "", sequence: [], toolsBeforeFirstMessage: [], asked: 0, durationMs: 0, deliveries: [], error: String(error) }))
+    const turn = await runTurn(scenario, cwd, factory).catch((error: unknown) => ({ scenario: scenario.name, messages: [], undeliveredText: "", sequence: [], asked: 0, silent: false, durationMs: 0, deliveries: [], error: String(error) }))
 
     turns.push(turn)
     console.log(JSON.stringify(turn))
@@ -197,18 +189,17 @@ console.log(`\nmodel ${values.model}, ${runs} runs per scenario`)
 
 for (const scenario of selected) {
   const own = turns.filter((turn) => turn.scenario === scenario.name)
-  const silent = own.filter((turn) => turn.messages.length === 0).length
-  const openedFirst = own.filter((turn) => turn.toolsBeforeFirstMessage.length === 0).length
+  const silent = own.filter((turn) => turn.silent).length
   const messages = own.reduce((sum, turn) => sum + turn.messages.length, 0) / own.length
   const duration = own.reduce((sum, turn) => sum + turn.durationMs, 0) / own.length
   const failed = own.filter((turn) => turn.error).length
 
-  console.log(`${scenario.name}: messages ${messages.toFixed(1)}, opened before work ${openedFirst}/${own.length}, silent ${silent}/${own.length}, asked ${own.reduce((sum, turn) => sum + turn.asked, 0)}, ${Math.round(duration)}ms, errors ${failed}`)
+  console.log(`${scenario.name}: messages ${messages.toFixed(1)}, silent ${silent}/${own.length}, asked ${own.reduce((sum, turn) => sum + turn.asked, 0)}, ${Math.round(duration)}ms, errors ${failed}`)
 }
 
 await observability.flush()
 await rm(root, { recursive: true, force: true })
 
-if (turns.some((turn) => turn.error || turn.messages.length === 0)) {
+if (turns.some((turn) => turn.error || (turn.messages.length === 0 && !turn.silent))) {
   process.exitCode = 1
 }

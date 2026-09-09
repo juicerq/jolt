@@ -13,7 +13,7 @@ export function App({ browser, client }: { browser: BrowserActions; client: Engi
   const mobile = useIsMobile()
   const viewportHeight = useViewportHeight()
   const browserFocused = useStore(browserStore, (state) => state.focusedBotId !== null)
-  const browserNeedsHelp = useStore(browserStore, (state) => state.pages.some((page) => page.control === "user" || !!page.error))
+  const browserNeedsHelp = useStore(browserStore, (state) => state.pages.some((page) => (page.control === "user" && !!page.reason) || !!page.error))
   const sidebarOpen = useStore(botsStore, (state) => state.browserSidebarOpen)
   const frameless = !window.desktop.remote
   const clearance = frameless ? "[--window-controls-clearance:140px] max-md:[--window-controls-clearance:120px]" : "[--window-controls-clearance:0px]"

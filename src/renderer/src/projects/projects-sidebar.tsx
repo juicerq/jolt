@@ -25,14 +25,8 @@ import { InlineAction } from "../ui/inline-action"
 import { menuCardClassName, MenuOption } from "../ui/menu"
 import { Tooltip, useTooltip } from "../ui/tooltip"
 
-const teamAvatarPositionClassNames = ["top-0 left-[11px] z-1", "bottom-0 left-0 z-2", "right-0 bottom-0 z-3"]
+const teamAvatarFaceClassName = "shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none"
 type TogglePinned = (bot: Bot) => void
-
-const teamAvatarHoverClassNames = [
-  "group-hover/stack:-translate-y-0.5",
-  "group-hover/stack:-translate-x-0.75 group-hover/stack:translate-y-0.25",
-  "group-hover/stack:translate-x-0.75 group-hover/stack:translate-y-0.25",
-]
 
 export function ProjectsSidebar({ client, mobile = false }: { client: EngineClient; mobile?: boolean }) {
   const draft = useSelector(botsStore, (state) => state.draft)
@@ -410,7 +404,7 @@ function describeMember(bot: Bot) {
 }
 
 function BotRow({ bot, member = false, members, selected, status, teamLeader = false, pinning, onTogglePinned, onRemove, onDetach }: { bot: Bot; member?: boolean; members?: Bot[]; selected: boolean; status?: ChatStatus; teamLeader?: boolean; pinning: boolean; onTogglePinned: TogglePinned; onRemove: (bot: Bot) => void; onDetach: (bot: Bot) => void }) {
-  const avatarSizeClassName = members?.length ? "h-[41px] w-[51px] min-w-[51px]" : "size-[38px] min-w-[38px]"
+  const avatarSizeClassName = members?.length ? "h-[38px] w-[51px] min-w-[51px]" : "size-[38px] min-w-[38px]"
   const selectionClassName = selected ? "border-outline bg-surface-raised text-primary" : "border-transparent bg-transparent text-secondary"
   const tooltip = useTooltip()
   const actions = [
@@ -463,19 +457,32 @@ function BotAvatar({ bot, members }: { bot: Bot; members?: Bot[] }) {
     )
   }
 
-  const avatars = [bot, ...members].slice(0, 3)
+  const memberCountLabel = members.length === 1 ? "1 integrante" : `${members.length} integrantes`
+
+  const [first, second] = members
 
   return (
-    <span className="group/stack relative block h-[41px] w-[51px] min-w-[51px] shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${members.length} integrantes`}>
-      {avatars.map((avatar, index) => (
+    <span className="group/stack relative block h-[38px] w-[51px] min-w-[51px] shrink-0 overflow-visible" role="img" aria-label={`${bot.name} lidera ${memberCountLabel}`}>
+      <BotFace
+        className={`absolute top-[7px] z-1 size-[24px] ${teamAvatarFaceClassName} ${second ? "left-0 group-hover/stack:-translate-x-0.75" : "left-[2px] group-hover/stack:-translate-x-0.5"}`}
+        name={first.avatarSeed}
+        botId={first.id}
+        size={24}
+      />
+      {second && (
         <BotFace
-          className={`absolute size-[29px] shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none ${teamAvatarPositionClassNames[index]} ${teamAvatarHoverClassNames[index]}`}
-          name={avatar.avatarSeed}
-          botId={avatar.id}
-          size={29}
-          key={avatar.id}
+          className={`absolute top-[7px] right-0 z-1 size-[24px] ${teamAvatarFaceClassName} group-hover/stack:translate-x-0.75`}
+          name={second.avatarSeed}
+          botId={second.id}
+          size={24}
         />
-      ))}
+      )}
+      <BotFace
+        className={`absolute top-[3px] z-2 size-[32px] ${teamAvatarFaceClassName} ${second ? "left-[9px]" : "left-[15px]"}`}
+        name={bot.avatarSeed}
+        botId={bot.id}
+        size={32}
+      />
     </span>
   )
 }

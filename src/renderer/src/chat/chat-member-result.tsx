@@ -16,6 +16,7 @@ export function memberResultKind(botId: string, task: Pick<Task, "assigneeBotId"
 
 const resultLabels: Record<TaskStatus, (name: string) => string> = {
   working: (name) => `${name} retornou`,
+  blocked: (name) => `${name} precisa de uma resposta`,
   done: (name) => `${name} retornou`,
   interrupted: (name) => `${name} não concluiu a Tarefa`,
   failed: (name) => `${name} não concluiu a Tarefa`,
@@ -31,7 +32,7 @@ function label(kind: Kind, status: TaskStatus, name: string) {
   return resultLabels[status](name)
 }
 
-export function ChatMemberResult({ kind, name, status = "done", time, content, open }: { kind: Kind; name: string; status?: TaskStatus; time: string; content: string; open: boolean }) {
+export function ChatMemberResult({ kind, name, status = "done", time, content, open, bot }: { bot?: { id: string; name: string }; kind: Kind; name: string; status?: TaskStatus; time: string; content: string; open: boolean }) {
   const Icon = icons[kind]
 
   return (
@@ -44,7 +45,7 @@ export function ChatMemberResult({ kind, name, status = "done", time, content, o
           <ChatStamp name={name} time={time} />
         </summary>
         <div className={`${chatGuideClassName} mt-2 mb-1 ml-[14px] max-w-[min(620px,100%)] py-1 pl-4 text-secondary [&_*]:text-support`}>
-          <ChatContent content={content} />
+          <ChatContent content={content} {...(bot ? { bot } : {})} />
         </div>
       </details>
     </div>

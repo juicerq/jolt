@@ -17,7 +17,7 @@ Um Bot ligado a um único Líder, com Função, memória e histórico próprios.
 _Evitar_: Subagente, bot secundário, especialista
 
 **Integrante temporário**:
-Um Integrante que o Líder contrata para uma única Tarefa. Ele recebe modelo, esforço, pasta e permissão antes de começar, não cria Bots e fica encerrado quando a Tarefa termina; se ela for interrompida ou falhar, o Líder pode retomá-la com o mesmo Bot e histórico. Os demais Integrantes são permanentes.
+Um Integrante que o Líder contrata para um trabalho pontual, com modelo, esforço, pasta e permissão definidos antes de começar. Não cria Bots e fica inativo entre Tarefas; o Líder pode continuar com o mesmo Bot, preservando Conversa, pasta e configurações, inclusive depois de uma entrega. Os demais Integrantes são permanentes.
 _Evitar_: Bot temporário, subprocesso
 
 **Adicionar integrante**:
@@ -25,7 +25,7 @@ Criar um Bot permanente ligado a um Líder ou vincular um Bot permanente existen
 _Evitar_: Convidar, duplicar Bot
 
 **Encerrado**:
-O estado de um Integrante temporário cuja Tarefa terminou.
+O estado inativo de um Integrante temporário entre Tarefas, disponível para continuidade pelo Líder.
 _Evitar_: Removido, arquivado, deletado
 
 **Desvincular do time**:
@@ -49,11 +49,11 @@ Um Bot sem Líder que outro Bot pode chamar por uma Tarefa. A ligação vale num
 _Evitar_: Contato, Integrante, parceiro
 
 **Fila**:
-As mensagens que a pessoa escreveu enquanto o Bot trabalha e que aguardam a vez. Elas ficam no Engine, na ordem em que foram escritas, e entram no Turno seguinte quando o atual termina por conta própria. Interromper ou uma falha preservam a Fila.
+As mensagens que a pessoa escreveu enquanto o Bot trabalha e que aguardam a vez. Elas ficam no Engine e entram no Turno seguinte quando o atual termina por conta própria; quando o Bot está apenas aguardando um Resultado da Tarefa, a nova mensagem é adiantada automaticamente. Interromper ou uma falha preservam a Fila.
 _Evitar_: Buffer, rascunho, pendências
 
 **Adiantar**:
-Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre uma ferramenta e a próxima decisão, sem perder o trabalho já feito. Difere de Interromper, que encerra o Turno.
+Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre uma ferramenta e a próxima decisão, sem perder o trabalho já feito; quando ele aguarda um Resultado da Tarefa, a mensagem da pessoa é adiantada automaticamente e libera essa espera, mantendo o outro Bot em execução e seu retorno para depois.
 _Evitar_: Steer, forçar, priorizar
 
 **Projeto**:
@@ -83,6 +83,10 @@ _Evitar_: Memória, histórico completo, prompt permanente
 **Turno**:
 Uma execução conversacional do Bot iniciada por uma mensagem da pessoa, uma Chamada, um Disparo, uma Tarefa ou um Resultado da Tarefa.
 _Evitar_: Ativação, rodada, run
+
+**Recuperação do provedor**:
+A espera cancelável dentro do mesmo Turno enquanto o provedor volta a responder, preservando mensagens e trabalho sem registrar cada tentativa como falha na Conversa. Ao esgotá-la, a pessoa pode retomar pelo histórico ou escolher outro Modelo; limites de plano encerram a espera com previsão de liberação quando disponível, sem mudar Modelo ou cobrança automaticamente.
+_Evitar_: Novo Turno automático, reiniciar o trabalho, troca automática
 
 **Memória do Bot**:
 A lista de Lembranças de um Bot. Pequena e sempre presente no Contexto. A pessoa liga, desliga e limpa a Memória por Bot. Um Integrante lê também a Memória do seu Líder. Um Integrante temporário não tem Memória própria.
@@ -137,8 +141,12 @@ A capacidade do Bot de pesquisar e ler mensagens antigas da sua Conversa, com da
 _Evitar_: Memória, Curadoria, histórico compartilhado
 
 **Mensagem**:
-Um envio deliberado e persistido na Conversa do Bot que desenvolve uma ideia completa. Um Turno pode produzir várias Mensagens sucessivas, sem esperar uma Resposta entre elas; explicações detalhadas preservam esse ritmo de conversa.
+Um envio deliberado e persistido na Conversa do Bot que entrega uma resposta, um resultado útil ou uma decisão. Informações relacionadas ficam juntas numa resposta autossuficiente; novas Mensagens durante o trabalho comunicam resultados que já podem ser usados, mudanças relevantes ou impedimentos.
 _Evitar_: Turno, Atividade, fragmento de streaming
+
+**Encerramento silencioso**:
+A conclusão explícita de uma Chamada, Disparo ou processamento de Resultado da Tarefa sem novidade relevante para comunicar, preservando o registro do trabalho sem gerar Mensagem visível ou notificação. Não esconde falhas nem substitui uma resposta solicitada pela pessoa.
+_Evitar_: Falha, resposta vazia, interrupção
 
 **Pergunta**:
 Uma Mensagem final em que o Bot apresenta Opções conhecidas e espera a escolha da pessoa antes de continuar. Ela aceita uma única Opção ou, quando o Bot permite, várias; a Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
@@ -152,16 +160,12 @@ _Evitar_: Decisão, retorno da ferramenta
 Uma escolha estruturada e persistida dentro de uma Pergunta, com valor estável, rótulo e uma descrição opcional.
 _Evitar_: Ação, botão, item do select
 
-**Abertura**:
-A primeira Mensagem de um trabalho com ações. Confirma o que o Bot entendeu e nomeia o primeiro passo antes de qualquer ferramenta executar.
-_Evitar_: Resultado, status genérico
-
 **Atividade**:
 O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
 
 **Detalhes do trabalho**:
-A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão; com os detalhes desligados, apenas uma animação discreta indica que o Bot trabalha, sem narrar etapas.
 _Evitar_: Passos do agente, apagar Atividade, Mensagem
 
 **Duração do pensamento**:
@@ -200,11 +204,15 @@ O nome de um Bot que a pessoa escolhe com `@` ao escrever uma Mensagem, e que o 
 _Evitar_: Marcação, tag, Comando
 
 **Tarefa**:
-Um trabalho com instruções e um único Bot responsável. Um Líder abre uma Tarefa para um Integrante, e um Bot abre uma Tarefa para um Colega.
+Um trabalho com instruções, um solicitante e um único Bot responsável. Novas orientações durante a execução complementam a Tarefa; depois de uma entrega concluída, outro pedido cria uma nova Tarefa no mesmo Bot e Conversa. Uma Tarefa interrompida, com falha ou bloqueada pode ser retomada.
 _Evitar_: Mensagem, atividade
 
+**Tarefa bloqueada**:
+Uma Tarefa que aguarda informação ou decisão do solicitante para continuar. O fim do Turno que apresenta o bloqueio não conclui a Tarefa.
+_Evitar_: Concluída, falha, encerrada
+
 **Resultado da Tarefa**:
-O que o Bot responsável entrega ao concluir uma Tarefa.
+A entrega explícita e autossuficiente do Bot responsável ao solicitante, separada das mensagens de progresso. Informa a conclusão do pedido ou o bloqueio que depende de informação ou decisão; falhas e interrupções preservam o contexto e são comunicadas como trabalho não concluído.
 _Evitar_: Resposta, retorno, output
 
 **Conexão por Assinatura**:
@@ -264,11 +272,11 @@ A capacidade de todo Bot de procurar informação na internet e ler uma página,
 _Evitar_: Busca, navegação, Plugin de pesquisa
 
 **Navegador do Bot**:
-A página de trabalho de um Bot nos sites, visível à pessoa em uma prévia. Cada Bot mantém sua página; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
+A página de trabalho de um Bot nos sites, iniciada pelo Bot ou pelo clique da pessoa em um link da mensagem dele no computador. Cada Bot mantém sua página, visível e compartilhada com a pessoa; os logins dos sites são compartilhados e permanecem salvos entre usos do Mimo.
 _Evitar_: Plugin, Pesquisa web
 
 **Assumir o navegador**:
-No computador, a pessoa escolhe Assumir controle e passa a usar o site enquanto o Bot espera. Voltar ao chat recolhe o navegador e mantém o controle com a pessoa; Devolver para o Bot indicado permite que ele continue e mantém a visualização aberta.
+No computador, a pessoa pode assumir o site ou abrir um link da mensagem do Bot já com o controle; o Bot também pode assumir a página atual, sem nova confirmação, e só um deles interage por vez. Passar para o Bot indicado entrega o controle mantendo a visualização aberta; Voltar ao chat apenas recolhe o navegador.
 _Evitar_: Interromper, Adiantar
 
 **Acompanhar o navegador**:

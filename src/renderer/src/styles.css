@@ -14,7 +14,7 @@
   --bot-look-strength: 0.25;
 }
 
-.bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"], [data-status="waiting"], [data-status="error"]) {
+.bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"], [data-status="waiting"], [data-status="recovering"], [data-status="error"]) {
   --bot-look-strength: 0;
 }
 
@@ -125,7 +125,7 @@
     animation-delay: var(--mo-phase);
   }
 
-  .bot-face:is([data-status="waiting"], [data-status="error"]) .mo-breathe {
+  .bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"], [data-status="waiting"], [data-status="recovering"], [data-status="error"]) .mo-breathe {
     animation: none;
   }
   .bot-face[data-status="working"] .mo-eyes {

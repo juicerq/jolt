@@ -17,23 +17,34 @@ export function createTasks({ database, observability }: { database: AppDatabase
 
   observability.event({ name: "tasks.interruptorphans", attributes: { count: interruptedCount } })
 
+  function latest(assigneeBotId: string, callerBotId?: string) {
+    return database.tasks.listForBot(assigneeBotId).findLast((task) => task.assigneeBotId === assigneeBotId && (!callerBotId || task.callerBotId === callerBotId))
+  }
+
+  function create(input: Pick<Task, "callerBotId" | "assigneeBotId">) {
+    const task: Task = { id: crypto.randomUUID(), ...input, status: "working", createdAt: new Date().toISOString(), finishedAt: null }
+
+    return observability.span({ name: "tasks.create", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
+  }
+
   return {
-    create(input: Pick<Task, "callerBotId" | "assigneeBotId">) {
-      const task: Task = { id: crypto.randomUUID(), ...input, status: "working", createdAt: new Date().toISOString(), finishedAt: null }
+    create,
+    latest,
+    begin(input: Pick<Task, "callerBotId" | "assigneeBotId">) {
+      const previous = latest(input.assigneeBotId, input.callerBotId)
 
-      return observability.span({ name: "tasks.create", context: { taskId: task.id, callerBotId: task.callerBotId, botId: task.assigneeBotId } }, () => database.tasks.create(task))
-    },
-    resume(id: string, callerBotId: string) {
-      const task = database.tasks.get(id)
-
-      if (!task || task.callerBotId !== callerBotId || (task.status !== "interrupted" && task.status !== "failed")) {
-        throw new Error("Only the caller can resume an interrupted or failed Tarefa")
+      if (!previous || previous.status === "done") {
+        return create(input)
       }
 
-      return update(id, { status: "working", finishedAt: null })
+      if (previous.status === "working") {
+        return previous
+      }
+
+      return update(previous.id, { status: "working", finishedAt: null })
     },
     finish(id: string, status: Exclude<TaskStatus, "working">) {
-      return observability.span({ name: "tasks.finish", attributes: { state: status }, context: { taskId: id } }, () => update(id, { status, finishedAt: new Date().toISOString() }))
+      return observability.span({ name: "tasks.finish", attributes: { state: status }, context: { taskId: id } }, () => update(id, { status, finishedAt: status === "blocked" ? null : new Date().toISOString() }))
     },
     transfer(id: string, assigneeBotId: string) {
       return observability.span({ name: "tasks.transfer", context: { taskId: id, botId: assigneeBotId } }, () => update(id, { assigneeBotId }))

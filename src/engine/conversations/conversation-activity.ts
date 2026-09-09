@@ -88,7 +88,7 @@ export function createConversationActivityRecorder(messageId: string, message: I
         return runtimeEvent
       }
 
-      if (runtimeEvent.type === "finished" && thinkingStartedAt !== undefined) {
+      if ((runtimeEvent.type === "finished" || runtimeEvent.type === "provider-waiting") && thinkingStartedAt !== undefined) {
         finishThinking()
       }
 
