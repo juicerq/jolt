@@ -531,11 +531,13 @@ button with a plus icon adds.
 
 **Bot memory.** The Memórias page reuses the same shell. The switch sits in the
 section header and a support sentence names the current state. While on, the
-section shows a divided list of Lembranças with the Origem on the supporting
-line, a ghost pencil that edits the text inline, and a ghost trash action per
-row, one input with a secondary add button, a text action to clear that commits
-the same way as Excluir, and the Leader's Memória as a quiet block that appears
-only when the Leader knows something. Off hides everything but the sentence.
+section separates active Lembranças into raised groups for what the person
+registered and what the Bot learned in conversation. Each group shows its count,
+and each row shows the date on the supporting line, a ghost pencil that edits the
+text inline, and a ghost trash action. One input with a secondary add button, a
+text action to clear that commits the same way as Excluir, and the Leader's
+Memória as a quiet block that appears only when the Leader knows something. Off
+hides everything but the sentence.
 An optional disclosure below the Origem shows the original message supporting the
 Lembrança and its date. Editing protects the text and records the person's edit.
 A collapsed section shows Lembranças superadas, their supersession date and the

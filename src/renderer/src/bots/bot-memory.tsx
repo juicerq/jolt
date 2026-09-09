@@ -14,26 +14,34 @@ import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
 import { BotPage, BotPageIdentity } from "./bot-page"
 
-function describeOrigin(memory: Pick<Memory, "origin" | "source" | "createdAt">) {
-  const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
-  const source = memory.origin === "person" ? "Você registrou" : "Aprendeu na conversa"
+const memoryRowClassNames = {
+  plain: "flex items-start gap-2 py-2.5 first:pt-0",
+  shelf: "flex items-start gap-2 py-2.5",
+} as const
 
-  return `${source} · ${date}`
+function describeDate(createdAt: string) {
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(createdAt))
 }
 
-function MemoryList({ memories, busy, onEdit, onForget }: { memories: Memory[]; busy: boolean; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
+function describeOrigin(memory: Pick<Memory, "origin" | "source" | "createdAt">) {
+  const source = memory.origin === "person" ? "Você registrou" : "Aprendeu na conversa"
+
+  return `${source} · ${describeDate(memory.createdAt)}`
+}
+
+function MemoryList({ memories, busy, appearance = "plain", onEdit, onForget }: { memories: Memory[]; busy: boolean; appearance?: "plain" | "shelf"; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
   if (memories.length === 0) {
     return <p className="m-0 text-support text-muted">Nenhuma Lembrança ainda.</p>
   }
 
   return (
-    <ul className="m-0 flex list-none flex-col divide-y divide-outline p-0">
-      {memories.map((memory) => <MemoryRow key={memory.id} memory={memory} busy={busy} onEdit={onEdit} onForget={onForget} />)}
+    <ul className={`m-0 flex list-none flex-col divide-y divide-outline p-0 ${appearance === "shelf" ? "overflow-hidden rounded-md bg-surface-raised px-3" : ""}`}>
+      {memories.map((memory) => <MemoryRow key={memory.id} memory={memory} busy={busy} appearance={appearance} onEdit={onEdit} onForget={onForget} />)}
     </ul>
   )
 }
 
-function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: boolean; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
+function MemoryRow({ memory, busy, appearance, onEdit, onForget }: { memory: Memory; busy: boolean; appearance: "plain" | "shelf"; onEdit?: (id: string, content: string) => void; onForget?: (id: string) => void }) {
   const [draft, setDraft] = useState<string>()
   const editing = draft !== undefined
   const content = draft?.trim() ?? ""
@@ -66,12 +74,12 @@ function MemoryRow({ memory, busy, onEdit, onForget }: { memory: Memory; busy: b
   }
 
   return (
-    <li className="flex items-start gap-2 py-2.5 first:pt-0">
+    <li className={memoryRowClassNames[appearance]}>
       <div className="min-w-0 flex-1">
         {editing
           ? <input className={fieldControlClassName} autoComplete="off" maxLength={memoryLimits.memory} aria-label="Lembrança" autoFocus value={draft} disabled={busy} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKey} />
           : <p className="m-0 text-control font-medium text-primary">{memory.content}</p>}
-        <p className="m-0 text-support text-muted">{describeOrigin(memory)}</p>
+        <p className="m-0 text-support text-muted">{appearance === "shelf" ? describeDate(memory.createdAt) : describeOrigin(memory)}</p>
         {memory.source && <details className="mt-2 text-support text-secondary">
           <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Origem da Lembrança</summary>
           <p className="m-0 mt-2 whitespace-pre-wrap">{memory.source.content}</p>
@@ -225,16 +233,32 @@ function OwnMemory({ bot, client, leader }: { bot: Bot; client: EngineClient; le
 
 function MemorySections({ memories, busy, onEdit, onForget }: { memories: Memory[]; busy: boolean; onEdit: (id: string, content: string) => void; onForget: (id: string) => void }) {
   const active = memories.filter((memory) => !memory.supersededAt)
+  const registered = active.filter((memory) => memory.origin === "person")
+  const learned = active.filter((memory) => memory.origin !== "person")
   const superseded = memories.filter((memory) => !!memory.supersededAt)
 
   return (
     <>
-      <MemoryList memories={active} busy={busy} onEdit={onEdit} onForget={onForget} />
+      {active.length === 0 && <p className="m-0 text-support text-muted">Nenhuma Lembrança ainda.</p>}
+      {registered.length > 0 && <MemoryShelf title="Você registrou" memories={registered} busy={busy} onEdit={onEdit} onForget={onForget} />}
+      {learned.length > 0 && <MemoryShelf title="Aprendeu na conversa" memories={learned} busy={busy} onEdit={onEdit} onForget={onForget} />}
       {superseded.length > 0 && <details className="text-support text-secondary">
         <summary className="cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Lembranças superadas ({superseded.length})</summary>
         <p className="my-2 text-support text-secondary">Continuam disponíveis para perguntas sobre o passado.</p>
         <MemoryList memories={superseded} busy={busy} onForget={onForget} />
       </details>}
     </>
+  )
+}
+
+function MemoryShelf({ title, memories, busy, onEdit, onForget }: { title: string; memories: Memory[]; busy: boolean; onEdit: (id: string, content: string) => void; onForget: (id: string) => void }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-4">
+        <h3 className="m-0 text-control font-semibold text-secondary">{title}</h3>
+        <span className="text-metadata text-muted">{memories.length}</span>
+      </div>
+      <MemoryList memories={memories} busy={busy} appearance="shelf" onEdit={onEdit} onForget={onForget} />
+    </section>
   )
 }
