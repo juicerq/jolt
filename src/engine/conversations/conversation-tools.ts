@@ -7,10 +7,10 @@ export function createConversationTools({ send, silence, report }: { send: (cont
   return [
     {
       name: sendMessageTool,
-      description: "Deliver an answer, a useful result or a decision to the current Mimo conversation. Keep related information together in one concise message, with the detail the person requested. Do not narrate ongoing work. Plain assistant text is not delivered.",
+      description: "Send a message to the person in the current Mimo conversation. Plain assistant text is not delivered.",
       inputSchema: {
         type: "object",
-        properties: { content: { type: "string", minLength: 1, description: "A self-contained answer or meaningful update. Keep related paragraphs, lists and code together." } },
+        properties: { content: { type: "string", minLength: 1, description: "The message the person will read. Supports Markdown." } },
         required: ["content"],
         additionalProperties: false,
       },
