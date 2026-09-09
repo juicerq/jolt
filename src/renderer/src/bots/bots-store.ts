@@ -1,3 +1,4 @@
+import type { Bot } from "@src/shared/bots"
 import { Store } from "@tanstack/react-store"
 import { defaultBotAvatarSeed, randomBotAvatarSeed } from "@src/shared/bot-avatar"
 import { beginConversationOpen } from "../chat/chat-open-span"
@@ -9,7 +10,7 @@ export type BotRoute =
   | { name: "routines" }
   | { name: "triggers" }
   | { name: "memory" }
-  | { name: "members" }
+  | { name: "members"; create?: boolean }
   | { name: "routine"; id: string }
   | { name: "trigger"; id: string }
 
@@ -46,6 +47,10 @@ export function selectBot(botId: string) {
   }
 
   navigate((state) => ({ ...state, selectedBotId: botId, mobileList: false, botRoute: { name: "chat" }, draft: null, dialog: null, screen: null }))
+}
+
+export function openCreateTeamBot(bot: Pick<Bot, "id" | "leaderBotId">) {
+  navigate((state) => ({ ...state, selectedBotId: bot.leaderBotId ?? bot.id, mobileList: false, botRoute: { name: "members", create: true }, draft: null, dialog: null, screen: null }))
 }
 
 export function openBotRoute(route: BotRoute) {

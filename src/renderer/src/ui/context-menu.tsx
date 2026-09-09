@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type MouseEvent, type ReactNode, useId, useRef } from "react"
+import { Fragment, type KeyboardEvent, type MouseEvent, type ReactNode, useId, useRef } from "react"
 import { createPortal } from "react-dom"
 import { menuCardClassName, menuRowClassName } from "./menu"
 
@@ -6,6 +6,8 @@ interface ContextAction {
   label: string
   icon?: ReactNode
   disabled?: boolean
+  separatorBefore?: boolean
+  danger?: boolean
   onSelect: () => void
 }
 
@@ -79,9 +81,12 @@ export function ContextMenu({ label, actions, children }: { label: string; actio
     }}>
       {children(open)}
       {createPortal(<div ref={menu} id={id} popover="auto" role="menu" aria-label={label} className={`${menuCardClassName} fixed inset-auto max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] overflow-y-auto`} onKeyDown={handleKeys}>
-        {actions.map((action) => <button key={action.label} type="button" role="menuitem" tabIndex={-1} disabled={action.disabled} className={`${menuRowClassName} bg-transparent text-secondary hover:bg-surface-hover hover:text-primary focus:bg-surface-hover focus:text-primary [&>svg]:size-4 [&>svg]:shrink-0`} onClick={() => { close(); action.onSelect() }}>
-          {action.icon}<span>{action.label}</span>
-        </button>)}
+        {actions.map((action) => <Fragment key={action.label}>
+          {action.separatorBefore && <div role="separator" className="my-1.5 border-t border-outline" />}
+          <button type="button" role="menuitem" tabIndex={-1} disabled={action.disabled} className={`${menuRowClassName} bg-transparent hover:bg-surface-hover focus:bg-surface-hover ${action.danger ? "text-status-error" : "text-secondary hover:text-primary focus:text-primary"} [&>svg]:size-4 [&>svg]:shrink-0`} onClick={() => { close(); action.onSelect() }}>
+            {action.icon}<span>{action.label}</span>
+          </button>
+        </Fragment>)}
       </div>, document.body)}
     </span>
   )

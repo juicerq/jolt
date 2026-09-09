@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test"
-import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openCreateBot, openPlugins, openSettings, selectBot, toggleBrowserSidebar, openMobileMenu } from "@src/renderer/src/bots/bots-store"
+import { botsStore, closeWorkspaceScreen, discardDraft, forgetBot, openCreateBot, openCreateTeamBot, openPlugins, openSettings, selectBot, toggleBrowserSidebar, openMobileMenu } from "@src/renderer/src/bots/bots-store"
+
+import { botRouteActions } from "@src/renderer/src/bots/bot-route-actions"
 
 const initialState = { ...botsStore.state }
 
@@ -13,6 +15,17 @@ describe("navigation between Bots, screens and the draft", () => {
     openCreateBot()
     selectBot("bot-1")
     expect(botsStore.state).toMatchObject({ selectedBotId: "bot-1", botRoute: { name: "chat" }, screen: null, draft: null })
+  })
+
+  test.each([
+    { id: "leader", leaderBotId: null },
+    { id: "member", leaderBotId: "leader" },
+  ])("creating a team Bot from $id opens its leader's member form", (bot) => {
+    selectBot("unrelated")
+    openCreateBot()
+    openSettings()
+    openCreateTeamBot(bot)
+    expect(botsStore.state).toMatchObject({ selectedBotId: "leader", botRoute: { name: "members", create: true }, draft: null, screen: null, mobileList: false })
   })
 
   test("a screen replaces the draft; closing it keeps the selected Bot", () => {
@@ -60,4 +73,18 @@ describe("navigation between Bots, screens and the draft", () => {
     forgetBot("bot-1")
     expect(botsStore.state.selectedBotId).toBeNull()
   })
+})
+
+test("Bot navigation offers only supported pages and preserves edge-tab toggling", () => {
+  const independent = botRouteActions({ leaderBotId: null, temporary: false }, { name: "chat" })
+  expect(independent.map((action) => action.name)).toEqual(["chat", "settings", "members", "routines", "triggers", "memory"])
+  const temporary = botRouteActions({ leaderBotId: "leader", temporary: true }, { name: "chat" })
+  expect(temporary.map((action) => action.name)).toEqual(["chat", "settings", "memory"])
+  const permanent = botRouteActions({ leaderBotId: "leader", temporary: false }, { name: "routine", id: "existing" })
+  expect(permanent.some((action) => action.name === "members")).toBeFalse()
+  permanent.find((action) => action.name === "routines")?.select()
+  expect(botsStore.state.botRoute).toEqual({ name: "routines" })
+  botRouteActions({ leaderBotId: null, temporary: false }, { name: "routines" }).find((action) => action.name === "routines")?.select()
+  expect(botsStore.state.botRoute).toEqual({ name: "chat" })
+  botsStore.setState(() => initialState)
 })

@@ -1,7 +1,5 @@
-import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, UserGroupIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
-import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { ChatEdgeTab } from "../chat/chat-edge-tab"
@@ -9,11 +7,11 @@ import { ChatWorkspace } from "../chat/chat-workspace"
 import type { EngineClient } from "../engine-client"
 import { EmptyState } from "../ui/empty-state"
 import { IconButton } from "../ui/icon-button"
-import { BrainIcon } from "../ui/brain-icon"
+import { botRouteActions } from "./bot-route-actions"
 import { InlineAction } from "../ui/inline-action"
 import { ProviderWelcome } from "../settings/provider-welcome"
-import { BotDetails } from "./bot-details"
 import { useIsMobile } from "../ui/use-is-mobile"
+import { BotDetails } from "./bot-details"
 import { BotMemory } from "./bot-memory"
 import { BotMembers } from "./bot-members"
 import { BotRoutineEditor } from "./bot-routine-editor"
@@ -23,16 +21,6 @@ import { BotTriggerEditor } from "./bot-trigger-editor"
 import { BotTriggers } from "./bot-triggers"
 import { type BotRoute, botsStore, openBotRoute, openCreateBot } from "./bots-store"
 import { findTeamBot, teamOf } from "./team"
-
-type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory"
-
-interface BotRouteAction {
-  name: BotRouteActionName
-  label: string
-  icon: ReactNode
-  current: boolean
-  select: () => void
-}
 
 export function BotChat({ client, botId }: { client: EngineClient; botId: string | null }) {
   const mobile = useIsMobile()
@@ -78,7 +66,7 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   }
 
   if (route.name === "members" && !bot.leaderBotId) {
-    return <BotMembers key={bot.id} bot={bot} client={client} groups={groups} onClose={close} />
+    return <BotMembers key={bot.id} bot={bot} client={client} groups={groups} create={route.create} onClose={close} />
   }
 
   if (route.name === "settings") {
@@ -106,34 +94,6 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
   }
 
   return <ChatWorkspace bot={bot} client={client} />
-}
-
-/** The Bot's pages in edge-tab order. Choosing the current page returns to the conversation; on a Rotina, Rotinas returns to the list. */
-function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, route: BotRoute): BotRouteAction[] {
-  function open(name: Exclude<BotRouteActionName, "chat">) {
-    if (route.name === name) {
-      openBotRoute({ name: "chat" })
-      return
-    }
-
-    if (name === "routines" && route.name === "routine") {
-      openBotRoute({ name: "routines" })
-      return
-    }
-
-    openBotRoute({ name })
-  }
-
-  return [
-    { name: "chat", label: "Conversa", icon: <ChatBubbleLeftIcon aria-hidden="true" />, current: route.name === "chat", select: () => openBotRoute({ name: "chat" }) },
-    { name: "settings", label: "Configurações", icon: <Cog6ToothIcon aria-hidden="true" />, current: route.name === "settings", select: () => open("settings") },
-    ...(bot.leaderBotId ? [] : [{ name: "members" as const, label: "Integrantes", icon: <UserGroupIcon aria-hidden="true" />, current: route.name === "members", select: () => open("members") }]),
-    ...(bot.temporary ? [] : [
-      { name: "routines" as const, label: "Rotinas", icon: <ClockIcon aria-hidden="true" />, current: route.name === "routines" || route.name === "routine", select: () => open("routines") },
-      { name: "triggers" as const, label: "Gatilhos", icon: <BoltIcon aria-hidden="true" />, current: route.name === "triggers" || route.name === "trigger", select: () => open("triggers") },
-    ]),
-    { name: "memory", label: "Memórias", icon: <BrainIcon aria-hidden="true" />, current: route.name === "memory", select: () => open("memory") },
-  ]
 }
 
 function BotRouteTab({ bot, route }: { bot: Bot; route: BotRoute }) {

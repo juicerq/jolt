@@ -44,7 +44,7 @@ export function MobileBots({ client }: { client: EngineClient }) {
           const waiting = bot.members.filter((member) => !member.closed && needsResponse(overview.status(member.id))).length
 
           return <li key={bot.id}>
-            <MobileBotRow bot={bot} members={bot.members.filter((member) => !member.closed)} status={overview.status(bot.id)} preview={overview.byBot[bot.id]?.preview} waiting={waiting} />
+            <MobileBotRow bot={bot} members={bot.members.filter((member) => !member.closed).map((member) => ({ ...member, status: overview.status(member.id) }))} status={overview.status(bot.id)} preview={overview.byBot[bot.id]?.preview} waiting={waiting} />
             {members.length > 0 && <ul className="mt-1 mb-2 ml-7 list-none border-l border-outline pl-3">{members.map((member) => <li key={member.id}><MobileBotRow bot={member} status={overview.status(member.id)} preview={overview.byBot[member.id]?.preview} /></li>)}</ul>}
           </li>
         })}</ul>
@@ -54,14 +54,14 @@ export function MobileBots({ client }: { client: EngineClient }) {
   </div>
 }
 
-function MobileBotRow({ bot, members = [], status, preview, waiting = 0 }: { bot: Bot; members?: Bot[]; status: ChatStatus; preview?: string; waiting?: number }) {
+function MobileBotRow({ bot, members = [], status, preview, waiting = 0 }: { bot: Bot; members?: (Bot & { status: ChatStatus })[]; status: ChatStatus; preview?: string; waiting?: number }) {
   const pending = needsResponse(status)
   const detail = preview || (pending ? chatStatusLabels[status] : bot.function.outcome)
 
   return <button className="flex min-h-20 w-full items-center gap-3 rounded-lg bg-transparent px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-surface-active" onClick={() => selectBot(bot.id)}>
     <span className="relative flex size-11 shrink-0 items-center">
-      <BotFace className={members.length ? "absolute top-0 left-1 size-8" : "size-11"} name={bot.avatarSeed} botId={bot.id} size={members.length ? 32 : 44} />
-      {members.slice(0, 2).map((member, index) => <BotFace key={member.id} className={`absolute bottom-0 size-6 ${index === 0 ? "left-0" : "right-0"}`} name={member.avatarSeed} botId={member.id} size={24} />)}
+      <BotFace className={members.length ? "absolute top-0 left-1 size-8" : "size-11"} name={bot.avatarSeed} botId={bot.id} status={status} size={members.length ? 32 : 44} />
+      {members.slice(0, 2).map((member, index) => <BotFace key={member.id} className={`absolute bottom-0 size-6 ${index === 0 ? "left-0" : "right-0"}`} name={member.avatarSeed} botId={member.id} status={member.status} size={24} />)}
       {!members.length && <span className={`absolute right-0 bottom-0 size-2 rounded-full ${chatStatusClassNames[status]}`} />}
     </span>
     <span className="flex min-w-0 flex-1 flex-col gap-1"><strong className="truncate text-section font-semibold text-primary">{bot.name}</strong><span className={`line-clamp-2 text-support ${pending ? "text-status-awaiting-decision" : "text-secondary"}`}>{detail}</span>{waiting > 0 && <span className="text-support text-status-awaiting-decision">{waiting} {waiting === 1 ? "Integrante precisa" : "Integrantes precisam"} de você</span>}</span>

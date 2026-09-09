@@ -1,6 +1,6 @@
 import { ChevronDownIcon, Cog6ToothIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type FormEvent, useRef, useState } from "react"
+import { type FormEvent, type RefObject, useRef, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import type { EngineClient } from "../engine-client"
@@ -26,8 +26,9 @@ export function groupMembers(members: Bot[]) {
   }
 }
 
-export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client: EngineClient; groups: ProjectGroups | undefined; onClose: () => void }) {
-  const [adding, setAdding] = useState<"create" | "existing" | null>(null)
+export function BotMembers({ bot, client, groups, create = false, onClose }: { bot: Bot; client: EngineClient; groups: ProjectGroups | undefined; create?: boolean; onClose: () => void }) {
+  const [addingMode, setAdding] = useState<"create" | "existing" | null>(null)
+  const adding = create ? "create" : addingMode
   const [createdName, setCreatedName] = useState("")
   const addButton = useRef<HTMLButtonElement>(null)
   const existingButton = useRef<HTMLButtonElement>(null)
@@ -37,6 +38,11 @@ export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client:
   function closeForm() {
     const button = adding === "existing" ? existingButton : addButton
     setAdding(null)
+
+    if (create) {
+      openBotRoute({ name: "members" })
+    }
+
     requestAnimationFrame(() => button.current?.focus())
   }
 
@@ -51,15 +57,7 @@ export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client:
     <BotPage label={`Integrantes de ${bot.name}`}>
       <BotPageIdentity bot={bot} />
       <SettingsSection title="Integrantes">
-        {permanent.length === 0 && active.length === 0 && !adding && <p className="m-0 text-support text-secondary">Adicione Bots ao time para que {bot.name} possa distribuir Tarefas.</p>}
-        {!adding && <div className="flex flex-wrap items-center gap-2">
-          <Button ref={addButton} className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => { setCreatedName(""); setAdding("create") }}><UserPlusIcon className="size-4" aria-hidden="true" />Criar integrante</Button>
-          <Button ref={existingButton} variant="text" type="button" onClick={() => { setCreatedName(""); setAdding("existing") }}>Adicionar Bot existente</Button>
-        </div>}
-        {adding === "create" && <MemberCreateForm bot={bot} client={client} onCancel={closeForm} onCreated={memberAdded} />}
-        {adding === "existing" && <BotMemberPicker bot={bot} client={client} groups={groups} onCancel={closeForm} onAdded={memberAdded} />}
-        {createdName && <p className="m-0 text-support text-secondary" role="status">{createdName} adicionado ao time de {bot.name}.</p>}
-        {permanent.length > 0 && <MemberList members={permanent} />}
+        <MemberActions bot={bot} client={client} groups={groups} adding={adding} createdName={createdName} permanent={permanent} active={active} addButton={addButton} existingButton={existingButton} onAdd={setAdding} onCreatedName={setCreatedName} onCancel={closeForm} onCreated={memberAdded} />
       </SettingsSection>
       {active.length > 0 && <SettingsSection title="Temporários"><MemberList members={active} /></SettingsSection>}
       {closed.length > 0 && (
@@ -72,6 +70,26 @@ export function BotMembers({ bot, client, groups, onClose }: { bot: Bot; client:
       )}
     </BotPage>
   )
+}
+
+function MemberActions({ bot, client, groups, adding, createdName, permanent, active, addButton, existingButton, onAdd, onCreatedName, onCancel, onCreated }: { bot: Bot; client: EngineClient; groups: ProjectGroups | undefined; adding: "create" | "existing" | null; createdName: string; permanent: Bot[]; active: Bot[]; addButton: RefObject<HTMLButtonElement | null>; existingButton: RefObject<HTMLButtonElement | null>; onAdd: (mode: "create" | "existing") => void; onCreatedName: (name: string) => void; onCancel: () => void; onCreated: (member: Bot) => void }) {
+  if (adding === "create") {
+    return <MemberCreateForm bot={bot} client={client} onCancel={onCancel} onCreated={onCreated} />
+  }
+
+  if (adding === "existing") {
+    return <BotMemberPicker bot={bot} client={client} groups={groups} onCancel={onCancel} onAdded={onCreated} />
+  }
+
+  return <>
+    {permanent.length === 0 && active.length === 0 && <p className="m-0 text-support text-secondary">Adicione Bots ao time para que {bot.name} possa distribuir Tarefas.</p>}
+    <div className="flex flex-wrap items-center gap-2">
+      <Button ref={addButton} className="inline-flex items-center gap-2" variant="secondary" type="button" onClick={() => { onCreatedName(""); onAdd("create") }}><UserPlusIcon className="size-4" aria-hidden="true" />Criar integrante</Button>
+      <Button ref={existingButton} variant="text" type="button" onClick={() => { onCreatedName(""); onAdd("existing") }}>Adicionar Bot existente</Button>
+    </div>
+    {createdName && <p className="m-0 text-support text-secondary" role="status">{createdName} adicionado ao time de {bot.name}.</p>}
+    {permanent.length > 0 && <MemberList members={permanent} />}
+  </>
 }
 
 function MemberList({ members }: { members: Bot[] }) {

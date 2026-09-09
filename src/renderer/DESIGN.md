@@ -189,9 +189,14 @@ with the eyes leading the body by roughly 125–230ms. Each identity has its own
 direction, blink timing, breathing pace, and working rhythm. Work reduces glance
 travel to a quarter; waiting and errors ease it to zero over 240ms instead of
 snapping the face forward.
-Working narrows the eyes into concentration and adds a gentle sway. Waiting for
-a decision or response, interrupting, and error states stop ambient glances and
-body movement while keeping the blink. An error lowers and tilts the eyes into
+Working narrows the eyes into concentration, with small alternating lifts,
+elastic compression, and glances toward the work. Three amber dots keep the
+activity legible at small sizes. Waiting for a decision or response opens the
+eyes and calls with a brief tilted lift followed by a long pause. A blue speech
+bubble with an exclamation mark remains visible, including with reduced motion.
+Interrupting and error states stop ambient glances and body movement while
+keeping the blink. Mobile faces use the same saved status as their row until
+a live session status arrives. An error lowers and tilts the eyes into
 concern, without anger, shaking, or changing the Bot's color. A visible transition
 to completed briefly squints the eyes with a small lift, then returns to rest;
 opening an already-completed Bot does not replay it. Faces never follow the
