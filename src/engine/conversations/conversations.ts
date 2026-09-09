@@ -8,7 +8,7 @@ import type { AppDatabase } from "../persistence/database"
 import type { createTasks } from "../tasks/tasks"
 import type { Routine } from "@src/shared/routines"
 import type { Trigger, TriggerRun } from "@src/shared/triggers"
-import { askTool, sendMessageTool, type BotConversationEvent, type CompactInput, type ConversationEvent, type ConversationMessage, type FinishReason, type HistoryInput, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type QueueInput, type SendInput, type TurnContext, type TurnEnding } from "@src/shared/conversations"
+import { askTool, finishSilentlyTool, sendMessageTool, type BotConversationEvent, type CompactInput, type ConversationEvent, type ConversationMessage, type FinishReason, type HistoryInput, type IncomingMessage, type MessageQuestion, type MessageReply, type QueuedMessage, type QueueInput, type SendInput, type TurnContext, type TurnEnding } from "@src/shared/conversations"
 import { createConversationTools } from "./conversation-tools"
 import { createConversationActivityRecorder } from "./conversation-activity"
 import { createDelegation } from "./delegation"
@@ -58,7 +58,7 @@ interface ActiveTurn {
   abort(reason?: "person"): Promise<void>
   release(): void
 }
-interface TurnSender { bot(content: string, question: MessageQuestion | null): void; incoming(message: IncomingMessage): void; report(result: TaskReport): void }
+interface TurnSender { bot(content: string, question: MessageQuestion | null): void; incoming(message: IncomingMessage): void; report(result: TaskReport): void; silence(): void }
 type RoutineCall = Pick<Routine, "id" | "botId" | "content" | "frequency"> & { nextCallAt: string }
 interface TriggerCall { trigger: Trigger; run: TriggerRun }
 
@@ -86,6 +86,7 @@ export function createConversations(input: {
     runTurn,
     steer: steerTurn,
     drainQueue,
+    waitingChanged: (botId, waiting) => deliver(botId, { type: "delegation-waiting", waiting }),
     active: (botId) => active.get(botId)?.message,
     assertCallable,
     inheritance: (leader, references) => input.extensions.flatMap((extension) => extension.inheritance ? [extension.inheritance(leader, references)] : []),
@@ -125,10 +126,13 @@ export function createConversations(input: {
 
     const cwd = await input.bots.resolveWorkingDirectory(botId)
     const botDirectory = await input.bots.directory(botId)
-    const assigned = assignedTask(active.get(botId)?.message)
+    const message = active.get(botId)?.message
+    const assigned = assignedTask(message)
+    const background = message && message.author !== "person" && !assigned
     const customTools = [
       ...createConversationTools({
         send: (content, question) => senderFor(botId).bot(content, question),
+        ...(background ? { silence: () => senderFor(botId).silence() } : {}),
         ...(assigned ? { report: (result: TaskReport) => senderFor(botId).report(result) } : {}),
       }),
       ...extensions.flatMap((extension) => extension.tools(bot)),
@@ -140,7 +144,7 @@ export function createConversations(input: {
       throw new Error("Project not found")
     }
 
-    const instructions = botInstructions({ bot, directory: botDirectory, ...(project ? { project } : {}), extensions: [...extensions.map((extension) => extension.instructions(bot)), ...(assigned ? ["This turn continues a Tarefa. Use send_message only for progress in your own conversation. Finish with report_task: done for the requested result, blocked for missing information or a decision. Address the Bot who requested the Tarefa. Your report must stand alone, including relevant evidence and limitations; earlier progress messages will not be forwarded. New instructions require an updated report. Do not use ask or end with only progress."] : [])] })
+    const instructions = botInstructions({ bot, directory: botDirectory, ...(project ? { project } : {}), extensions: [...extensions.map((extension) => extension.instructions(bot)), ...(assigned ? ["This turn continues a Tarefa. Work directly without narrating ongoing status. Finish with report_task: done for the requested result, blocked for missing information or a decision. Address the Bot who requested the Tarefa. Your report must stand alone, including relevant evidence and limitations; earlier progress messages will not be forwarded. New instructions require an updated report. Do not use ask or end with only progress."] : [])] })
     const profile = JSON.stringify({ cwd, tools, instructions, provider: bot.provider, effort: bot.effort, model: bot.model, permissionMode: bot.permissionMode })
 
     if (sessions.get(botId) === profile) {
@@ -393,6 +397,10 @@ export function createConversations(input: {
 
     turn.sender.incoming(message)
 
+    if (message.author === "person") {
+      delegation.releaseWait(botId)
+    }
+
     return true
   }
 
@@ -497,6 +505,8 @@ export function createConversations(input: {
     const completion = Promise.withResolvers<TurnResult>()
     let finished = false
     let response = ""
+    let silenced = false
+    let requiresAnswer = message.author === "person"
     let report: TaskReport | undefined
     const task = assignedTask(turn.message)
     const ownsTask = task && (turn.message.author === "person" || turn.message.authorBotId === task.callerBotId)
@@ -509,6 +519,18 @@ export function createConversations(input: {
     turn.sender = {
       bot: (content, question) => publishMessage({ content, question }),
       incoming: publishIncoming,
+      silence() {
+        if (requiresAnswer || task) {
+          throw new Error("A direct request needs an answer. Deliver it before stopping.")
+        }
+
+        if (response) {
+          throw new Error("A message was already delivered. Stop normally without repeating it.")
+        }
+
+        publishMessage({})
+        silenced = true
+      },
       report(result) {
         publishMessage({ content: result.content })
         report = result
@@ -519,7 +541,7 @@ export function createConversations(input: {
     unsubscribe = input.runtime.subscribe(botId, (runtimeEvent) => {
       eventCount++
 
-      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && ([askTool, sendMessageTool, reportTaskTool].includes(runtimeEvent.tool))) {
+      if ((runtimeEvent.type === "tool-started" || runtimeEvent.type === "tool-finished") && ([askTool, sendMessageTool, finishSilentlyTool, reportTaskTool].includes(runtimeEvent.tool))) {
         return
       }
 
@@ -550,16 +572,9 @@ export function createConversations(input: {
       const deliveredEvent = activity.record(runtimeEvent)
 
       if (deliveredEvent.type === "finished") {
-        if (deliveredEvent.reason === "stop" && (!response || (task && !report))) {
-          const error = task ? "O Bot terminou sem entregar o resultado da Tarefa com report_task. Retome o mesmo Bot para concluir a entrega." : "O Bot terminou sem enviar uma mensagem. Tente novamente."
+        finishRuntime(deliveredEvent)
 
-          finish("error", error)
-          deliver(botId, { type: "finished", reason: "error", error })
-
-          return
-        }
-
-        finish(deliveredEvent.reason, deliveredEvent.error)
+        return
       }
 
       deliver(botId, deliveredEvent)
@@ -574,6 +589,20 @@ export function createConversations(input: {
       finish(event.reason, event.error)
       deliver(botId, event)
     })
+
+    function finishRuntime(event: Extract<ConversationEvent, { type: "finished" }>) {
+      if (event.reason === "stop" && ((!response && !silenced) || (task && !report))) {
+        const error = task ? "O Bot terminou sem entregar o resultado da Tarefa com report_task. Retome o mesmo Bot para concluir a entrega." : "O Bot terminou sem enviar uma mensagem. Tente novamente."
+
+        finish("error", error)
+        deliver(botId, { type: "finished", reason: "error", error })
+
+        return
+      }
+
+      finish(event.reason, event.error)
+      deliver(botId, event.reason === "stop" && silenced && !response ? { ...event, silent: true } : event)
+    }
 
     function finish(reason: FinishReason, error?: unknown) {
       if (finished) {
@@ -607,6 +636,9 @@ export function createConversations(input: {
 
     function publishIncoming(incoming: IncomingMessage) {
       report = undefined
+      response = ""
+      silenced = false
+      requiresAnswer ||= incoming.author === "person"
       const message: ConversationMessage = { id: crypto.randomUUID(), botId, ...incoming, taskId: turn.message.taskId, triggerRunId: turn.message.triggerRunId, question: null, activity: null, ending: null, createdAt: new Date().toISOString() }
 
       input.database.conversations.append(message)
@@ -639,7 +671,7 @@ export function createConversations(input: {
       } catch (persistError) {
         input.observability.event({ name: "conversation.persistencefailed", context: { botId }, error: persistError })
 
-        if (content) {
+        if (!ending) {
           throw persistError
         }
       }
@@ -720,7 +752,7 @@ export function createConversations(input: {
 
     const task = assignedTask(turn.message)
     const linked = { ...message, taskId: task?.id ?? null }
-    const immediate = delivery === "now" || !!message.replyTo
+    const immediate = delivery === "now" || !!message.replyTo || delegation.waiting(botId)
 
     if (immediate && await steerTurn(botId, linked)) {
       return
@@ -778,6 +810,7 @@ export function createConversations(input: {
       signal?.throwIfAborted()
       const initial = Array.from(active).flatMap(([botId, turn]): BotConversationEvent[] => [
         { botId, event: { type: "started", messageId: turn.message.id, message: incoming(turn.message) } },
+        ...(delegation.waiting(botId) ? [{ botId, event: { type: "delegation-waiting" as const, waiting: true } }] : []),
         ...input.runtime.pending(botId).map((request): BotConversationEvent => ({ botId, event: { type: "permission-requested", request } })),
         ...extensions.flatMap((extension) => extension.pending?.(botId) ?? []).map((event): BotConversationEvent => ({ botId, event })),
       ])

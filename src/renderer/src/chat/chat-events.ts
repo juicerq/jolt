@@ -19,6 +19,7 @@ import {
   setChatProviderWait,
   setChatPluginStep,
   setChatQueue,
+  setChatDelegationWaiting,
   settleChatRun,
   startChatRun,
   startChatThinking,
@@ -54,6 +55,11 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
 
     if (event.type === "provider-waiting" || event.type === "provider-resumed") {
       setChatProviderWait(botId, event)
+      return
+    }
+
+    if (event.type === "delegation-waiting") {
+      setChatDelegationWaiting(botId, event.waiting)
       return
     }
 
@@ -142,14 +148,14 @@ export function subscribeChatEvents({ client, queryClient }: { client: Pick<Engi
   function finishTurn(botId: string, event: Extract<BotConversationEvent["event"], { type: "finished" }>) {
     const projectsQuery = client.query.projects.list.queryOptions()
     const bot = findTeamBot(queryClient.getQueryData(projectsQuery.queryKey), botId)
-    const response = settleChatRun(botId, settledStatuses[event.reason])
+    const response = settleChatRun(botId, event.silent ? undefined : settledStatuses[event.reason])
 
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: client.query.conversations.history.key({ input: { botId } }) }),
       queryClient.invalidateQueries({ queryKey: client.query.tasks.key() }),
       queryClient.invalidateQueries({ queryKey: client.query.conversations.overview.key() }),
       invalidateTeam(),
-      alertTurnFinished({ bot, reason: event.reason, response, ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
+      alertTurnFinished({ bot, reason: event.reason, response, ...(event.silent ? { silent: true } : {}), ...(event.error ? { error: event.error } : {}) }).catch((alertError: unknown) => {
         console.error("O aviso do turno falhou", alertError)
       }),
     ]).catch((error: unknown) => {

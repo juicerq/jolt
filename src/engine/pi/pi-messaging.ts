@@ -1,8 +1,11 @@
 import type { InlineExtension } from "@earendil-works/pi-coding-agent"
 import { reportTaskTool } from "@src/shared/tasks"
-import { askTool, sendMessageTool } from "@src/shared/conversations"
+import { askTool, finishSilentlyTool, sendMessageTool } from "@src/shared/conversations"
 
-export function createMessagingExtension(assigned: boolean): InlineExtension {
+export function createMessagingExtension(tools: string[]): InlineExtension {
+  const assigned = tools.includes(reportTaskTool)
+  const deliveries = assigned ? [reportTaskTool] : [sendMessageTool, askTool, finishSilentlyTool]
+
   return {
     name: "mimo-messaging",
     factory(pi) {
@@ -14,8 +17,15 @@ export function createMessagingExtension(assigned: boolean): InlineExtension {
         reminded = false
       })
 
+      pi.on("message_start", (event) => {
+        if (event.message.role === "user") {
+          delivered = false
+          reminded = false
+        }
+      })
+
       pi.on("tool_result", (event) => {
-        if (!event.isError && (assigned ? event.toolName === reportTaskTool : event.toolName === sendMessageTool || event.toolName === askTool)) {
+        if (!event.isError && deliveries.includes(event.toolName)) {
           delivered = true
         }
       })
@@ -28,7 +38,9 @@ export function createMessagingExtension(assigned: boolean): InlineExtension {
         reminded = true
         pi.sendMessage({
           customType: "mimo.messaging-reminder",
-          content: assigned ? "No Tarefa result has been delivered. Use report_task now: done with a self-contained result, or blocked with the information or decision needed. Progress sent with send_message is not the delivery. Do not repeat work already completed." : "No message has been delivered to the Mimo conversation. Send your answer with send_message now, one complete idea per call. If a choice is required, use ask. Do not repeat work already completed. Plain assistant text is not delivered.",
+          content: assigned
+            ? "No Tarefa result has been delivered. Use report_task now: done with a self-contained result, or blocked with the information or decision needed. Progress is not the delivery. Do not repeat completed work."
+            : `No answer has been delivered. Use send_message for the result or ask for a required choice.${tools.includes(finishSilentlyTool) ? " If this background check found nothing meaningful to communicate, use finish_silently." : ""} Progress and plain assistant text do not deliver an answer. Do not repeat completed work.`,
           display: false,
         }, { deliverAs: "followUp", triggerTurn: true })
       })

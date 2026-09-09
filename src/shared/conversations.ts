@@ -9,7 +9,7 @@ import type { ExternalEvent } from "./triggers"
 
 export const askTool = "ask"
 export const sendMessageTool = "send_message"
-export const messageContentLimit = 800
+export const finishSilentlyTool = "finish_silently"
 
 export const messageAuthor = z.enum(["person", "bot", "routine", "trigger"])
 const messageImage = z.strictObject({ data: id, mimeType: z.enum(messageImageMimeTypes) })
@@ -73,7 +73,9 @@ const message = z.strictObject({
 })
 const incomingMessage = message.pick({ author: true, authorBotId: true, taskId: true, triggerRunId: true, content: true, images: true, replyTo: true })
 const askToolInput = messageQuestion.extend({ content: z.string().trim().min(1) })
-const sendMessageToolInput = z.strictObject({ content: z.string().trim().min(1).max(messageContentLimit, "This message is too long. Send one idea at a time in separate send_message calls; preserve the remaining details in subsequent messages.") })
+const sendMessageToolInput = z.strictObject({ content: z.string().trim().min(1) })
+const silentInput = z.strictObject({})
+const delegationWaitingEvent = z.strictObject({ type: z.literal("delegation-waiting"), waiting: z.boolean() })
 const startedEvent = z.strictObject({ type: z.literal("started"), messageId: id, message: incomingMessage })
 const messageFinishedEvent = z.strictObject({ type: z.literal("message-finished"), message: message.optional() })
 const thinkingEvent = z.strictObject({ type: z.literal("thinking"), text: z.string() })
@@ -105,7 +107,7 @@ const compactionFinishedEvent = z.strictObject({ type: z.literal("compaction-fin
 const providerWaitingEvent = z.strictObject({ type: z.literal("provider-waiting"), attempt: z.int().positive(), maxAttempts: z.int().positive(), delayMs: z.number().nonnegative() })
 const providerResumedEvent = z.strictObject({ type: z.literal("provider-resumed") })
 const queueChangedEvent = z.strictObject({ type: z.literal("queue-changed"), queued: z.array(queuedMessage) })
-const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), error: z.string().min(1).max(500).optional() })
+const finishedEvent = z.strictObject({ type: z.literal("finished"), reason: z.enum(["stop", "aborted", "error"]), silent: z.literal(true).optional(), error: z.string().min(1).max(500).optional() })
 const event = z.discriminatedUnion("type", [
   startedEvent,
   messageFinishedEvent,
@@ -124,6 +126,7 @@ const event = z.discriminatedUnion("type", [
   providerWaitingEvent,
   providerResumedEvent,
   queueChangedEvent,
+  delegationWaitingEvent,
   finishedEvent,
 ])
 const botEvent = z.strictObject({ botId: id, event })
@@ -147,6 +150,7 @@ export const conversationSchemas = {
   queueInput: z.strictObject({ botId: id, id }),
   askToolInput,
   sendMessageToolInput,
+  silentInput,
   taskInput: z.strictObject({ taskId: id }),
   message,
   messageList: z.array(message),

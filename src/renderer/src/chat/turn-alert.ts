@@ -9,8 +9,8 @@ const bodyLimit = 120
 
 let chime: AudioContext | undefined
 
-export async function alertTurnFinished({ bot, reason, response, error }: { bot: Pick<Bot, "id" | "name"> | undefined; reason: FinishReason; response?: string; error?: string }) {
-  if (!bot || reason === "aborted" || document.hasFocus()) {
+export async function alertTurnFinished({ bot, reason, response, error, silent }: { bot: Pick<Bot, "id" | "name"> | undefined; reason: FinishReason; response?: string; error?: string; silent?: boolean }) {
+  if (!bot || reason === "aborted" || (reason === "stop" && silent) || document.hasFocus()) {
     return
   }
 

@@ -15,6 +15,7 @@ export interface ChatRun {
   steps: ChatActivityStep[]
   waitingMessage: string
   compacting: boolean
+  waitingForTasks?: boolean
   providerWait?: Extract<ConversationEvent, { type: "provider-waiting" }>
   status: "running" | "aborting" | "failed"
   permissionRequests: PermissionRequest[]
@@ -162,6 +163,10 @@ export function setChatCompacting(botId: string, compacting: boolean) {
   updateRun(botId, (run) => ({ ...run, compacting }))
 }
 
+export function setChatDelegationWaiting(botId: string, waiting: boolean) {
+  updateRun(botId, (run) => ({ ...run, waitingForTasks: waiting }))
+}
+
 export function setChatProviderWait(botId: string, event: Extract<ConversationEvent, { type: "provider-waiting" | "provider-resumed" }>) {
   updateRun(botId, (run) => {
     if (event.type === "provider-waiting") {
@@ -225,7 +230,7 @@ export function failChatRun(botId: string, error: string) {
   setChatStatus(botId, "error")
 }
 
-export function settleChatRun(botId: string, status: "available" | "completed" | "error") {
+export function settleChatRun(botId: string, status?: "available" | "completed" | "error") {
   const run = chatStore.state.runs[botId]
 
   if (!run) {

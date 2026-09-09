@@ -312,6 +312,52 @@ test("interromper somente o Líder preserva sua delegação sem espera", async (
   expect(app.tasks.listForBot(leader.id)[0]?.status).toBe("done")
 })
 
+test("pergunta à pessoa libera a espera do Líder e o integrante entrega uma única vez depois", async () => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Pesquisa", leaderBotId: leader.id })
+  const caller = await app.start(leader)
+  const waiting = caller.tool("delegate", { bot: member.id, instructions: "Investigue", wait: "yes" })
+  const worker = await app.next(member)
+  await app.conversations.send({ botId: leader.id, content: "Posso mudar a permissão dele? Só responda", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.at(-1)?.content).toBe("Posso mudar a permissão dele? Só responda")
+  expect(await waiting).toContain("will reply later")
+  expect(app.conversations.active(member.id)).toBeDefined()
+  await caller.finish("Pode, a alteração vale imediatamente.")
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+  expect(app.conversations.teamWorking(leader.id)).toBe(true)
+  await worker.finish("Causa confirmada")
+  const returning = await app.next(leader)
+  await returning.finish("A investigação terminou.")
+  const deliveries = app.conversations.history({ botId: leader.id, limit: 100 }).messages.filter((message) => message.authorBotId === member.id)
+  expect(deliveries.map((message) => message.content)).toEqual(["Causa confirmada"])
+  expect(app.tasks.listForBot(member.id)).toMatchObject([{ status: "done" }])
+})
+
+test.each(["leader", "team"])("interromper %s depois de liberar a espera mantém o alcance do cancelamento", async (scope) => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Pesquisa", leaderBotId: leader.id })
+  const caller = await app.start(leader)
+  const waiting = caller.tool("delegate", { bot: member.id, instructions: "Investigue", wait: "yes" })
+  const worker = await app.next(member)
+  await app.conversations.send({ botId: leader.id, content: "Como funciona?", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  await waiting
+
+  if (scope === "team") {
+    await app.conversations.abortTeam(leader.id)
+    expect(app.conversations.active(member.id)).toBeUndefined()
+    expect(app.tasks.listForBot(member.id)).toMatchObject([{ status: "interrupted" }])
+  } else {
+    await app.conversations.abort(leader.id)
+    expect(app.conversations.active(member.id)).toBeDefined()
+    await worker.finish("Resultado preservado")
+    const returning = await app.next(leader)
+    await returning.finish()
+    expect(app.tasks.listForBot(member.id)).toMatchObject([{ status: "done" }])
+  }
+})
+
 test("cancelamento alcança trabalho descendente mesmo depois que o Colega já entregou seu retorno", async () => {
   const app = await teamApp()
   const leader = await app.bots.create({ name: "Líder" })

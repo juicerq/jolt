@@ -354,7 +354,7 @@ export function createRoutines(input: {
       const lines = routines.map((routine) => `- ${routine.id}: "${routine.name}" — ${routine.content}, ${describeFrequency(routine.frequency)}, ${routine.status}`)
 
       return [
-        "A turn with cause \"routine\" is a scheduled call from one of your Rotinas, not from the person. Do what it asks and reply briefly; say \"nothing new\" when there is nothing to report.",
+        "A turn with cause \"routine\" is a scheduled call from one of your Rotinas. Its content defines the work and notification criteria; the conversation protocol handles delivery or silent completion.",
         ...(bot.permissionMode === "read-only" ? [] : ["Use the routine tool once when the person asks you to check or do something on a schedule. Give the Rotina a short name and express repeated calls as one schedule. A one-time Rotina remains listed as completed or failed after its call. Use remove_routine to remove one for good."]),
         ...(lines.length > 0 ? ["Your Rotinas:", ...lines] : ["You have no Rotinas."]),
       ].join("\n")

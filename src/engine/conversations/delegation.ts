@@ -7,7 +7,7 @@ import type { PiCustomTool } from "../pi/pi-agent-runtime"
 import type { BotInheritance, TurnResult } from "./conversations"
 import type { createTasks } from "../tasks/tasks"
 
-const waitParameter = "\"yes\" to wait for the reply and receive it as this tool's result. \"no\" to continue now; the reply arrives later as a message from that Bot."
+const waitParameter = "\"no\" to stay available while the Bot works; its result arrives later. \"yes\" only when your next action needs its result. A message from the person releases your wait while the Tarefa continues."
 const memberParameters = {
   "provider?": "Provider id: codex or opencode. Defaults to the current provider.",
   "model?": "Exact model id. Defaults to the Leader model when hiring. An unavailable model fails before starting.",
@@ -45,11 +45,13 @@ export function createDelegation(input: {
   runTurn(botId: string, message: IncomingMessage, options?: { signal?: AbortSignal }): Promise<{ finished: Promise<TurnResult> }>
   steer(botId: string, message: IncomingMessage): Promise<boolean>
   drainQueue(botId: string): Promise<void>
+  waitingChanged(botId: string, waiting: boolean): void
   active(botId: string): { taskId: string | null } | undefined
   assertCallable(caller: Pick<Bot, "id">, target: Pick<Bot, "id" | "name">): void
   inheritance(leader: Bot, references: string | undefined): BotInheritance[]
 }) {
   const running = new Map<string, { task: Task; botIds: Set<string>; cancellation: AbortController; signal: AbortSignal; settled: Promise<void>; pending: IncomingMessage[] }>()
+  const waiting = new Map<string, Set<() => void>>()
 
   function members(leader: Pick<Bot, "id">) {
     return input.bots.list().filter((bot) => bot.leaderBotId === leader.id)
@@ -134,18 +136,48 @@ export function createDelegation(input: {
       return `Instructions added to ${to.name}'s current Tarefa. Its result will follow the original delegation.`
     }
 
+    signal?.throwIfAborted()
     const parentId = input.active(from.id)?.taskId
     const parent = parentId ? running.get(parentId) : undefined
     const cancellation = new AbortController()
-    const workSignal = AbortSignal.any([cancellation.signal, ...(parent ? [parent.signal] : []), ...(wait && signal ? [signal] : [])])
+    const workSignal = AbortSignal.any([cancellation.signal, ...(parent ? [parent.signal] : [])])
     workSignal.throwIfAborted()
 
     const task = input.tasks.begin({ callerBotId: from.id, assigneeBotId: to.id })
     const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
     const pending: IncomingMessage[] = []
     running.set(task.id, { task, pending, botIds: new Set([from.id, to.id, ...parent?.botIds ?? []]), cancellation, signal: workSignal, settled })
+    const released = Promise.withResolvers<undefined>()
+    let deliverLater = !wait
+    const cancel = () => cancellation.abort(signal?.reason)
+
+    function stopWaiting() {
+      signal?.removeEventListener("abort", cancel)
+      const waits = waiting.get(from.id)
+      waits?.delete(release)
+
+      if (waits?.size === 0) {
+        waiting.delete(from.id)
+        input.waitingChanged(from.id, false)
+      }
+    }
+
+    function release() {
+      deliverLater = true
+      stopWaiting()
+      released.resolve(undefined)
+    }
+
+    if (wait) {
+      const waits = waiting.get(from.id) ?? new Set<() => void>()
+      waits.add(release)
+      waiting.set(from.id, waits)
+      input.waitingChanged(from.id, true)
+      signal?.addEventListener("abort", cancel, { once: true })
+    }
 
     const finished = executeAssignment().finally(() => {
+      stopWaiting()
       if (running.get(task.id)?.settled === settled) {
         running.delete(task.id)
       }
@@ -161,7 +193,8 @@ export function createDelegation(input: {
         return { reason, response: "", error: error instanceof Error ? error.message : "The Tarefa could not start." }
       })
 
-      const delivery = !wait && !workSignal.aborted
+      stopWaiting()
+      const delivery = deliverLater && !workSignal.aborted
         ? input.runTurn(from.id, { author: "bot", authorBotId: to.id, taskId: task.id, triggerRunId: null, content: summarize(to, task, outcome), images: [], replyTo: null }, { signal: workSignal }).then((turn) => turn.finished)
         : Promise.resolve()
 
@@ -182,17 +215,19 @@ export function createDelegation(input: {
       }
     }
 
-    if (!wait) {
-      void finished.catch((error: unknown) => {
-        if (!workSignal.aborted) {
-          input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
-        }
-      })
+    void finished.catch((error: unknown) => {
+      if (!workSignal.aborted) {
+        input.observability.event({ name: "delegation.deliveryfailed", context: { botId: from.id, callerBotId: from.id, taskId: task.id }, error })
+      }
+    })
 
+    const outcome = wait ? await Promise.race([finished, released.promise]) : undefined
+
+    if (!outcome) {
       return `Tarefa delegated to ${to.name}. ${to.name} will reply later as a message in this conversation.`
     }
 
-    return summarize(to, task, await finished)
+    return summarize(to, task, outcome)
   }
 
   function delegateTo(bot: Bot): PiCustomTool {
@@ -219,6 +254,14 @@ export function createDelegation(input: {
   }
 
   return {
+    waiting(botId: string) {
+      return waiting.has(botId)
+    },
+    releaseWait(botId: string) {
+      for (const release of waiting.get(botId) ?? []) {
+        release()
+      }
+    },
     async continuePerson(task: Task, message: IncomingMessage) {
       const from = input.bots.get(task.callerBotId)
       const to = input.bots.get(task.assigneeBotId)

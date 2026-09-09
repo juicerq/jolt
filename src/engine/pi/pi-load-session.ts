@@ -6,7 +6,6 @@ const chunkDelayMs = 15
 const chunkLength = 24
 
 const thinking = "Preciso ler o módulo de cobrança, comparar as três funções e escolher a que mantém a interface atual. Vou verificar os testes antes de responder."
-const progress = "Encontrei dois pontos no cálculo. Vou comparar o impacto antes de fechar a recomendação."
 
 const response = [
   "Revisei o módulo de cobrança inteiro. O desconto é aplicado duas vezes quando há cupom e crédito na mesma compra, e o arredondamento acontece antes da soma dos itens.",
@@ -44,8 +43,6 @@ function scriptedTurn(): (PiRuntimeEvent | { type: "send"; content: string })[] 
     { type: "thinking-started" },
     ...chunks(thinking).map((text): PiRuntimeEvent => ({ type: "thinking", text })),
     { type: "thinking-finished" },
-    ...chunks(progress).map((text): PiRuntimeEvent => ({ type: "text", text })),
-    { type: "send", content: progress },
     { type: "tool-started", callId: "read-1", tool: "read", detail: "src/billing/invoice.ts" },
     { type: "tool-finished", callId: "read-1", tool: "read", failed: false },
     { type: "tool-started", callId: "bash-1", tool: "bash", detail: "bun test tests/billing" },

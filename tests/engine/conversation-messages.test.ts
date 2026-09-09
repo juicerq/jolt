@@ -7,7 +7,7 @@ import { createObservationSystem } from "@src/engine/observability/observability
 import { openDatabase } from "@src/engine/persistence/database"
 import { createPiAgentRuntime, type PiRuntimeEvent, type PiSessionFactory, type PiSessionInput } from "@src/engine/pi/pi-agent-runtime"
 import { createTasks } from "@src/engine/tasks/tasks"
-import { askTool, messageContentLimit, sendMessageTool } from "@src/shared/conversations"
+import { askTool, finishSilentlyTool, sendMessageTool } from "@src/shared/conversations"
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { must, rejects } from "../support/expect"
@@ -25,7 +25,7 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function conversation() {
+async function conversation(source: "person" | "routine" = "person") {
   const { observability } = createObservationSystem({ appSessionId: "messages", logDirectory: join(directory, "logs"), development: false })
   const databasePath = join(directory, "mimo.sqlite")
   const database = openDatabase(databasePath, observability)
@@ -78,7 +78,11 @@ async function conversation() {
   })
   const bot = await bots.create({ name: "Conversa" })
   const events = conversations.events()[Symbol.asyncIterator]()
-  await conversations.send({ botId: bot.id, content: "Me explica com detalhes", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  if (source === "routine") {
+    await conversations.call({ id: "monitor", botId: bot.id, content: "Avise se algo precisa da minha atenção", frequency: { form: "once", at: new Date().toISOString() }, nextCallAt: new Date().toISOString() })
+  } else {
+    await conversations.send({ botId: bot.id, content: "Me explica com detalhes", images: [], replyTo: null, mentionedBotIds: [], deliver: "queue" })
+  }
   const session = await opened.promise
   const tool = (name: string) => {
     const found = session.customTools?.find((candidate) => candidate.name === name)
@@ -109,7 +113,7 @@ async function conversation() {
 test("entrega cada mensagem durante o mesmo Turno e preserva a ordem ao reabrir o histórico", async () => {
   const c = await conversation()
   expect((await c.events.next()).value?.event.type).toBe("started")
-  const messages = ["A entrega é gravada antes da confirmação.", "Depois o Bot investiga as evidências do erro."]
+  const messages = ["A entrega é gravada antes da confirmação.", "Depois o Bot investiga as evidências do erro.\n\n".repeat(30).trim()]
 
   for (const content of messages) {
     c.emit({ type: "tool-started", callId: content, tool: sendMessageTool })
@@ -139,7 +143,6 @@ test("entrega cada mensagem durante o mesmo Turno e preserva a ordem ao reabrir 
 test("pergunta chega uma vez com opções e envios inválidos ou tardios não alteram o histórico", async () => {
   const c = await conversation()
   expect(await c.tool(sendMessageTool).execute({ content: "  " }).catch((error: unknown) => error)).toBeInstanceOf(Error)
-  expect(await c.tool(sendMessageTool).execute({ content: "a".repeat(messageContentLimit + 1) }).catch((error: unknown) => error)).toMatchObject({ message: expect.stringContaining("This message is too long") })
   const question = { content: "Qual formato?", options: [{ value: "pdf", label: "PDF" }, { value: "md", label: "Markdown" }], allowOther: true, multiple: false }
   await c.tool(askTool).execute(question)
   c.emit({ type: "text", text: question.content })
@@ -206,4 +209,43 @@ test("envio só confirma entrega depois de persistir a Mensagem", async () => {
   await c.tool(sendMessageTool).execute({ content: "Achei a causa." })
   c.finish()
   expect(c.history().filter((message) => message.author === "bot").map((message) => message.content)).toEqual(["Achei a causa."])
+})
+
+test("Rotina encerra sem mensagem, alerta ou novidade no resumo", async () => {
+  const c = await conversation("routine")
+  expect((await c.events.next()).value?.event.type).toBe("started")
+  expect(c.history()).toHaveLength(1)
+  await c.tool(finishSilentlyTool).execute({})
+  c.finish()
+  expect((await c.events.next()).value?.event).toMatchObject({ type: "message-finished", message: { content: "", ending: null } })
+  expect((await c.events.next()).value?.event).toEqual({ type: "finished", reason: "stop", silent: true })
+  expect(c.conversations.overview()).toEqual([])
+  const reopened = openDatabase(c.databasePath, c.observability)
+
+  try {
+    expect(reopened.conversations.lastMessages()).toMatchObject([{ author: "bot", content: "", ending: null }])
+    expect(reopened.conversations.overview()).toEqual([])
+  } finally {
+    reopened.close()
+  }
+})
+
+test("uma pergunta durante a Rotina exige resposta e invalida o encerramento silencioso", async () => {
+  const c = await conversation("routine")
+  await c.tool(finishSilentlyTool).execute({})
+  await c.conversations.send({ botId: c.bot.id, content: "O que você encontrou?", images: [], replyTo: null, mentionedBotIds: [], deliver: "now" })
+  await rejects(c.tool(finishSilentlyTool).execute({}), "A direct request needs an answer")
+  c.finish()
+  expect(c.history().at(-1)).toMatchObject({ ending: "failed" })
+})
+
+test("silêncio explícito não esconde uma falha posterior", async () => {
+  const c = await conversation("routine")
+  expect((await c.events.next()).value?.event.type).toBe("started")
+  await c.tool(finishSilentlyTool).execute({})
+  expect((await c.events.next()).value?.event.type).toBe("message-finished")
+  c.emit({ type: "finished", reason: "error", error: "Conexão perdida" })
+  expect((await c.events.next()).value?.event).toMatchObject({ type: "message-finished", message: { ending: "failed", error: "Conexão perdida" } })
+  expect((await c.events.next()).value?.event).toEqual({ type: "finished", reason: "error", error: "Conexão perdida" })
+  c.finish()
 })

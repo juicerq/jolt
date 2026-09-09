@@ -49,11 +49,11 @@ Um Bot sem Líder que outro Bot pode chamar por uma Tarefa. A ligação vale num
 _Evitar_: Contato, Integrante, parceiro
 
 **Fila**:
-As mensagens que a pessoa escreveu enquanto o Bot trabalha e que aguardam a vez. Elas ficam no Engine, na ordem em que foram escritas, e entram no Turno seguinte quando o atual termina por conta própria. Interromper ou uma falha preservam a Fila.
+As mensagens que a pessoa escreveu enquanto o Bot trabalha e que aguardam a vez. Elas ficam no Engine e entram no Turno seguinte quando o atual termina por conta própria; quando o Bot está apenas aguardando um Resultado da Tarefa, a nova mensagem é adiantada automaticamente. Interromper ou uma falha preservam a Fila.
 _Evitar_: Buffer, rascunho, pendências
 
 **Adiantar**:
-Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre uma ferramenta e a próxima decisão, sem perder o trabalho já feito. Difere de Interromper, que encerra o Turno.
+Entregar uma mensagem ao Bot dentro do Turno em andamento. O Bot a recebe entre uma ferramenta e a próxima decisão, sem perder o trabalho já feito; quando ele aguarda um Resultado da Tarefa, a mensagem da pessoa é adiantada automaticamente e libera essa espera, mantendo o outro Bot em execução e seu retorno para depois.
 _Evitar_: Steer, forçar, priorizar
 
 **Projeto**:
@@ -141,8 +141,12 @@ A capacidade do Bot de pesquisar e ler mensagens antigas da sua Conversa, com da
 _Evitar_: Memória, Curadoria, histórico compartilhado
 
 **Mensagem**:
-Um envio deliberado e persistido na Conversa do Bot que desenvolve uma ideia completa. Um Turno pode produzir várias Mensagens sucessivas, sem esperar uma Resposta entre elas; explicações detalhadas preservam esse ritmo de conversa.
+Um envio deliberado e persistido na Conversa do Bot que entrega uma resposta, um resultado útil ou uma decisão. Informações relacionadas ficam juntas numa resposta autossuficiente; novas Mensagens durante o trabalho comunicam resultados que já podem ser usados, mudanças relevantes ou impedimentos.
 _Evitar_: Turno, Atividade, fragmento de streaming
+
+**Encerramento silencioso**:
+A conclusão explícita de uma Chamada, Disparo ou processamento de Resultado da Tarefa sem novidade relevante para comunicar, preservando o registro do trabalho sem gerar Mensagem visível ou notificação. Não esconde falhas nem substitui uma resposta solicitada pela pessoa.
+_Evitar_: Falha, resposta vazia, interrupção
 
 **Pergunta**:
 Uma Mensagem final em que o Bot apresenta Opções conhecidas e espera a escolha da pessoa antes de continuar. Ela aceita uma única Opção ou, quando o Bot permite, várias; a Pergunta encerra o Turno e não substitui um Pedido de permissão ou Pedido de Plugin.
@@ -156,16 +160,12 @@ _Evitar_: Decisão, retorno da ferramenta
 Uma escolha estruturada e persistida dentro de uma Pergunta, com valor estável, rótulo e uma descrição opcional.
 _Evitar_: Ação, botão, item do select
 
-**Abertura**:
-A primeira Mensagem de um trabalho com ações. Confirma o que o Bot entendeu e nomeia o primeiro passo antes de qualquer ferramenta executar.
-_Evitar_: Resultado, status genérico
-
 **Atividade**:
 O registro do pensamento exposto pelo Fornecedor do Bot e das ações executadas por um Bot, separado da conversa.
 _Evitar_: Mensagem, pensamento não exposto, raciocínio
 
 **Detalhes do trabalho**:
-A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão. Desligar oculta a Atividade sem apagá-la; durante um Turno em andamento, uma animação sem texto indica que o Bot continua trabalhando.
+A exibição da Atividade na Conversa. A pessoa escolhe uma preferência única para o Mimo, desligada por padrão; com os detalhes desligados, apenas uma animação discreta indica que o Bot trabalha, sem narrar etapas.
 _Evitar_: Passos do agente, apagar Atividade, Mensagem
 
 **Duração do pensamento**:

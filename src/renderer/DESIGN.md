@@ -457,8 +457,10 @@ supporting line keeps a short left border, because it belongs to that step.
 Failed and unfinished actions do not count as completed work. Activity details
 are a global display preference and start hidden. When hidden, persisted
 activity renders nothing. A running turn shows three quiet pulsing dots below
-the latest message, without a visible label, and removes them for a permission
-request, Plugin request, failure, or completed response. Showing the details
+the latest message, without explanatory text or narrated work status.
+The dots are removed for a permission request, Plugin request, failure, or completed turn.
+Background checks with no meaningful update leave no visible message or notification;
+their recorded Activity remains available in the details. Showing the details
 restores the complete live stack and persisted disclosures; hiding never
 deletes the recorded Activity.
 
@@ -623,7 +625,10 @@ while the Comando lacks what it needs, such as `lembrar` before any text.
 While the Bot responds, the field stays editable and the stop action sits at
 the left of the send action, outlined in error ink. Enter puts the draft in the
 Fila. Ctrl+Enter, or Ctrl with a click on send, adianta the draft: it reaches
-the Bot in the current Turn without stopping the work.
+the Bot in the current Turn without stopping the work. While the Bot is waiting
+for another Bot's result, Enter sends directly and releases that wait. The work
+continues and its result arrives later. The send action remains available without
+an explanatory status.
 
 The Fila is a raised 12px card that sits above the prompt in the flow, at the
 prompt's width, so the conversation and the return-to-end button move up with
