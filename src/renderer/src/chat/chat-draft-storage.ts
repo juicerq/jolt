@@ -18,7 +18,7 @@ function isImage(value: unknown): value is MessageImage {
 }
 
 function isDraft(value: unknown): value is ChatDraft {
-  return isRecord(value) && typeof value.content === "string" && Array.isArray(value.images) && value.images.every(isImage) && Array.isArray(value.mentions) && value.mentions.every(isMention) && (value.command === undefined || value.command === "lembrar")
+  return isRecord(value) && typeof value.content === "string" && Array.isArray(value.images) && value.images.every(isImage) && Array.isArray(value.mentions) && value.mentions.every(isMention) && (value.command === undefined || value.command === "lembrar" || value.command === "novo")
 }
 
 export function loadChatDrafts(): Record<string, ChatDraft> {

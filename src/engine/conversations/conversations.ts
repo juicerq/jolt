@@ -70,7 +70,7 @@ export function createConversations(input: {
   const shutdown = new AbortController()
   const sessions = new Map<string, string>()
   const active = new Map<string, ActiveTurn>()
-  const compactions = new Map<string, Promise<void>>()
+  const sessionChanges = new Map<string, Promise<void>>()
   const answering = new Set<string>()
   const streams = new Set<ReturnType<typeof createQueue<BotConversationEvent>>>()
   const waitingOn = new Set<{ callerId: string; targetId: string }>()
@@ -288,10 +288,10 @@ export function createConversations(input: {
     signal?.throwIfAborted()
 
     if (stopping.has(botId)) {
-      throw new Error("Aguarde a interrupção do trabalho do time terminar.")
+      throw new Error("Aguarde a operação da sessão terminar.")
     }
 
-    if (compactions.has(botId)) {
+    if (sessionChanges.has(botId)) {
       throw new Error("Bot is compacting its Context")
     }
 
@@ -625,6 +625,10 @@ export function createConversations(input: {
   }
 
   async function accept(botId: string, message: IncomingMessage, delivery: "queue" | "now") {
+    if (stopping.has(botId)) {
+      throw new Error("Aguarde a operação da sessão terminar.")
+    }
+
     const { content, images, replyTo } = message
     const turn = active.get(botId)
 
@@ -708,6 +712,37 @@ export function createConversations(input: {
     notify(botId: string, event: ConversationEvent) {
       deliver(botId, event)
     },
+    async newSession(botId: string) {
+      shutdown.signal.throwIfAborted()
+      const bot = input.bots.get(botId)
+
+      if (!bot || bot.closed) {
+        throw new Error("Bot not found or closed")
+      }
+
+      if (stopping.has(botId) || sessionChanges.has(botId)) {
+        throw new Error("Aguarde a operação da sessão terminar.")
+      }
+
+      const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+      stopping.add(botId)
+      sessionChanges.set(botId, settled)
+
+      try {
+        await Promise.all([delegation.abortFor(new Set([botId])), active.get(botId)?.abort("person")])
+        input.runtime.close(botId)
+        sessions.delete(botId)
+        input.database.conversations.saveSessionFile(botId, null)
+        messageQueue.clear(botId)
+        publishQueue(botId)
+        await open(botId)
+        input.observability.event({ name: "conversation.newsession", context: { botId } })
+      } finally {
+        stopping.delete(botId)
+        sessionChanges.delete(botId)
+        settle()
+      }
+    },
     async compact({ botId, instructions }: CompactInput) {
       shutdown.signal.throwIfAborted()
 
@@ -715,19 +750,19 @@ export function createConversations(input: {
         throw new Error("Bot is already working")
       }
 
-      if (compactions.has(botId)) {
+      if (sessionChanges.has(botId)) {
         throw new Error("Bot is already compacting its Context")
       }
 
       const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
-      compactions.set(botId, settled)
+      sessionChanges.set(botId, settled)
 
       try {
         await open(botId)
 
         return await input.runtime.compact(botId, instructions)
       } finally {
-        compactions.delete(botId)
+        sessionChanges.delete(botId)
         settle()
       }
     },
@@ -753,6 +788,10 @@ export function createConversations(input: {
       }
     },
     async promote({ botId, id }: QueueInput) {
+      if (stopping.has(botId)) {
+        throw new Error("Aguarde a operação da sessão terminar.")
+      }
+
       if (!messageQueue.promote(botId, id)) {
         throw new Error("Message is not in the Fila")
       }
@@ -821,7 +860,7 @@ export function createConversations(input: {
     },
     async close(botId: string) {
       messageQueue.clear(botId)
-      await compactions.get(botId)
+      await sessionChanges.get(botId)
       const current = active.get(botId)
 
       if (current) {
@@ -834,11 +873,11 @@ export function createConversations(input: {
     async dispose() {
       shutdown.abort()
       await delegation.abortFor(new Set(input.bots.list().map((bot) => bot.id)))
-      await Promise.allSettled([...active.values()].map((turn) => turn.settled).concat([...compactions.values()]))
+      await Promise.allSettled([...active.values()].map((turn) => turn.settled).concat([...sessionChanges.values()]))
       input.runtime.dispose()
       sessions.clear()
       active.clear()
-      compactions.clear()
+      sessionChanges.clear()
 
       for (const stream of streams) {
         stream.close()

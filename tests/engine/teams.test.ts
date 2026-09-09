@@ -476,3 +476,27 @@ test("Líder não configura Colegas nem integrantes de outro Time", async () => 
     expect(app.bots.get(target.id)?.effort).toBe("medium")
   }
 })
+
+
+test.each([false, true])("/novo impede retorno da delegação antiga, inclusive se já concluída: %s", async (completed) => {
+  const app = await teamApp()
+  const leader = await app.bots.create({ name: "Líder" })
+  const member = await app.bots.create({ name: "Integrante", leaderBotId: leader.id })
+  const leaderTurn = await app.start(leader)
+  await leaderTurn.tool("delegate", { bot: member.id, instructions: "Pesquisar", wait: "no" })
+  const memberTurn = await app.next(member)
+
+  if (completed) {
+    await memberTurn.finish("Resultado antigo")
+  }
+
+  await app.conversations.newSession(leader.id)
+
+  expect(app.tasks.listForBot(leader.id)[0]?.status).toBe(completed ? "done" : "interrupted")
+  expect(app.conversations.active(leader.id)).toBeUndefined()
+  expect(app.conversations.active(member.id)).toBeUndefined()
+  expect(app.conversations.history({ botId: leader.id, limit: 100 }).messages.some((message) => message.authorBotId === member.id)).toBe(false)
+  const fresh = await app.start(leader)
+  expect(fresh.input.sessionFile).toBeUndefined()
+  await fresh.finish("Nova sessão")
+})

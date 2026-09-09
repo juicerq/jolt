@@ -3,7 +3,7 @@ import type { Bot } from "@src/shared/bots"
 import type { EngineClient } from "../engine-client"
 import type { ChatDraft } from "./chat-store"
 
-export type ChatCommandName = "lembrar"
+export type ChatCommandName = "lembrar" | "novo"
 
 export interface ChatCommandSuggestion {
   command: ChatCommandName
@@ -21,9 +21,12 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
       void queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
     },
   }))
+  const { mutateAsync: newSession, isPending: renewing, error: renewError, reset: resetSession, isSuccess: renewed } = useMutation(client.query.conversations.newSession.mutationOptions())
   const context = { memoryEnabled: bot.memoryEnabled }
   const suggestions = draft.command ? [] : suggestChatCommands(draft.content, context)
-  const command = draft.command ? buildChatCommand(draft.command, draft.content, context) : null
+  const typedNew = !draft.command && draft.content.trim().toLowerCase() === "/novo"
+  const selected = draft.command ?? (typedNew ? "novo" : undefined)
+  const command = selected ? buildChatCommand(selected, typedNew ? "" : draft.content, context) : null
 
   function start(content: string) {
     if (draft.command) {
@@ -34,6 +37,12 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
   }
 
   async function run(target: ChatCommand) {
+    if (target.command === "novo") {
+      await newSession({ botId: bot.id })
+
+      return
+    }
+
     await remember({ botId: bot.id, content: target.content })
   }
 
@@ -42,18 +51,25 @@ export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft
     command,
     start,
     run,
-    reset,
-    pending: remembering,
-    error: rememberError,
+    reset: () => {
+      if (remembering || renewing) {
+        return
+      }
+
+      reset()
+      resetSession()
+    },
+    pending: remembering || renewing,
+    error: rememberError ?? renewError,
+    renewed,
   }
 }
 
 function availableChatCommands(context: ChatCommandContext): ChatCommandSuggestion[] {
-  if (!context.memoryEnabled) {
-    return []
-  }
-
-  return [{ command: "lembrar", detail: "Guarda uma Lembrança na Memória do Bot" }]
+  return [
+    { command: "novo", detail: "Começa uma sessão sem o contexto anterior e recarrega as instruções" },
+    ...(context.memoryEnabled ? [{ command: "lembrar" as const, detail: "Guarda uma Lembrança na Memória do Bot" }] : []),
+  ]
 }
 
 function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {
@@ -86,6 +102,14 @@ function startedChatCommand(content: string, context: ChatCommandContext) {
 function buildChatCommand(command: ChatCommandName, content: string, context: ChatCommandContext): ChatCommand | null {
   const text = content.trim()
 
+  if (command === "novo") {
+    if (text !== "") {
+      return null
+    }
+
+    return { command, content: "" }
+  }
+
   if (!context.memoryEnabled || text === "") {
     return null
   }
@@ -94,5 +118,6 @@ function buildChatCommand(command: ChatCommandName, content: string, context: Ch
 }
 
 export const chatCommandPlaceholders: Record<ChatCommandName, string> = {
+  novo: "Enter para começar uma sessão nova e esvaziar a Fila",
   lembrar: "O que o Bot deve guardar na Memória...",
 }

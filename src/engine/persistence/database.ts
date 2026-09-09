@@ -300,7 +300,7 @@ export function openDatabase(path: string, observability: Observability) {
       sessionFile(botId: string) {
         return observability.span({ name: "database.conversationsessionget", context: { botId } }, () => database.select({ sessionFile: conversations.sessionFile }).from(conversations).where(eq(conversations.botId, botId)).get()?.sessionFile ?? undefined)
       },
-      saveSessionFile(botId: string, sessionFile: string) {
+      saveSessionFile(botId: string, sessionFile: string | null) {
         return observability.span({ name: "database.conversationsessionsave", context: { botId } }, () => {
           database.insert(conversations).values({ botId, sessionFile }).onConflictDoUpdate({ target: conversations.botId, set: { sessionFile } }).run()
         })
