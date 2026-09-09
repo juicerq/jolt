@@ -1,4 +1,4 @@
-import { ArrowPathIcon, BookmarkIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, UserPlusIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, BookmarkIcon, ChevronDownIcon, Cog6ToothIcon, FolderIcon, MagnifyingGlassIcon, PlusIcon, PuzzlePieceIcon, TrashIcon, UserPlusIcon } from "@heroicons/react/24/outline"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type Ref, useId, useRef, useState } from "react"
@@ -6,13 +6,14 @@ import type { Bot } from "@src/shared/bots"
 import type { ProjectGroups } from "@src/shared/projects"
 import { BotFace } from "../bots/bot-face"
 import { groupMembers } from "../bots/bot-members"
-import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
+import { botDraftAvatarSeed, type BotDraft, botsStore, forgetBot, openCreateBot, openCreateProject, openPlugins, openSettings, selectBot } from "../bots/bots-store"
 import { chatControlAnchor } from "../chat/chat-control-menu"
 import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { appUpdateStore } from "../settings/app-update-store"
 import { Button } from "../ui/button"
+import { ConfirmationDialog } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { InlineAction } from "../ui/inline-action"
 import { menuCardClassName, MenuOption } from "../ui/menu"
@@ -95,18 +96,18 @@ function SidebarProjects({ client, search }: { client: EngineClient; search: str
           <ProjectHeading id="pinned-bots">Fixados</ProjectHeading>
           <ul className="m-0 list-none p-0 max-[720px]:block">
             {pinnedBots.map((bot) => (
-              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
+              <BotGroup bot={bot} client={client} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
             ))}
           </ul>
         </section>
       )}
-      {projects.map((project) => <ProjectSection key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />)}
+      {projects.map((project) => <ProjectSection client={client} key={project.id} project={project} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />)}
       {unassignedBots.length > 0 && (
         <section className="[&+&]:mt-5 [&+&]:border-t [&+&]:border-outline [&+&]:pt-4" aria-label="Sem projeto">
           {(projects.length > 0 || pinnedBots.length > 0) && <ProjectHeading id="unassigned-bots">Sem projeto</ProjectHeading>}
           <ul className="m-0 list-none p-0 max-[720px]:block">
             {unassignedBots.map((bot) => (
-              <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
+              <BotGroup bot={bot} client={client} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningPending ? pinning?.id : undefined} onTogglePinned={togglePinned} />
             ))}
           </ul>
         </section>
@@ -115,7 +116,7 @@ function SidebarProjects({ client, search }: { client: EngineClient; search: str
   )
 }
 
-function ProjectSection({ project, selectedBotId, statuses, pinningBotId, onTogglePinned }: { project: ProjectGroups["projects"][number]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
+function ProjectSection({ client, project, selectedBotId, statuses, pinningBotId, onTogglePinned }: { client: EngineClient; project: ProjectGroups["projects"][number]; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
   return (
     <section className="[&+&]:mt-5" aria-labelledby={`project-${project.id}`}>
       <ProjectHeading id={`project-${project.id}`}>{project.name}</ProjectHeading>
@@ -124,7 +125,7 @@ function ProjectSection({ project, selectedBotId, statuses, pinningBotId, onTogg
       ) : (
         <ul className="m-0 list-none p-0 max-[720px]:block">
           {project.bots.map((bot) => (
-            <BotGroup bot={bot} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} />
+            <BotGroup bot={bot} client={client} key={bot.id} selectedBotId={selectedBotId} statuses={statuses} pinningBotId={pinningBotId} onTogglePinned={onTogglePinned} />
           ))}
         </ul>
       )}
@@ -283,7 +284,7 @@ function splitPinnedBots(data: ProjectGroups) {
   return { pinnedBots, projects, unassignedBots: split(data.unassignedBots) }
 }
 
-function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned }: { bot: Bot & { members: Bot[] }; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
+function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onTogglePinned }: { bot: Bot & { members: Bot[] }; client: EngineClient; selectedBotId: string | null; statuses: Record<string, ChatStatus | undefined>; pinningBotId?: string; onTogglePinned: TogglePinned }) {
   const hasTeam = bot.members.length > 0
   const [expanded, setExpanded] = useState(hasTeam)
   const [closedShown, setClosedShown] = useState(false)
@@ -326,10 +327,13 @@ function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned }
           {openMembers.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} status={statuses[member.id] ?? "available"} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
           {groups.closed.length > 0 && (
             <li className={memberItemClassName}>
-              <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
-                Encerrados
-                <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
-              </button>
+              <div className="mb-0.5 flex w-full items-center gap-1 rounded-lg border border-transparent bg-transparent pl-2.5 pr-1">
+                <button className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-1.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+                  Encerrados
+                  <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
+                </button>
+                <ClosedMembersCleanup client={client} leaderName={bot.name} members={groups.closed} />
+              </div>
             </li>
           )}
           {closedShown && groups.closed.map((member) => <MemberItem key={member.id} member={member} selected={highlighted === member.id} pinning={pinningBotId === member.id} onTogglePinned={onTogglePinned} />)}
@@ -340,6 +344,50 @@ function BotGroup({ bot, selectedBotId, statuses, pinningBotId, onTogglePinned }
 }
 
 const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5"
+
+function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineClient; leaderName: string; members: Bot[] }) {
+  const queryClient = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const { mutateAsync: removeBot, isPending: removing } = useMutation(client.query.bots.remove.mutationOptions({
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: client.query.projects.key() })
+      void queryClient.invalidateQueries({ queryKey: client.query.plugins.key() })
+    },
+  }))
+  const label = members.length === 1 ? "1 integrante encerrado" : `${members.length} integrantes encerrados`
+
+  async function removeClosed() {
+    const results = await Promise.allSettled(members.map((member) => removeBot({ id: member.id })))
+    members.forEach((member, index) => {
+      if (results[index]?.status === "fulfilled") {
+        forgetBot(member.id)
+      }
+    })
+  }
+
+  return (
+    <>
+      <IconButton className="opacity-0 transition-opacity duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} position="relative" shape="circle" size={24} type="button" label={`Excluir ${label} de ${leaderName}`} disabled={removing} onClick={() => setConfirming(true)}>
+        <TrashIcon aria-hidden="true" />
+      </IconButton>
+      {confirming && (
+        <ConfirmationDialog
+          icon={<TrashIcon />}
+          title="Excluir encerrados"
+          onClose={() => !removing && setConfirming(false)}
+          actions={(
+            <>
+              <Button variant="text" type="button" autoFocus disabled={removing} onClick={() => setConfirming(false)}>Cancelar</Button>
+              <Button variant="danger" type="button" disabled={removing} onClick={() => { setConfirming(false); void removeClosed() }}>{removing ? "Excluindo..." : "Excluir"}</Button>
+            </>
+          )}
+        >
+          <p className="m-0 text-body text-secondary">{members.length === 1 ? `O integrante encerrado do time de ${leaderName} será excluído com a conversa e os arquivos dele.` : `Os ${members.length} integrantes encerrados do time de ${leaderName} serão excluídos com as conversas e os arquivos deles.`}</p>
+        </ConfirmationDialog>
+      )}
+    </>
+  )
+}
 const memberItemClassName = "relative block border-0 p-0 before:absolute before:top-[-2px] before:bottom-1/2 before:left-[-10px] before:w-2 before:rounded-bl before:border-b before:border-l before:border-outline before:content-[''] after:absolute after:top-1/2 after:bottom-[-2px] after:left-[-10px] after:w-px after:bg-outline after:content-[''] last:after:hidden"
 
 function MemberItem({ member, selected, status, pinning, onTogglePinned }: { member: Bot; selected: boolean; status?: ChatStatus; pinning: boolean; onTogglePinned: TogglePinned }) {
