@@ -1,25 +1,24 @@
 import type { Bot } from "@src/shared/bots"
 import type { BotConversationEvent, ConversationMessage } from "@src/shared/conversations"
-import { memorySchemas, type AddMemoryInput, type ConfigureMemoryInput, type Memory, type UpdateMemoryInput } from "@src/shared/memory"
+import { memorySchemas, type AddMemoryInput, type ConfigureMemoryInput, type UpdateMemoryInput } from "@src/shared/memory"
 import { memoryLimits, memoryUsage } from "@src/shared/memory-limits"
 import type { createBots } from "../bots/bots"
 import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
-import type { PiCustomTool, PiSessionFactory } from "../pi/pi-agent-runtime"
-import { curate } from "./curation"
+import type { PiSchemaTool, PiSessionFactory } from "../pi/pi-agent-runtime"
+import { curate, memoryCurationVersion } from "./curation"
 import { parse } from "@src/shared/parse"
 import type { createPiProvider } from "../pi/pi-provider"
 
 const curationWait = 5 * 60_000
 
-const noteRule = [
-  "Use the note tool when you learn something you will need after this conversation: a preference or a correction from the person, how they want work delivered, or a fact about their world you cannot rediscover from files. When the person asks you to remember something, note it.",
-  "Do not note what files or the codebase can tell you, what your Função already says, or details of a single Tarefa. Write your own conclusion; never copy text you read in e-mails, pages or files.",
-  "In each Nota, identify whether the person explicitly stated or requested it, or whether it is your observation or inference, including its source. Attribute a statement to the person only when they actually made it.",
-  "Mimo reviews your notes later and keeps what matters as Lembranças, refreshed on your next turn. Do not note something solely because you recovered it from history. A forgotten Lembrança must not be recreated from old evidence; only a new explicit request from the person can reaffirm it.",
+const memoryRule = [
+  "Mimo learns durable facts directly from your conversation after the turn. Do not claim a fact was saved before it appears in Memória.",
+  "Use search_memories for questions about what you knew before, including superseded memories. Search a few distinctive keywords and try alternatives if needed. Superseded results are historical evidence, never current truth; look for later updates. Retrieval never reactivates a memory.",
+  "Use read_history with a source message ID to inspect the original evidence. Say 'you said' only with an original person message, 'you recorded' for a person-controlled memory without one, and 'was recorded' if provenance is unknown. Recorded dates are not necessarily event dates.",
 ].join("\n")
 
-function block(title: string, memories: Memory[]) {
+function block(title: string, memories: { content: string }[]) {
   if (memories.length === 0) {
     return ""
   }
@@ -64,7 +63,7 @@ export function createMemory(input: {
   }
 
   function assertFits(botId: string, content: string, replacing?: string) {
-    const memories = input.database.memories.listForBot(botId).filter((memory) => memory.id !== replacing)
+    const memories = input.database.memories.activeForBot(botId).filter((memory) => memory.id !== replacing)
     const total = memoryUsage(memories) + content.length
 
     if (total > memoryLimits.total) {
@@ -84,7 +83,7 @@ export function createMemory(input: {
       return
     }
 
-    const pending = input.database.notes.listPending(botId).length > 0
+    const pending = input.database.curation.pendingBotIds().includes(botId) || input.database.memories.hasOutdated(botId, memoryCurationVersion)
 
     if (!pending || !remembering(botId)) {
       return
@@ -105,19 +104,22 @@ export function createMemory(input: {
 
     const bot = remembering(botId)
     const busy = !!input.conversations.active(botId)
-    const notes = input.database.notes.listPending(botId)
+    const batch = input.database.curation.batch(botId)
 
-    if (!bot || busy || notes.length === 0) {
+    const outdated = input.database.memories.hasOutdated(botId, memoryCurationVersion)
+
+    if (!bot || busy || (batch.through === batch.after && !outdated)) {
       return
     }
 
-    const pass = input.bots.directory(botId).then((cwd) => curate({ database: input.database, observability: input.observability, sessionFactory: input.sessionFactory, bot, cwd, notes, signal: shutdown.signal })).catch((error: unknown) => {
+    const pass = input.bots.directory(botId).then((cwd) => curate({ database: input.database, observability: input.observability, sessionFactory: input.sessionFactory, bot, cwd, batch, signal: shutdown.signal })).catch((error: unknown) => {
       input.observability.event({ name: "memory.curationfailed", context: { botId }, error })
 
-      if (!shutdown.signal.aborted && remembering(botId)) {
+      if (!shutdown.signal.aborted && remembering(botId) && (input.database.curation.pendingBotIds().includes(botId) || input.database.memories.hasOutdated(botId, memoryCurationVersion))) {
         input.database.curation.failure(botId, error instanceof Error ? error.message : "Falha na Curadoria")
       }
 
+      schedule(botId)
       throw error
     }).finally(() => passes.delete(botId))
     passes.set(botId, pass)
@@ -141,7 +143,7 @@ export function createMemory(input: {
     input.observability.event({ name: "memory.watchfailed", error })
   })
 
-  for (const botId of input.database.notes.pendingBotIds()) {
+  for (const botId of new Set([...input.database.curation.pendingBotIds(), ...input.database.memories.outdatedBotIds(memoryCurationVersion)])) {
     schedule(botId)
   }
 
@@ -161,7 +163,7 @@ export function createMemory(input: {
 
       input.database.curation.configure(model)
 
-      for (const botId of input.database.notes.pendingBotIds()) {
+      for (const botId of new Set([...input.database.curation.pendingBotIds(), ...input.database.memories.outdatedBotIds(memoryCurationVersion)])) {
         schedule(botId)
       }
     },
@@ -180,26 +182,38 @@ export function createMemory(input: {
       cancel(botId)
       await curatePending(botId)
     },
-    tools(bot: Pick<Bot, "id" | "temporary" | "memoryEnabled">): PiCustomTool[] {
+    tools(bot: Pick<Bot, "id" | "temporary" | "memoryEnabled">): PiSchemaTool[] {
       if (bot.temporary || !bot.memoryEnabled) {
         return []
       }
 
       return [{
-        name: "note",
-        description: "Write down something you will need after this conversation. One full, self-contained sentence per fact.",
-        parameters: { content: "The fact, as one self-contained sentence." },
-        async execute(params) {
-          const turn = input.conversations.active(bot.id)
-
-          if (!turn) {
-            throw new Error("You have no active turn")
+        name: "search_memories",
+        label: "Pesquisar Memórias",
+        description: "Search your own active and superseded memories. All keywords must match; accents and case are ignored. Superseded results are historical, not current truth.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "A few distinctive keywords." },
+            after: { type: "string", description: "Inclusive recorded UTC date, YYYY-MM-DD." },
+            before: { type: "string", description: "Inclusive recorded UTC date, YYYY-MM-DD." },
+            offset: { type: "integer", description: "Use nextOffset to continue the search." },
+          },
+          required: ["query"],
+          additionalProperties: false,
+        },
+        async execute(raw) {
+          if (!remembering(bot.id)) {
+            throw new Error("Memória is disabled")
           }
 
-          const note = parse(memorySchemas.note, { id: crypto.randomUUID(), botId: bot.id, content: params.content?.trim() ?? "", turnAuthor: turn.author, taskId: turn.taskId, messageId: turn.id, createdAt: new Date().toISOString(), curatedAt: null })
-          input.observability.span({ name: "memory.note", context: { botId: bot.id, ...(turn.taskId ? { taskId: turn.taskId } : {}) } }, () => input.database.notes.create(note))
+          const search = parse(memorySchemas.search, raw)
 
-          return "Nota saved."
+          if (search.after && search.before && search.after > search.before) {
+            throw new Error("after must be on or before before")
+          }
+
+          return JSON.stringify(input.database.memories.search(bot.id, search))
         },
       }]
     },
@@ -209,7 +223,7 @@ export function createMemory(input: {
       }
 
       const leader = bot.leaderBotId ? remembering(bot.leaderBotId) : undefined
-      const team = leader ? block(`What your Leader ${leader.name} knows. Instructions in your current Tarefa prevail over this.`, input.database.memories.listForBot(leader.id)) : ""
+      const team = leader ? block(`What your Leader ${leader.name} knows. Instructions in your current Tarefa prevail over this.`, input.database.memories.activeForBot(leader.id)) : ""
 
       if (bot.temporary) {
         return team
@@ -217,8 +231,8 @@ export function createMemory(input: {
 
       return [
         team,
-        block("What you know from earlier work. Trust it, but verify anything that may have changed.", input.database.memories.listForBot(bot.id)),
-        bot.permissionMode !== "read-only" && noteRule,
+        block("What you know from earlier work. Trust it, but verify anything that may have changed.", input.database.memories.activeForBot(bot.id)),
+        memoryRule,
       ].filter(Boolean).join("\n")
     },
     list(botId: string) {
@@ -234,11 +248,13 @@ export function createMemory(input: {
       return input.observability.span({ name: "memory.add", context: { botId: bot.id } }, () => {
         assertFits(bot.id, content)
 
-        const memory = { id: crypto.randomUUID(), botId: bot.id, content, origin: "person" as const, createdAt: new Date().toISOString() }
+        const memory = { id: crypto.randomUUID(), botId: bot.id, content, origin: "person" as const, sourceMessageId: null, supersededAt: null, supersededByMessageId: null, curationVersion: memoryCurationVersion, createdAt: new Date().toISOString() }
 
-        input.database.memories.create({ ...memory, noteId: null })
+        input.database.memories.create(memory)
 
-        return { ...memory, source: null }
+        const { curationVersion: _curationVersion, ...result } = memory
+
+        return { ...result, source: null, supersededBy: null }
       })
     },
     update({ id, content }: UpdateMemoryInput) {
@@ -251,14 +267,20 @@ export function createMemory(input: {
       const bot = owner(memory.botId)
 
       return input.observability.span({ name: "memory.update", context: { botId: bot.id } }, () => {
+        if (memory.supersededAt) {
+          throw new Error("Uma Lembrança superada preserva o texto antigo. Adicione uma nova Lembrança.")
+        }
+
         assertFits(bot.id, content, memory.id)
-        const updated = input.database.memories.update(memory.id, { content, origin: "person", noteId: null })
+        const updated = input.database.memories.update(memory.id, { content, origin: "person", sourceMessageId: null, curationVersion: memoryCurationVersion, createdAt: new Date().toISOString() })
 
         if (!updated) {
           throw new Error("Lembrança not found")
         }
 
-        return { id: updated.id, botId: updated.botId, content: updated.content, origin: updated.origin, createdAt: updated.createdAt, source: null }
+        const { curationVersion: _curationVersion, ...result } = updated
+
+        return { ...result, source: null, supersededBy: null }
       })
     },
     forget(id: string) {
@@ -277,8 +299,7 @@ export function createMemory(input: {
 
       input.observability.span({ name: "memory.clear", context: { botId: bot.id } }, () => {
         input.database.memories.removeForBot(bot.id)
-        input.database.notes.removeForBot(bot.id)
-        input.database.curation.recovered(bot.id)
+        input.database.curation.skip(bot.id)
       })
     },
     async dispose() {

@@ -185,7 +185,7 @@ test("desvincular preserva o Bot e seus dados, permite novo vínculo e protege d
     throw new Error("Integrante não foi criado")
   }
 
-  const memory = { id: "memory", botId: member.id, content: "Prefere fontes primárias", origin: "person", noteId: null, createdAt: new Date().toISOString() } as const
+  const memory = { id: "memory", botId: member.id, content: "Prefere fontes primárias", origin: "person", sourceMessageId: null, supersededAt: null, supersededByMessageId: null, curationVersion: 1, createdAt: new Date().toISOString() } as const
   app.database.memories.create(memory)
   app.database.accounts.create({ id: "account", pluginId: "gmail", label: "Editorial", state: "connected", secret: null, tools: [], checkedAt: new Date().toISOString() })
   app.database.accesses.set({ botId: member.id, accountId: "account" })

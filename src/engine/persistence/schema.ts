@@ -3,7 +3,7 @@ import { index, integer, primaryKey, snakeCase, text, uniqueIndex } from "drizzl
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core"
 import type { StoredBot } from "@src/shared/bots"
 import type { ConversationMessage } from "@src/shared/conversations"
-import type { CurationModel, Note, StoredMemory } from "@src/shared/memory"
+import type { CurationModel, StoredMemory } from "@src/shared/memory"
 import type { StoredAccount, StoredPlugin } from "@src/shared/plugins"
 import type { Routine } from "@src/shared/routines"
 import type { Task } from "@src/shared/tasks"
@@ -97,23 +97,20 @@ export const routines = snakeCase.table("routines", {
   createdAt: text().notNull(),
 }, (table) => [index("routines_bot_id").on(table.botId)])
 
-export const notes = snakeCase.table("notes", {
-  id: text().primaryKey(),
-  botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
-  content: text().notNull(),
-  turnAuthor: text().$type<Note["turnAuthor"]>().notNull(),
-  taskId: text().references(() => tasks.id, { onDelete: "set null" }),
-  messageId: text().references(() => messages.id, { onDelete: "set null" }),
-  createdAt: text().notNull(),
-  curatedAt: text(),
-}, (table) => [index("notes_bot_curated").on(table.botId, table.curatedAt)])
+export const memoryProgress = snakeCase.table("memory_progress", {
+  botId: text().primaryKey().references(() => bots.id, { onDelete: "cascade" }),
+  curatedThroughPosition: integer().notNull().default(0),
+})
 
 export const memories = snakeCase.table("memories", {
   id: text().primaryKey(),
   botId: text().notNull().references(() => bots.id, { onDelete: "cascade" }),
   content: text().notNull(),
   origin: text().$type<StoredMemory["origin"]>().notNull(),
-  noteId: text().references(() => notes.id, { onDelete: "set null" }),
+  sourceMessageId: text().references(() => messages.id, { onDelete: "set null" }),
+  supersededAt: text(),
+  supersededByMessageId: text().references(() => messages.id, { onDelete: "set null" }),
+  curationVersion: integer().notNull().default(0),
   createdAt: text().notNull(),
 }, (table) => [index("memories_bot_id").on(table.botId)])
 

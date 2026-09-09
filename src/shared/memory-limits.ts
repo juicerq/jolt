@@ -1,5 +1,5 @@
-export const memoryLimits = { memory: 300, total: 4000, note: 500, batch: 32 } as const
+export const memoryLimits = { memory: 300, total: 4000, batch: 32, message: 12_000, results: 12 } as const
 
-export function memoryUsage(memories: { content: string }[]) {
-  return memories.reduce((total, memory) => total + memory.content.length, 0)
+export function memoryUsage(memories: { content: string; supersededAt?: string | null }[]) {
+  return memories.reduce((total, memory) => total + (memory.supersededAt ? 0 : memory.content.length), 0)
 }

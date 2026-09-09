@@ -23,6 +23,8 @@ import questionMultiple from "@drizzle/20260906111826_question-multiple/migratio
 import botPinned from "@drizzle/20260908115928_ancient_old_lace/migration.sql" with { type: "text" }
 
 import memberPermissions from "@drizzle/20260908135220_member-permissions/migration.sql" with { type: "text" }
+import memoryCurationVersion from "@drizzle/20260909142116_overjoyed_stellaris/migration.sql" with { type: "text" }
+import messageMemory from "@drizzle/20260909155316_message-memory/migration.sql" with { type: "text" }
 
 export const migrations = [
   { name: "20260901132949_initial-schema", timestamp: 1788269389000, sql: initialSchema },
@@ -48,4 +50,6 @@ export const migrations = [
   { name: "20260906111826_question-multiple", timestamp: 1788704306000, sql: questionMultiple },
   { name: "20260908115928_ancient_old_lace", timestamp: 1788879568000, sql: botPinned },
   { name: "20260908135220_member-permissions", timestamp: 1788875540000, sql: memberPermissions },
+  { name: "20260909142116_overjoyed_stellaris", timestamp: 1788974476000, sql: memoryCurationVersion },
+  { name: "20260909155316_message-memory", timestamp: 1788978796000, sql: messageMemory },
 ] satisfies MigrationsJournal

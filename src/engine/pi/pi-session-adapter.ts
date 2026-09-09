@@ -29,7 +29,7 @@ interface Measurement {
   error?: Error
 }
 
-const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", configure_member: "bot", note: "content", browser: "action" }
+const detailFields: Record<string, string> = { bash: "command", grep: "pattern", find: "pattern", delegate: "bot", transfer: "bot", hire: "name", configure_member: "bot", browser: "action" }
 const briefFields: Record<string, string> = { delegate: "instructions", hire: "instructions", transfer: "instructions", routine: "content" }
 
 function toolSchema(tool: PiTool): TSchema {
