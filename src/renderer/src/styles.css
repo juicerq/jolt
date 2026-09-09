@@ -26,36 +26,25 @@
   scale: 1.25 1.35;
 }
 
-.bot-face-signal { color: var(--color-status-working); }
-
-.bot-face > span::before {
-  content: "";
-  position: absolute;
-  inset: 4%;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--bot-aura) 28%, transparent), transparent 70%);
-}
-
-.bot-face[data-status="working"] > span::before {
-  --bot-aura: var(--color-status-working);
-  opacity: 0.55;
-  transform: translateY(21%) scale(0.9, 0.6);
-}
-
-.bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"]) > span::before {
-  --bot-aura: var(--color-status-awaiting-decision);
-  opacity: 1;
-  transform: scale(1.15);
-}
-
-.bot-face-work, .bot-face-call { display: none; }
+.bot-face-work, .bot-face-status-dot { display: none; }
 .bot-face[data-status="working"] .bot-face-work { display: initial; }
-.bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"]) .bot-face-call {
+.bot-face:is([data-status="available"], [data-status="completed"]) .bot-face-status-dot {
+  display: initial;
+  color: var(--color-status-success);
+}
+.bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"]) .bot-face-status-dot {
   display: initial;
   color: var(--color-status-awaiting-decision);
 }
+.bot-face:is([data-status="waiting"], [data-status="recovering"]) .bot-face-status-dot {
+  display: initial;
+  color: var(--color-status-warning);
+}
+.bot-face[data-status="error"] .bot-face-status-dot {
+  display: initial;
+  color: var(--color-status-error);
+}
+.bot-face-work { color: var(--color-status-working); }
 
 .bot-face[data-status="error"] .mo-eye {
   scale: 1.2 0.9;
@@ -120,11 +109,6 @@
     animation-delay: var(--mo-phase);
   }
 
-  .bot-face[data-status="working"] > span::before {
-    animation: bot-work-aura 2.8s ease-in-out infinite;
-    animation-delay: var(--mo-phase);
-  }
-
   .bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"], [data-status="waiting"], [data-status="recovering"], [data-status="error"]) .mo-breathe {
     animation: none;
   }
@@ -134,22 +118,20 @@
   }
 
   .bot-face-work circle {
-    animation: bot-work-dot 1.8s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bot-work-dot 1.4s ease-in-out infinite;
   }
-  .bot-face-work circle:nth-child(2) { animation-delay: 150ms; }
-  .bot-face-work circle:nth-child(3) { animation-delay: 300ms; }
+  .bot-face-work circle:nth-child(2) { animation-delay: 120ms; }
+  .bot-face-work circle:nth-child(3) { animation-delay: 240ms; }
+  .bot-face-work circle:nth-child(4) { animation-delay: 360ms; }
+  .bot-face-work circle:nth-child(5) { animation-delay: 480ms; }
+  .bot-face-work circle:nth-child(6) { animation-delay: 600ms; }
+  .bot-face-work circle:nth-child(7) { animation-delay: 720ms; }
 
   .bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"]) .mo-breathe {
     animation: bot-call 5.6s ease-in-out infinite;
   }
-  .bot-face:is([data-status="awaiting-decision"], [data-status="awaiting-response"]) > span::before {
-    animation: bot-call-aura 5.6s ease-in-out infinite;
-  }
-  .bot-face-call {
-    transform-origin: 80px 32px;
-    animation: bot-call-signal 5.6s ease-in-out infinite;
-  }
-
 }
 
 @keyframes bot-breathe {
@@ -222,14 +204,9 @@
   60%, 82% { transform: translate(2px, 1px); }
 }
 
-@keyframes bot-work-aura {
-  0%, 50%, 100% { transform: translateY(21%) scale(0.9, 0.6); opacity: 0.55; }
-  28%, 78% { transform: translateY(21%) scale(0.78, 0.5); opacity: 0.3; }
-}
-
 @keyframes bot-work-dot {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
-  30% { transform: translateY(-2px); opacity: 1; }
+  0%, 55%, 100% { transform: scale(0.72); opacity: 0.3; }
+  25% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes bot-call {
@@ -239,19 +216,6 @@
   22% { transform: translateY(-1px) rotate(4deg) scale(1.02, 0.98); }
   28% { transform: translateY(-3px) rotate(-3deg) scale(0.99, 1.02); }
   34% { transform: translateY(0) rotate(1deg) scale(1.01, 0.99); }
-}
-
-@keyframes bot-call-aura {
-  0%, 6%, 42%, 100% { transform: scale(1.15); opacity: 0.65; }
-  18% { transform: scale(1.4); opacity: 1; }
-  30% { transform: scale(1.25); opacity: 0.8; }
-}
-
-@keyframes bot-call-signal {
-  0%, 8%, 38%, 100% { transform: scale(1) rotate(0deg); }
-  16% { transform: translateY(-2px) scale(1.16) rotate(8deg); }
-  24% { transform: scale(1.08) rotate(-5deg); }
-  30% { transform: scale(1.12) rotate(3deg); }
 }
 
 @theme {

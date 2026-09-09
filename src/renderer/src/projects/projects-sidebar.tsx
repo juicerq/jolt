@@ -15,7 +15,7 @@ import { BotFace } from "../bots/bot-face"
 import { groupMembers } from "../bots/bot-members"
 import { botDraftAvatarSeed, type BotDraft, botsStore, openCreateBot, openCreateTeamBot, openCreateProject, openPlugins, openSettings, openBotRoute, selectBot } from "../bots/bots-store"
 import { chatControlAnchor } from "../chat/chat-control-menu"
-import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
+import { chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { appUpdateStore } from "../settings/app-update-store"
@@ -429,11 +429,8 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
         onClick={() => selectBot(bot.id)}
         {...tooltip.focusProps}
       >
-        <span {...tooltip.anchorProps} className={`relative z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`} role={status && "img"} aria-label={status && `Status: ${chatStatusLabels[status]}`}>
-          <span className="relative flex shrink-0">
-            <BotAvatar bot={bot} members={members} />
-            {status && <span className={`absolute right-0.5 bottom-0.5 z-5 size-[7px] rounded-full ${chatStatusClassNames[status]}`} aria-hidden="true" />}
-          </span>
+        <span {...tooltip.anchorProps} className={`z-10 flex shrink-0 flex-row gap-0 overflow-visible whitespace-normal ${avatarSizeClassName}`}>
+          <BotAvatar bot={bot} members={members} />
         </span>
         {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
         <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">

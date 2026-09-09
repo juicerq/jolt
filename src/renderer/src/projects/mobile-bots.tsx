@@ -8,7 +8,7 @@ import { BotFace } from "../bots/bot-face"
 import { openMobileMenu, openPlugins, openSettings, selectBot, toggleBrowserSidebar } from "../bots/bots-store"
 import { teamLeaders } from "../bots/team"
 import { needsResponse, useConversationOverview } from "../chat/chat-overview"
-import { chatStatusClassNames, chatStatusLabels } from "../chat/chat-status"
+import { chatStatusLabels } from "../chat/chat-status"
 import type { ChatStatus } from "../chat/chat-store"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
@@ -66,19 +66,18 @@ function MobileBotRow({ bot, members = [], status, preview, waiting = 0 }: { bot
   </button>
 }
 
-function MobileBotAvatar({ bot, members, status }: { bot: Bot; members: Bot[]; status: ChatStatus }) {
+function MobileBotAvatar({ bot, members, status }: { bot: Bot; members: (Bot & { status: ChatStatus })[]; status: ChatStatus }) {
   if (members.length === 0) {
-    return <span className="relative flex size-11 shrink-0 items-center">
-      <BotFace className="size-11" name={bot.avatarSeed} botId={bot.id} size={44} />
-      <span className={`absolute right-0 bottom-0 size-2 rounded-full ${chatStatusClassNames[status]}`} />
+    return <span className="flex size-11 shrink-0 items-center">
+      <BotFace className="size-11" name={bot.avatarSeed} botId={bot.id} status={status} size={44} />
     </span>
   }
 
   const [first, second] = members
 
   return <span className="relative block h-8 w-12 shrink-0">
-    <BotFace className={`absolute top-1 z-1 size-6 ${second ? "left-0" : "left-0.5"}`} name={first.avatarSeed} botId={first.id} size={24} />
-    {second && <BotFace className="absolute top-1 right-0 z-1 size-6" name={second.avatarSeed} botId={second.id} size={24} />}
-    <BotFace className={`absolute top-0 z-2 size-8 ${second ? "left-2" : "left-4"}`} name={bot.avatarSeed} botId={bot.id} size={32} />
+    <BotFace className={`absolute top-1 z-1 size-6 ${second ? "left-0" : "left-0.5"}`} name={first.avatarSeed} botId={first.id} status={first.status} size={24} />
+    {second && <BotFace className="absolute top-1 right-0 z-1 size-6" name={second.avatarSeed} botId={second.id} status={second.status} size={24} />}
+    <BotFace className={`absolute top-0 z-2 size-8 ${second ? "left-2" : "left-4"}`} name={bot.avatarSeed} botId={bot.id} status={status} size={32} />
   </span>
 }

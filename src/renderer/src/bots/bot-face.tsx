@@ -58,14 +58,17 @@ export function BotFace({ name, size, className, botId, status: recordedStatus }
           ref={handleStatusChange}
         />
         <svg className="bot-face-signal pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 100 100" aria-hidden="true">
-          <g className="bot-face-work" fill="currentColor">
-            <circle cx="41" cy="91" r="2.5" />
-            <circle cx="50" cy="91" r="2.5" />
-            <circle cx="59" cy="91" r="2.5" />
+          <g className="bot-face-status-dot" fill="currentColor">
+            <circle cx="86" cy="86" r="9" />
           </g>
-          <g className="bot-face-call">
-            <path d="M73 9h14a6 6 0 0 1 6 6v11a6 6 0 0 1-6 6h-7l-7 5v-5a6 6 0 0 1-6-6V15a6 6 0 0 1 6-6Z" fill="currentColor" />
-            <path d="M80 16v7m0 4v.5" stroke="var(--color-canvas)" strokeWidth="3" strokeLinecap="round" />
+          <g className="bot-face-work" fill="currentColor">
+            <circle cx="86" cy="80" r="3" />
+            <circle cx="91.2" cy="83" r="3" />
+            <circle cx="91.2" cy="89" r="3" />
+            <circle cx="86" cy="92" r="3" />
+            <circle cx="80.8" cy="89" r="3" />
+            <circle cx="80.8" cy="83" r="3" />
+            <circle cx="86" cy="86" r="3" />
           </g>
         </svg>
       </span>
