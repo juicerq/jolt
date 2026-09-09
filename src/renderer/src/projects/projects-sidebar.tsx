@@ -367,7 +367,7 @@ function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineC
 
   return (
     <>
-      <IconButton className="opacity-0 transition-opacity duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100" iconSize={13} position="relative" shape="circle" size={24} type="button" label={`Excluir ${label} de ${leaderName}`} disabled={removing} onClick={() => setConfirming(true)}>
+      <IconButton iconSize={13} position="relative" shape="circle" size={24} type="button" label={`Excluir ${label} de ${leaderName}`} disabled={removing} onClick={() => setConfirming(true)}>
         <TrashIcon aria-hidden="true" />
       </IconButton>
       {confirming && (

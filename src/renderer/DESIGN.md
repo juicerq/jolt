@@ -410,9 +410,8 @@ Expanded, it shows only the Leader's 32px Blobatar and reveals the Integrantes
 below. Collapsed, it hides the Integrantes and shows the Leader as a 32px Blobatar
 centered in front, with up to two 24px Integrantes peeking from behind at the
 sides. With one Integrante, the Leader shifts slightly right while the Integrante
-peeks from the left. A trash action beside the Encerrados disclosure, visible on
-hover or keyboard focus, excludes every closed member of that team after one
-confirmation. A separate chevron toggles the team without changing
+peeks from the left. A muted trash action beside Encerrados excludes every closed
+member of that team after one confirmation. A separate chevron toggles the team without changing
 which Bot conversation is selected. The complete team block owns 8px of space
 below it in either state so adjacent teams remain distinct. Expansion combines
 a 160ms height transition with a shorter opacity fade and becomes immediate
