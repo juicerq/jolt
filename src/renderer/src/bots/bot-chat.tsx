@@ -1,3 +1,4 @@
+import { BotArchive } from "./bot-archive"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import type { Bot } from "@src/shared/bots"
@@ -75,6 +76,10 @@ function BotRouteScreen({ bot, client, groups, route }: { bot: Bot; client: Engi
 
   if (route.name === "routines") {
     return <BotRoutines bot={bot} client={client} onClose={close} onCreate={() => openBotRoute({ name: "routine", id: "new" })} onEdit={(id) => openBotRoute({ name: "routine", id })} />
+  }
+
+  if (route.name === "archive") {
+    return <BotArchive key={bot.id} bot={bot} client={client} onClose={close} />
   }
 
   if (route.name === "memory") {

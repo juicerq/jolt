@@ -3,6 +3,7 @@ import { z } from "zod"
 import { diagnosticExportResult, diagnosticsReport } from "./observability/diagnostics"
 import { externalObservationSpan } from "./observability/observation"
 import { providerLogin, providerLoginInput, providerLoginReply, providerAvailabilityList, providerConnectInput, providerDisconnectInput, providerModelsList } from "./providers"
+import { botArchiveSchemas } from "./bot-archive"
 import { botSchemas } from "./bots"
 import { browserFrame, browserFrameInput, browserPages } from "./browser"
 import { botInput, idInput } from "./ids"
@@ -14,6 +15,7 @@ import { pluginSchemas } from "./plugins"
 import { routineSchemas } from "./routines"
 import { taskSchemas } from "./tasks"
 import { triggerSchemas } from "./triggers"
+import { skillList } from "./skills"
 
 const healthOutput = z.object({
   status: z.literal("ready"),
@@ -43,6 +45,7 @@ export const engineContract = {
     list: oc.output(projectSchemas.groupedList).route({ method: "GET", path: "/projects" }),
   },
   bots: {
+    skills: oc.input(botInput).output(skillList).route({ method: "GET", path: "/bots/{botId}/skills" }),
     create: oc.input(botSchemas.createInput).output(botSchemas.bot).route({ method: "POST", path: "/bots" }),
     addMember: oc.input(botSchemas.addMemberInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{leaderBotId}/members" }),
     detachMember: oc.input(idInput).output(botSchemas.bot).route({ method: "POST", path: "/bots/{id}/detach" }),
@@ -54,12 +57,17 @@ export const engineContract = {
     remove: oc.input(idInput).route({ method: "POST", path: "/bots/{id}/remove" }),
     removeColleague: oc.input(botSchemas.colleagueInput).route({ method: "POST", path: "/bots/{botId}/colleagues/{colleagueBotId}/remove" }),
   },
+  archive: {
+    list: oc.input(botArchiveSchemas.input).output(botArchiveSchemas.listing).route({ method: "GET", path: "/bots/{botId}/archive" }),
+    preview: oc.input(botArchiveSchemas.input).output(botArchiveSchemas.preview).route({ method: "GET", path: "/bots/{botId}/archive/preview" }),
+  },
   conversations: {
     overview: oc.output(conversationSchemas.overview).route({ method: "GET", path: "/conversations/overview" }),
     history: oc.input(conversationSchemas.historyInput).output(conversationSchemas.history).route({ method: "GET", path: "/bots/{botId}/messages" }),
     events: oc.output(eventIterator(conversationSchemas.botEvent)).route({ method: "GET", path: "/conversations/events" }),
     send: oc.input(conversationSchemas.sendInput).route({ method: "POST", path: "/bots/{botId}/messages" }),
     newSession: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/new-session" }),
+    reload: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/reload" }),
     compact: oc.input(conversationSchemas.compactInput).output(conversationSchemas.compactionResult).route({ method: "POST", path: "/bots/{botId}/compact" }),
     abort: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/abort" }),
     abortTeam: oc.input(botInput).route({ method: "POST", path: "/bots/{botId}/team/abort" }),

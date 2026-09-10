@@ -865,6 +865,26 @@ export function createConversations(input: {
         settle()
       }
     },
+    async reload(botId: string) {
+      shutdown.signal.throwIfAborted()
+
+      if (active.has(botId) || stopping.has(botId) || sessionChanges.has(botId)) {
+        throw new Error("Aguarde o Bot terminar antes de recarregar a sessão.")
+      }
+
+      const { promise: settled, resolve: settle } = Promise.withResolvers<void>()
+      sessionChanges.set(botId, settled)
+
+      try {
+        input.runtime.close(botId)
+        sessions.delete(botId)
+        await open(botId)
+        input.observability.event({ name: "conversation.reload", context: { botId } })
+      } finally {
+        sessionChanges.delete(botId)
+        settle()
+      }
+    },
     async compact({ botId, instructions }: CompactInput) {
       shutdown.signal.throwIfAborted()
 

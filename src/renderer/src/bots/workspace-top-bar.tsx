@@ -8,10 +8,10 @@ import { needsResponse, useConversationOverview } from "../chat/chat-overview"
 import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { BotFace } from "./bot-face"
+import { botRouteTitles } from "./bot-route-titles"
 import { type BotRoute, botsStore, closeWorkspaceScreen, discardDraft, openBotRoute, selectBot, showBotList, toggleBrowserSidebar } from "./bots-store"
 import { findTeamBot, teamOf } from "./team"
 
-const routeTitles: Record<BotRoute["name"], string> = { chat: "Conversa", details: "Sobre o Bot", settings: "Configurações", members: "Integrantes", routines: "Rotinas", triggers: "Gatilhos", memory: "Memórias", routine: "Rotina", trigger: "Gatilho" }
 const routeParents: Partial<Record<BotRoute["name"], BotRoute>> = { routine: { name: "routines" }, trigger: { name: "triggers" }, details: { name: "chat" } }
 const screenTitles = { plugins: "Plugins", settings: "Configurações" }
 
@@ -38,7 +38,7 @@ export function WorkspaceTopBar({ client }: { client: EngineClient }) {
   if (route.name !== "chat") {
     const parent = routeParents[route.name] ?? { name: "details" }
 
-    return <TopBar back={{ label: "Voltar", onBack: () => openBotRoute(parent) }}>{routeTitles[route.name]}</TopBar>
+    return <TopBar back={{ label: "Voltar", onBack: () => openBotRoute(parent) }}>{botRouteTitles[route.name]}</TopBar>
   }
 
   const { leader, members } = teamOf(groups, bot)

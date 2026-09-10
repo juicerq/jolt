@@ -9,7 +9,8 @@ import { ConfirmationDialog } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
-import { BotPage, BotPageIdentity } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage } from "./bot-page"
 import { triggerActionLabels, triggerEvents } from "./trigger-options"
 
 function describe(trigger: Trigger) {
@@ -40,7 +41,7 @@ export function BotTriggers({ bot, client, onClose, onEdit }: { bot: Bot; client
 
   return (
     <BotPage label={`Gatilhos de ${bot.name}`}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="triggers" />
       <SettingsSection title="Gatilhos">
         {triggers?.length === 0 && <p className="m-0 text-support text-muted">Peça a {bot.name} na conversa para criar um Gatilho a partir de eventos do GitHub.</p>}
         {triggers && triggers.length > 0 && (

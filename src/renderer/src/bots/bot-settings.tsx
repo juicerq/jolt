@@ -15,13 +15,12 @@ import { SettingsRow, SettingsSection, settingsPanelClassName } from "../ui/sett
 import { useEscape } from "../ui/use-escape"
 import { BotColleagues } from "./bot-colleagues"
 import { BotPage, BotPageSaveBar } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
 import { BotPlugins } from "./bot-plugins"
 import { teamOf } from "./team"
 import { BotDetachMember } from "./bot-detach-member"
 
 interface SettingsDraft { name: string; outcome: string; description: string; projectId: string; workingDirectoryOverride: string; inheritMemberPermissions: boolean }
-
-const headerLineClassName = "border-0 bg-transparent placeholder:text-muted focus-visible:outline-none -mx-2 field-sizing-content max-w-full self-start rounded-md px-2 hover:bg-surface-hover focus-visible:bg-surface-hover disabled:bg-transparent"
 
 function draftOf(bot: Bot): SettingsDraft {
   return { name: bot.name, outcome: bot.function.outcome, description: bot.function.description ?? "", projectId: bot.projectId ?? "", workingDirectoryOverride: bot.workingDirectoryOverride ?? "", inheritMemberPermissions: bot.inheritMemberPermissions }
@@ -91,18 +90,12 @@ export function BotSettings({ bot, client, onClose }: { bot: Bot; client: Engine
 
   return (
     <BotPage label={`Configurações de ${bot.name}`} footer={change ? <BotPageSaveBar form="bot-settings" complete={change.complete} saving={saving} {...(saveError ? { failure: `Falha ao salvar o Bot: ${saveError.message}` } : {})} onDiscard={() => setDraft(draftOf(bot))} /> : undefined}>
+      <BotPageHeader bot={bot} page="settings" />
       <form className="flex flex-col gap-8" id="bot-settings" onSubmit={handleSubmit}>
-        <header className="flex items-center gap-4">
-          <BotFace className="size-16 flex-none" name={bot.avatarSeed} botId={bot.id} size={64} />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <label className="sr-only" htmlFor="bot-settings-name">Nome</label>
-            <input className={`${headerLineClassName} text-title font-semibold text-primary placeholder:font-normal`} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} />
-            <label className="sr-only" htmlFor="bot-settings-outcome">Resultado esperado</label>
-            <input className={`${headerLineClassName} text-control font-medium text-secondary max-md:text-base`} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" title="Resultado esperado" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} />
-          </div>
-        </header>
         <SettingsSection title="Função">
-          <div className={settingsPanelClassName}>
+          <div className={`${settingsPanelClassName} flex flex-col gap-4`}>
+            <Field label="Nome"><input className={fieldControlClassName} id="bot-settings-name" autoComplete="off" placeholder="Nome do Bot" value={draft.name} disabled={confirmingRemoval} onChange={(event) => patch({ name: event.target.value })} /></Field>
+            <Field label="Resultado esperado"><input className={fieldControlClassName} id="bot-settings-outcome" autoComplete="off" placeholder="O que ele entrega?" value={draft.outcome} disabled={confirmingRemoval} onChange={(event) => patch({ outcome: event.target.value })} /></Field>
             <Field label="Descrição" optional><textarea className={`${fieldControlClassName} field-sizing-content max-h-48 min-h-20 resize-none font-normal`} placeholder="Responsabilidades, limites e forma de entrega" rows={3} value={draft.description} disabled={confirmingRemoval} onChange={(event) => patch({ description: event.target.value })} /></Field>
           </div>
         </SettingsSection>

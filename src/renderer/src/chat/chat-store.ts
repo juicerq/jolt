@@ -4,7 +4,7 @@ import type { ConversationEvent, ConversationMessage, IncomingMessage, QueuedMes
 import type { PermissionRequest } from "@src/shared/permissions"
 import type { PluginRequest, PluginStep } from "@src/shared/plugins"
 import type { ChatActivityStep } from "./chat-activity-summary"
-import type { ChatCommandName } from "./chat-commands"
+import type { ChatCommandName } from "./chat-command-definitions"
 import type { ChatMention } from "./chat-mentions"
 import { nextChatWaitingMessage } from "./chat-waiting-messages"
 

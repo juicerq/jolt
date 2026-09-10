@@ -5,12 +5,13 @@ import type { EngineClient } from "../engine-client"
 import { IconButton } from "../ui/icon-button"
 import { useIsMobile } from "../ui/use-is-mobile"
 import { ProjectsSidebar } from "./projects-sidebar"
+import { SidebarLayoutMenu } from "./sidebar-layout-menu"
 
 export function MobileMenu({ client }: { client: EngineClient }) {
   const open = useSelector(botsStore, (state) => state.mobileMenuOpen)
   const mobile = useIsMobile()
 
-  if (!mobile || !open) {
+  if (!open) {
     return null
   }
 
@@ -26,7 +27,10 @@ export function MobileMenu({ client }: { client: EngineClient }) {
     >
       <header className="flex min-h-[60px] shrink-0 items-center justify-between border-b border-outline px-3">
         <span className="text-section font-semibold">Menu</span>
-        <IconButton size={34} label="Fechar menu" onClick={closeMobileMenu}><XMarkIcon aria-hidden="true" /></IconButton>
+        <div className="flex items-center gap-1">
+          {!mobile && <SidebarLayoutMenu />}
+          <IconButton size={34} label="Fechar menu" onClick={closeMobileMenu}><XMarkIcon aria-hidden="true" /></IconButton>
+        </div>
       </header>
       <ProjectsSidebar client={client} mobile />
     </dialog>

@@ -8,6 +8,7 @@ import type { Observability } from "../observability/observability"
 import type { AppDatabase } from "../persistence/database"
 import { assertAccessibleWorkingDirectory } from "../projects/working-directory"
 import { parse } from "@src/shared/parse"
+import { loadPiSkills } from "../pi/pi-skills"
 
 interface BotsDependencies {
   database: AppDatabase
@@ -291,6 +292,17 @@ export function createBots({ database, observability, privateBotsDirectory, prov
       return present(updated)
     },
     list,
+    async skills(botId: string) {
+      const storedBot = database.bots.get(botId)
+
+      if (!storedBot) {
+        throw new Error("Bot not found")
+      }
+
+      const { skills } = await loadPiSkills(present(storedBot).effectiveWorkingDirectory)
+
+      return skills.map(({ name, description }) => ({ name, description })).sort((first, second) => first.name.localeCompare(second.name))
+    },
     get(id: string) {
       const storedBot = database.bots.get(id)
 

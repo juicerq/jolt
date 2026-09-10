@@ -1,9 +1,10 @@
-import { ArrowUpIcon, PaperClipIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowUpIcon, PaperClipIcon, SparklesIcon, StopIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { useQuery } from "@tanstack/react-query"
 import { useSelector } from "@tanstack/react-store"
 import { type ChangeEvent, type DragEvent, type FormEvent, type KeyboardEvent, useId, useRef, useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { MessageImage } from "@src/shared/conversations"
+import type { Skill } from "@src/shared/skills"
 import type { EngineClient } from "../engine-client"
 import { connectionStore } from "../connection"
 import { Button } from "../ui/button"
@@ -12,13 +13,15 @@ import { IconButton } from "../ui/icon-button"
 import { menuCardClassName } from "../ui/menu"
 import { useIsMobile } from "../ui/use-is-mobile"
 import { ChatCommandMenu, type ChatMenuChoice } from "./chat-command-menu"
-import { type ChatCommand, chatCommandPlaceholders, type ChatCommandName, type ChatCommandSuggestion, useChatCommands } from "./chat-commands"
+import { type ChatCommand, type ChatCommandSuggestion, useChatCommands } from "./chat-commands"
+import { chatCommandDefinitions, chatSlash, commandAllowedWhileWorking, commandConsumesContent, withoutChatSlash, type ChatCommandName } from "./chat-command-definitions"
 import { ChatImage, messageImageAccept, readMessageImages } from "./chat-images"
 import { ChatEditor } from "./chat-editor"
 import { applyChatMention, type ChatMentionSuggestion, mentionCandidates, suggestChatMentions } from "./chat-mentions"
 import { ChatMobileOptions } from "./chat-mobile-options"
 import { ChatModelEffort } from "./chat-model-effort"
 import { ChatPermission } from "./chat-permission"
+import { selectedChatSkill, suggestChatSkills } from "./chat-skills"
 import { addChatDraftImages, addChatDraftMention, type ChatDraft, type ChatRun, chatStore, clearChatDraftCommand, emptyChatDraft, removeChatDraftImage, setChatDraftCommand, setChatDraftContent } from "./chat-store"
 
 export const promptWidthClassName = "mx-auto w-[min(848px,calc(100%-48px))] max-md:w-[calc(100%-24px)]"
@@ -30,12 +33,50 @@ interface ChatComposerProps {
   onSend: (draft: ChatDraft, deliver: "queue" | "now") => void
 }
 
-function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSuggestion[]): ChatMenuChoice[] {
-  if (commands.length > 0) {
-    return commands.map((suggestion) => ({ key: suggestion.command, label: suggestion.command, detail: suggestion.detail }))
+function menuChoices(commands: ChatCommandSuggestion[], mentions: ChatMentionSuggestion[], skills: Skill[]): ChatMenuChoice[] {
+  if (commands.length > 0 || skills.length > 0) {
+    return [
+      ...commands.map((suggestion) => ({ key: suggestion.command, label: `/${suggestion.command}`, detail: suggestion.detail })),
+      ...skills.map((skill) => ({ key: `skill:${skill.name}`, label: skill.name, detail: skill.description, icon: <SparklesIcon className="size-4 shrink-0" aria-hidden="true" /> })),
+    ]
   }
 
   return mentions.map((mention) => ({ key: mention.botId, label: mention.name, detail: mention.detail, avatar: mention.avatarSeed }))
+}
+
+function composerSlash(draft: ChatDraft, position: number) {
+  if (draft.command) {
+    return null
+  }
+
+  return chatSlash(draft.content, position)
+}
+
+function caretPosition(caret: number | null, content: string) {
+  if (caret === null) {
+    return content.length
+  }
+
+  return Math.min(caret, content.length)
+}
+
+function composerMenuState({ draft, position, availableSkills, groups, bot, run, dismissedContent, slash, suggestions }: {
+  draft: ChatDraft
+  position: number
+  availableSkills: Skill[]
+  groups: Parameters<typeof mentionCandidates>[0]
+  bot: Bot
+  run?: ChatRun
+  dismissedContent: string | null
+  slash: ReturnType<typeof chatSlash>
+  suggestions: ChatCommandSuggestion[]
+}) {
+  const skills = slash ? suggestChatSkills(draft.content, availableSkills, position) : []
+  const mentions = draft.command || slash ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
+  const commands = run ? suggestions.filter((suggestion) => commandAllowedWhileWorking(suggestion.command)) : suggestions
+  const choices = menuChoices(commands, mentions, skills)
+
+  return { skills, mentions, commands, choices, menuOpen: (choices.length > 0 || !!slash) && draft.content !== dismissedContent }
 }
 
 function ChatComposerActions({ command, run, pending, blocked, empty, onAbort, onSend }: { command: ChatCommand | null; run?: Pick<ChatRun, "status" | "waitingForTasks">; pending: boolean; blocked: boolean; empty: boolean; onAbort: () => void; onSend: (immediate: boolean) => Promise<void> }) {
@@ -64,16 +105,18 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   const menuId = `commands-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`
   const [highlighted, setHighlighted] = useState(0)
   const [dismissedContent, setDismissedContent] = useState<string | null>(null)
+  const [caret, setCaret] = useState<number | null>(null)
+  const position = caretPosition(caret, draft.content)
   const mobile = useIsMobile()
-  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, renewed } = useChatCommands(bot, client, draft)
+  const { suggestions, command, start: startCommand, run: runCommand, reset: resetCommand, pending: commandPending, error: commandError, status: commandStatus } = useChatCommands(bot, client, draft, position)
   const { data: groups } = useQuery(client.query.projects.list.queryOptions())
-  const mentions = draft.command ? [] : suggestChatMentions(draft.content, mentionCandidates(groups, bot))
-  const commands = run ? suggestions.filter((suggestion) => suggestion.command === "novo") : suggestions
-  const choices = menuChoices(commands, mentions)
-  const menuOpen = choices.length > 0 && draft.content !== dismissedContent
+  const slash = composerSlash(draft, position)
+  const skillSearch = !!slash
+  const { data: availableSkills = [], isPending: skillsPending, error: skillsError } = useQuery(client.query.bots.skills.queryOptions({ input: { botId: bot.id }, enabled: skillSearch && connected, throwOnError: false }))
+  const { skills, mentions, commands, choices, menuOpen } = composerMenuState({ draft, position, availableSkills, groups, bot, run, dismissedContent, slash, suggestions })
   const active = Math.min(highlighted, choices.length - 1)
   const empty = composerEmpty(command, draft)
-  const commandBlocked = !!draft.command && draft.command !== "novo" && !!run
+  const commandBlocked = !!command && !commandAllowedWhileWorking(command.command) && !!run
   const busy = commandPending
   const permissionDisabled = busy || !connected
   const settingsDisabled = [!!run, commandPending, !connected].some(Boolean)
@@ -101,7 +144,11 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
         const current = chatStore.state.drafts[bot.id] ?? emptyChatDraft
 
         if (current.command === draft.command) {
-          clearChatDraftCommand(bot.id, current === draft ? "" : current.content)
+          const content = current === draft && commandConsumesContent(command.command) ? "" : current.content
+          const remaining = current === draft && !draft.command && slash ? withoutChatSlash(content, slash) : content
+
+          clearChatDraftCommand(bot.id, remaining)
+          setCaret(null)
         }
       }
 
@@ -116,14 +163,17 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     void handleSend(false)
   }
 
-  function handleChange(content: string) {
+  function handleChange(content: string, caretOffset = content.length) {
     resetCommand()
     setHighlighted(0)
+    setDismissedContent(null)
+    setCaret(caretOffset)
 
-    const started = startCommand(content)
+    const started = startCommand(content, caretOffset)
 
     if (started) {
       setChatDraftCommand(bot.id, started.command, started.content)
+      setCaret(null)
 
       return
     }
@@ -135,7 +185,21 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     const suggestion = commands[index]
 
     if (suggestion) {
-      setChatDraftCommand(bot.id, suggestion.command, "")
+      setChatDraftCommand(bot.id, suggestion.command, slash ? withoutChatSlash(draft.content, slash) : draft.content)
+      setCaret(null)
+
+      return
+    }
+
+    const skill = skills[index - commands.length]
+
+    if (skill) {
+      const content = slash ? withoutChatSlash(draft.content, slash) : draft.content
+      const previousSkill = selectedChatSkill(content)
+
+      setChatDraftContent(bot.id, `/skill:${skill.name} ${(previousSkill?.rest ?? content).trimStart()}`)
+      setCaret(null)
+      setDismissedContent(null)
 
       return
     }
@@ -148,6 +212,21 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
   }
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault()
+      setDismissedContent(draft.content)
+
+      return
+    }
+
+    if (choices.length === 0) {
+      if (["ArrowDown", "ArrowUp", "Tab", "Enter"].includes(event.key)) {
+        event.preventDefault()
+      }
+
+      return
+    }
+
     if (event.key === "ArrowDown") {
       event.preventDefault()
       setHighlighted((active + 1) % choices.length)
@@ -158,13 +237,6 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     if (event.key === "ArrowUp") {
       event.preventDefault()
       setHighlighted((active - 1 + choices.length) % choices.length)
-
-      return
-    }
-
-    if (event.key === "Escape") {
-      event.preventDefault()
-      setDismissedContent(draft.content)
 
       return
     }
@@ -223,6 +295,16 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
     event.target.value = ""
   }
 
+  function handleAbort() {
+    if (mobile) {
+      setConfirmStop(true)
+
+      return
+    }
+
+    onAbort()
+  }
+
   return (
     <form
       className={`${promptWidthClassName} relative grid box-border grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 border border-outline-strong bg-surface-raised px-2 py-[7px] shadow-[0_14px_32px_rgb(0_0_0_/_24%)] gap-y-1 rounded-[18px] focus-within:border-muted`}
@@ -230,8 +312,8 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {menuOpen && <ChatCommandMenu id={menuId} label={commands.length > 0 ? "Comandos" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} />}
-      <ChatCommandStatus error={commandError} renewed={renewed} menuOpen={menuOpen} />
+      {menuOpen && <ChatCommandMenu id={menuId} label={skillSearch ? "Comandos e skills" : "Bots"} choices={choices} highlighted={active} onHighlight={setHighlighted} onPick={pickChoice} status={skillMenuStatus({ searching: skillSearch, pending: skillsPending, error: skillsError, count: skills.length })} />}
+      <ChatCommandStatus error={commandError} status={commandStatus} menuOpen={menuOpen} />
       {draft.images.length > 0 && <ChatComposerImages images={draft.images} onRemove={(index) => removeChatDraftImage(bot.id, index)} />}
       <IconButton iconSize={16} shape="circle" size={34} type="button" label="Anexar imagem" tooltipPlacement="top" onClick={() => fileInputRef.current?.click()}><PaperClipIcon aria-hidden="true" /></IconButton>
       <input ref={fileInputRef} className="hidden" type="file" accept={messageImageAccept} multiple tabIndex={-1} onChange={handleFileChange} />
@@ -245,8 +327,10 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
           label={editor.label}
           menuOpen={menuOpen}
           menuId={menuId}
+          activeOptionId={menuOpen && active >= 0 ? `${menuId}-${active}` : undefined}
           enterBreaksLine={mobile}
           onChange={handleChange}
+          onCaretChange={setCaret}
           onKeyDown={handleKeyDown}
           onPasteFiles={(files) => void attachFiles(files)}
         />
@@ -255,7 +339,7 @@ export function ChatComposer({ bot, client, onAbort, onSend }: ChatComposerProps
         <ChatPermission bot={bot} client={client} disabled={permissionDisabled} />
         <div className="col-start-4 flex min-w-0"><ChatModelEffort bot={bot} client={client} disabled={settingsDisabled} /></div>
       </>}
-      <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={() => mobile ? setConfirmStop(true) : onAbort()} onSend={handleSend} />
+      <ChatComposerActions command={command} run={run} pending={commandPending} blocked={commandBlocked} empty={empty} onAbort={handleAbort} onSend={handleSend} />
       {!draftSaved && <p className="col-span-full m-0 px-2 text-support text-status-warning" role="status">Sem espaço para salvar o rascunho neste celular. Mantenha esta tela aberta até enviar.</p>}
       {confirmStop && <ConfirmationDialog icon={<StopIcon />} title={`Interromper ${bot.name}?`} onClose={() => setConfirmStop(false)} actions={<><Button type="button" variant="text" onClick={() => setConfirmStop(false)}>Continuar trabalhando</Button><Button type="button" disabled={!connected} onClick={() => { setConfirmStop(false); onAbort() }}>Interromper</Button></>}><p className="m-0 text-body text-secondary">As mensagens e a Fila serão preservadas.</p></ConfirmationDialog>}
     </form>
@@ -270,9 +354,27 @@ function composerEmpty(command: ChatCommand | null, draft: ChatDraft) {
   return draft.content.trim().length === 0 && draft.images.length === 0
 }
 
+function skillMenuStatus({ searching, pending, error, count }: { searching: boolean; pending: boolean; error: Error | null; count: number }) {
+  if (!searching) {
+    return
+  }
+
+  if (error) {
+    return "Não foi possível carregar as skills. Feche e abra o menu para tentar novamente."
+  }
+
+  if (pending) {
+    return "Carregando skills..."
+  }
+
+  if (count === 0) {
+    return "Nenhuma skill encontrada."
+  }
+}
+
 function editorText(draft: Pick<ChatDraft, "command">, botName: string) {
   if (draft.command) {
-    return { placeholder: chatCommandPlaceholders[draft.command], label: `Texto do Comando ${draft.command}` }
+    return { placeholder: chatCommandDefinitions[draft.command].placeholder, label: `Texto do Comando ${draft.command}` }
   }
 
   return { placeholder: `Converse com ${botName}...`, label: `Mensagem para ${botName}` }
@@ -318,15 +420,15 @@ function ChatComposerCommand({ command, onRemove }: { command: ChatCommandName; 
       aria-label={`Remover o Comando ${command}`}
       onClick={onRemove}
     >
-      <span className="first-letter:uppercase">{command}</span>
+      <span>/{command}</span>
       <XMarkIcon aria-hidden="true" />
     </button>
   )
 }
 
-function ChatCommandStatus({ error, renewed, menuOpen }: { error: Error | null; renewed: boolean; menuOpen: boolean }) {
-  if (renewed) {
-    return <p className="col-span-full m-0 px-2 text-support text-secondary" role="status">Sessão nova pronta. O histórico continua salvo, mas não entra no contexto desta sessão.</p>
+function ChatCommandStatus({ error, status, menuOpen }: { error: Error | null; status: string | null; menuOpen: boolean }) {
+  if (status) {
+    return <p className="col-span-full m-0 px-2 text-support text-secondary" role="status">{status}</p>
   }
 
   if (!error || menuOpen) {

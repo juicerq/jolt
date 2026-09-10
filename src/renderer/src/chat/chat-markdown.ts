@@ -39,17 +39,17 @@ function fileElement(node: Element) {
   const file = node.tagName === "a" ? linkedFilePath(value) : conversationFilePath(value)
 
   if (!file) {
-    return false
+    return
   }
+
+  const children = node.tagName === "code" ? [{ ...node }] : node.children
 
   node.tagName = "span"
   node.properties = { dataFilePath: file }
-  node.children = []
-
-  return true
+  node.children = children
 }
 
-export function createMarkdownRenderer({ components, cacheBytes }: { components: Partial<Components>; cacheBytes: number }) {
+export function createMarkdownRenderer({ components, cacheBytes, detectFiles = true }: { components: Partial<Components>; cacheBytes: number; detectFiles?: boolean }) {
   const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true })
   const cache = new Map<string, ReactElement>()
   let cachedBytes = 0
@@ -66,8 +66,8 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
 
       if (node.type === "element") {
         // File links are converted before URL sanitization removes file: URLs.
-        if (node.tagName === "a" && fileElement(node)) {
-          return SKIP
+        if (detectFiles && node.tagName === "a") {
+          fileElement(node)
         }
 
         for (const property of urlProperties) {
@@ -80,8 +80,10 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
       return
     })
     visit(tree, (node, index, parent) => {
+      if (!detectFiles) { return SKIP }
+
       if (node.type === "element") {
-        if (node.tagName === "pre" || node.tagName === "a") {
+        if (node.tagName === "pre" || node.tagName === "a" || node.properties.dataFilePath) {
           return SKIP
         }
 
@@ -97,7 +99,7 @@ export function createMarkdownRenderer({ components, cacheBytes }: { components:
 
         if (parts.some((part) => part.path)) {
           parent.children.splice(index, 1, ...parts.map((part) => part.path
-            ? { type: "element" as const, tagName: "span", properties: { dataFilePath: part.path }, children: [] }
+            ? { type: "element" as const, tagName: "span", properties: { dataFilePath: part.path }, children: [{ type: "text" as const, value: part.text }] }
             : { type: "text" as const, value: part.text }))
 
           return index + parts.length

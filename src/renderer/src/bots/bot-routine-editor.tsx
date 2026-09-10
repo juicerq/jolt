@@ -9,7 +9,8 @@ import { Select } from "../ui/select"
 import { SettingsSection } from "../ui/settings-section"
 import { ToggleChip } from "../ui/toggle-chip"
 import { useEscape } from "../ui/use-escape"
-import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage, BotPageSaveBar } from "./bot-page"
 import { emptyRoutineDraft, frequencyForms, frequencyResultOf, routineDraftOf, type FrequencyField, type FrequencyResult, type RoutineDraft } from "./routine-draft"
 import { weekdayLabels } from "./routine-frequency"
 
@@ -30,7 +31,7 @@ export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot
   if (!creating && isPending) {
     return (
       <BotPage label={`Editar Rotina de ${bot.name}`}>
-        <BotPageIdentity bot={bot} />
+        <BotPageHeader bot={bot} page="routine" title="Editar Rotina" />
         <p className="m-0 text-support text-muted">Carregando Rotina...</p>
       </BotPage>
     )
@@ -39,7 +40,7 @@ export function BotRoutineEditor({ bot, client, routineId, onClose }: { bot: Bot
   if (!creating && !routine) {
     return (
       <BotPage label={`Editar Rotina de ${bot.name}`}>
-        <BotPageIdentity bot={bot} />
+        <BotPageHeader bot={bot} page="routine" title="Editar Rotina" />
         <p className="m-0 text-support text-status-error">{listError ? `Falha nas Rotinas: ${listError.message}` : "Esta Rotina não existe mais."}</p>
       </BotPage>
     )
@@ -103,7 +104,7 @@ function RoutineForm({ bot, creating, initial, pending, failure, submitLabel, on
 
   return (
     <BotPage label={`${submitLabel} de ${bot.name}`} footer={footer}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="routine" title={creating ? "Nova Rotina" : "Editar Rotina"} />
       <form className="flex flex-col gap-8" id="routine-editor" onSubmit={handleSubmit}>
         <SettingsSection title="Rotina">
           <Field label="Nome"><input className={fieldControlClassName} autoFocus placeholder="Verificação comercial" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></Field>

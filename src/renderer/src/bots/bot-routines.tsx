@@ -9,7 +9,8 @@ import { ConfirmationDialog } from "../ui/dialog"
 import { IconButton } from "../ui/icon-button"
 import { SettingsSection } from "../ui/settings-section"
 import { useEscape } from "../ui/use-escape"
-import { BotPage, BotPageIdentity } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage } from "./bot-page"
 import { describeFrequency } from "./routine-frequency"
 
 const routineStatusSuffixes: Record<Routine["status"], string> = { active: "", paused: " · pausada", completed: " · concluída", failed: " · falhou" }
@@ -32,7 +33,7 @@ export function BotRoutines({ bot, client, onClose, onCreate, onEdit }: { bot: B
 
   return (
     <BotPage label={`Rotinas de ${bot.name}`}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="routines" />
       <SettingsSection title="Rotinas">
         {routines?.length === 0 && <p className="m-0 text-support text-muted">Crie uma Rotina para {bot.name} trabalhar nos horários que você escolher.</p>}
         {routines && routines.length > 0 && (

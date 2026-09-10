@@ -17,6 +17,7 @@ import { basename, join } from "node:path"
 import { createPermissionExtension } from "./pi-permissions"
 import { createMessagingExtension } from "./pi-messaging"
 import { describePiFailure } from "./pi-failures"
+import { loadPiSkills } from "./pi-skills"
 import { sendMessageTool } from "@src/shared/conversations"
 import type { ObservationAttributes } from "@src/shared/observability/observation"
 import type { Observability } from "../observability/observability"
@@ -354,11 +355,13 @@ export function createPiSessionFactory(options: { agentDirectory: string; sessio
       const context = { botId: input.botId, provider: input.provider }
       const { model, modelRuntime } = await options.models.resolve(input.provider, input.model)
       const registrar = createToolRegistrar(input.botId)
+      const skills = await loadPiSkills(input.cwd)
       const loader = new DefaultResourceLoader({
         cwd: input.cwd,
         agentDir: options.agentDirectory,
         extensionFactories: [createPermissionExtension(input.policy), registrar.extension, ...(input.tools.includes(sendMessageTool) ? [createMessagingExtension(input.tools)] : [])],
         noSkills: true,
+        skillsOverride: () => skills,
         noPromptTemplates: true,
         noThemes: true,
         noContextFiles: true,

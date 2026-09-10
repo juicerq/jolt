@@ -13,7 +13,7 @@ import { BotDropProvider } from "../bots/bot-drop"
 import { SortableBots } from "../bots/sortable-bots"
 import { BotFace } from "../bots/bot-face"
 import { groupMembers } from "../bots/bot-members"
-import { botDraftAvatarSeed, type BotDraft, botsStore, forgetBot, openCreateBot, openCreateTeamBot, openCreateProject, openPlugins, openSettings, openBotRoute, selectBot } from "../bots/bots-store"
+import { botDraftAvatarSeed, type BotDraft, botsStore, forgetBot, openCreateBot, openCreateTeamBot, openCreateProject, openPlugins, openSettings, openBotRoute, openMobileMenu, selectBot } from "../bots/bots-store"
 import { chatControlAnchor } from "../chat/chat-control-menu"
 import { chatStatusLabels } from "../chat/chat-status"
 import { chatStore, type ChatStatus } from "../chat/chat-store"
@@ -25,24 +25,26 @@ import { IconButton } from "../ui/icon-button"
 import { InlineAction } from "../ui/inline-action"
 import { menuCardClassName, MenuOption } from "../ui/menu"
 import { Tooltip, useTooltip } from "../ui/tooltip"
+import { SidebarLayoutMenu } from "./sidebar-layout-menu"
 
 const teamAvatarFaceClassName = "shrink-0 text-support font-extrabold text-focus transition-transform duration-[160ms] ease-out motion-reduce:transition-none"
 type TogglePinned = (bot: Bot) => void
 
-export function ProjectsSidebar({ client, mobile = false }: { client: EngineClient; mobile?: boolean }) {
+export function ProjectsSidebar({ client, mobile = false, compact = false }: { client: EngineClient; mobile?: boolean; compact?: boolean }) {
   const draft = useSelector(botsStore, (state) => state.draft)
   const pluginsOpen = useSelector(botsStore, (state) => state.screen === "plugins")
   const settingsOpen = useSelector(botsStore, (state) => state.screen === "settings")
   const [search, setSearch] = useState("")
 
   return (
-    <aside className={`flex min-h-0 min-w-0 flex-col bg-sidebar pt-3 pb-2.5 pl-3 ${mobile ? "flex-1 pr-3" : "pr-0 max-md:hidden"}`}>
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
-        <BotSearch value={search} onChange={setSearch} />
+    <aside data-compact={compact} className={`group/sidebar flex min-h-0 min-w-0 flex-col bg-sidebar pt-3 pb-2.5 pl-3 ${mobile ? "flex-1 pr-3" : "pr-0 max-md:hidden"}`}>
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2 group-data-[compact=true]/sidebar:gap-1">
+        {compact ? <IconButton size={28} label="Buscar Bots" onClick={openMobileMenu}><MagnifyingGlassIcon aria-hidden="true" /></IconButton> : <BotSearch value={search} onChange={setSearch} />}
         <CreateMenu />
+        {!mobile && <SidebarLayoutMenu />}
       </div>
       {draft && <DraftRow draft={draft} />}
-      <SidebarProjects client={client} search={search} />
+      <SidebarProjects client={client} search={compact ? "" : search} />
       <div className="mt-auto flex flex-col gap-1 pt-2">
         <SidebarUpdateButton />
         <SidebarNavButton active={pluginsOpen} icon={<PuzzlePieceIcon className="size-4 shrink-0" aria-hidden="true" />} label="Plugins" onClick={openPlugins} />
@@ -205,7 +207,7 @@ function SidebarUpdateButton() {
   }
 
   return (
-    <Button className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-md:h-11" type="button" onClick={() => window.desktop.installUpdate()}>
+    <Button className="flex h-9 w-full items-center gap-2.5 px-2.5 py-0 max-md:h-11 group-data-[compact=true]/sidebar:h-auto group-data-[compact=true]/sidebar:flex-col group-data-[compact=true]/sidebar:gap-1 group-data-[compact=true]/sidebar:px-1 group-data-[compact=true]/sidebar:py-2 group-data-[compact=true]/sidebar:text-support" type="button" onClick={() => window.desktop.installUpdate()}>
       <ArrowPathIcon className="size-4 shrink-0" aria-hidden="true" />
       Atualizar e reiniciar
     </Button>
@@ -215,7 +217,7 @@ function SidebarUpdateButton() {
 function SidebarNavButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button
-      className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
+      className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-control font-medium transition-colors duration-150 hover:bg-surface-hover hover:text-primary focus-visible:bg-surface-hover focus-visible:text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active group-data-[compact=true]/sidebar:h-auto group-data-[compact=true]/sidebar:flex-col group-data-[compact=true]/sidebar:gap-1 group-data-[compact=true]/sidebar:px-1 group-data-[compact=true]/sidebar:py-2 group-data-[compact=true]/sidebar:text-support ${active ? "bg-surface-raised text-primary" : "bg-transparent text-muted"}`}
       type="button"
       aria-pressed={active}
       onClick={onClick}
@@ -228,11 +230,11 @@ function SidebarNavButton({ active, icon, label, onClick }: { active: boolean; i
 
 function DraftRow({ draft }: { draft: BotDraft }) {
   return (
-    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary" aria-current="true">
+    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg border border-outline bg-surface-raised px-2.5 py-2.5 text-primary group-data-[compact=true]/sidebar:flex-col group-data-[compact=true]/sidebar:gap-1 group-data-[compact=true]/sidebar:px-1 group-data-[compact=true]/sidebar:text-center" aria-current="true">
       <BotFace className="size-[38px] min-w-[38px]" name={botDraftAvatarSeed(draft)} size={38} />
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex min-w-0 max-w-full flex-1 flex-col gap-1">
         <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{draft.name || "Novo Bot"}</strong>
-        <small className="text-metadata font-medium text-muted">Em rascunho</small>
+        <small className="text-metadata font-medium text-muted group-data-[compact=true]/sidebar:hidden">Em rascunho</small>
       </span>
     </div>
   )
@@ -250,7 +252,7 @@ function SidebarEmpty({ children, title }: { children: ReactNode; title: string 
 function ProjectHeading({ children, id }: { children: string; id: string }) {
   return (
     <div className="flex items-center justify-between gap-2 px-2.5 pb-1.5">
-      <h3 className="m-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-semibold tracking-[0.08em] text-muted uppercase" id={id}>
+      <h3 className="m-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-semibold tracking-[0.08em] text-muted uppercase group-data-[compact=true]/sidebar:tracking-normal" id={id} title={children}>
         {children}
       </h3>
     </div>
@@ -345,7 +347,7 @@ function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onToggle
       <div className="group/leader relative">
         <BotRow bot={bot} members={expanded ? undefined : openMembers} teamLeader selected={highlighted === bot.id} status={statuses[bot.id] ?? "available"} pinning={pinningBotId === bot.id} onTogglePinned={onTogglePinned} onRemove={onRemove} onDetach={onDetach} />
         <IconButton
-          className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
+          className="top-1/2 right-2 z-20 -translate-y-1/2 opacity-0 transition-[color,opacity] duration-[120ms] group-hover/leader:opacity-100 focus-visible:opacity-100 max-md:opacity-100 group-data-[compact=true]/sidebar:top-1 group-data-[compact=true]/sidebar:right-0 group-data-[compact=true]/sidebar:translate-y-0 group-data-[compact=true]/sidebar:opacity-100"
           iconSize={13}
           position="absolute"
           size={24}
@@ -371,7 +373,7 @@ function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onToggle
           <ul className={memberListClassName} id={closedListId}>
             {groups.closed.length > 0 && (
               <li className={`${memberItemClassName} group/closed relative`}>
-                <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 pr-9.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
+                <button className="mb-0.5 flex w-full cursor-pointer items-center gap-1.5 rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 pr-9.5 text-left text-metadata font-medium text-muted hover:text-primary focus-visible:border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring group-data-[compact=true]/sidebar:flex-col group-data-[compact=true]/sidebar:items-start group-data-[compact=true]/sidebar:gap-0 group-data-[compact=true]/sidebar:px-1" type="button" aria-expanded={closedShown} aria-controls={closedListId} onClick={() => setClosedShown((current) => !current)}>
                   Encerrados
                   <ChevronDownIcon className={`size-3 transition-transform duration-150 ease-out motion-reduce:transition-none ${closedShown ? "rotate-180" : "rotate-0"}`} aria-hidden="true" />
                 </button>
@@ -386,7 +388,7 @@ function BotGroup({ bot, client, selectedBotId, statuses, pinningBotId, onToggle
   )
 }
 
-const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5"
+const memberListClassName = "relative mx-2 mt-0 mb-0 ml-5.5 min-h-0 min-w-0 list-none overflow-hidden pr-0 pl-2.5 group-data-[compact=true]/sidebar:mx-0 group-data-[compact=true]/sidebar:pl-2.5"
 
 function ClosedMembersCleanup({ client, leaderName, members }: { client: EngineClient; leaderName: string; members: Bot[] }) {
   const queryClient = useQueryClient()
@@ -468,8 +470,9 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
   return (
     <ContextMenu label={`Ações de ${bot.name}`} actions={actions}>{() => (
       <button
-        className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
+        className={`group/row relative mb-0.5 flex w-full items-center gap-2.5 rounded-lg border px-2.5 text-left hover:border-outline hover:bg-surface-raised focus-visible:border-focus focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none active:bg-surface-active disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-transparent disabled:hover:bg-transparent group-data-[compact=true]/sidebar:flex-col group-data-[compact=true]/sidebar:gap-1 group-data-[compact=true]/sidebar:px-1 group-data-[compact=true]/sidebar:text-center ${selectionClassName} ${member ? "py-2" : "py-2.5"} ${teamLeader ? "pr-9.5" : ""}`}
         type="button"
+        title={bot.name}
         data-bot-id={bot.id}
         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
         aria-current={selected ? "true" : undefined}
@@ -480,9 +483,9 @@ function BotRow({ bot, member = false, members, selected, status, teamLeader = f
           <BotAvatar bot={bot} members={members} />
         </span>
         {status && <Tooltip {...tooltip.popoverProps}>{chatStatusLabels[status]}</Tooltip>}
-        <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+        <span className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden group-data-[compact=true]/sidebar:w-full group-data-[compact=true]/sidebar:flex-none">
           <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-control font-semibold text-primary">{bot.name}</strong>
-          <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted">{describeMember(bot)}</small>
+          <small className="overflow-hidden text-ellipsis whitespace-nowrap text-metadata font-medium text-muted group-data-[compact=true]/sidebar:hidden">{describeMember(bot)}</small>
         </span>
       </button>
     )}</ContextMenu>

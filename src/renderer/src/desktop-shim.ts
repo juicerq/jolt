@@ -30,6 +30,7 @@ if (!window.desktop) {
 
   window.desktop = {
     remote: true,
+    resolveFile: async () => null,
     fileAction: unavailable,
     getEngineConnection: connection,
     renewEngineConnection: async () => {

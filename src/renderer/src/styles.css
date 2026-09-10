@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+@layer components {
+  .archive-markdown {
+    overflow-wrap: anywhere;
+    & > :first-child { margin-top: 0; }
+    & > :last-child { margin-bottom: 0; }
+    & p { margin: 0 0 1rem; }
+    & h1, & h2, & h3, & h4, & h5, & h6 { margin: 1.5rem 0 0.75rem; font-weight: 600; line-height: 1.35; }
+    & h1 { font-size: 1.5rem; }
+    & h2 { font-size: 1.25rem; }
+    & h3 { font-size: 1rem; }
+    & ul, & ol { margin: 0.75rem 0 1rem; padding-left: 1.5rem; }
+    & ul { list-style: disc; }
+    & ol { list-style: decimal; }
+    & li { margin: 0.25rem 0; }
+    & a { text-decoration: underline; text-underline-offset: 3px; }
+    & a:focus-visible { outline: 1px solid var(--color-ring); outline-offset: 3px; }
+    & blockquote { margin: 1rem 0; border-left: 2px solid var(--color-outline-strong); padding-left: 1rem; color: var(--color-secondary); }
+    & code { font-family: var(--font-mono); font-size: 0.88em; color: var(--color-inline-code); }
+    & pre { margin: 1rem 0; overflow: auto; border-radius: var(--radius-sm); background: var(--color-surface); padding: 1rem; }
+    & pre code { color: var(--color-secondary); }
+    & table { width: 100%; border-collapse: collapse; font-size: var(--text-control); }
+    & td, & th { border-bottom: 1px solid var(--color-outline); padding: 0.5rem 0.75rem; text-align: left; }
+    & th { font-weight: 600; }
+    & hr { margin: 1.5rem 0; border: 0; border-top: 1px solid var(--color-outline); }
+    & input[type="checkbox"] { margin-right: 0.5rem; }
+  }
+}
+
 @property --bot-look-strength {
   syntax: "<number>";
   inherits: true;

@@ -14,7 +14,8 @@ import { effortLabels } from "../chat/chat-model-effort"
 import { permissionModeLabels } from "../chat/chat-permission"
 import { BotFace } from "./bot-face"
 import { BotMemberPicker } from "./bot-member-picker"
-import { BotPage, BotPageIdentity } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage } from "./bot-page"
 import { openBotRoute, selectBot } from "./bots-store"
 import { teamLeaders } from "./team"
 
@@ -55,7 +56,7 @@ export function BotMembers({ bot, client, groups, create = false, onClose }: { b
 
   return (
     <BotPage label={`Integrantes de ${bot.name}`}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="members" />
       <SettingsSection title="Integrantes">
         <MemberActions bot={bot} client={client} groups={groups} adding={adding} createdName={createdName} permanent={permanent} active={active} addButton={addButton} existingButton={existingButton} onAdd={setAdding} onCreatedName={setCreatedName} onCancel={closeForm} onCreated={memberAdded} />
       </SettingsSection>
