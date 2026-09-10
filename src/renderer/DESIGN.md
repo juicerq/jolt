@@ -467,7 +467,8 @@ activity renders nothing. A running turn shows three quiet pulsing dots below
 the latest message, without explanatory text or narrated work status.
 The dots are removed for a permission request, Plugin request, failure, or completed turn.
 Background checks with no meaningful update leave no visible message or notification;
-their recorded Activity remains available in the details. Showing the details
+their recorded Activity remains available in the details. A message that renders
+nothing occupies no space in the message column. Showing the details
 restores the complete live stack and persisted disclosures; hiding never
 deletes the recorded Activity.
 

@@ -77,11 +77,15 @@ function ActivityBlock({ botName, time, children }: { botName: string; time: str
   return <ChatStamped className="mb-4 w-fit text-support text-muted" name={botName} time={time} anchor="line">{children}</ChatStamped>
 }
 
+export function hasActivityDetails(activity: { steps: ChatActivityStep[] } | null | undefined) {
+  return !!activity && splitChatActivitySteps(activity.steps).length > 0
+}
+
 export function ChatActivity({ activity, botName, compacting, time, status, waitingMessage }: { activity: { steps: ChatActivityStep[] }; botName: string; compacting?: boolean; time: string; status?: ActivityStatus; waitingMessage?: string }) {
   const isPending = status === "running" || status === "aborting"
   const pending = pendingActivityLabel(status, compacting)
-  const steps = splitChatActivitySteps(activity.steps)
-  const hasDetails = steps.length > 0
+  const hasDetails = hasActivityDetails(activity)
+  const steps = hasDetails ? splitChatActivitySteps(activity.steps) : []
 
   if (!hasDetails && !isPending) {
     return null

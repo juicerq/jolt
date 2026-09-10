@@ -27,7 +27,7 @@ import { ChatImage } from "./chat-images"
 import { chatReadingPosition } from "./chat-reading-position"
 import { ChatScroller } from "./chat-scroller"
 import { ChatStamped } from "./chat-stamp"
-import { ChatActivity } from "./chat-activity"
+import { ChatActivity, hasActivityDetails } from "./chat-activity"
 import { ChatCallNotice } from "./chat-call-notice"
 import { ChatFileDirectory, ChatFileText } from "./chat-file"
 import { ChatContent } from "./chat-content"
@@ -158,7 +158,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
           {isPending && <ChatLoading />}
           {error && <ChatError message={error.message} />}
           {isFetchingNextPage && <ChatEarlierLoading />}
-          {visible.map((message) => <div key={message.id} data-message-id={message.id} className="flex flex-col"><ChatMessage activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} /></div>)}
+          {visible.map((message) => <ChatMessageRow key={message.id} activityDetailsVisible={activityDetailsVisible} answer={answersByQuestionId[message.id]} bot={bot} message={message} team={team} onQuestionAnswer={handleQuestionAnswer} />)}
           {mobile && <ChatTeamUpdates bot={bot} members={members} client={client} />}
           {messages && <ChatRunSlot activityDetailsVisible={activityDetailsVisible} bot={bot} client={client} team={team} historyIds={historyIds} messages={messages} onRetry={handleRetry} />}
         </ChatScroller>
@@ -197,11 +197,47 @@ function ChatRunSlot({ activityDetailsVisible, bot, client, team, historyIds, me
   return null
 }
 
+function ChatMessageRow({ activityDetailsVisible, answer, bot, message, team, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; team: ChatTeam; onQuestionAnswer?: QuestionAnswer }) {
+  if (!messageRenders(message, activityDetailsVisible, bot.id)) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col" data-message-id={message.id}>
+      <ChatMessage activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} team={team} {...(answer ? { answer } : {})} {...(onQuestionAnswer ? { onQuestionAnswer } : {})} />
+    </div>
+  )
+}
+
+/** A message only occupies the column when it renders something: a turn that delivers nothing leaves no gap. */
+function messageRenders(message: ConversationMessage, activityDetailsVisible: boolean, botId: string) {
+  if (message.author === "person") {
+    return !message.replyTo
+  }
+
+  if (message.author === "routine" || message.author === "trigger") {
+    return activityDetailsVisible
+  }
+
+  if (!isOwnMessage(message, botId)) {
+    return true
+  }
+
+  return botMessageRenders(message, activityDetailsVisible)
+}
+
+function botMessageRenders(message: Pick<ConversationMessage, "content" | "question" | "ending" | "activity">, activityDetailsVisible: boolean) {
+  return !!message.content || !!message.question || !!message.ending || (activityDetailsVisible && hasActivityDetails(message.activity))
+}
+
+function isOwnMessage(message: ConversationMessage, botId: string) {
+  return message.author === "bot" && (message.authorBotId === null || message.authorBotId === botId)
+}
+
 function ChatMessage({ activityDetailsVisible, answer, bot, message, team, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; team: ChatTeam; onQuestionAnswer?: QuestionAnswer }) {
   const time = formatMessageTime(message.createdAt)
-  const ownMessage = message.author === "bot" && (message.authorBotId === null || message.authorBotId === bot.id)
 
-  if (!ownMessage) {
+  if (!isOwnMessage(message, bot.id)) {
     return <ChatTurnStart activityDetailsVisible={activityDetailsVisible} bot={bot} message={message} team={team} time={time} />
   }
 
@@ -232,7 +268,7 @@ function ChatTurnStart({ activityDetailsVisible, bot, message, team, time, open 
 }
 
 function BotBubble({ activityDetailsVisible, answer, bot, message, time, onQuestionAnswer }: { activityDetailsVisible: boolean; answer?: MessageReply; bot: Bot; message: ConversationMessage; time: string; onQuestionAnswer?: QuestionAnswer }) {
-  if (!activityDetailsVisible && !message.content && !message.ending) {
+  if (!botMessageRenders(message, activityDetailsVisible)) {
     return null
   }
 
