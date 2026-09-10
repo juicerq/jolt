@@ -1,11 +1,12 @@
 import type { BrowserBounds, BrowserOpen, BrowserState } from "./browser"
 import type { EngineConnection } from "./engine-ipc"
-import type { LocalFileRequest } from "./local-files"
+import type { LocalFileLocation, LocalFileRequest } from "./local-files"
 import type { MobileAccess, MobileAccessUpdate } from "./mobile-access"
 import type { TurnNotification } from "./turn-notification"
 
 export interface Desktop {
   remote: boolean
+  resolveFile: (request: LocalFileLocation) => Promise<string | null>
   fileAction: (request: LocalFileRequest) => Promise<void>
   openBotBrowser: (input: BrowserOpen) => Promise<void>
   getBrowserState: () => Promise<BrowserState>

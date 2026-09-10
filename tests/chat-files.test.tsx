@@ -4,7 +4,7 @@ import { conversationFilePath, splitFilePaths } from "@src/renderer/src/chat/cha
 import { createMarkdownRenderer } from "@src/renderer/src/chat/chat-markdown"
 
 const markdown = createMarkdownRenderer({ cacheBytes: 100_000, components: {
-  span: ({ node }) => <span data-file={node?.properties.dataFilePath} />,
+  span: ({ node, children }) => <span data-file={node?.properties.dataFilePath}>{children}</span>,
 } })
 
 function render(content: string) {
@@ -50,4 +50,30 @@ test("supports local file URLs and relative document links, and still rejects un
   expect(render("[Dados](reports/data.csv)")).toContain('data-file="reports/data.csv"')
   expect(render("[Ata](javascript:alert.md)")).not.toContain("data-file")
   expect(render("[Ata](javascript:alert.md)")).not.toContain("javascript:")
+})
+
+test("retains original text, inline code and link labels until a file is verified", () => {
+  expect(render("incluindo `relatorios/2026-09-10.md`, `fontes.md`"))
+    .toBe('<p>incluindo <span data-file="relatorios/2026-09-10.md"><code>relatorios/2026-09-10.md</code></span>, <span data-file="fontes.md"><code>fontes.md</code></span></p>')
+  expect(render("Veja /tmp/relatorio.pdf."))
+    .toBe('<p>Veja <span data-file="/tmp/relatorio.pdf">/tmp/relatorio.pdf</span>.</p>')
+  expect(render("[Leia o **relatório**](relatorios/2026-09-10.md)"))
+    .toBe('<p><span data-file="relatorios/2026-09-10.md">Leia o <strong>relatório</strong></span></p>')
+})
+
+test("sanitizes content preserved inside an unverified file link", () => {
+  expect(render('[<img src=x onerror=alert(1)>](/tmp/relatorio.pdf)'))
+    .toContain("&lt;img src=x onerror=alert(1)&gt;")
+})
+
+test("document rendering preserves relative links and images without chat file chips", () => {
+  const document = createMarkdownRenderer({ cacheBytes: 100_000, detectFiles: false, components: {} })
+  const result = renderToStaticMarkup(document.render('# Entrega\n\n[Briefing](campanha/briefing.md)\n\n![Arte](imagens/arte.png)\n\n`notas.md`\n\n[Inválido](javascript:alert.md)'))
+
+  expect(result).toContain('<h1>Entrega</h1>')
+  expect(result).toContain('href="campanha/briefing.md"')
+  expect(result).toContain('src="imagens/arte.png"')
+  expect(result).toContain('<code>notas.md</code>')
+  expect(result).not.toContain("data-file")
+  expect(result).not.toContain("javascript:")
 })

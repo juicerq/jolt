@@ -12,7 +12,8 @@ import { IconButton } from "../ui/icon-button"
 import { SettingsSection } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { useEscape } from "../ui/use-escape"
-import { BotPage, BotPageIdentity } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage } from "./bot-page"
 
 function describeOrigin(memory: Pick<Memory, "origin" | "source" | "createdAt">) {
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(memory.createdAt))
@@ -125,7 +126,7 @@ export function BotMemory({ bot, client, leader, onClose }: { bot: Bot; client: 
 
   return (
     <BotPage label={`Memórias de ${bot.name}`}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="memory" />
       {bot.temporary
         ? <TemporaryMemory client={client} leader={leader} />
         : <OwnMemory bot={bot} client={client} leader={leader} />}

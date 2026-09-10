@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react"
 import { ChatMentionChip } from "./chat-mention-chip"
 import { type ChatMention, splitChatMentions } from "./chat-mentions"
+import { ChatSkillChip, selectedChatSkill } from "./chat-skills"
 
 interface ChatEditorProps {
   id: string
@@ -10,9 +11,11 @@ interface ChatEditorProps {
   label: string
   menuOpen: boolean
   menuId: string
+  activeOptionId?: string
   /** Mobile: Enter breaks the line and the send action delivers. Desktop keeps Enter to send and Shift+Enter to break. */
   enterBreaksLine: boolean
-  onChange: (content: string) => void
+  onChange: (content: string, caret?: number) => void
+  onCaretChange: (caret: number) => void
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>, atStart: boolean) => void
   onPasteFiles: (files: FileList) => void
 }
@@ -28,8 +31,8 @@ function readNode(node: ChildNode): string {
     return ""
   }
 
-  if (node.dataset.mention) {
-    return node.dataset.mention
+  if (node.dataset.token) {
+    return node.dataset.token
   }
 
   if (node.tagName === "BR") {
@@ -45,12 +48,33 @@ function readNode(node: ChildNode): string {
   return `\n${inner}`
 }
 
-function readEditor(node: HTMLElement) {
+function readEditor(node: Pick<HTMLElement, "childNodes">) {
   const children = [...node.childNodes]
   const last = children.at(-1)
   const written = last instanceof HTMLElement && last.tagName === "BR" ? children.slice(0, -1) : children
 
   return written.map(readNode).join("")
+}
+
+function caretOffset(node: HTMLElement) {
+  const selection = window.getSelection()
+
+  if (!selection?.rangeCount) {
+    return readEditor(node).length
+  }
+
+  const caret = selection.getRangeAt(0)
+
+  if (!node.contains(caret.startContainer)) {
+    return readEditor(node).length
+  }
+
+  const before = document.createRange()
+
+  before.selectNodeContents(node)
+  before.setEnd(caret.startContainer, caret.startOffset)
+
+  return [...before.cloneContents().childNodes].map(readNode).join("").length
 }
 
 function caretToEnd(node: HTMLElement) {
@@ -122,17 +146,22 @@ function scrollCaretIntoView(node: HTMLElement) {
 }
 
 const ChatEditorContent = memo(
-  ({ content, mentions }: { revision: number; content: string; mentions: ChatMention[] }) => (
-    <>
-      {splitChatMentions(content, mentions).map((segment, index) => (segment.mention
-        ? <span key={`${index}-${segment.text}`} className="inline-block align-middle" contentEditable={false} data-mention={segment.text}><ChatMentionChip mention={segment.mention} /></span>
-        : segment.text))}
-    </>
-  ),
+  ({ content, mentions, onRemoveSkill }: { revision: number; content: string; mentions: ChatMention[]; onRemoveSkill: () => void }) => {
+    const skill = selectedChatSkill(content)
+
+    return (
+      <>
+        {skill && <span className="inline-block max-w-full align-baseline" contentEditable={false} data-token={skill.token}><ChatSkillChip name={skill.name} onRemove={onRemoveSkill} /></span>}
+        {splitChatMentions(skill?.rest ?? content, mentions).map((segment, index) => (segment.mention
+          ? <span key={`${index}-${segment.text}`} className="inline-block align-middle" contentEditable={false} data-token={segment.text}><ChatMentionChip mention={segment.mention} /></span>
+          : segment.text))}
+      </>
+    )
+  },
   (before, after) => before.revision === after.revision,
 )
 
-export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen, menuId, enterBreaksLine, onChange, onKeyDown, onPasteFiles }: ChatEditorProps) {
+export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen, menuId, activeOptionId, enterBreaksLine, onChange, onCaretChange, onKeyDown, onPasteFiles }: ChatEditorProps) {
   const ref = useRef<HTMLDivElement | null>(null)
   const typed = useRef(content)
   const [revision, setRevision] = useState(0)
@@ -161,8 +190,22 @@ export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen
     }
 
     typed.current = readEditor(node)
-    onChange(typed.current)
+    onChange(typed.current, caretOffset(node))
     scrollCaretIntoView(node)
+  }
+
+  function handleSelection() {
+    if (ref.current) {
+      onCaretChange(caretOffset(ref.current))
+    }
+  }
+
+  function handleRemoveSkill() {
+    const skill = selectedChatSkill(ref.current ? readEditor(ref.current) : typed.current)
+
+    if (skill) {
+      onChange(skill.rest.trimStart())
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -204,13 +247,15 @@ export function ChatEditor({ id, content, mentions, placeholder, label, menuOpen
       aria-expanded={menuOpen}
       aria-controls={menuOpen ? menuId : undefined}
       aria-autocomplete="list"
+      aria-activedescendant={activeOptionId}
       data-placeholder={placeholder}
       data-empty={content.length === 0}
       onInput={handleInput}
+      onSelect={handleSelection}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
     >
-      <ChatEditorContent revision={revision} content={content} mentions={mentions} />
+      <ChatEditorContent revision={revision} content={content} mentions={mentions} onRemoveSkill={handleRemoveSkill} />
     </div>
   )
 }

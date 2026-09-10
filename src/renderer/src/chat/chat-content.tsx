@@ -7,7 +7,7 @@ import { createMarkdownRenderer } from "./chat-markdown"
 const markdown = createMarkdownRenderer({
   cacheBytes: 4_000_000,
   components: {
-    span: ({ children, node }) => typeof node?.properties.dataFilePath === "string" ? <ChatFile path={node.properties.dataFilePath} /> : <span>{children}</span>,
+    span: ({ children, node }) => typeof node?.properties.dataFilePath === "string" ? <ChatFile path={node.properties.dataFilePath}>{children}</ChatFile> : <span>{children}</span>,
     a: ({ children, ...props }) => <a className="text-primary underline decoration-outline-strong underline-offset-3 hover:decoration-primary" {...props} target="_blank" rel="noreferrer">{children}</a>,
     blockquote: ({ children }) => <blockquote className="my-4 border-l-2 border-outline-strong pl-4 text-secondary">{children}</blockquote>,
     code: ({ children, className }) => <code className={`${className ?? ""} font-mono text-[0.88em] font-semibold text-inline-code`}>{children}</code>,

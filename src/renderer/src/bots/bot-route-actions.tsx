@@ -1,10 +1,10 @@
-import { BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, UserGroupIcon } from "@heroicons/react/24/outline"
+import { FolderIcon, BoltIcon, ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, UserGroupIcon } from "@heroicons/react/24/outline"
 import type { ReactNode } from "react"
 import type { Bot } from "@src/shared/bots"
 import { BrainIcon } from "../ui/brain-icon"
 import { openBotRoute, type BotRoute } from "./bots-store"
 
-type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory"
+type BotRouteActionName = "chat" | "settings" | "members" | "routines" | "triggers" | "memory" | "archive"
 
 interface BotRouteAction {
   name: BotRouteActionName
@@ -38,6 +38,7 @@ export function botRouteActions(bot: Pick<Bot, "leaderBotId" | "temporary">, rou
       { name: "routines" as const, label: "Rotinas", icon: <ClockIcon aria-hidden="true" />, current: route.name === "routines" || route.name === "routine", select: () => open("routines") },
       { name: "triggers" as const, label: "Gatilhos", icon: <BoltIcon aria-hidden="true" />, current: route.name === "triggers" || route.name === "trigger", select: () => open("triggers") },
     ]),
+    { name: "archive", label: "Acervo", icon: <FolderIcon aria-hidden="true" />, current: route.name === "archive", select: () => open("archive") },
     { name: "memory", label: "Memórias", icon: <BrainIcon aria-hidden="true" />, current: route.name === "memory", select: () => open("memory") },
   ]
 }

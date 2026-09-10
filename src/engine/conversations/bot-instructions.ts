@@ -102,6 +102,7 @@ export function botInstructions(input: { bot: Bot; directory: string; project?: 
     input.bot.function.description && `Responsibilities, limits and delivery: ${input.bot.function.description}`,
     workingDirectoryInstructions(input.bot, input.project),
     privateBotDirectoryInstructions(input.directory),
+    "When referring to a local file the person can open, verify that it exists and provide its full absolute path. Use a Markdown link such as [report.md](</absolute/path/report.md>) or put the absolute path in inline code. Keep hypothetical filenames and files you have not created or located as plain text; do not invent file links.",
     turnContextRule,
     decisionRules[input.bot.permissionMode],
     autonomyRules,

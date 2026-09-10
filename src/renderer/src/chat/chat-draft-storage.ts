@@ -2,6 +2,7 @@ import type { ChatDraft } from "./chat-store"
 import type { ChatMention } from "./chat-mentions"
 import { messageImageMimeTypes } from "@src/shared/message-images"
 import type { MessageImage } from "@src/shared/conversations"
+import { chatCommandName } from "./chat-command-definitions"
 
 const storageKey = "mimo.chat-drafts.v1"
 
@@ -17,8 +18,18 @@ function isImage(value: unknown): value is MessageImage {
   return isRecord(value) && typeof value.data === "string" && messageImageMimeTypes.some((mimeType) => mimeType === value.mimeType)
 }
 
-function isDraft(value: unknown): value is ChatDraft {
-  return isRecord(value) && typeof value.content === "string" && Array.isArray(value.images) && value.images.every(isImage) && Array.isArray(value.mentions) && value.mentions.every(isMention) && (value.command === undefined || value.command === "lembrar" || value.command === "novo")
+function readDraft(value: unknown): ChatDraft | undefined {
+  if (!isRecord(value) || typeof value.content !== "string" || !Array.isArray(value.images) || !value.images.every(isImage) || !Array.isArray(value.mentions) || !value.mentions.every(isMention)) {
+    return
+  }
+
+  const command = chatCommandName(value.command)
+
+  if (value.command !== undefined && !command && !["settings", "help", "thinking", "model"].some((removed) => removed === value.command)) {
+    return
+  }
+
+  return { content: value.content, images: value.images, mentions: value.mentions, ...(command ? { command } : {}) }
 }
 
 export function loadChatDrafts(): Record<string, ChatDraft> {
@@ -29,7 +40,15 @@ export function loadChatDrafts(): Record<string, ChatDraft> {
       return {}
     }
 
-    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, ChatDraft] => isDraft(entry[1])))
+    return Object.fromEntries(Object.entries(value).flatMap(([id, value]) => {
+      const draft = readDraft(value)
+
+      if (!draft) {
+        return []
+      }
+
+      return [[id, draft]]
+    }))
   } catch {
     return {}
   }

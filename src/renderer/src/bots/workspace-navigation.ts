@@ -1,6 +1,6 @@
 import { botsStore, type BotRoute } from "./bots-store"
 
-const routeNames = new Set(["chat", "details", "settings", "members", "routines", "triggers", "memory"])
+const routeNames = new Set(["chat", "details", "settings", "members", "routines", "triggers", "memory", "archive"])
 const storageKey = "mimo.last-conversation"
 
 function readRoute(params: URLSearchParams): BotRoute {

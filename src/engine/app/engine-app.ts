@@ -1,3 +1,4 @@
+import { createBotArchive } from "../bots/bot-archive"
 import { implement, ORPCError } from "@orpc/server"
 import { engineContract } from "@src/shared/engine-contract"
 import type { createDiagnostics } from "../observability/diagnostics"
@@ -49,6 +50,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
   permissions: Pick<ReturnType<typeof createPiAgentRuntime>, "resolvePermission">
   plugins: ReturnType<typeof createPlugins>
 }) {
+  const archive = createBotArchive(bots)
   const operations = implement(engineContract).$context<EngineContext>().use(async ({ next, context, path }) => {
     try {
       const operation = path.join(".").toLowerCase()
@@ -85,6 +87,7 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       list: operations.projects.list.handler(() => projects.list()),
     },
     bots: {
+      skills: operations.bots.skills.handler(({ input }) => bots.skills(input.botId)),
       addMember: operations.bots.addMember.handler(({ input }) => bots.addMember(input)),
       detachMember: operations.bots.detachMember.handler(({ input }) => bots.detachMember(input.id)),
       create: operations.bots.create.handler(({ input }) => bots.create(input)),
@@ -104,12 +107,17 @@ export function createEngineRouter({ startedAt, observability, diagnostics, rece
       remove: operations.bots.remove.handler(({ input }) => bots.remove(input.id)),
       removeColleague: operations.bots.removeColleague.handler(({ input }) => bots.removeColleague(input)),
     },
+    archive: {
+      list: operations.archive.list.handler(({ input }) => archive.list(input)),
+      preview: operations.archive.preview.handler(({ input }) => archive.preview(input)),
+    },
     conversations: {
       overview: operations.conversations.overview.handler(() => conversations.overview()),
       history: operations.conversations.history.handler(({ input }) => conversations.history(input)),
       events: operations.conversations.events.handler(({ signal }) => surfacedStream(conversations.events(signal))),
       send: operations.conversations.send.handler(({ input }) => conversations.send(input)),
       newSession: operations.conversations.newSession.handler(({ input }) => conversations.newSession(input.botId)),
+      reload: operations.conversations.reload.handler(({ input }) => conversations.reload(input.botId)),
       compact: operations.conversations.compact.handler(({ input }) => conversations.compact(input)),
       abort: operations.conversations.abort.handler(({ input }) => conversations.abort(input.botId)),
       abortTeam: operations.conversations.abortTeam.handler(({ input }) => conversations.abortTeam(input.botId)),

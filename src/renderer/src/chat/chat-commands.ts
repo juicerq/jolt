@@ -1,123 +1,95 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
 import type { Bot } from "@src/shared/bots"
 import type { EngineClient } from "../engine-client"
 import type { ChatDraft } from "./chat-store"
+import { chatCommandDefinitions, chatCommandName, chatSlash, withoutChatSlash, type ChatCommandName } from "./chat-command-definitions"
 
-export type ChatCommandName = "lembrar" | "novo"
-
-export interface ChatCommandSuggestion {
-  command: ChatCommandName
-  detail: string
-}
-
+export interface ChatCommandSuggestion { command: ChatCommandName; detail: string }
 export interface ChatCommand { command: ChatCommandName; content: string }
 
-interface ChatCommandContext { memoryEnabled: boolean }
+function availableChatCommands(memoryEnabled: boolean): ChatCommandSuggestion[] {
+  return (Object.keys(chatCommandDefinitions) as ChatCommandName[])
+    .filter((command) => command !== "memory" || memoryEnabled)
+    .map((command) => ({ command, detail: chatCommandDefinitions[command].detail }))
+}
 
-export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft) {
+export function useChatCommands(bot: Bot, client: EngineClient, draft: ChatDraft, caret: number) {
   const queryClient = useQueryClient()
-  const { mutateAsync: remember, isPending: remembering, error: rememberError, reset } = useMutation(client.query.memory.add.mutationOptions({
-    onSuccess() {
-      void queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
-    },
-  }))
-  const { mutateAsync: newSession, isPending: renewing, error: renewError, reset: resetSession, isSuccess: renewed } = useMutation(client.query.conversations.newSession.mutationOptions())
-  const context = { memoryEnabled: bot.memoryEnabled }
-  const suggestions = draft.command ? [] : suggestChatCommands(draft.content, context)
-  const typedNew = !draft.command && draft.content.trim().toLowerCase() === "/novo"
-  const selected = draft.command ?? (typedNew ? "novo" : undefined)
-  const command = selected ? buildChatCommand(selected, typedNew ? "" : draft.content, context) : null
+  const [status, setStatus] = useState<string | null>(null)
+  const { mutateAsync, isPending, error, reset } = useMutation({
+    async mutationFn(target: ChatCommand) {
+      setStatus(null)
 
-  function start(content: string) {
-    if (draft.command) {
+      if (target.command === "new") {
+        await client.raw.conversations.newSession({ botId: bot.id })
+        setStatus("Sessão nova pronta. O histórico continua salvo, mas não entra no contexto desta sessão.")
+
+        return
+      }
+
+      if (target.command === "memory") {
+        await client.raw.memory.add({ botId: bot.id, content: target.content })
+        await queryClient.invalidateQueries({ queryKey: client.query.memory.list.queryOptions({ input: { botId: bot.id } }).queryKey })
+        setStatus("Lembrança salva na Memória do Bot.")
+
+        return
+      }
+
+      if (target.command === "compact") {
+        await client.raw.conversations.compact({ botId: bot.id, ...(target.content ? { instructions: target.content } : {}) })
+        setStatus("Contexto compactado. O histórico continua salvo.")
+
+        return
+      }
+
+      if (target.command === "reload") {
+        await client.raw.conversations.reload({ botId: bot.id })
+        await queryClient.invalidateQueries({ queryKey: client.query.bots.skills.queryOptions({ input: { botId: bot.id } }).queryKey })
+        setStatus("Skills e instruções recarregadas. A sessão foi preservada.")
+
+        return
+      }
+    },
+  })
+  const available = availableChatCommands(bot.memoryEnabled)
+  const slash = draft.command ? null : chatSlash(draft.content, caret)
+  const suggestions = slash ? available.filter(({ command }) => [command, ...chatCommandDefinitions[command].aliases].some((name) => name.startsWith(slash.word.toLowerCase()))) : []
+  const typedCommand = slash ? chatCommandName(slash.word) : undefined
+  const selected = draft.command ?? typedCommand
+  const content = !draft.command && slash ? withoutChatSlash(draft.content, slash).trim() : draft.content.trim()
+  const command = selected && available.some((item) => item.command === selected) && (selected !== "memory" || content)
+    ? { command: selected, content }
+    : null
+
+  function start(content: string, position: number) {
+    if (draft.command || !/\s$/.test(content.slice(0, position))) {
       return null
     }
 
-    return startedChatCommand(content, context)
-  }
+    const slash = chatSlash(content, position - 1)
+    const name = slash ? chatCommandName(slash.word) : undefined
 
-  async function run(target: ChatCommand) {
-    if (target.command === "novo") {
-      await newSession({ botId: bot.id })
-
-      return
+    if (!slash || !name || !available.some((item) => item.command === name)) {
+      return null
     }
 
-    await remember({ botId: bot.id, content: target.content })
+    return { command: name, content: `${content.slice(0, slash.start)}${content.slice(position)}` }
   }
 
   return {
     suggestions,
     command,
     start,
-    run,
+    run: mutateAsync,
     reset: () => {
-      if (remembering || renewing) {
-        return
+      if (!isPending) {
+        reset()
+        setStatus(null)
       }
-
-      reset()
-      resetSession()
     },
-    pending: remembering || renewing,
-    error: rememberError ?? renewError,
-    renewed,
+    pending: isPending,
+    error,
+    status,
   }
-}
-
-function availableChatCommands(context: ChatCommandContext): ChatCommandSuggestion[] {
-  return [
-    { command: "novo", detail: "Começa uma sessão sem o contexto anterior e recarrega as instruções" },
-    ...(context.memoryEnabled ? [{ command: "lembrar" as const, detail: "Guarda uma Lembrança na Memória do Bot" }] : []),
-  ]
-}
-
-function suggestChatCommands(content: string, context: ChatCommandContext): ChatCommandSuggestion[] {
-  const word = /^\/(\S*)$/.exec(content)?.[1]
-
-  if (word === undefined) {
-    return []
-  }
-
-  return availableChatCommands(context).filter(({ command }) => command.startsWith(word.toLowerCase()))
-}
-
-function startedChatCommand(content: string, context: ChatCommandContext) {
-  const match = /^\/(\S+)\s([\s\S]*)$/.exec(content)
-
-  if (!match) {
-    return null
-  }
-
-  const word = (match[1] ?? "").toLowerCase()
-  const started = availableChatCommands(context).find(({ command }) => command === word)
-
-  if (!started) {
-    return null
-  }
-
-  return { command: started.command, content: match[2] ?? "" }
-}
-
-function buildChatCommand(command: ChatCommandName, content: string, context: ChatCommandContext): ChatCommand | null {
-  const text = content.trim()
-
-  if (command === "novo") {
-    if (text !== "") {
-      return null
-    }
-
-    return { command, content: "" }
-  }
-
-  if (!context.memoryEnabled || text === "") {
-    return null
-  }
-
-  return { command, content: text }
-}
-
-export const chatCommandPlaceholders: Record<ChatCommandName, string> = {
-  novo: "Enter para começar uma sessão nova e esvaziar a Fila",
-  lembrar: "O que o Bot deve guardar na Memória...",
 }

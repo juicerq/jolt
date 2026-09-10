@@ -10,6 +10,7 @@ export type BotRoute =
   | { name: "routines" }
   | { name: "triggers" }
   | { name: "memory" }
+  | { name: "archive" }
   | { name: "members"; create?: boolean }
   | { name: "routine"; id: string }
   | { name: "trigger"; id: string }

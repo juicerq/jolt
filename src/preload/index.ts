@@ -4,6 +4,7 @@ import type { Desktop } from "../shared/desktop"
 
 const desktop: Desktop = {
   remote: false,
+  resolveFile: (request) => ipcRenderer.invoke("file:resolve", request),
   fileAction: (request) => ipcRenderer.invoke("file:action", request),
   openBotBrowser: (input) => ipcRenderer.invoke("agent-browser:open", input),
   getBrowserState: () => ipcRenderer.invoke("agent-browser:state"),

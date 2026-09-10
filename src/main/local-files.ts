@@ -1,22 +1,56 @@
-import { stat } from "node:fs/promises"
+import { constants } from "node:fs"
+import { access, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { isAbsolute, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { clipboard, ClipboardItem, shell } from "electron"
-import { localFileRequest } from "../shared/local-files"
+import { localFileLocation, localFileRequest, type LocalFileLocation } from "../shared/local-files"
 import { parse } from "../shared/parse"
 
-export async function actOnLocalFile(raw: unknown) {
-  const request = parse(localFileRequest, raw)
+function absoluteFilePath(request: LocalFileLocation) {
   const expanded = request.path.startsWith("~/") ? resolve(homedir(), request.path.slice(2)) : request.path
 
   const directory = request.directory ?? ""
 
   if (!isAbsolute(expanded) && !isAbsolute(directory)) {
-    throw new Error("Este arquivo precisa de uma pasta de trabalho para ser localizado.")
+    return null
   }
 
-  const path = isAbsolute(expanded) ? resolve(expanded) : resolve(directory, expanded)
+  if (isAbsolute(expanded)) {
+    return resolve(expanded)
+  }
+
+  return resolve(directory, expanded)
+}
+
+async function requireReadableFile(path: string) {
+  const file = await stat(path).catch(() => { throw new Error("Arquivo não encontrado ou sem acesso. Confira a localização.") })
+
+  if (!file.isFile()) {
+    throw new Error("Esta localização não é um arquivo.")
+  }
+
+  await access(path, constants.R_OK).catch(() => { throw new Error("Arquivo não encontrado ou sem acesso. Confira a localização.") })
+}
+
+export async function resolveLocalFile(raw: unknown) {
+  const request = parse(localFileLocation, raw)
+  const path = absoluteFilePath(request)
+
+  if (!path) {
+    return null
+  }
+
+  return await requireReadableFile(path).then(() => path).catch(() => null)
+}
+
+export async function actOnLocalFile(raw: unknown) {
+  const request = parse(localFileRequest, raw)
+  const path = absoluteFilePath(request)
+
+  if (!path) {
+    throw new Error("Este arquivo precisa de uma pasta de trabalho para ser localizado.")
+  }
 
   if (request.action === "copy-path") {
     await clipboard.writeText(path)
@@ -24,11 +58,7 @@ export async function actOnLocalFile(raw: unknown) {
     return
   }
 
-  const file = await stat(path).catch(() => { throw new Error("Arquivo não encontrado ou sem acesso. Confira a localização.") })
-
-  if (!file.isFile()) {
-    throw new Error("Esta localização não é um arquivo.")
-  }
+  await requireReadableFile(path)
 
   if (request.action === "reveal") {
     shell.showItemInFolder(path)

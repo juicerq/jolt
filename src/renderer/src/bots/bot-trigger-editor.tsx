@@ -11,7 +11,8 @@ import { SettingsSection } from "../ui/settings-section"
 import { Switch } from "../ui/switch"
 import { ToggleChip } from "../ui/toggle-chip"
 import { useEscape } from "../ui/use-escape"
-import { BotPage, BotPageIdentity, BotPageSaveBar } from "./bot-page"
+import { BotPageHeader } from "./bot-page-header"
+import { BotPage, BotPageSaveBar } from "./bot-page"
 import { isTriggerEvent, triggerActionLabels, triggerEvents } from "./trigger-options"
 
 export function BotTriggerEditor({ bot, client, triggerId, onClose }: { bot: Bot; client: EngineClient; triggerId: string; onClose: () => void }) {
@@ -24,7 +25,7 @@ export function BotTriggerEditor({ bot, client, triggerId, onClose }: { bot: Bot
 
   return (
     <BotPage label={`Editar Gatilho de ${bot.name}`}>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="trigger" title="Editar Gatilho" />
       <p className={`m-0 text-support ${isPending ? "text-muted" : "text-status-error"}`}>{isPending ? "Carregando Gatilho..." : error?.message ?? "Este Gatilho não existe mais."}</p>
       <Button variant="text" type="button" className="self-start" onClick={onClose}>Voltar aos Gatilhos</Button>
     </BotPage>
@@ -74,7 +75,7 @@ function BotTriggerForm({ bot, client, trigger, onClose }: { bot: Bot; client: E
   return (
     <BotPage label={`Editar Gatilho de ${bot.name}`} footer={footer}>
       <Button variant="text" type="button" className="inline-flex items-center gap-2 self-start" disabled={saving} onClick={onClose}><ArrowLeftIcon className="size-4" aria-hidden="true" />Gatilhos</Button>
-      <BotPageIdentity bot={bot} />
+      <BotPageHeader bot={bot} page="trigger" title="Editar Gatilho" />
       <form id="trigger-editor" className="flex flex-col gap-8" onSubmit={handleSubmit}>
         <fieldset className="m-0 flex min-w-0 flex-col gap-8 border-0 p-0 disabled:opacity-60" disabled={saving}>
           <SettingsSection title="Gatilho">

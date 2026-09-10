@@ -83,6 +83,16 @@ export function DialogBody({ children }: { children: ReactNode }) {
   return <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-6 max-md:p-5">{children}</div>
 }
 
+/** File viewers need the full height, including on mobile. */
+export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const titleId = useId()
+
+  return <DialogFrame titleId={titleId} onClose={onClose} className="fixed inset-y-0 right-0 left-auto m-0 flex h-dvh max-h-none w-[min(720px,calc(100%-48px))] max-w-none flex-col overflow-hidden rounded-l-lg border-0 border-l border-outline bg-surface-raised p-0 text-primary shadow-lg transition-transform duration-200 ease-out starting:translate-x-full backdrop:bg-transparent motion-reduce:transition-none max-md:w-full max-md:rounded-none max-md:border-0 max-md:pt-[var(--safe-top)] max-md:pb-[var(--safe-bottom)]">
+    <h2 id={titleId} className="sr-only">{title}</h2>
+    {children}
+  </DialogFrame>
+}
+
 export function DialogActions({ children }: { children: ReactNode }) {
   return <footer className="flex items-center justify-between gap-4 border-t border-outline px-6 py-4 max-md:px-5">{children}</footer>
 }

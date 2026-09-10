@@ -13,7 +13,7 @@ import { Browser } from "./browser/browser"
 import { browserDebuggingPort } from "./browser/browser-debugging"
 import { createKeepAwake } from "./keep-awake"
 import { createMobileAccess } from "./mobile-access"
-import { actOnLocalFile } from "./local-files"
+import { actOnLocalFile, resolveLocalFile } from "./local-files"
 import { loadSecret } from "./secret-file"
 import { createTurnNotifications } from "./turn-notification"
 
@@ -155,6 +155,7 @@ void app.whenReady().then(async () => {
     await shell.openExternal(url)
   })
   ipcMain.handle("file:action", (_event, raw: unknown) => actOnLocalFile(raw))
+  ipcMain.handle("file:resolve", (_event, raw: unknown) => resolveLocalFile(raw))
   ipcMain.handle("working-directory:choose", async () => {
     const selection = await dialog.showOpenDialog(window, { properties: ["openDirectory", "createDirectory"] })
     const path = selection.filePaths.at(0)

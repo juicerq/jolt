@@ -97,7 +97,7 @@ export function ChatWorkspace({ bot, client }: { bot: Bot; client: EngineClient 
       return
     }
 
-    const message = { content: draft.content.trim(), images: draft.images, replyTo: null }
+    const message = { content: draft.content.trim().replace(/^(\/skill:\S+)\s+/, "$1 "), images: draft.images, replyTo: null }
 
     setChatDraft(bot.id, emptyChatDraft)
 
